@@ -5,18 +5,21 @@ from array import array
 from ROOT import *
 from math import sqrt
 from glob import glob
+from InjectGaussian import GetNsig
 
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasLabels.C")
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasStyle.C")
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
 
-lumi = 130000
+ROOT.gROOT.ProcessLine( "gErrorIgnoreLevel = 6001;")
 
 def main(args):
     SetAtlasStyle()
  
     parser = optparse.OptionParser(description='%prog [options] INPUT')
     parser.add_option('--outfile', dest='outfile', type=str, default='limitGraphs.root', help='Output file name')
+    parser.add_option('--pdhist', dest='postfitfile', type=str, default='unfluctuated_injection', help='Data hist name in Pseudodata file')
+    parser.add_option('--postfithist', dest='postfithist', type=str, default='J100yStar06/data', help='Data hist name in PostFit file')
     
     options, args = parser.parse_args(args)
 
@@ -26,8 +29,17 @@ def main(args):
     sigamps = set()
     dict_file = {}
 
+    if paths[0].endswith(".txt"):
+        print("Assuming file list input.")
+        filelists = paths
+        paths = []
+        for fl in filelists:
+            print(fl)
+            with open(fl, 'r') as f:
+                paths += f.read().splitlines()
+
     for p in paths:
-        res=re.search(r'mean(\d+)_width(\d+)(:?_amp\d+)?', p)
+        res=re.search(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)
         m=int(res.group(1))
         w=int(res.group(2))
         
@@ -79,36 +91,42 @@ def main(args):
                     print "WARNING: No limit file for", sigmean, sigwidth, sigamp
                     continue
 
-                if sigamp > 0:
-                    tmp_path_injection = tmp_path_limits.replace("Limits", "PD").replace(".txt", ".root")
-
-                    try:
-                        f = TFile(tmp_path_injection[0])
-                        h = f.Get("pseudodata_0_injection")
-                        n_injected = h.Integral(0, h.GetNbinsX()+1)
-                        f.Close()
-                    except:
-                        print "WARNING: Could not find injection file for tmp_path_limits. Using n_injected=0 now."
-                        n_injected = 0
-                else:
+                try:
+                    # only replace last occurence in case "Limits" is already in the path: https://stackoverflow.com/a/59082116
+                    tmp_path_postfit = ("PostFit".join(dict_file[(sigmean, sigwidth, sigamp)][0].rsplit("Limits",1))).replace(".txt",".root")
+                    f = TFile(tmp_path_postfit)
+                    h = f.Get(options.postfithist)
+                    sqrtB = GetNsig(h, sigmean, sigwidth, 1)
+                    n_injected = sigamp * sqrtB
+                    f.Close()
+                except Exception as e:
+                    print("WARNING: Could not find injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0])
+                    print(e)
+                    sqrtB = 1
+                    n_injected = 0
+                    
+                if sqrtB == 0:
+                    print("WARNING: Could not read injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0])
+                    sqrtB = 1.
                     n_injected = 0
 
-                if sqrtB == None:
-                    sqrtB = (n_injected / sigamp) if sigamp != 0 else 1
-                    # print "setting sqrtB to", sqrtB
                 
                 inj_limit = []
                 nans = 0
 
                 for path in tmp_path_limits:
-                    with open(path) as f:
-                        limits = f.readline().split()
-                        limit = float(limits[0])
-                        limit_exp = float(limits[1])
-                        limit_exp2u = float(limits[2])
-                        limit_exp1u = float(limits[3])
-                        limit_exp1d = float(limits[4])
-                        limit_exp2d = float(limits[5])
+                    try:
+                        with open(path) as f:
+                            limits = f.readline().split()
+                            limit = float(limits[0])
+                            limit_exp = float(limits[1])
+                            limit_exp2u = float(limits[2])
+                            limit_exp1u = float(limits[3])
+                            limit_exp1d = float(limits[4])
+                            limit_exp2d = float(limits[5])
+                    except:
+                        print "WARNING: No limit file for", sigmean, sigwidth, sigamp
+                        continue
                         
                     # print n_injected, limit
                     inj_limit.append((n_injected, limit, limit_exp, limit_exp2u, limit_exp1u, limit_exp1d, limit_exp2d))
@@ -126,7 +144,7 @@ def main(args):
                     g_exp_2d.SetPoint(g_exp_2d.GetN(), t[0]/sqrtB, t[6]/sqrtB)
                 # else:
                 #     print "skipping", inj_limit[0][0], "due to NaNs"
-   
+
             fout.cd()
 
             g.SetTitle("%d GeV Gauss (%d%%)" % (sigmean, sigwidth))
