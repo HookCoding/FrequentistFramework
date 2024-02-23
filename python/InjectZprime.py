@@ -2,6 +2,33 @@
 import ROOT
 import sys, re, os, math, argparse
 
+def doubleSidedCrystalBall(x, par):
+   alpha_l = par[0] 
+   alpha_h = par[1] 
+   n_l     = par[2] 
+   n_h     = par[3] 
+   mean	   = par[4] 
+   sigma   =  par[5]
+   N	   = par[6]
+   try:
+      t = (x[0]-mean)/sigma
+
+      fact1TLessMinosAlphaL = alpha_l/n_l
+      fact2TLessMinosAlphaL = (n_l/alpha_l) - alpha_l -t
+      fact1THigherAlphaH = alpha_h/n_h
+      fact2THigherAlphaH = (n_h/alpha_h) - alpha_h +t
+      
+      if (-alpha_l <= t and alpha_h >= t):
+          result = math.exp(-0.5*t*t)
+      elif (t < -alpha_l):
+          result = math.exp(-0.5*alpha_l*alpha_l)*math.pow(fact1TLessMinosAlphaL*fact2TLessMinosAlphaL, -n_l)
+      elif (t > alpha_h):
+          result = math.exp(-0.5*alpha_h*alpha_h)*math.pow(fact1THigherAlphaH*fact2THigherAlphaH, -n_h)
+    
+      return N*result
+   except:
+      return 0
+
 def GetNsig(histbkg, histsig, sigamp):
     histsig.Scale(1./histsig.Integral())
     # determine FWHM
@@ -19,6 +46,31 @@ def GetNsig(histbkg, histsig, sigamp):
         nSig = int(sigamp * math.sqrt(nBkg) / fSig)
     else:
         nSig = 0
+
+    return nSig
+
+def GetNsigTF1(histbkg, f1, sigamp):
+    f1_integral = f1.Integral(f1.GetXmin(), f1.GetXmax())
+    f1_max    = f1.GetMaximum(f1.GetXmin(), f1.GetXmax())
+    f1_maxpos = f1.GetMaximumX(f1.GetXmin(), f1.GetXmax())
+
+    # determine FWHM
+    posSigLow  = f1.GetX(0.5*f1_max, f1.GetXmin(), f1_maxpos)
+    posSigHigh = f1.GetX(0.5*f1_max, f1_maxpos, f1.GetXmax())
+
+    # find bins in bkg hist corresponding to FWHM range
+    binBkgLow  = histbkg.FindBin(posSigLow)
+    binBkgHigh = histbkg.FindBin(posSigHigh)
+
+    nBkg = histbkg.Integral(binBkgLow, binBkgHigh)
+    fSig = f1.Integral(posSigLow, posSigHigh) / f1_integral
+
+    if nBkg > 0.:
+        nSig = int(sigamp * math.sqrt(nBkg) / fSig)
+    else:
+        nSig = 0
+
+    print "posSigLow:", posSigLow, "posSigHigh:", posSigHigh, "nBkg:", nBkg, "fSig:", fSig
 
     return nSig
 
@@ -66,6 +118,52 @@ def InjectZprime(infile, histname, sigfile, sighist, sigamp, outfile, firsttoy=N
         hinj.Write(histName)
         hist.Write(histName+"_beforeInjection")
         hinjonly.Write(histName+"_injection")
+
+        seed += 1
+            
+    f_out.Close()
+
+def InjectDSCB(infile, histname, pars, sigamp, outfile, firsttoy=None, lasttoy=None):
+    f_in = ROOT.TFile(infile, "READ")
+    f_out = ROOT.TFile(outfile, "RECREATE")
+    f_out.cd()
+
+    gRand = ROOT.TRandom3()
+    seed = 0
+
+    for histKey in f_in.GetListOfKeys():
+        histName = histKey.GetName()
+        
+        if not histname in histName:
+            continue
+        if firsttoy != None and lasttoy != None and re.search(r'.*_(\d+)', histName):
+            #reduce size by omitting all other toys
+            toy = int(re.search(r'.*_(\d+)', histName).group(1))
+            if toy < firsttoy or toy > lasttoy:
+                seed += 1
+                continue
+
+        hist = f_in.Get(histName).Clone()
+        hinj = hist.Clone()
+        hsig = hist.Clone("injectedSignal") 
+        hsig.Reset("M")
+
+        dscb = ROOT.TF1("dscb", doubleSidedCrystalBall, 0, 3000, 7)
+        dscb.SetParameters(pars[0], pars[1], pars[2], pars[3], pars[4], pars[5], pars[6]) 
+
+        # define the parameters of the gaussian and fill it
+        nSig = GetNsigTF1(hist, dscb, sigamp)
+        if nSig > 0.:
+            print 'Injecting DSCB with mean = ', pars[4], ' Number of events = ', nSig, 
+            print ' (ntimes = ', sigamp, ')'
+
+            gRand.SetSeed(seed)
+            hsig.FillRandom('dscb', nSig) 
+            hinj.Add(hsig)
+
+        hinj.Write(histName)
+        hist.Write(histName+"_beforeInjection")
+        hsig.Write(histName+"_injection")
 
         seed += 1
             
