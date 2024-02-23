@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import ROOT
-import sys, re, os, math, optparse
-from color import getColorSteps
+import sys, re, os, math, argparse
+from color import getColorSteps, getFillStyle
 
 ROOT.gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasLabels.C")
 ROOT.gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasStyle.C")
 ROOT.gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
+
+ROOT.gROOT.ProcessLine( "gErrorIgnoreLevel = 6001;")
 
 def calcFpF(chi2_nom, chi2_alt, npars_nom, npars_alt, nbins, zerochi2):
     F_num = (chi2_nom - chi2_alt) / (npars_alt - npars_nom)
@@ -22,19 +24,22 @@ def calcFpF(chi2_nom, chi2_alt, npars_nom, npars_alt, nbins, zerochi2):
 def main(args):
     ROOT.SetAtlasStyle()
 
-    parser = optparse.OptionParser(description='%prog [options] INPUT')
-    parser.add_option('--chi2hist', dest='chi2hist', type=str, default="chi2", help='name of the chi2 hist')
-    parser.add_option('--residualshist', dest='residualshist', type=str, default="residuals", help='name of the residuals hist')
-    parser.add_option('--chi2bin', dest='chi2bin', type=int, default=1, help='bin of the chi2 value in the chi2 histogram')
-    parser.add_option('--nbinsbin', dest='nbinsbin', type=int, default=3, help='bin of the nbins value in the chi2 histogram')
-    parser.add_option('--nparsbin', dest='nparsbin', type=int, default=4, help='bin of the npars value in the chi2 histogram')
-    parser.add_option('--ndofbin', dest='ndofbin', type=int, default=5, help='bin of the npars value in the chi2 histogram')
-    parser.add_option('--usendof', dest='usendof', action='store_true', help='use npar=nbins-ndof instead of number in chi2 histogram')
-    parser.add_option('--zerochi2', dest='zerochi2', action='store_true', help='use when fitting unfluctuated data')
-    parser.add_option('--noftest', dest='noftest', action='store_true', help='only plot residuals and dont perform F-Test')
-    parser.add_option('--output', dest='output', type=str, default='FTest',help='name of output plot, extension will be added.')
+    parser = argparse.ArgumentParser(description='%prog [options] INPUT')
+    parser.add_argument('--chi2hist', dest='chi2hist', type=str, default="chi2", help='name of the chi2 hist')
+    parser.add_argument('--residualshist', dest='residualshist', type=str, default="residuals", help='name of the residuals hist')
+    parser.add_argument('--chi2bin', dest='chi2bin', type=int, default=1, help='bin of the chi2 value in the chi2 histogram')
+    parser.add_argument('--nbinsbin', dest='nbinsbin', type=int, default=3, help='bin of the nbins value in the chi2 histogram')
+    parser.add_argument('--nparsbin', dest='nparsbin', type=int, default=4, help='bin of the npars value in the chi2 histogram')
+    parser.add_argument('--ndofbin', dest='ndofbin', type=int, default=5, help='bin of the npars value in the chi2 histogram')
+    parser.add_argument('--pvalbin', dest='pvalbin', type=int, default=6, help='bin of the pval value in the chi2 histogram')
+    parser.add_argument('--usendof', dest='usendof', action='store_true', help='use npar=nbins-ndof instead of number in chi2 histogram')
+    parser.add_argument('--zerochi2', dest='zerochi2', action='store_true', help='use when fitting unfluctuated data')
+    parser.add_argument('--noftest', dest='noftest', action='store_true', help='only plot residuals and dont perform F-Test')
+    parser.add_argument('--output', dest='output', type=str, default='FTest',help='name of output plot, extension will be added.')
+    parser.add_argument('--legend', dest='legend', type=str, nargs='+', default=None, help='texts to show up in legend')
+    parser.add_argument('--doatlaslabel', dest='doatlaslabel', action='store_true', help='add ATLAS label to the plot')
 
-    options, args = parser.parse_args(args)
+    options, args = parser.parse_known_args(args)
 
     paths = args
 
@@ -43,6 +48,7 @@ def main(args):
     l_chi2 = []
     l_npars = []
     l_ndof = []
+    l_pval = []
     nbins = -1
 
     for p in paths:
@@ -73,23 +79,25 @@ def main(args):
                 npars = h_chi2.GetBinContent(options.nbinsbin) - h_chi2.GetBinContent(options.ndofbin)
 
             ndof = h_chi2.GetBinContent(options.ndofbin)
+            pval = h_chi2.GetBinContent(options.pvalbin)
         except:
             chi2=0
             npars=0
             ndof=0
+            pval=0
 
         # l_pf.append(h_pf)
         l_res.append(h_res)
         l_chi2.append(chi2)
         l_npars.append(npars)
         l_ndof.append(ndof)
-
+        l_pval.append(pval)
 
     colors = getColorSteps(len(paths))
     c = ROOT.TCanvas("c","c",800,600)
     c.SetGridy()
 
-    leg = ROOT.TLegend(0.18,0.70,0.90,0.90)
+    leg = ROOT.TLegend(0.185,0.74,0.925,0.91)
     leg.SetNColumns(2)
     leg.SetTextSize(21)
     
@@ -102,28 +110,56 @@ def main(args):
         h.SetMarkerColor(colors[i])
         h.SetLineColor(colors[i])
         h.SetFillColor(colors[i])
-        h.SetFillStyle(3245)
+        h.SetFillStyle(getFillStyle(i))
         
         h.GetXaxis().SetTitle("m_{jj} [GeV]")
-        # h.GetXaxis().SetNdivisions(505)
-        h.GetYaxis().SetTitle("Residuals [#sigma]")
+        h.GetXaxis().SetNdivisions(505)
+        # h.GetYaxis().SetTitle("Residuals [#sigma]")
+        h.GetYaxis().SetTitle("Significance")
+        h.GetYaxis().SetTitleOffset(1.0)
 
         if options.zerochi2:
             h.SetMinimum(-1.1)
             h.SetMaximum(1.1)
             
         else:
-            h.SetMinimum(-4.2)
-            h.SetMaximum(5.6)
+            # h.SetMinimum(-4.2)
+            # h.SetMaximum(5.9)
+
+            if options.noftest:
+                h.SetMinimum(-3.49)
+                h.SetMaximum(6.49)
+            else:
+                h.SetMinimum(-5.25)
+                h.SetMaximum(6.75)
 
         h.Draw("same")
 
-        if "nlofit" in paths[i].lower():
+        if "pileupscale" in paths[i].lower():
+            legtext="#splitline{pile-up scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "etajesscale" in paths[i].lower():
+            legtext="#splitline{MCJES scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "gscscale_tile0" in paths[i].lower():
+            legtext="#splitline{GSC_{Tile0} scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "gscscale_em3" in paths[i].lower():
+            legtext="#splitline{GSC_{EM3} scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "gscscale_n90" in paths[i].lower():
+            legtext="#splitline{GSC_{N90} scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "gscscale_tilegap3" in paths[i].lower():
+            legtext="#splitline{GSC_{TG3} scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "gscscale" in paths[i].lower():
+            legtext="#splitline{GSC scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "insituscale" in paths[i].lower():
+            legtext="#splitline{in-situ scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+        elif "gencorrscale" in paths[i].lower():
+            legtext="#splitline{on-off scale}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (l_chi2[i], l_ndof[i], l_pval[i])
+
+        elif "nlofit" in paths[i].lower():
             res=re.search(r'constr(\d+)_', paths[i])
             constr=int(res.group(1))
             l_constr.append(constr)
 
-            legtext = "#splitline{%d#sigma}{#chi^{2}/n = %.1f/%.1f}" % (constr, l_chi2[i], l_ndof[i]) 
+            legtext = "#splitline{NLOFit, #sigma = %d}{#chi^{2}/n = %.1f/%.1f, p = %.2f}" % (constr, l_chi2[i], l_ndof[i], l_pval[i]) 
   
         elif "anafit" in paths[i].lower() or "globalfit" in paths[i].lower() or "swift" in paths[i].lower() or "par" in paths[i].lower():
             if "four" in paths[i].lower():
@@ -138,9 +174,17 @@ def main(args):
                 p=8
             elif "nine" in paths[i].lower():
                 p=9
+            else:
+                searchstring =r'(\d+)Par'
+                res=re.search(searchstring, paths[i])
+                p=int(res.group(1))
             
             if l_ndof[i] != 0:
-                legtext = "#splitline{%d-par fit}{#chi^{2}/n = %.1f/%.0f}" % (p, l_chi2[i], l_ndof[i]) 
+                legtext = "#splitline{%d-par fit}{#chi^{2}/n = %.1f/%.0f, p = %.2f}" % (p, l_chi2[i], l_ndof[i], l_pval[i]) 
+                # if options.legend != None:
+                #     legtext = "%s, p = %.2f" % (options.legend[i], l_pval[i]) 
+                # else:
+                #     legtext = "%d-par fit, p = %.2f" % (p, l_pval[i]) 
             else:
                 legtext = "%d-par fit" % p
             l_par.append(p)
@@ -149,7 +193,8 @@ def main(args):
 
     if not options.noftest:
     
-        leg2 = ROOT.TLegend(0.18,0.18,0.90,0.30)
+        leg2 = ROOT.TLegend(0.185,0.18,0.925,0.30)
+            
         leg2.SetNColumns(2)
         leg2.SetTextSize(21)
 
@@ -175,19 +220,52 @@ def main(args):
             print("pF:", pF)
     
             if "nlofit" in paths[i].lower():
-                leg2.AddEntry(0, "p(F_{^{%d#sigma #rightarrow %d#sigma}}) = %.2f" % (l_constr[i], l_constr[i+1], pF), "")
+                leg2.AddEntry(0, "p(F_{^{#sigma: %d #rightarrow %d}}) = %.2f" % (l_constr[i], l_constr[i+1], pF), "")
             elif "anafit" in paths[i].lower() or "globalfit" in paths[i].lower() or "swift" in paths[i].lower():
                 leg2.AddEntry(0, "p(F_{^{%d #rightarrow %d par}}) = %.2f" % (l_par[i], l_par[i+1], pF), "")
+
+        if not options.doatlaslabel:
+            if "j50" in paths[i].lower():
+                # lumi="J50 data, 15.0 fb^{-1}"
+                lumi="#sqrt{s}=13 TeV, 15.0 fb^{-1} data"
+            else:
+                # lumi="J100 data, 132 fb^{-1}"
+                lumi="#sqrt{s}=13 TeV, 132 fb^{-1} data"
+
+            if "nlofit" in paths[i].lower():
+                label = "NLOFit, %s" % lumi 
+            else:
+                label = "Functional form fit, %s" % lumi 
+                
+            leg2.AddEntry(0, lumi, "")
     
         leg2.Draw()
+    else:
+        text1="Pythia MC, 6-par fit"
+        text2="GSC enabled, original on-off"
+        box = ROOT.TPave(0.60,0.19,0.925,0.29,0,"NDC");
+        # text2="GSC disabled, re-derived on-off"
+        # box = ROOT.TPave(0.55,0.19,0.925,0.29,0,"NDC");
+        box.SetFillStyle(1001)
+        box.SetFillColor(ROOT.kWhite)
+        box.SetLineWidth(0)
+        box.Draw()
+
+        ROOT.myText(0.92,0.20, 1, text1, 31, 21) # bottom right aligned, same size as legend
+        ROOT.myText(0.92,0.25, 1, text2, 31, 21) # bottom right aligned, same size as legend
+        
 
     leg.Draw()
     c.Update()
 
+    if options.doatlaslabel:
+        ROOT.ATLASLabel(0.57, 0.19, "Work in progress", 11)
+        
     c.Print(options.output + ".svg")
     c.Print(options.output + ".pdf")
         
     # raw_input("press enter")
         
 if __name__ == "__main__":  
-   sys.exit(main(sys.argv[1:]))   
+   args=[x for x in sys.argv[1:] if not (x.startswith("-") and not x.startswith("--"))]
+   sys.exit(main(args))   

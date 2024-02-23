@@ -12,9 +12,10 @@ gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasLabels.C")
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasStyle.C")
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
 
+# lumi = 29500
 # lumi = 29300
-lumi = 29500
-# lumi = 133000
+# lumi = 9825
+lumi = 132000
 # lumi = 14500
 
 def createFillBetweenGraphs(g1, g2):
@@ -46,27 +47,49 @@ def createFillBetweenGraphs(g1, g2):
 def main(args):
     SetAtlasStyle()
 
-    paths = args
+    parser = argparse.ArgumentParser(description='%prog [options] INPUT')
+    parser.add_argument('--folder', dest='folder', type=str, default=".", help='output directory')
+    parser.add_argument('--outname', dest='outname', type=str, default="limitPlot", help='output filename (excluding extension)')
+    parser.add_argument('--isZprime', dest='isZprime', action='store_true', help='draw Z\' limits')
+    parser.add_argument('--doAtlasLabel', action="store_true", help='Add ATLAS label to plots')
+    args, paths = parser.parse_known_args(args)
+
+    # print(args, paths)
+
     sigmeans = set()
     sigwidths = set()
 
     dict_file = {}
+    global lumi
 
     for p in paths:
-
-      if isZprime:
-	res=re.search(r'mR(\d+)', p)
-	w = 999 # dummy
+      if args.isZprime:
+	# res=re.search(r'mR(\d+)', p)
+        res=re.search(r'mean(\d+)_width(-?\d+)', p)
+	w = -999 # dummy
 	xAxisTitle = "M_{Z'} [GeV]"
-	yMax = 100.
-	yMin = 1e-4
+        yMax = 100.
+        yMin = 1e-2
+        if "J50" in p:
+          yMax = 100.
+          yMin = 0.1
+          # lumi = 1500
+          lumi = 15000
       else:
-	res=re.search(r'mean(\d+)_width(\d+)', p)
+        # print(p)
+        res=re.search(r'mean(\d+)_width(-?\d+)', p)
+        # print(res)
 	w=int(res.group(2))
-	xAxisTitle = "M_{G} [GeV]"
+        xAxisTitle = "M_{G} [GeV]"
+
 	yMax = 50.
 	yMin = 1e-2
-      
+        if "J50" in p:
+          yMax = 500.
+          yMin = 0.1
+          # lumi = 1500
+          lumi = 15000
+
       m=int(res.group(1))
       sigmeans.add(m)
       sigwidths.add(w)
@@ -104,18 +127,28 @@ def main(args):
             try:
                 tmp_path=dict_file[(sigmean, sigwidth)]
 
-                f = TFile(tmp_path, "READ")
-                if f.IsZombie():
-                    print "WARNING: Missing point (%d,%d)" % (sigmean, sigwidth)
-                    continue
-                h = f.Get("limit")
-
-                obs = h.GetBinContent(h.GetXaxis().FindBin("Observed")) / lumi
-                exp = h.GetBinContent(h.GetXaxis().FindBin("Expected")) / lumi
-                exp1u = h.GetBinContent(h.GetXaxis().FindBin("+1sigma")) / lumi
-                exp2u = h.GetBinContent(h.GetXaxis().FindBin("+2sigma")) / lumi
-                exp1d = h.GetBinContent(h.GetXaxis().FindBin("-1sigma")) / lumi
-                exp2d = h.GetBinContent(h.GetXaxis().FindBin("-2sigma")) / lumi
+                if tmp_path.endswith(".root"):
+                    f = TFile(tmp_path, "READ")
+                    if f.IsZombie():
+                        print "WARNING: Missing point (%d,%d)" % (sigmean, sigwidth)
+                        continue
+                    h = f.Get("limit")
+    
+                    obs = h.GetBinContent(h.GetXaxis().FindBin("Observed")) / lumi
+                    exp = h.GetBinContent(h.GetXaxis().FindBin("Expected")) / lumi
+                    exp1u = h.GetBinContent(h.GetXaxis().FindBin("+1sigma")) / lumi
+                    exp2u = h.GetBinContent(h.GetXaxis().FindBin("+2sigma")) / lumi
+                    exp1d = h.GetBinContent(h.GetXaxis().FindBin("-1sigma")) / lumi
+                    exp2d = h.GetBinContent(h.GetXaxis().FindBin("-2sigma")) / lumi
+                else:
+                    with open(tmp_path) as f:
+                        limits = f.readline().split()
+                        obs = float(limits[0]) / lumi
+                        exp = float(limits[1]) / lumi
+                        exp2u = float(limits[2]) / lumi
+                        exp1u = float(limits[3]) / lumi
+                        exp1d = float(limits[4]) / lumi
+                        exp2d = float(limits[5]) / lumi
 
                 if math.isnan(obs) or math.isinf(obs):
                   raise ValueError('observed limit not finite for point (%d, %d)' % (sigmean, sigwidth))
@@ -147,7 +180,7 @@ def main(args):
     c = TCanvas("c1", "c1", 800, 600)
     c.SetLogy()
 
-    if isZprime:
+    if args.isZprime:
       leg_obs = TLegend(0.65,0.85,0.85,0.9)
       leg_exp = TLegend(0.65,0.78,0.85,0.83)
     else:
@@ -169,32 +202,32 @@ def main(args):
 
     for i,g in enumerate(g_exp):
         g.Draw("l")
-	if isZprime:
+	if args.isZprime:
 	  leg_exp.AddEntry(g, "Expected", "l")
 	else:
 	  leg_exp.AddEntry(g, "#sigma_{G}/M_{G} = %.2f" % (sigwidths[i]/100.), "l")
     for i,g in enumerate(g_obs):
         g.Draw("pl")
-	if isZprime:
-	  leg_obs.AddEntry(g, "Observed","lp")
-	else:
-	  leg_obs.AddEntry(g, "#sigma_{G}/M_{G} = %.2f" % (sigwidths[i]/100.), "lp")
+        if args.isZprime:
+          leg_obs.AddEntry(g, "Observed","lp")
+        else:
+          leg_obs.AddEntry(g, "#sigma_{G}/M_{G} = %.2f" % (sigwidths[i]/100.), "lp")
         
     ATLASLabel(0.20, 0.90, "Work in progress", 13)
     myText(0.20, 0.85, 1, "95% CL_{s} upper limits", 13)
     myText(0.20, 0.80, 1, "#sqrt{s}=13 TeV, %.1f fb^{-1}" % (lumi/1000.), 13)
 
-    if not isZprime:
+    if not args.isZprime:
       myText(0.65, 0.90, 1, "Observed:", 13)
       myText(0.65, 0.69, 1, "Expected:", 13)
 
     leg_exp.Draw()
     leg_obs.Draw()
 
-    c1.Print("../run/limitPlot.svg")
-    c1.Print("../run/limitPlot.pdf")
+    c1.Print(os.path.join(args.folder,args.outname+".svg"))
+    c1.Print(os.path.join(args.folder,args.outname+".pdf"))
 
-    fout=TFile("../run/limits.root", "RECREATE")
+    fout=TFile(os.path.join(args.folder,args.outname+".root"), "RECREATE")
     for i,g in enumerate(g_exp):
         g.Write("g_exp_width%d" % sigwidths[i])
     for i,g in enumerate(g_exp1):
@@ -209,9 +242,5 @@ def main(args):
     
 if __name__ == "__main__":  
    
-   isZprime = False
-   if "--zprime" in sys.argv[1:]:
-      isZprime = True
-   
-   args=[x for x in sys.argv[1:] if not x.startswith("-")]
-   sys.exit(main(args))   
+   args=[x for x in sys.argv[1:] if not (x.startswith("-") and not x.startswith("--"))]
+   sys.exit(main(args))
