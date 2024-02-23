@@ -6,7 +6,7 @@
     <NormFactor Name="nbkg[NBKG]"/>
   </Sample>
 
-  <Sample Name="signal_SIGNAME_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_SIGNAME.xml" MultiplyLumi="0" >
+  <Sample Name="signal_SIGNAME_gq0p1" InputFile="SIGNALFILE" MultiplyLumi="0" >
     <NormFactor Name="nsig_SIGNAME_gq0p1[NSIG]"/>
   </Sample>
 
