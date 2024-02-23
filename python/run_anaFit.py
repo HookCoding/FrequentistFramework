@@ -29,7 +29,7 @@ def replaceinfile(f, old_new_list):
     with open(f, 'w') as file:
         file.write(filedata)
 
-def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, categoryname, poi=None, maskrange=None, dochi2fit=False, dochi2constraints=False):
+def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, categoryname, poi=None, maskrange=None, dochi2fit=False, dochi2constraints=False, useSumW2=False):
     rtv=execute('XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
     if rtv != 0:
         print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
@@ -59,6 +59,8 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         chi2flag += " --chi2constraints 1"
     else:
         chi2flag += " --chi2constraints 0"
+    if useSumW2:
+        chi2flag += " --poissonerror 0"
 
     rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s %s -o %s" % (wsfile, _poi, _range, chi2flag, fitresultfile))
     if rtv != 0:
@@ -82,7 +84,8 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         maskmin=maskmin,
         maskmax=maskmax,
         bkgonly=True,
-        undolog=False
+        undolog=False,
+        useSumW2=True
     )
     pval = pfe.GetPval("J100yStar06_rebinned")
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
@@ -115,9 +118,11 @@ def run_anaFit(datafile,
                doprefit=False,
                dochi2fit=False,
                dochi2constraints=False,
+               useSumW2=False,
                folder="run/",
                spursig=0,
                systdict=None,
+               covariancedict=None,
                categoryname="J100yStar06"):
 
     nbins=rangehigh - rangelow
@@ -208,7 +213,7 @@ def run_anaFit(datafile,
             )
 
             initPars,_nbkg = pf.Fit()
-            nbkg="%.1E, %1.E, %.1E" % (_nbkg, 0.8*_nbkg, 1.2*_nbkg)
+            nbkg="%.3E, %1.E, %.1E" % (_nbkg, 0.1*_nbkg, 1.2*_nbkg)
 
             print("Starting fit with initial pars", initPars)
 
@@ -246,11 +251,25 @@ def run_anaFit(datafile,
             replacements.append(("NOMINAL_NH", str(systdict["nominal_n_h"])))
             for source in systdict["unc_mean_sources"]:
                 val = systdict["unc_mean_sources"][source]
-                replacements.append(("MAG_SCALE_"+source, str(val)))
+                replacements.append(("\[MAG_SCALE_"+str(source)+"\]", "["+str(val)+"]"))
             for source in systdict["unc_sigma_sources"]:
                 val = systdict["unc_sigma_sources"][source]
-                replacements.append(("MAG_RESOLUTION_"+source, str(val)))
+                replacements.append(("\[MAG_RESOLUTION_"+str(source)+"\]", "["+str(val)+"]"))
+
+        if covariancedict != None:
+            print("replacing in signalfile now")
+            replacements.append(("NOMINAL_MEAN", str(covariancedict["nominal_mean"])))
+            replacements.append(("NOMINAL_WIDTH", str(covariancedict["nominal_sigma"])))
+            replacements.append(("NOMINAL_ALPHAL", str(covariancedict["nominal_alpha_l"])))
+            replacements.append(("NOMINAL_ALPHAH", str(covariancedict["nominal_alpha_h"])))
+            replacements.append(("NOMINAL_NL", str(covariancedict["nominal_n_l"])))
+            replacements.append(("NOMINAL_NH", str(covariancedict["nominal_n_h"])))
+            replacements.append(("MAG_SCALE", str(covariancedict["covariance_cholesky"][4][4])))
+            replacements.append(("MAG_RESOLUTION", str(covariancedict["covariance_cholesky"][5][5])))
+            replacements.append(("MAG_CROSSTERM", str(covariancedict["covariance_cholesky"][5][4])))
                 
+        #set any unreplaced uncertainties to 0 (starting with MAG_ and then any letters, numbers or _ -):
+        replacements.append(("\[MAG_[a-zA-Z0-9_\-]*\]", "[0]"))
         replaceinfile(tmpsignalfile, replacements)
 
 
@@ -273,7 +292,8 @@ def run_anaFit(datafile,
                                                                 categoryname=categoryname,
                                                                 poi=poi,
                                                                 dochi2fit=dochi2fit,
-                                                                dochi2constraints=dochi2constraints,)
+                                                                dochi2constraints=dochi2constraints,
+                                                                useSumW2=useSumW2)
 
     print ("Global fit p(chi2)=%.3f" % pval_global)
 
@@ -308,16 +328,17 @@ def run_anaFit(datafile,
                       [(r'(Binning="\d+")', r'\1 BlindRange="%s"' % BHresults["BlindRange"])])
 
         pval_masked, postfitfile, parameterfile = build_fit_extract(tmptopfilemasked,
-                                                                   datafile=datafile,
-                                                                   datahist=datahist,
-                                                                   rangelow=rangelow,
-                                                                   wsfile=wsfilemasked,
-                                                                   fitresultfile=outfilemasked,
-                                                                   categoryname=categoryname,
-                                                                   poi=poi,
-                                                                   maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"])),
-                                                                   dochi2fit=dochi2fit,
-                                                                   dochi2constraints=dochi2constraints,)
+                                                                    datafile=datafile,
+                                                                    datahist=datahist,
+                                                                    rangelow=rangelow,
+                                                                    wsfile=wsfilemasked,
+                                                                    fitresultfile=outfilemasked,
+                                                                    categoryname=categoryname,
+                                                                    poi=poi,
+                                                                    maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"])),
+                                                                    dochi2fit=dochi2fit,
+                                                                    dochi2constraints=dochi2constraints,
+                                                                    useSumW2=useSumW2)
 
         print("Masked fit p(chi2)=%.3f" % pval_masked)
 
@@ -401,9 +422,11 @@ def main(args):
     parser.add_argument('--doprefit', dest='doprefit', action="store_true", help='Perform ROOT prefit before quickFit')
     parser.add_argument('--dochi2fit', dest='dochi2fit', action="store_true", help='Minimize chi2 instead of NLL')
     parser.add_argument('--dochi2constraints', dest='dochi2constraints', action="store_true", help='Include the constraint terms into chi2. Becomes virtually identical to NLL this way.')
+    parser.add_argument('--useSumW2', dest='useSumW2', action='store_true', help='Use data hist errors for chi2 instead of sqrt(N_fit)')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
     parser.add_argument('--spursigfile', dest='spursigfile', type=str, help='Path to json file containing spurious signal dict')
     parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
+    parser.add_argument('--covariancefile', dest='covariancefile', type=str, help='Path to json file containing signal systematics covariance dict')
     parser.add_argument('--categoryname', dest='categoryname', type=str, default='J100yStar06', help='Name of category to fit')
 
     args = parser.parse_args(args)
@@ -427,9 +450,13 @@ def main(args):
         spursig = dict_spursig[str(args.sigmean)][str(args.sigwidth)]['0']['uncertainty']
 
     systdict = None
+    covariancedict = None
     if args.sysfile:
         with open(args.sysfile) as f:
             systdict = json.load(f)[str(args.sigmean)]
+    if args.covariancefile:
+        with open(args.covariancefile) as f:
+            covariancedict = json.load(f)[str(args.sigmean)]
 
 
     run_anaFit(datafile=args.datafile,
@@ -455,8 +482,10 @@ def main(args):
                doprefit=args.doprefit,
                dochi2fit=args.dochi2fit,
                dochi2constraints=args.dochi2constraints,
+               useSumW2=args.useSumW2,
                spursig=spursig,
                systdict=systdict,
+               covariancedict=covariancedict,
                categoryname=args.categoryname)
 
 

@@ -3,7 +3,7 @@
 from __future__ import print_function
 import os,sys,re,argparse
 from InjectGaussian import InjectGaussian
-from InjectZprime import InjectZprime
+from InjectZprime import InjectZprime, InjectDSCB
 from run_anaFit import run_anaFit
 import json
 
@@ -34,6 +34,7 @@ def main(args):
     parser.add_argument('--dochi2constraints', dest='dochi2constraints', action="store_true", help='Include the constraint terms into chi2. Becomes virtually identical to NLL this way.')
     parser.add_argument('--spursigfile', dest='spursigfile', type=str, help='Path to json file containing spurious signal dict')
     parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
+    parser.add_argument('--covariancefile', dest='covariancefile', type=str, help='Path to json file containing signal systematics covariance dict')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
     parser.add_argument('--categoryname', dest='categoryname', type=str, default='J100yStar06', help='Name of category to fit')
     parser.add_argument('--sigamp', dest='sigamp', type=float, default=0, help='Amplitude of Gaussian to inject (in sigma)')
@@ -66,6 +67,11 @@ def main(args):
         with open(args.sysfile) as f:
             systdict = json.load(f)[str(args.sigmean)]
 
+    covariancedict = None
+    if args.covariancefile:
+        with open(args.covariancefile) as f:
+            covariancedict = json.load(f)[str(args.sigmean)]
+
     injecteddatafile=args.datafile
     if (args.sigamp > 0):
         
@@ -89,16 +95,33 @@ def main(args):
             injecteddatafile=os.path.join(args.folder, os.path.basename(args.datafile))
             injecteddatafile=injecteddatafile.replace(".root","_injected_mR%d_amp%.0f.root" % (args.sigmean, args.sigamp))
     
-            InjectZprime(infile=args.datafile, 
-                         histname=args.datahist, 
-                         sigfile="Input/model/dijetTLA/zprime/HLT_j0_perf_ds1_L1J100/SignalTemplates_th1s_gq0p1.root",
-                         sighist=("morphpdf_Linear_mR%d_gq0p1_nominal__0__dijet_mass" % args.sigmean),
-                         sigamp=args.sigamp,
-                         outfile=injecteddatafile,
-                         firsttoy=args.loopstart,
-                         lasttoy=args.loopend)
+            # InjectZprime(infile=args.datafile, 
+            #              histname=args.datahist, 
+            #              sigfile="Input/model/dijetTLA/zprime/HLT_j0_perf_ds1_L1J100/SignalTemplates_th1s_gq0p1.root",
+            #              sighist=("morphpdf_Linear_mR%d_gq0p1_nominal__0__dijet_mass" % args.sigmean),
+            #              sigamp=args.sigamp,
+            #              outfile=injecteddatafile,
+            #              firsttoy=args.loopstart,
+            #              lasttoy=args.loopend)
+
+            pars = []
+            pars.append(systdict["nominal_alpha_l"])
+            pars.append(systdict["nominal_alpha_h"])
+            pars.append(systdict["nominal_n_l"])
+            pars.append(systdict["nominal_n_h"])
+            pars.append(systdict["nominal_mean"])
+            pars.append(systdict["nominal_sigma"])
+            pars.append(1)
+
+            InjectDSCB(infile=args.datafile, 
+                       histname=args.datahist, 
+                       pars=pars,
+                       sigamp=args.sigamp,
+                       outfile=injecteddatafile,
+                       firsttoy=args.loopstart,
+                       lasttoy=args.loopend)
             
-        
+            
     if args.loopstart!=None and args.loopend!=None:
         for toy in range(args.loopstart, args.loopend+1):
             datahist="%s_%d" % (args.datahist, toy)
@@ -128,8 +151,8 @@ def main(args):
                        dochi2fit=args.dochi2fit, 
                        dochi2constraints=args.dochi2constraints,
                        spursig=spursig,
-                       gaussys=gaussys,
                        systdict=systdict,
+                       covariancedict=covariancedict,
                        categoryname=args.categoryname)
     else:
         print("Running run_anaFit with datahist %s" % args.datahist)
@@ -157,8 +180,8 @@ def main(args):
                    dochi2fit=args.dochi2fit, 
                    dochi2constraints=args.dochi2constraints,
                    spursig=spursig,
-                   gaussys=gaussys,
                    systdict=systdict,
+                   covariancedict=covariancedict,
                    categoryname=args.categoryname)
 
 if __name__ == "__main__":  
