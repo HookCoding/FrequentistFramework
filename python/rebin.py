@@ -4,6 +4,58 @@ import ROOT
 import sys, re, os, math, argparse
 import array
 
+def rebin_dir(d_in, d_out, inhist, binEdges):
+    for histKey in d_in.GetListOfKeys():
+        histName = histKey.GetName()
+        obj = d_in.Get(histName)
+        
+        if isinstance(obj, ROOT.TDirectory):
+            new_d_out = d_out.mkdir(histName)
+            new_d_out.cd()
+            rebin_dir(obj, new_d_out, inhist, binEdges)
+        else:
+            if not isinstance(obj, ROOT.TH1):
+                continue
+
+            if isinstance(obj, ROOT.TH2):
+                continue
+
+            if isinstance(obj, ROOT.TH3):
+                continue
+
+            # if inhist and inhist != histName:
+            if inhist and not inhist in histName:
+                continue
+    
+            hist = obj.Clone()
+                
+            oldLow = hist.GetBinLowEdge(1)
+            oldHigh = hist.GetBinLowEdge(hist.GetNbinsX()+1)
+            tmp_binEdges = [x for x in binEdges if (x >= oldLow and x <= oldHigh)]
+    
+            tmp_newHist = hist.Rebin(len(tmp_binEdges)-1, histName, array.array('d', tmp_binEdges))
+            name = tmp_newHist.GetName()
+    
+            if tmp_binEdges != binEdges:
+                newHist = ROOT.TH1D(name+"_padded", tmp_newHist.GetTitle(), len(binEdges)-1, array.array('d', binEdges))
+    
+                for i in range(1, newHist.GetNbinsX()+1):
+                    if binEdges[i-1] in tmp_binEdges:
+                        oldBin = tmp_newHist.FindBin(newHist.GetBinCenter(i))
+                        binc = tmp_newHist.GetBinContent(oldBin)
+                        bine = tmp_newHist.GetBinError(oldBin)
+                    else:
+                        binc = 0.
+                        bine = 0.
+    
+                    newHist.SetBinContent(i, binc)
+                    newHist.SetBinError(i, bine)
+            else:
+                newHist = tmp_newHist
+                
+            d_out.cd()
+            newHist.Write(name)
+    
 def main(args):
 
     parser = argparse.ArgumentParser(description='%prog [options]')
@@ -31,42 +83,8 @@ def main(args):
     f_in = ROOT.TFile(args.infile, "READ")
     f_out = ROOT.TFile(args.outfile, "RECREATE")
     f_out.cd()
-
-    for histKey in f_in.GetListOfKeys():
-        histName = histKey.GetName()
-        hist = f_in.Get(histName).Clone()
-        
-        if args.inhist and args.inhist != histName:
-            continue
-
-        if not isinstance(hist, ROOT.TH1):
-            continue
-            
-        oldLow = hist.GetBinLowEdge(1)
-        oldHigh = hist.GetBinLowEdge(hist.GetNbinsX()+1)
-        tmp_binEdges = [x for x in binEdges if (x >= oldLow and x <= oldHigh)]
-
-        tmp_newHist = hist.Rebin(len(tmp_binEdges)-1, histName, array.array('d', tmp_binEdges))
-        name = tmp_newHist.GetName()
-
-        if tmp_binEdges != binEdges:
-            newHist = ROOT.TH1D(name+"_padded", tmp_newHist.GetTitle(), len(binEdges)-1, array.array('d', binEdges))
-
-            for i in range(1, newHist.GetNbinsX()+1):
-                if binEdges[i-1] in tmp_binEdges:
-                    oldBin = tmp_newHist.FindBin(newHist.GetBinCenter(i))
-                    binc = tmp_newHist.GetBinContent(oldBin)
-                    bine = tmp_newHist.GetBinError(oldBin)
-                else:
-                    binc = 0.
-                    bine = 0.
-
-                newHist.SetBinContent(i, binc)
-                newHist.SetBinError(i, bine)
-        else:
-            newHist = tmp_newHist
-            
-        newHist.Write(name)
+    
+    rebin_dir(f_in, f_out, args.inhist, binEdges)
 
     f_out.Close()
     f_in.Close()
