@@ -28,7 +28,6 @@ def main(args):
     parser.add_argument('--constr', dest='constr', type=int, default=1, help='Constraint term of NPs (in sigma)')
     parser.add_argument('--externalchi2file', dest='externalchi2file', type=str, help='Input file containing TF1 to use for p(chi2) calculation')
     parser.add_argument('--externalchi2fct', dest='externalchi2fct', type=str, help='Name of TF1 to use for p(chi2) calculation')
-    # parser.add_argument('--externalchi2bins', dest='externalchi2bins', type=int, default=40, help='Number of bins in chi2 function')
     parser.add_argument('--doinitialpars', dest='doinitialpars', action="store_true", help='Initialise with empiric fit parameters != 0')
     parser.add_argument('--externalinitialpars', dest='externalinitialpars', type=str, help='Path to json file with dict for initial conditions')
     parser.add_argument('--dosignal', dest='dosignal', action="store_true", help='Perform s+b fit (default: bkg-only)')
