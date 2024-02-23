@@ -25,10 +25,20 @@ def main(args):
     h_toys = []
     h_ref = None
 
-    opacity = 100./len(args.toyfiles)
+    opacity = 10./len(args.toyfiles)
+
+    paths=args.toyfiles
+
+    if paths[0].endswith(".txt"):
+        print("Assuming file list input.")
+        filelists = paths
+        paths = []
+        for fl in filelists:
+            with open(fl, 'r') as f:
+                paths += f.read().splitlines()
 
     print("Reading toy files")
-    for path in args.toyfiles:
+    for path in paths:
         f_in = ROOT.TFile(path, "READ")
         h1 = f_in.Get(args.toyhist)
         h1.SetDirectory(0)
@@ -90,6 +100,47 @@ def main(args):
     pad1.cd()
 
     # c.SetLogx()
+    # xmin=457
+    xmin=481
+    xmax=2000
+    # text1="29.5 fb^{-1} J100 Pseudodata"
+    text1="132 fb^{-1} J100 Pseudodata"
+
+    if "J50" in paths[0]:
+        xmin=302
+        xmax=1000
+        text1="15.0 fb^{-1} J50 Pseudodata"
+
+    # text2 = "bkg-component of "
+    text2 = ""
+
+    if "fourPar" in paths[0]:
+        text2 += "4-par"
+    elif "fivePar" in paths[0]:
+        text2 += "5-par"
+    elif "sixPar" in paths[0]:
+        text2 += "6-par"
+    elif "sevenPar" in paths[0]:
+        text2 += "7-par"
+    elif "eightPar" in paths[0]:
+        text2 += "8-par"
+    # text2 += " s+b fit"
+    text2 += " fit"
+    
+    searchstring =r'mean(\d+)_width(\d+)(:?_amp\d+)?'
+    res=re.search(searchstring, paths[0])
+    m=int(res.group(1))
+    w=int(res.group(2))
+    try:
+        a=int(res.group(3)[4:])
+    except:
+        a=0
+
+    if a>0:
+        text3="%d#sigma %d%% signal injected at %d GeV" % (a, w, m)
+    else:
+        text3="no signal injected"
+        
 
     for i,h in enumerate(h_ratios):
         h.SetLineColorAlpha(ROOT.kRed, opacity)
@@ -97,7 +148,7 @@ def main(args):
         # h.SetMaximum(1.0052)
         h.SetMinimum(0.989)
         h.SetMaximum(1.011)
-        # h.GetXaxis().SetRangeUser(500, 2000)
+        h.GetXaxis().SetRangeUser(xmin, xmax)
         h.GetXaxis().SetTitle("m_{jj} [GeV]")
         h.GetYaxis().SetTitle("#frac{toy}{reference}")
 
@@ -109,7 +160,7 @@ def main(args):
         h.Draw("same hist l")
 
         if i==0:
-            line = ROOT.TLine(h.GetXaxis().GetXmin(), 1., h.GetXaxis().GetXmax(), 1.)
+            line = ROOT.TLine(xmin, 1., xmax, 1.)
             line.SetLineWidth(2)
             line.SetLineStyle(7)
             line.SetLineColor(ROOT.kGray+1)
@@ -124,16 +175,17 @@ def main(args):
     h_clone.SetLineColorAlpha(ROOT.kRed, 1)
     
         
-    legend = ROOT.TLegend(0.2,0.6,0.45,0.9)
+    legend = ROOT.TLegend(0.2,0.66,0.45,0.9)
     legend.AddEntry(h_clone, "toy fits", "l")
     legend.AddEntry(h_sigmas[1], "#pm1#sigma stat. unc.", "l")
     legend.AddEntry(h_sigmas[2], "#pm2#sigma stat. unc.", "l")
     legend.AddEntry(h_sigmas[3], "#pm3#sigma stat. unc.", "l")
     legend.Draw()
 
-    # ROOT.ATLASLabel(0.57, 0.89, "Work in progress", 11)
-    # ROOT.ATLASLabel(0.20, 0.89, "Work in progress", 11)
     ROOT.ATLASLabel(0.20, 0.05, "Work in progress", 11)
+    ROOT.myText(0.20, 0.12, 1, text1, 11)
+    ROOT.myText(0.20, 0.18, 1, text3, 11)
+    ROOT.myText(0.20, 0.24, 1, text2, 11)
 
     c.Update()
 
@@ -147,11 +199,11 @@ def main(args):
 
     for i,h in enumerate(h_pulls):
         h.SetLineColorAlpha(ROOT.kRed, opacity)
-        # h.SetMinimum(-1.9)
-        # h.SetMaximum(1.9)
-        h.SetMinimum(-0.99)
-        h.SetMaximum(3.49)
-        # h.GetXaxis().SetRangeUser(500, 2000)
+        h.SetMinimum(-2.9)
+        h.SetMaximum(2.9)
+        # h.SetMinimum(-0.99)
+        # h.SetMaximum(3.49)
+        h.GetXaxis().SetRangeUser(xmin, xmax)
         h.GetXaxis().SetTitle("m_{jj} [GeV]")
         h.GetYaxis().SetTitle("#frac{toy - reference}{stat. unc.}")
         # h.Draw("same hist][")
@@ -162,7 +214,7 @@ def main(args):
         h.Draw("same hist l")
         
         if i==0:
-            line2 = ROOT.TLine(h.GetXaxis().GetXmin(), 0., h.GetXaxis().GetXmax(), 0.)
+            line2 = ROOT.TLine(xmin, 0., xmax, 0.)
             line2.SetLineWidth(2)
             line2.SetLineStyle(7)
             line2.SetLineColor(ROOT.kGray+1)
