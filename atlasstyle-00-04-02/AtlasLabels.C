@@ -7,10 +7,12 @@
 #include "TMarker.h"
 
 
-void ATLASLabel(Double_t x,Double_t y,const char* text,Int_t align,Color_t color) 
+void ATLASLabel(Double_t x,Double_t y,const char* text,Int_t align,Color_t color, Int_t tsize) 
 {
   TLatex l; 
-  l.SetTextAlign(align); //l.SetTextSize(tsize); 
+  l.SetTextAlign(align); 
+  if (tsize != 0)
+    l.SetTextSize(tsize); 
   l.SetNDC();
   l.SetTextFont(73);
   l.SetTextColor(color);
@@ -27,6 +29,8 @@ void ATLASLabel(Double_t x,Double_t y,const char* text,Int_t align,Color_t color
     p.SetTextAlign(align);
     p.SetNDC();
     p.SetTextFont(43);
+    if (tsize != 0)
+      p.SetTextSize(tsize); 
     p.SetTextColor(color);
     p.DrawLatex(x+delx,y,text);
     //    p.DrawLatex(x,y,"#sqrt{s}=900GeV");
