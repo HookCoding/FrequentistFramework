@@ -85,7 +85,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         maskmax=maskmax,
         bkgonly=True,
         undolog=False,
-        useSumW2=True
+        useSumW2=useSumW2
     )
     pval = pfe.GetPval("J100yStar06_rebinned")
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
@@ -121,6 +121,7 @@ def run_anaFit(datafile,
                useSumW2=False,
                folder="run/",
                spursig=0,
+               theounc=0,
                systdict=None,
                covariancedict=None,
                categoryname="J100yStar06"):
@@ -161,7 +162,9 @@ def run_anaFit(datafile,
         if doprefit:
             nPars = 5
 
-            if "four" in  backgroundfile:
+            if "three" in  backgroundfile:
+                nPars = 3
+            elif "four" in  backgroundfile:
                 nPars = 4
             elif "five" in  backgroundfile:
                 nPars = 5
@@ -233,6 +236,7 @@ def run_anaFit(datafile,
         ("SIGNAME", signame),
         ("SIGNALFILE", tmpsignalfile),
         ("SPURSIG", str(spursig)),
+        ("THEOUNC", str(theounc)),
     ])
 
 
@@ -425,6 +429,7 @@ def main(args):
     parser.add_argument('--useSumW2', dest='useSumW2', action='store_true', help='Use data hist errors for chi2 instead of sqrt(N_fit)')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
     parser.add_argument('--spursigfile', dest='spursigfile', type=str, help='Path to json file containing spurious signal dict')
+    parser.add_argument('--theouncfile', dest='theouncfile', type=str, help='Path to json file containing dict with theory normalization uncertainty')
     parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
     parser.add_argument('--covariancefile', dest='covariancefile', type=str, help='Path to json file containing signal systematics covariance dict')
     parser.add_argument('--categoryname', dest='categoryname', type=str, default='J100yStar06', help='Name of category to fit')
@@ -448,6 +453,12 @@ def main(args):
         with open(args.spursigfile) as f:
             dict_spursig = json.load(f)
         spursig = dict_spursig[str(args.sigmean)][str(args.sigwidth)]['0']['uncertainty']
+
+    theounc=0
+    if args.theouncfile:
+        with open(args.theouncfile) as f:
+            dict_theounc = json.load(f)
+        theounc = dict_theounc[str(args.sigmean)]['xsec_uncertainty']
 
     systdict = None
     covariancedict = None
@@ -484,6 +495,7 @@ def main(args):
                dochi2constraints=args.dochi2constraints,
                useSumW2=args.useSumW2,
                spursig=spursig,
+               theounc=theounc,
                systdict=systdict,
                covariancedict=covariancedict,
                categoryname=args.categoryname)
