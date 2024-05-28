@@ -33,6 +33,7 @@ def main(args):
     parser.add_argument('--dochi2fit', dest='dochi2fit', action="store_true", help='Minimize chi2 instead of NLL')
     parser.add_argument('--dochi2constraints', dest='dochi2constraints', action="store_true", help='Include the constraint terms into chi2. Becomes virtually identical to NLL this way.')
     parser.add_argument('--spursigfile', dest='spursigfile', type=str, help='Path to json file containing spurious signal dict')
+    parser.add_argument('--theouncfile', dest='theouncfile', type=str, help='Path to json file containing dict with theory normalization uncertainty')
     parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
     parser.add_argument('--covariancefile', dest='covariancefile', type=str, help='Path to json file containing signal systematics covariance dict')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
@@ -61,6 +62,11 @@ def main(args):
             dict_spursig = json.load(f)
         spursig = dict_spursig[str(args.sigmean)][str(args.sigwidth)]['0']['uncertainty']
 
+    theounc=0
+    if args.theouncfile:
+        with open(args.theouncfile) as f:
+            dict_theounc = json.load(f)
+        theounc = dict_theounc[str(args.sigmean)]['xsec_uncertainty']
 
     systdict = None
     if args.sysfile:
@@ -88,7 +94,9 @@ def main(args):
                            sigamp=args.sigamp,
                            outfile=injecteddatafile,
                            firsttoy=args.loopstart,
-                           lasttoy=args.loopend)
+                           lasttoy=args.loopend,
+                           xmin=args.rangelow,
+                           xmax=args.rangehigh)
     
         else:
             print("Injecting Zprime signal of amplitude %.1f sigma (FWHM)" % args.sigamp)
@@ -151,6 +159,7 @@ def main(args):
                        dochi2fit=args.dochi2fit, 
                        dochi2constraints=args.dochi2constraints,
                        spursig=spursig,
+                       theounc=theounc,
                        systdict=systdict,
                        covariancedict=covariancedict,
                        categoryname=args.categoryname)
@@ -180,6 +189,7 @@ def main(args):
                    dochi2fit=args.dochi2fit, 
                    dochi2constraints=args.dochi2constraints,
                    spursig=spursig,
+                   theounc=theounc,
                    systdict=systdict,
                    covariancedict=covariancedict,
                    categoryname=args.categoryname)

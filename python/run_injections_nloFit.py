@@ -68,7 +68,9 @@ def main(args):
                        sigamp=args.sigamp,
                        outfile=injecteddatafile,
                        firsttoy=args.loopstart,
-                       lasttoy=args.loopend)
+                       lasttoy=args.loopend,
+                       xmin=args.rangelow,
+                       xmax=args.rangehigh)
 
     if not injecteddatafile.endswith("_fixedBins.root"):
         print("Copying %s into unit bin widths" % injecteddatafile)
