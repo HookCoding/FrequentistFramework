@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import ROOT
 import sys, re, os, math, argparse
 
@@ -29,6 +31,11 @@ def doubleSidedCrystalBall(x, par):
    except:
       return 0
 
+def TF1DSCB(pars):
+   dscb = ROOT.TF1("dscb", doubleSidedCrystalBall, 0, 3000, 7)
+   dscb.SetParameters(pars[0], pars[1], pars[2], pars[3], pars[4], pars[5], pars[6]) 
+   return dscb
+
 def GetNsig(histbkg, histsig, sigamp):
     histsig.Scale(1./histsig.Integral())
     # determine FWHM
@@ -49,7 +56,7 @@ def GetNsig(histbkg, histsig, sigamp):
 
     return nSig
 
-def GetNsigTF1(histbkg, f1, sigamp):
+def GetNsigTF1(histbkg, f1, sigamp, xmin=0, xmax=1e100):
     f1_integral = f1.Integral(f1.GetXmin(), f1.GetXmax())
     f1_max    = f1.GetMaximum(f1.GetXmin(), f1.GetXmax())
     f1_maxpos = f1.GetMaximumX(f1.GetXmin(), f1.GetXmax())
@@ -57,6 +64,9 @@ def GetNsigTF1(histbkg, f1, sigamp):
     # determine FWHM
     posSigLow  = f1.GetX(0.5*f1_max, f1.GetXmin(), f1_maxpos)
     posSigHigh = f1.GetX(0.5*f1_max, f1_maxpos, f1.GetXmax())
+
+    posSigLow = max(xmin, posSigLow)
+    posSigHigh = min(xmax, posSigHigh)
 
     # find bins in bkg hist corresponding to FWHM range
     binBkgLow  = histbkg.FindBin(posSigLow)
@@ -70,7 +80,7 @@ def GetNsigTF1(histbkg, f1, sigamp):
     else:
         nSig = 0
 
-    print "posSigLow:", posSigLow, "posSigHigh:", posSigHigh, "nBkg:", nBkg, "fSig:", fSig
+    print("posSigLow:", posSigLow, "posSigHigh:", posSigHigh, "nBkg:", nBkg, "fSig:", fSig)
 
     return nSig
 
@@ -108,8 +118,8 @@ def InjectZprime(infile, histname, sigfile, sighist, sigamp, outfile, firsttoy=N
         # define the parameters of the gaussian and fill it
         nSig = GetNsig(hist, h_sig, sigamp)
         if nSig > 0.:
-            print 'Injecting Signal ', sighist, ' Number of events = ', nSig, 
-            print ' (ntimes = ', sigamp, ')'
+            print('Injecting Signal ', sighist, ' Number of events = ', nSig, end=' ') 
+            print(' (ntimes = ', sigamp, ')')
 
             gRand.SetSeed(seed)
             hinjonly.FillRandom(h_sig, nSig) 
@@ -123,7 +133,7 @@ def InjectZprime(infile, histname, sigfile, sighist, sigamp, outfile, firsttoy=N
             
     f_out.Close()
 
-def InjectDSCB(infile, histname, pars, sigamp, outfile, firsttoy=None, lasttoy=None):
+def InjectDSCB(infile, histname, pars, sigamp, outfile, firsttoy=None, lasttoy=None, xmin=0, xmax=1e100):
     f_in = ROOT.TFile(infile, "READ")
     f_out = ROOT.TFile(outfile, "RECREATE")
     f_out.cd()
@@ -148,14 +158,13 @@ def InjectDSCB(infile, histname, pars, sigamp, outfile, firsttoy=None, lasttoy=N
         hsig = hist.Clone("injectedSignal") 
         hsig.Reset("M")
 
-        dscb = ROOT.TF1("dscb", doubleSidedCrystalBall, 0, 3000, 7)
-        dscb.SetParameters(pars[0], pars[1], pars[2], pars[3], pars[4], pars[5], pars[6]) 
+        dscb = TF1DSCB(pars)
 
         # define the parameters of the gaussian and fill it
-        nSig = GetNsigTF1(hist, dscb, sigamp)
+        nSig = GetNsigTF1(hist, dscb, sigamp, xmin, xmax)
         if nSig > 0.:
-            print 'Injecting DSCB with mean = ', pars[4], ' Number of events = ', nSig, 
-            print ' (ntimes = ', sigamp, ')'
+            print('Injecting DSCB with mean = ', pars[4], ' Number of events = ', nSig, end=' ') 
+            print(' (ntimes = ', sigamp, ')')
 
             gRand.SetSeed(seed)
             hsig.FillRandom('dscb', nSig) 

@@ -1,25 +1,34 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import ROOT
 import sys, re, os, math, argparse
 
-def GetNsig(histbkg, sigmean, sigwidth, sigamp):
+def GetNsig(histbkg, sigmean, sigwidth, sigamp, xmin=0, xmax=1e100):
     # determine the gaussian amplitude (ntimes * sqrt(n) in FWHW range)
-    rangeLow = sigmean  - 1.18*(sigwidth*0.01) * sigmean
-    rangeHigh = sigmean + 1.18*(sigwidth*0.01) * sigmean
+    rangeLow = max(sigmean  - 1.18*(sigwidth*0.01) * sigmean, xmin)
+    rangeHigh = min(sigmean + 1.18*(sigwidth*0.01) * sigmean, xmax)
     binLow = histbkg.FindBin(rangeLow)
     binHigh = histbkg.FindBin(rangeHigh)
     nBkg = histbkg.Integral(binLow, binHigh)
     nSig = 0.
 
+    mygaus = ROOT.TF1( 'mygaus', 'gaus', 0, 10000) 
+    sigma = (sigwidth*0.01) * sigmean 
+    mygaus.SetParameters(1.0, sigmean, sigma) 
+    gaus_integral = mygaus.Integral(mygaus.GetXmin(), mygaus.GetXmax())
+
     if nBkg > 0.:
-        fSig = 0.762 #integral from -1.18 sigma to +1.18 sigma
+        # fSig = 0.762 #integral from -1.18 sigma to +1.18 sigma
+        fSig = mygaus.Integral(rangeLow, rangeHigh) / gaus_integral
         nSig = int(math.sqrt(nBkg)*sigamp / fSig)
 
+    print("rangeLow:", rangeLow, "rangeHigh:", rangeHigh, "nBkg:", nBkg, "fSig:", fSig)
     # print(histbkg.GetBinCenter(binLow), histbkg.GetBinCenter(binHigh), nBkg, fSig)
 
     return nSig
 
-def InjectGaussian(infile, histname, sigmean, sigwidth, sigamp, outfile, firsttoy=None, lasttoy=None):
+def InjectGaussian(infile, histname, sigmean, sigwidth, sigamp, outfile, firsttoy=None, lasttoy=None, xmin=0, xmax=1e100):
     f_in = ROOT.TFile(infile, "READ")
     f_out = ROOT.TFile(outfile, "RECREATE")
     f_out.cd()
@@ -46,10 +55,10 @@ def InjectGaussian(infile, histname, sigmean, sigwidth, sigamp, outfile, firstto
 
         # define the parameters of the gaussian and fill it
         if sigmean > 0.0:
-            nSig = GetNsig(hist, sigmean, sigwidth, sigamp)
+            nSig = GetNsig(hist, sigmean, sigwidth, sigamp, xmin, xmax)
             if nSig > 0.:
-                print 'Injecting Signal with mean = ', sigmean, ' Number of events = ', nSig, 
-                print ' (ntimes = ', sigamp, ') Width = ', sigwidth
+                print('Injecting Signal with mean = ', sigmean, ' Number of events = ', nSig, end=' ') 
+                print(' (ntimes = ', sigamp, ') Width = ', sigwidth)
 
                 sigma = (sigwidth*0.01) * sigmean 
                 mygaus = ROOT.TF1( 'mygaus', 'gaus', 0, 10000) 

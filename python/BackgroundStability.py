@@ -19,6 +19,7 @@ def main(args):
     parser.add_argument('--reffile', dest='reffile', type=str, default='', help='Reference file name')
     parser.add_argument('--refhist', dest='refhist', type=str, default='', help='ReferenceInput hist name')
     parser.add_argument('--outfile', dest='outfile', type=str, default='backgroundStability.pdf', help='Output file name')
+    parser.add_argument('--doAtlasLabel', dest='doAtlasLabel', action='store_true', help='Include ATLAS Label in plot')
 
     args = parser.parse_args(args)
 
@@ -94,7 +95,7 @@ def main(args):
     c = ROOT.TCanvas("c1", "c1", 800, 800)
 
     pad1 = ROOT.TPad("pad1", "pad1", 0, 0.3, 1, 1.0)
-    pad1.SetBottomMargin(0.015) #Upper and lower plot are joined
+    pad1.SetBottomMargin(0.005) #Upper and lower plot are joined
     pad1.Draw()
     
     pad1.cd()
@@ -103,13 +104,18 @@ def main(args):
     # xmin=457
     xmin=481
     xmax=2000
+    ymin=0.9935
+    ymax=1.0065
+
     # text1="29.5 fb^{-1} J100 Pseudodata"
-    text1="132 fb^{-1} J100 Pseudodata"
+    text1="J100 PD, 132 fb^{-1}"
 
     if "J50" in paths[0]:
-        xmin=302
+        xmin=344
         xmax=1000
-        text1="15.0 fb^{-1} J50 Pseudodata"
+        ymin=0.99701
+        ymax=1.00299
+        text1="J50 PD, 15.0 fb^{-1}"
 
     # text2 = "bkg-component of "
     text2 = ""
@@ -127,7 +133,7 @@ def main(args):
     # text2 += " s+b fit"
     text2 += " fit"
     
-    searchstring =r'mean(\d+)_width(\d+)(:?_amp\d+)?'
+    searchstring =r'mean(\d+)_width(-?\d+)(:?_amp\d+)?'
     res=re.search(searchstring, paths[0])
     m=int(res.group(1))
     w=int(res.group(2))
@@ -137,7 +143,10 @@ def main(args):
         a=0
 
     if a>0:
-        text3="%d#sigma %d%% signal injected at %d GeV" % (a, w, m)
+        if w > 0:
+            text3="%d#sqrt{B} signal injected at %d GeV, %d%% width" % (a, m, w)
+        else:
+            text3="%d#sqrt{B} Z' signal injected at m_{Z'} = %d GeV" % (a, m)
     else:
         text3="no signal injected"
         
@@ -146,13 +155,15 @@ def main(args):
         h.SetLineColorAlpha(ROOT.kRed, opacity)
         # h.SetMinimum(0.9948)
         # h.SetMaximum(1.0052)
-        h.SetMinimum(0.989)
-        h.SetMaximum(1.011)
+        # h.SetMinimum(0.989)
+        # h.SetMaximum(1.011)
+        h.SetMinimum(ymin)
+        h.SetMaximum(ymax)
         h.GetXaxis().SetRangeUser(xmin, xmax)
         h.GetXaxis().SetTitle("m_{jj} [GeV]")
         h.GetYaxis().SetTitle("#frac{toy}{reference}")
 
-        h.GetYaxis().SetTitleOffset(1.8)
+        h.GetYaxis().SetTitleOffset(2.4)
         h.GetXaxis().SetTitleOffset(2)
         h.GetXaxis().SetLabelOffset(2)
 
@@ -176,16 +187,19 @@ def main(args):
     
         
     legend = ROOT.TLegend(0.2,0.66,0.45,0.9)
-    legend.AddEntry(h_clone, "toy fits", "l")
+    legend.AddEntry(h_clone, "%d toy fits" % len(args.toyfiles), "l")
     legend.AddEntry(h_sigmas[1], "#pm1#sigma stat. unc.", "l")
     legend.AddEntry(h_sigmas[2], "#pm2#sigma stat. unc.", "l")
     legend.AddEntry(h_sigmas[3], "#pm3#sigma stat. unc.", "l")
     legend.Draw()
 
-    ROOT.ATLASLabel(0.20, 0.05, "Work in progress", 11)
-    ROOT.myText(0.20, 0.12, 1, text1, 11)
-    ROOT.myText(0.20, 0.18, 1, text3, 11)
-    ROOT.myText(0.20, 0.24, 1, text2, 11)
+    yshift = 0
+    if args.doAtlasLabel:
+        ROOT.ATLASLabel(0.20, 0.05, "Work in progress", 11)
+        yshift = 0.07
+    ROOT.myText(0.20, 0.05+yshift, 1, text1, 11)
+    ROOT.myText(0.20, 0.11+yshift, 1, text3, 11)
+    ROOT.myText(0.20, 0.17+yshift, 1, text2, 11)
 
     c.Update()
 
@@ -208,8 +222,9 @@ def main(args):
         h.GetYaxis().SetTitle("#frac{toy - reference}{stat. unc.}")
         # h.Draw("same hist][")
 
-        h.GetYaxis().SetTitleOffset(1.8)
-        h.GetXaxis().SetTitleOffset(3.5)
+        h.GetYaxis().SetTitleOffset(2.4)
+        # h.GetXaxis().SetTitleOffset(3.5)
+        h.GetXaxis().SetTitleOffset(1.0) # ROOT 6.30
 
         h.Draw("same hist l")
         
