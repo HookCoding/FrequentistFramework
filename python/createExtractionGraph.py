@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+
 import ROOT
 import sys, re, os, math, optparse
 from array import array
@@ -57,9 +58,13 @@ def main(args):
     # print(paths)
 
     for p in paths:
-        res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
-        m=int(res[0])
-        w=int(res[1])
+        try:
+            res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
+            m=int(res[0])
+            w=int(res[1])
+        except:
+            print("ERROR: Cannot identify mean and width from path", p)
+            return -1
         
         sigmeans.add(m)
         sigwidths.add(w)
@@ -216,13 +221,13 @@ def main(args):
     
                     d = fout.mkdir("hists_mean%d_width%d_amp%d" % (sigmean, sigwidth, sigamp))
                     d.cd()
-                    for h in parHists.values():
+                    for h in list(parHists.values()):
                         h.Write(h.GetName().split('/')[-1])
                     d.Close()
 
                     d = fout.mkdir("hists_mean%d_width%d_amp%d_%dto%d_percentile" % (sigmean, sigwidth, sigamp, round(perc_start), round(perc_end)))
                     d.cd()
-                    for h in parHists2.values():
+                    for h in list(parHists2.values()):
                         h.Write(h.GetName().split('/')[-1])
                     d.Close()
                     # print "Setting point at", sigamp, nFit / sqrtB
@@ -276,10 +281,10 @@ def main(args):
 
     lumi = 29
     # if "lumi" in dict_file.values()[0]:
-    if "lumi" in list(next(iter(dict_file.items())))[0]:
+    if "lumi" in list(next(iter(list(dict_file.items()))))[0]:
         try:
             # lumi=int(dict_file.values()[0].split("lumi")[-1].split("_")[0])
-            lumi=int(list(next(iter(dict_file.items())))[0].split("lumi")[-1].split("_")[0])
+            lumi=int(list(next(iter(list(dict_file.items()))))[0].split("lumi")[-1].split("_")[0])
         except:
             pass
     text1 = "Pseudodata %d fb^{-1}" % lumi

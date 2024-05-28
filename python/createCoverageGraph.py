@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import ROOT
 import sys, re, os, math, optparse
 from array import array
@@ -88,7 +90,7 @@ def main(args):
                 try:
                     tmp_path_limits = dict_file[(sigmean, sigwidth, sigamp)]
                 except:
-                    print "WARNING: No limit file for", sigmean, sigwidth, sigamp
+                    print("WARNING: No limit file for", sigmean, sigwidth, sigamp)
                     continue
 
                 try:
@@ -96,17 +98,24 @@ def main(args):
                     tmp_path_postfit = ("PostFit".join(dict_file[(sigmean, sigwidth, sigamp)][0].rsplit("Limits",1))).replace(".txt",".root")
                     f = TFile(tmp_path_postfit)
                     h = f.Get(options.postfithist)
-                    sqrtB = GetNsig(h, sigmean, sigwidth, 1)
+                    
+                    xmin = 344
+                    xmax = 1516
+                    if "J100" in tmp_path_postfit:
+                        xmin = 481
+                        xmax = 2997
+                    
+                    sqrtB = GetNsig(h, sigmean, sigwidth, 1, xmin, xmax)
                     n_injected = sigamp * sqrtB
                     f.Close()
                 except Exception as e:
-                    print("WARNING: Could not find injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0])
+                    print(("WARNING: Could not find injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0]))
                     print(e)
                     sqrtB = 1
                     n_injected = 0
                     
                 if sqrtB == 0:
-                    print("WARNING: Could not read injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0])
+                    print(("WARNING: Could not read injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0]))
                     sqrtB = 1.
                     n_injected = 0
 
@@ -125,7 +134,7 @@ def main(args):
                             limit_exp1d = float(limits[4])
                             limit_exp2d = float(limits[5])
                     except:
-                        print "WARNING: No limit file for", sigmean, sigwidth, sigamp
+                        print("WARNING: No limit file for", sigmean, sigwidth, sigamp)
                         continue
                         
                     # print n_injected, limit
@@ -133,7 +142,7 @@ def main(args):
                     if math.isnan(limit):
                         nans += 1
                 
-                print "n_injected: %d,   NaNs: %d" % (n_injected, nans)
+                print("n_injected: %d,   NaNs: %d" % (n_injected, nans))
                 # if float(nans) / len(inj_limit) < 0.02:
                 for t in inj_limit:
                     g.SetPoint(g.GetN(), t[0]/sqrtB, t[1]/sqrtB)

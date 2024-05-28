@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+
 import ROOT
 import sys, re, os, math, optparse
 from array import array
@@ -26,6 +27,8 @@ def main(args):
     # parser.add_option('--pdhist', dest='pdhist', type=str, default='unfluctuated_injection', help='Data hist name in Pseudodata file')
     # parser.add_option('--postfithist', dest='postfithist', type=str, default='J100yStar06/data', help='Data hist name in PostFit file')
     parser.add_option('--notoys', dest='notoys', action='store_true', help='Use one fit instead of many toys')
+    parser.add_option('--maxN', dest='maxN', type=int, default=1e100, help='Only consider first N toys.')
+
     
     options, args = parser.parse_args(args)
 
@@ -132,7 +135,9 @@ def main(args):
                 win_min = []
                 win_max = []
         
-                for path in tmp_path_fitresult:
+                for l,path in enumerate(tmp_path_fitresult):
+                    if l>=options.maxN:
+                        break
                     try:
                         with open(path) as f:
                             BHresults=json.load(f)
@@ -147,7 +152,7 @@ def main(args):
                             wmax = BHresults["MaskMax"]
                             win_min.append(wmin)
                             win_max.append(wmax)
-                    except Exception, e:
+                    except Exception as e:
                         print("Couldn't read BH pval from", path)
                         print(e)
                         # return -1
@@ -245,10 +250,10 @@ def main(args):
 
     lumi = 29.5
     # if "lumi" in dict_file.values()[0]:
-    if "lumi" in list(next(iter(dict_file.items())))[0]:
+    if "lumi" in list(next(iter(list(dict_file.items()))))[0]:
         try:
             # lumi=int(dict_file.values()[0].split("lumi")[-1].split("_")[0])
-            lumi=int(list(next(iter(dict_file.items())))[0].split("lumi")[-1].split("_")[0])
+            lumi=int(list(next(iter(list(dict_file.items()))))[0].split("lumi")[-1].split("_")[0])
         except:
             pass
     text1 = "Pseudodata %d fb^{-1}" % lumi
