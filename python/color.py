@@ -3,6 +3,7 @@ import ROOT
 
 warm_palette = [ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7  ]
 classic_palette8 = [ROOT.kBlue-4, ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7  ]
+saturated_palette = [ROOT.kBlue, ROOT.kRed, ROOT.kGreen+1, ROOT.kOrange-2, ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7]
 
 # 1001 solid
 # fill_styles = [3001, 3002, 0, 3004, 3005, 3006] 
@@ -25,6 +26,12 @@ def getMarkerStylesOpen():
 
 def getFillStyles():
     return fill_styles
+
+def getColors():
+    return saturated_palette
+
+def getColor(i):
+    return saturated_palette[i]
 
 # def getFillStyle(index):
 #     if index == 0: return 1001
@@ -92,7 +99,7 @@ def getColorSteps(n):
     elif n == 3: return [C1,C3,C4]
     elif n == 4: return [C1,C2,C3,C4]
     elif n == 5: return [C0, C1,C2,C3,C4]
-    #elif n == 6: return [C0, C1,C2,C3,C4, C5]
+    elif n == 6: return [C0, C1,C2,C3,C4, C5]
     else:
         n_extra = n-len(base_colors)
         
