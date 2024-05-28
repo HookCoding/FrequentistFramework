@@ -159,6 +159,7 @@ def main(args):
     h_ghostrange = TH1D("h_ghostrange", "h_ghostrange", 1, xmin, xmax)
     h_ghostrange.SetMinimum(ymin)
     h_ghostrange.SetMaximum(ymax)
+
     h_ghostrange.Draw("hist")
     h_ghostrange.GetYaxis().SetTitle("Events / Bin")
 
@@ -184,6 +185,7 @@ def main(args):
 
     h_ghostrange1=h_ghostrange.Clone()
     h_ghostrange1.SetLineWidth(1)
+    h_ghostrange1.GetYaxis().SetTickLength(0.029)
     
     h_ghostrange1.Draw("hist")
     h_ghostrange1.SetMinimum(-3.49)
@@ -232,6 +234,7 @@ def main(args):
         h_ghostrange2.GetXaxis().SetNoExponent()
     else:
         h_ghostrange2.GetXaxis().SetTitleOffset(5)
+    h_ghostrange2.GetYaxis().SetTickLength(0.048)
 
     h_res[1].SetLineColor(colors[1])
     h_res[1].SetLineWidth(2)
