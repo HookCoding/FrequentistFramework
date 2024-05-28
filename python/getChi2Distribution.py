@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import ROOT
 import sys, re, os, math, argparse
 import numpy as np
@@ -46,7 +47,7 @@ def main(args):
     mean = np.percentile(chi2,50)
     # boundary = np.percentile(chi2,95)
     boundary = 2*mean
-    print mean, boundary
+    print(mean, boundary)
 
     f_out = ROOT.TFile(args.outfile, "RECREATE")
     f_out.cd()
@@ -71,9 +72,10 @@ def main(args):
     
     # h_out.GetXaxis().SetRangeUser(1250, 1950)
     h_out.Draw("hist")
-    
+    h_out.GetYaxis().SetTitleOffset(1.8)
+
     if not args.nofit:
-        print "Fitting with chi2 distribution"
+        print("Fitting with chi2 distribution")
         f1 = ROOT.TF1("chi-square distribution",ChiSquareDistr,0.,boundary,1);
         f1.SetNpx(2000)
         f1.SetParameter(0,h_out.GetMean())
@@ -85,9 +87,9 @@ def main(args):
 
         f1.Write("fit")
 
-    print "hist integral:", h_out.Integral("width")
+    print("hist integral:", h_out.Integral("width"))
     if not args.nofit:
-        print "fct  integral:", f1.Integral(0,2000)
+        print("fct  integral:", f1.Integral(0,2000))
 
     yshift = 0.
     if args.atlaslabel:
@@ -111,18 +113,18 @@ def main(args):
             s=int(s[6:])
             text="NLOFit, #sigma=%d constraint" % s
 
-    ROOT.myText(0.92, 0.84+yshift, 1, text, 33)
+    ROOT.myText(0.90, 0.84+yshift, 1, text, 33)
 
-    l=ROOT.TLegend(0.65,0.66+yshift, 0.92, 0.78+yshift)
+    l=ROOT.TLegend(0.65,0.66+yshift, 0.90, 0.78+yshift)
     l.AddEntry(h_out, "%d toys" % len(chi2), "l")
     if not args.nofit:
         ROOT.myText(0.75, 0.57+yshift, 1, "ndf:", 33)
-        ROOT.myText(0.92, 0.57+yshift, 1, "%.1f #pm %.1f" % (f1.GetParameter(0), f1.GetParError(0)), 33)
+        ROOT.myText(0.90, 0.57+yshift, 1, "%.1f #pm %.1f" % (f1.GetParameter(0), f1.GetParError(0)), 33)
         l.AddEntry(f1, "#chi^{2} distribution fit", "l")
     l.Draw()
 
     ROOT.myText(0.75, 0.63+yshift, 1, "bins:", 33)
-    ROOT.myText(0.92, 0.63+yshift, 1, "%d" % bins, 33)
+    ROOT.myText(0.90, 0.63+yshift, 1, "%d" % bins, 33)
 
     c.Update()
 

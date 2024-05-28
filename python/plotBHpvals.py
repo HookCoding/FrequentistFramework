@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys, ROOT, math, glob, os, re, argparse
 from array import array
 from color import getColorSteps, getMarkerStyle
@@ -6,6 +8,7 @@ ROOT.gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasLabels.C")
 ROOT.gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasStyle.C")
 ROOT.gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasUtils.C")
 
+#produces too large whiskers in ROOT 6.30:
 ROOT.TCandle.SetBoxRange(0.68)
 ROOT.TCandle.SetWhiskerRange(0.90)
 
@@ -30,6 +33,8 @@ def main(args):
     inpath = paths[0]
     infile = ROOT.TFile(inpath)
 
+    amplitudes = [0,2,4,8,16,32]
+
     graphs_lim = {}
     for k in infile.GetListOfKeys():
         name = k.GetName()
@@ -49,13 +54,13 @@ def main(args):
         w=int(res.group(2))
 
         if args.means and not m in args.means:
-            print "Skipping", g.GetTitle()
+            print("Skipping", g.GetTitle())
             continue
         
         g.SetTitle("m_{G} = %.0f GeV" % m)
-        
+
         graphs_lim[g.GetTitle()] = g
-        print "adding", g.GetTitle()
+        print("adding", g.GetTitle())
     
     ################################################
     
@@ -67,7 +72,7 @@ def main(args):
     h2_all_points = {}
     bin_edges = []
     
-    masses = natural_sort(graphs_lim.keys())
+    masses = natural_sort(list(graphs_lim.keys()))
     
     for mass in masses:
         graph = graphs_lim[mass]
@@ -81,7 +86,7 @@ def main(args):
         y_max = 0
     
         for n in range(graph.GetN()):
-            ninj = graph.GetX()[n]
+            ninj = amplitudes.index(graph.GetX()[n])
             ulim = graph.GetY()[n]
             if math.isnan(ulim):
                 ulim = 0.
@@ -131,7 +136,7 @@ def main(args):
         h2_all_points[mass] = ROOT.TH2D("h2_"+str(mass), "", len(bin_edges)-1, bin_edges, 1000, 0, 5*bin_edges[-1]);
     
         for n in range(graph.GetN()):
-            ninj = graph.GetX()[n]
+            ninj = amplitudes.index(graph.GetX()[n])
             ulim = graph.GetY()[n]
             if math.isnan(ulim):
                 ulim = 0.
@@ -154,7 +159,7 @@ def main(args):
         legend = ROOT.TLegend(0.18,disc_threshold,0.73,0.4)
         legend.SetNColumns(2)
     else:
-        legend = ROOT.TLegend(0.18,disc_threshold,0.45,0.4)
+        legend = ROOT.TLegend(0.18,disc_threshold,0.45,0.5)
     
     if "four" in inpath:
         text = "4-par fit"
@@ -187,9 +192,11 @@ def main(args):
         text2 = ", %.1f fb^{-1} PD" % (lumi, trig)
     else:
         if "J50" in inpath:
-            text2 = "#sqrt{s}=13 TeV, %.1f fb^{-1} PD" % lumi
+            # text2 = "#sqrt{s}=13 TeV, %.1f fb^{-1} PD" % lumi
+            text2 = "J50 PD, %.1f fb^{-1}" % lumi
         else:
-            text2 = "#sqrt{s}=13 TeV, %.0f fb^{-1} PD" % lumi
+            # text2 = "#sqrt{s}=13 TeV, %.0f fb^{-1} PD" % lumi
+            text2 = "J100 PD, %.0f fb^{-1}" % lumi
 
     colors = getColorSteps(len(masses))
     
@@ -209,10 +216,13 @@ def main(args):
     
     # hs.Draw("CANDLEX(00111011)")
     hs.Draw("CANDLEX(00001011)")
+    hs.GetXaxis().SetNdivisions(0)
     hs.GetYaxis().SetLimits(8e-4,1.)
     hs.GetXaxis().SetTitle("S_{inj} / #sqrt{B}")
-    hs.GetYaxis().SetTitle("global p(BH)")
-    hs.GetYaxis().SetTitleOffset(1.5)
+    for i,a in enumerate(amplitudes):
+        hs.GetXaxis().SetBinLabel(i,str(a))
+    hs.GetYaxis().SetTitle("Global p(BH)")
+    hs.GetYaxis().SetTitleOffset(1.3)
     hs.GetXaxis().SetTitleOffset(2)
     hs.GetXaxis().SetLabelOffset(2)
        
@@ -242,7 +252,7 @@ def main(args):
     i = 0
     axisExists = 0
     for mass in masses:
-        print i, mass
+        print(i, mass)
         # graph = graphs_frac_above[mass]
         # graph.SetMarkerStyle(ROOT.kOpenCircle)
         # graph.SetMarkerSize(1)
@@ -269,12 +279,22 @@ def main(args):
             graph_below.Draw("APEL SAME")
             graph_below.GetYaxis().SetTitle("p < %.2f rate" % disc_threshold)
             graph_below.GetXaxis().SetTitle("S_{inj} / #sqrt{B}")
+            graph_below.GetXaxis().SetNdivisions(6)
             graph_below.GetYaxis().SetNdivisions(505)
             # graph_below.GetXaxis().SetLimits(x_min,x_max)
             graph_below.GetXaxis().SetLimits(bin_edges[0],bin_edges[-1])
-            graph_below.GetYaxis().SetRangeUser(0.,0.999)
-            graph_below.GetYaxis().SetTitleOffset(1.5)
-            graph_below.GetXaxis().SetTitleOffset(3.2)
+
+            for j,a in enumerate(amplitudes):
+                graph_below.GetXaxis().ChangeLabel(j+1,-1,-1,-1,-1,-1,str(a));
+                # bin_index = graph_below.GetXaxis().FindBin(j)
+                # graph_below.GetXaxis().SetBinLabel(bin_index,str(a))
+
+            # graph_below.GetYaxis().SetRangeUser(0.,0.999)
+            graph_below.GetYaxis().SetRangeUser(0.,1.)
+            graph_below.GetYaxis().SetTitleOffset(1.3)
+            graph_below.GetXaxis().SetTitleOffset(3.5) # ROOT 6.20
+            # graph_below.GetXaxis().SetTitleOffset(1.2) # ROOT 6.30
+            graph_below.GetYaxis().ChangeLabel(6,-1,-1,-1,-1,-1," ");
             graph_below.Draw("APEL")
             canvas.Update()
             axisExists = 1
@@ -294,15 +314,19 @@ def main(args):
     # legend2.SetY2NDC(0.9)
     # legend2.Draw()    
     if args.doAtlasLabel:
-        ROOT.ATLASLabel(0.18, 0.9, "Work in progress", 13)
-        ROOT.myText(0.18, 0.75, 1, text+text2, 13)
+        ROOT.ATLASLabel(0.19, 0.9, "Work in progress", 13)
+        ROOT.myText(0.19, 0.75, 1, text+text2, 13)
     else:
-        ROOT.myText(0.18, 0.93, 1, text2, 13)
-        ROOT.myText(0.18, 0.75, 1, text, 13)
+        ROOT.myText(0.19, 0.93, 1, text2, 13)
+        ROOT.myText(0.19, 0.75, 1, text, 13)
     
+    if "_width" in inpath:
+        outname = inpath.replace(".root", "")
+    else:
+        outname = inpath.replace(".root", "_width%d" % args.width)
     
-    canvas.Print(inpath.replace(".root", "_width%d.pdf" % args.width))
-    canvas.Print(inpath.replace(".root", "_width%d.svg" % args.width))
+    canvas.Print(outname+".pdf")
+    canvas.Print(outname+".svf")
         
     # raw_input("Wait...")
 
