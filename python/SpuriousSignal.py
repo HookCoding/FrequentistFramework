@@ -6,7 +6,7 @@ from array import array
 from ROOT import *
 from math import sqrt
 from glob import glob
-from color import getColorSteps, getMarkerStyles
+from color import getColorSteps, getMarkerStyles, getFillStyles
 import json
 import ctypes
 
@@ -15,6 +15,7 @@ gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasStyle.C")
 gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasUtils.C")
 
 ROOT.gROOT.ProcessLine( "gErrorIgnoreLevel = 6001;")
+ROOT.gROOT.SetBatch(True)
 
 usePercentiles = False
 # spurSigUnc = 0.5
@@ -168,124 +169,147 @@ def readGraphsFromFileNoToys(paths, dicts_out, graphs, ratios):
         i+=1
 
 def fillGraphsFromHists(paths, hists, dicts_out, graphs, ratios, fillstyles, colors, text, doAtlasLabel):
+    legend = []
     for p in paths:
         dicts_out.append({})
         graphs.append({})
         ratios.append({})
             
-        legend = ""
+        legend.append("")
         if "fourPar" in p:
-            legend = "4-par fit"
+            legend[-1] = "4-par fit"
         elif "fivePar" in p:
-            legend = "5-par fit"
+            legend[-1] = "5-par fit"
         elif "sixPar" in p:
-            legend = "6-par fit"
+            legend[-1] = "6-par fit"
         elif "sevenPar" in p:
-            legend = "7-par fit"
+            legend[-1] = "7-par fit"
         elif "eightPar" in p:
-            legend = "8-par fit"
+            legend[-1] = "8-par fit"
         else:
             searchstring =r'constr(\d+)'
             res=re.search(searchstring, p)
             sigma=int(res.group(1))
-            legend = "NLOFit, #sigma=%d" % sigma
+            legend[-1] = "NLOFit, #sigma = %d" % sigma
 
-        c = TCanvas("c1", "c1", 800, 600)
-        outname = p.replace("extractionGraphs", "spuriousSignal").replace(".root", "_histograms.pdf")
-        c.Print(outname + "[")
+    c = TCanvas("c1", "c1", 800, 600)
+    outname = paths[0].replace("extractionGraphs", "spuriousSignal").replace(".root", "_histograms.pdf")
+    c.Print(outname + "[")
 
-        for m in sorted(hists):
-            for w in hists[m]:
-                for a in hists[m][w]:
-                    for name in hists[m][w][a]:
+    for m in sorted(hists):
+        for w in hists[m]:
+            for a in hists[m][w]:
+                for name in hists[m][w][a]:
 
-                        if not ("nsig" in name):
-                            continue
-    
-                        list_h = hists[m][w][a][name]
-    
-                        c = TCanvas("c1", "c1", 800, 600)
-                        c.SetRightMargin(0.075)
-                        # c.SetLogy()
-    
-                        mean = []
-                        rms = []
-                        skew = []
-                        kurt = []
-    
-                        for i, h in enumerate(list_h):
-                            h.SetFillStyle(fillstyles[i])
-                            h.SetLineColor(colors[i])
-                            h.SetFillColor(colors[i])
-                            h.SetMarkerColor(colors[i])
-                            # h.GetXaxis().SetTitle(name)
-                            h.GetXaxis().SetTitle("S_{fit}")
-                            # h.GetYaxis().SetTitle("Toys (normalized)")
-                            h.GetYaxis().SetTitle("Toys")
-                            # h.Scale(1./h.Integral())
-                            
-                            mean.append(h.GetMean())
-                            rms.append(h.GetRMS())
-                            skew.append(h.GetSkewness())
-                            kurt.append(h.GetKurtosis())
-    
-                            h.Rebin(2)
-                            # h.SetMaximum(h.GetMaximum()*5)
-                            h.SetMaximum(h.GetMaximum()*1.3)
-                            h.Draw("same hist")
-    
-    
-                        leg = TLegend(0.66,0.80,0.89,0.90)
-                        # leg = TLegend(0.66,0.70,0.89,0.90)
-                        # leg.AddEntry(list_h[0], "#splitline{NLOFit:}{#it{S}_{spur}/#sigma_{fit}=%.2f}" % (mean[0]/rms[0]), "f")
-                        leg.AddEntry(list_h[0], "#splitline{%s:}{#it{S}_{spur}/#sigma_{fit}=%.2f}" % (legend, mean[0]/rms[0]), "f")
-                        leg.Draw()
+                    if not ("nsig" in name):
+                        continue
 
-                        if doAtlasLabel:
-                            ATLASLabel(0.20, 0.90, "Work in progress", 13)
-                            myText(0.20, 0.85, 1, text, 13)
-                        else:
-                            myText(0.20, 0.91, 1, text, 13)
-                            if w > 0:
-                                signaltext = "m_{G} = %d GeV, #sigma_{G}/m_{G} = %.2f" % (m,w*0.01)
-                            else:
-                                signaltext = "m_{Z'} = %d GeV, g_{q} = 0.1" % m
-                            myText(0.20, 0.85, 1, signaltext, 13)
-    
-                        # outname = p.replace("extractionGraphs", "spuriousSignal").replace(".root", "_%s.pdf" % name)
-                        if a == 0:
-                            c.Print(outname)
-    
-                        # if not ("nsig" in name):
-                        #     continue
+                    list_h = hists[m][w][a][name]
+
+                    c = TCanvas("c1", "c1", 800, 600)
+                    c.SetRightMargin(0.075)
+                    # c.SetLogy()
+
+                    mean = []
+                    rms = []
+                    skew = []
+                    kurt = []
+
+                    leg = TLegend(0.63,0.92-0.12*len(list_h),0.89,0.92)
+                    # leg = TLegend(0.66,0.70,0.89,0.90)
+
+                    # print(m, w, a, len(list_h),  min([_h.GetXaxis().GetXmin() for _h in list_h]), max([_h.GetXaxis().GetXmax() for _h in list_h]))
+                    
+                    # _xmin = min([_h.GetXaxis().GetBinLowEdge(_h.GetMinimumBin()) for _h in list_h])
+                    # _xmax = max([_h.GetXaxis().GetBinUpEdge(_h.GetMaximumBin()) for _h in list_h])
+                    _xmin = min([_h.GetXaxis().GetXmin() for _h in list_h])
+                    _xmax = max([_h.GetXaxis().GetXmax() for _h in list_h])
+                    xmin = _xmin - 0.1*(_xmax-_xmin)
+                    xmax = _xmax + 0.1*(_xmax-_xmin)
+
+                    h_ghostrange = TH1D("h_ghostrange", "h_ghostrange", 10, xmin, xmax)
+                    h_ghostrange.Draw()
+                    h_ghostrange.GetXaxis().SetTitle("S_{fit}")
+                    h_ghostrange.GetXaxis().SetMaxDigits(3)
+                    h_ghostrange.GetYaxis().SetTitle("Toys (normalized)")
+                    h_ghostrange.GetYaxis().SetTitleOffset(1.8)
+                    h_ghostrange.GetXaxis().SetTitleOffset(1.0)
                         
-                        for i in range(len(list_h)):
-                            if not (w,a) in graphs[i]:
-                                graphs[i][(w,a)] = ROOT.TGraphErrors()
-                                ratios[i][(w,a)] = ROOT.TGraphErrors()
-    
-                                if abs(mean[i] / rms[i]) > 0.3:
-                                    print("WARNING: mean/rms=%.2f for %s in file %s" % (mean[i]/rms[i], name, paths[i]))
-    
-                            j = graphs[i][(w,a)].GetN()
-                            graphs[i][(w,a)].SetPoint(j, m, mean[i])
-                            graphs[i][(w,a)].SetPointError(j, 0, rms[i])
-    
-                            ratios[i][(w,a)].SetPoint(j, m, mean[i] / rms[i])
-    
-                            # if not m in dicts_out[i]:
-                            #     dicts_out[i][m] = {}
-                            # if not w in dicts_out[i][m]:
-                            #     dicts_out[i][m][w] = {}
-                            # if not a in dicts_out[i][m][w]:
-                            #     dicts_out[i][m][w][a] = {}
-                            
-                            # dicts_out[i][m][w][a]["rms"] = rms[i]
-                            # dicts_out[i][m][w][a]["bias"] = mean[i]
-                            # dicts_out[i][m][w][a]["ratio"] = mean[i] / rms[i]
-                            # dicts_out[i][m][w][a]["uncertainty"] = spurSigUnc*rms[i]
+                    for i, h in enumerate(list_h):
+                        mean.append(h.GetMean())
+                        rms.append(h.GetRMS())
+                        skew.append(h.GetSkewness())
+                        kurt.append(h.GetKurtosis())
 
-        c.Print(outname + "]")
+                        h.SetFillStyle(fillstyles[i])
+                        h.SetLineColor(colors[i])
+                        h.SetFillColor(colors[i])
+                        h.SetMarkerColor(colors[i])
+                        # h.GetXaxis().SetTitle(name)
+
+                        h.Rebin(4)
+                        h.Scale(1./h.Integral())
+                        # h.SetMaximum(h.GetMaximum()*5)
+                        # h.GetXaxis().SetLimits(xmin, xmax)
+                        h.Draw("same hist")
+
+                        leg.AddEntry(list_h[i], "#splitline{%s:}{#it{S}_{spur}/#sigma_{fit} = %.2f}" % (legend[i], mean[i]/rms[i]), "f")
+
+                    h_ghostrange.SetMaximum(1.5*max([_h.GetMaximum() for _h in list_h]))
+                    
+
+                    leg.Draw()
+
+                    if doAtlasLabel:
+                        ATLASLabel(0.20, 0.90, "Work in progress", 13)
+                        myText(0.20, 0.85, 1, text, 13)
+                    else:
+                        myText(0.20, 0.91, 1, text, 13)
+                        if w > 0:
+                            signaltext1 = "m_{G} = %d GeV" % m
+                            signaltext2 = "#sigma_{G}/m_{G} = %.2f" % (w*0.01)
+                        else:
+                            signaltext1 = "m_{Z'} = %d GeV" % m
+                            signaltext2 = "g_{q} = 0.1"
+                        myText(0.20, 0.85, 1, signaltext1, 13)
+                        myText(0.20, 0.79, 1, signaltext2, 13)
+
+                    # outname = p.replace("extractionGraphs", "spuriousSignal").replace(".root", "_%s.pdf" % name)
+                    if a == 0:
+                        c.Print(outname)
+
+                    # if not ("nsig" in name):
+                    #     continue
+                    
+                    for i in range(len(list_h)):
+                        # print(list_h[i].GetName())
+                        # print(graphs)
+                        if not (w,a) in graphs[i]:
+                            graphs[i][(w,a)] = ROOT.TGraphErrors()
+                            ratios[i][(w,a)] = ROOT.TGraphErrors()
+
+                            if a == 0 and abs(mean[i] / rms[i]) > 0.3:
+                                print("WARNING: mean/rms=%.2f for %s in file %s" % (mean[i]/rms[i], name, paths[i]))
+
+                        j = graphs[i][(w,a)].GetN()
+                        graphs[i][(w,a)].SetPoint(j, m, mean[i])
+                        graphs[i][(w,a)].SetPointError(j, 0, rms[i])
+
+                        ratios[i][(w,a)].SetPoint(j, m, mean[i] / rms[i])
+
+                        # if not m in dicts_out[i]:
+                        #     dicts_out[i][m] = {}
+                        # if not w in dicts_out[i][m]:
+                        #     dicts_out[i][m][w] = {}
+                        # if not a in dicts_out[i][m][w]:
+                        #     dicts_out[i][m][w][a] = {}
+                        
+                        # dicts_out[i][m][w][a]["rms"] = rms[i]
+                        # dicts_out[i][m][w][a]["bias"] = mean[i]
+                        # dicts_out[i][m][w][a]["ratio"] = mean[i] / rms[i]
+                        # dicts_out[i][m][w][a]["uncertainty"] = spurSigUnc*rms[i]
+
+    c.Print(outname + "]")
 
 
 def main(args):
@@ -301,20 +325,22 @@ def main(args):
     print(args, paths)
     
     # J100:
-    text="#sqrt{s}=13 TeV, 132 fb^{-1} PD"
+    # text="#sqrt{s}=13 TeV, 132 fb^{-1} PD"
+    text="J100 PD, 132 fb^{-1}"
     ymin=-0.69e5
     ymax=0.69e5
     spacing=20
 
     if "J50" in paths[0]:
         # J50:
-        text="#sqrt{s}=13 TeV, 15.0 fb^{-1} PD"
+        # text="#sqrt{s}=13 TeV, 15.0 fb^{-1} PD"
+        text="J50 PD, 15.0 fb^{-1}"
         ymin=-0.69e5
         ymax=0.69e5
         spacing=6
 
     colors = getColorSteps(len(paths))
-    fillstyles = [3245, 3254, 3245, 3254, 3245, 3254]
+    fillstyles = getFillStyles()
     markers = getMarkerStyles()
 
     hists = {}
@@ -397,7 +423,7 @@ def main(args):
             searchstring =r'constr(\d+)'
             res=re.search(searchstring, p)
             sigma=int(res.group(1))
-            legend = "NLOFit, #sigma=%d" % sigma
+            legend = "NLOFit, #sigma = %d" % sigma
 
         outname = "SpuriousSignal_%d" % i
         if "extractionGraphs" in p:
@@ -413,7 +439,11 @@ def main(args):
         pad1.Draw()
         pad1.cd()
 
-        leg = ROOT.TLegend(0.67,0.60,0.91,0.90)
+        entries = len(colors)
+        if (-999,0) in graphs[0]:
+            entries += 1
+
+        leg = ROOT.TLegend(0.67,0.90-0.08*entries,0.91,0.90)
         first = True
 
         icolor = 0
@@ -431,7 +461,7 @@ def main(args):
             shiftaxis(g,shift)
 
             if first:
-                g.Draw("ap")
+                g.Draw("ap0")
 
                 line = TLine(g.GetXaxis().GetXmin(),0,g.GetXaxis().GetXmax(),0)
                 line.SetLineColor(kGray+2)
@@ -440,24 +470,29 @@ def main(args):
 
                 first = False
 
-            g.Draw("p")
+            g.Draw("p0")
 
             if w > 0:
                 g.SetTitle("#sigma_{G}/m_{G} = %.2f" % (w/100.))
             else:
-                g.SetTitle("g_{q} = 0.1")
+                g.SetTitle("Z' signal")
             g.GetXaxis().SetTitle("")
             g.GetYaxis().SetTitle("S_{fit}")
-            g.GetYaxis().SetTitleOffset(1.7)
+            # g.GetYaxis().SetTitleOffset(1.7) # ROOT 6.20
+            g.GetYaxis().SetTitleOffset(2.2) # ROOT 6.30
             g.GetYaxis().SetRangeUser(ymin, ymax)
+            # g.GetYaxis().SetMaxDigits(4)
             g.SetLineColor(colors[icolor])
             g.SetMarkerColor(colors[icolor])
             g.SetMarkerStyle(markers[icolor])
 
-            leg.AddEntry(g, g.GetTitle())
+            leg.AddEntry(g, g.GetTitle(), "ep")
 
             # g.Write("nsig_width%d_amp%d" % (w,a))
             icolor += 1
+
+        if (-999,0) in graphs[0]:
+            leg.AddEntry(0, "g_{q} = 0.1", "")
 
         if args.doAtlasLabel:
             ATLASLabel(0.57, 0.10, "Work in progress", 13)
@@ -493,7 +528,7 @@ def main(args):
             shiftaxis(g,shift)
 
             if first:
-                g.Draw("ap")
+                g.Draw("ap0")
 
                 l1 = TLine(g.GetXaxis().GetXmin(),0.5,g.GetXaxis().GetXmax(),0.5)
                 l1.SetLineColor(kGray+2)
@@ -509,7 +544,7 @@ def main(args):
 
                 first = False
 
-            g.Draw("p")
+            g.Draw("p0")
 
             if (w > 0):
                 g.SetTitle("#sigma_{G}/m_{G} = %.2f" % (w/100.))
@@ -518,9 +553,11 @@ def main(args):
                 g.SetTitle("g_{q} = 0.1")
                 g.GetXaxis().SetTitle("m_{Z'} [GeV]")
 
-            g.GetXaxis().SetTitleOffset(3.5)
+            # g.GetXaxis().SetTitleOffset(3.5) # ROOT 6.20
+            g.GetXaxis().SetTitleOffset(1.0) # ROOT 6.30
             g.GetYaxis().SetTitle("S_{spur} / #sigma_{fit}")
-            g.GetYaxis().SetTitleOffset(1.7)
+            # g.GetYaxis().SetTitleOffset(1.7) # ROOT 6.20
+            g.GetYaxis().SetTitleOffset(2.2) # ROOT 6.30
             g.GetYaxis().SetRangeUser(-1.49, 1.49)
             g.GetYaxis().SetNdivisions(506)
             g.SetLineColor(colors[icolor])
