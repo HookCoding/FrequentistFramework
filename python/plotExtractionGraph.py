@@ -106,7 +106,8 @@ def main(args):
     print(args, paths)
     
     # J100:
-    text="#sqrt{s}=13 TeV, 132 fb^{-1} PD"
+    # text="#sqrt{s}=13 TeV, 132 fb^{-1} PD"
+    text="J100 PD, 132 fb^{-1}"
     xmin=-0.2
     xmax=5.2
     ymin=-0.9
@@ -115,7 +116,8 @@ def main(args):
 
     if "J50" in paths[0] or "302" in paths[0]:
         # J50:
-        text="#sqrt{s}=13 TeV, 15.0 fb^{-1} PD"
+        # text="#sqrt{s}=13 TeV, 15.0 fb^{-1} PD"
+        text="J50 PD, 15.0 fb^{-1}"
         # ymin=-0.69e5
         # ymax=0.69e5
         # spacing=8
@@ -210,6 +212,7 @@ def main(args):
                 g.SetTitle("m_{Z'} = %.0f GeV" % m)
             g.GetXaxis().SetTitle("")
             g.GetYaxis().SetTitle("S_{fit} / #sqrt{B}")
+            g.GetYaxis().SetTitleOffset(1.6) # ROOT 6.30
             g.GetXaxis().SetLimits(xmin, xmax)
             g.GetYaxis().SetRangeUser(ymin, ymax)
             g.SetLineColor(colors[j])
@@ -217,7 +220,7 @@ def main(args):
             g.SetMarkerColor(colors[j])
             g.SetMarkerStyle(markers[j])
 
-            leg.AddEntry(g, g.GetTitle())
+            leg.AddEntry(g, g.GetTitle(), "pe")
 
             g.Write("nsig_mass%d_width%d" % (m,w))
 
@@ -227,8 +230,8 @@ def main(args):
             myText(0.905, 0.26, 1, legend, 33)
 
         else:
-            box3 = ROOT.TPave(0.70,0.06,0.92,0.20,0,"NDC");
-            box4 = ROOT.TPave(0.60,0.06,0.92,0.14,0,"NDC");
+            box3 = ROOT.TPave(0.80,0.06,0.92,0.20,0,"NDC");
+            box4 = ROOT.TPave(0.70,0.06,0.92,0.14,0,"NDC");
             box3.SetFillStyle(1001)
             box3.SetFillColor(ROOT.kWhite)
             box3.SetLineWidth(0)
@@ -294,8 +297,10 @@ def main(args):
             else:
                 g.SetTitle("g_{q} = 0.1")
             g.GetXaxis().SetTitle("S_{inj} / #sqrt{B}")
-            g.GetXaxis().SetTitleOffset(3.5)
+            g.GetXaxis().SetTitleOffset(1.0) # ROOT 6.30
+            # g.GetXaxis().SetTitleOffset(3.5)
             g.GetYaxis().SetTitle("S_{spur} / #sigma_{fit}")
+            g.GetYaxis().SetTitleOffset(1.6) # ROOT 6.30
             g.GetXaxis().SetLimits(xmin, xmax)
             # g.GetYaxis().SetRangeUser(-0.99, 0.99)
             g.GetYaxis().SetRangeUser(-1.49, 1.49)

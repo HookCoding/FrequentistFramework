@@ -23,6 +23,7 @@ def main(args):
     # parser.add_argument('--input_is_spurious', dest='input_is_spurious', action='store_true', help='Input is already a spurious signal graph. Otherwise a file created with createExtractionGraphs.py is expected.')
     parser.add_argument('--width', dest='width', type=int, default=None, help='Only plot given width')
     parser.add_argument('--means', dest='means', type=int, nargs='+', default=None, help='Means to draw in plot')
+    parser.add_argument('--doAtlasLabel', dest='doAtlasLabel', action='store_true', help='Draw ATLAS Label')
 
     args, paths = parser.parse_known_args(args)
     
@@ -47,13 +48,14 @@ def main(args):
         res=re.search(searchstring, name)
         m=int(res.group(1))
         w=int(res.group(2))
-        g.SetTitle("m_{G} = %.0f GeV" % m)
+        # g.SetTitle("m_{G} = %.0f GeV" % m)
+        g.SetTitle("%.0f GeV" % m)
 
         if args.means and not m in args.means:
             continue
         
         graphs_lim[g.GetTitle()] = g
-        print "adding", g.GetTitle()
+        print("adding", g.GetTitle())
     
     ################################################
     
@@ -66,9 +68,9 @@ def main(args):
     bin_edges = []
     h1_all_limits = {}
     
-    masses = natural_sort(graphs_lim.keys())
+    masses = natural_sort(list(graphs_lim.keys()))
 
-    print("outfile:", inpath.replace(".root", "_hists_width%d.root" % args.width))
+    print(("outfile:", inpath.replace(".root", "_hists_width%d.root" % args.width)))
     fout = ROOT.TFile(inpath.replace(".root", "_hists_width%d.root" % args.width), "RECREATE")
     
     for mass in masses:
@@ -163,8 +165,13 @@ def main(args):
     pad1.cd()
     
     # legend = ROOT.TLegend(0.15,0.6,0.75,0.89)
-    legend = ROOT.TLegend(0.20,0.55,0.75,0.90)
+    # legend = ROOT.TLegend(0.20,0.55,0.75,0.90)
+    # legend = ROOT.TLegend(0.5,0.05,0.9,0.05+3*0.08)
+    legend = ROOT.TLegend(0.57,0.02,0.92,0.05+3*0.07)
+    legend.SetFillStyle(0)
     legend.SetNColumns(2)
+
+    legend.AddEntry(0, "m_{G}:", "")
     
     if "four" in inpath:
         text = "4-par fit"
@@ -189,10 +196,11 @@ def main(args):
         except:
             pass
 
+    text2 = "%s PD, %.0f fb^{-1}" % (trig, lumi/1000)
     if "J50" in inpath:
         lumi = 15000
         trig = "J50"
-    text2 = ", %.1f fb^{-1} %s PD" % (lumi/1000, trig)
+        text2 = "%s PD, %.1f fb^{-1}" % (trig, lumi/1000)
     
     colors = getColorSteps(len(masses))
     
@@ -209,16 +217,26 @@ def main(args):
         # hs.Add(h2_all_points[mass], "CANDLEX(00111011)") #(zhpawMmb)
         hs.Add(h2_all_points[mass], "CANDLEX(00001011)") #(zhpawMmb)
 
-    legend.AddEntry(0,"#sigma_{G}/m_{G} = %.2f" % (args.width/100.),"")
+    # legend.AddEntry(0,"#sigma_{G}/m_{G} = %.2f" % (args.width/100.),"")
     
     # hs.Draw("CANDLEX(00111011)")
     hs.Draw("CANDLEX(00001011)")
-    hs.GetYaxis().SetLimits(-0.5,14.)
+    # hs.GetYaxis().SetLimits(-0.5,14.)
+    hs.GetYaxis().SetLimits(-0.5,20.)
     hs.GetXaxis().SetTitle("S_{inj} / #sqrt{B}")
-    hs.GetYaxis().SetTitle("95% limit / #sqrt{B}")
-    hs.GetYaxis().SetTitleOffset(1.5)
+    hs.GetYaxis().SetTitle("95% CL_{s} limit / #sqrt{B}")
+    hs.GetYaxis().SetTitleOffset(1.4)
     hs.GetXaxis().SetTitleOffset(2)
     hs.GetXaxis().SetLabelOffset(2)
+
+    box = ROOT.TPave(0.16,0.95,1.0,1.0,0,"NDC");
+    box.SetFillStyle(1001)
+    box.SetFillColor(ROOT.kWhite)
+    box.SetLineWidth(0)
+    box.Draw()
+
+    ROOT.gPad.Update()
+    ROOT.gPad.RedrawAxis()
        
     line = ROOT.TLine(0, 0, bin_edges[-1], bin_edges[-1])
     line.SetLineWidth(2)
@@ -227,11 +245,12 @@ def main(args):
     line.Draw()
     
     legend.Draw()
+    ROOT.myText(0.75,0.34,1,"#sigma_{G}/m_{G} = %.2f" % (args.width/100.), 13)
+    # ROOT.myText(0.75,0.29,1,"m_{G}:", 13)
 
     # ROOT.ATLASLabel(0.58, 0.20, "Work in progress", 13)
     # ROOT.myText(0.58, 0.25, 1, text+text2, 13)
-    ROOT.ATLASLabel(0.57, 0.10, "Work in progress", 13)
-    ROOT.myText(0.91, 0.20, 1, text+text2, 33)
+      
 
 
     canvas.Update()
@@ -249,7 +268,7 @@ def main(args):
     i = 0
     axisExists = 0
     for mass in masses:
-        print i, mass
+        print(i, mass)
         # graph = graphs_frac_above[mass]
         # graph.SetMarkerStyle(ROOT.kOpenCircle)
         # graph.SetMarkerSize(1)
@@ -279,8 +298,8 @@ def main(args):
             # graph_below.GetXaxis().SetLimits(x_min,x_max)
             graph_below.GetXaxis().SetLimits(bin_edges[0],bin_edges[-1])
             graph_below.GetYaxis().SetRangeUser(0.,0.16)
-            graph_below.GetYaxis().SetTitleOffset(1.5)
-            graph_below.GetXaxis().SetTitleOffset(3.2)
+            graph_below.GetYaxis().SetTitleOffset(1.4)
+            graph_below.GetXaxis().SetTitleOffset(3.5)
             graph_below.Draw("APEL")
             canvas.Update()
             axisExists = 1
@@ -300,6 +319,13 @@ def main(args):
     # legend2.SetY2NDC(0.9)
     # legend2.Draw()    
     
+    if args.doAtlasLabel:
+        ROOT.ATLASLabel(0.57, 0.10, "Work in progress", 13)
+        ROOT.myText(0.91, 0.20, 1, text+text2, 33)
+    else:
+        ROOT.myText(0.19, 0.93, 1, text2, 13)
+        ROOT.myText(0.19, 0.75, 1, text, 13)
+
     
     canvas.Print(inpath.replace(".root", "_width%d.pdf" % args.width))
     canvas.Print(inpath.replace(".root", "_width%d.svg" % args.width))
