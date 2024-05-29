@@ -44,6 +44,11 @@
 
   <Sample Name="signal_SIGNAME_gq0p1" InputFile="SIGNALFILE" MultiplyLumi="0" >
     <NormFactor Name="nsig_SIGNAME_gq0p1[NSIG]"/>
+    <Systematic Name="ATLAS_theo_SIGNAME_gq0p1" Constr="gaus" CentralValue="1" Mag="THEOUNC" WhereTo="yield"/>
+  </Sample>
+
+  <Sample Name="spurious_SIGNAME_gq0p1" InputFile="SIGNALFILE" MultiplyLumi="0" ImportSyst=":self:" SharePdf="CommonSig">
+    <Systematic Name="ATLAS_spurious_SIGNAME_gq0p1" Constr="gaus" CentralValue="0" Mag="SPURSIG" WhereTo="yield"/>
   </Sample>
 
 </Channel>
