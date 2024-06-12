@@ -1,10 +1,10 @@
 [submodule "xmlAnaWSBuilder"]
 	path = xmlAnaWSBuilder
-	url = https://:@gitlab.cern.ch:8443/atlas-hgam-sw/xmlAnaWSBuilder.git
+	url = https://gitlab.cern.ch/tla-atlas-run3/xmlAnaWSBuilder.git
 	ignore = untracked
 [submodule "quickFit"]
 	path = quickFit
-	url = https://:@gitlab.cern.ch:8443/atlas-phys-exotics-dijet-tla/quickfit.git
+	url = https://gitlab.cern.ch/tla-atlas-run3/quickFit.git
 	ignore = untracked
 [submodule "pyBumpHunter"]
 	path = pyBumpHunter
@@ -12,4 +12,4 @@
 	ignore = untracked
 [submodule "workspaceCombiner"]
 	path = workspaceCombiner
-	url = https://:@gitlab.cern.ch:8443/atlas_higgs_combination/software/workspaceCombiner.git
+	url = https://gitlab.cern.ch/tla-atlas-run3/workspaceCombiner.git
