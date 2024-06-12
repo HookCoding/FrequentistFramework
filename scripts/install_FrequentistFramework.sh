@@ -2,8 +2,8 @@
 
 cwd=$(pwd)
 
-#git submodule init
-#git submodule update
+git submodule sync --recursive
+git submodule update --init
 
 #needs to be done before setup, because that changes /usr/bin/python
 source scripts/install_pyBumpHunter.sh
