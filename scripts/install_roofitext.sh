@@ -7,6 +7,8 @@ else
     outputDir=`pwd`
 fi
 
+# Force remove empty RooFitExtensions directory that was create from recursive submodule update
+rm -r ${outputDir}/RooFitExtensions
 if [ ! -d ${outputDir}/RooFitExtensions ]; then
     mkdir -vp ${outputDir}
     echo "Cloning RooFitExtensions into target directory ${outputDir}..."
