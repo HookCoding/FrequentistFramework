@@ -66,7 +66,7 @@ def main(args):
         for toy in range(args.loopstart, args.loopend+1):
             datahist="%s_%d" % (args.datahist, toy)
             outputfile=args.outputfile.replace(".root", "_%d.root" % toy)
-            print("Running run_anaFit with datahist %s" % datahist)
+            print("\n\nRunning run_anaFit with datahist %s" % datahist)
             run_anaFit(datafile=injecteddatafile,
                        datahist=datahist,
                        topfile=args.topfile,

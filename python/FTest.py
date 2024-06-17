@@ -30,6 +30,7 @@ def main(args):
     parser.add_option('--ndofbin', dest='ndofbin', type=int, default=5, help='bin of the npars value in the chi2 histogram')
     parser.add_option('--usendof', dest='usendof', action='store_true', help='use npar=nbins-ndof instead of number in chi2 histogram')
     parser.add_option('--zerochi2', dest='zerochi2', action='store_true', help='use when fitting unfluctuated data')
+    parser.add_option('--output', dest='output', type=str, default='FTest',help='name of output plot, extension will be added.')
 
     options, args = parser.parse_args(args)
 
@@ -153,8 +154,8 @@ def main(args):
     leg2.Draw()
     c.Update()
 
-    c.Print("FTest.svg")
-    c.Print("FTest.pdf")
+    c.Print(options.output + ".svg")
+    c.Print(options.output + ".pdf")
         
     # raw_input("press enter")
         

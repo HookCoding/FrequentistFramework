@@ -133,7 +133,7 @@ class PreFitter:
         
             thisFitChi2 = fR.Chi2()
             if (thisFitChi2 < bestChi2):
-        	bestChi2 = thisFitChi2
+                bestChi2 = thisFitChi2
                 fitFunction.GetParameters(bestPars)
         
             print("trial %2d: chi2=%.4f" % (i, thisFitChi2))
