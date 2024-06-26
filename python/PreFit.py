@@ -41,6 +41,7 @@ class PreFitter:
             function.SetParameter(i, self.rnd.Uniform(self.parRangeLow[i], self.parRangeHigh[i]))
 
     def Fit(self):
+        print("In Prefit. Attempting to read", self.datafile, "hist", self.datahist)
         f = ROOT.TFile(self.datafile, "READ")
         h = f.Get(self.datahist)
 
@@ -128,7 +129,7 @@ class PreFitter:
         
         for  i in range(self.nRetries2):
             fitFunction.SetParameters(best_chi2Pars[i][1])
-        
+            print("integral",h.Integral())
             fR = h.Fit(fitFunction, "R0QS", "", self.xMin, self.xMax)
         
             thisFitChi2 = fR.Chi2()

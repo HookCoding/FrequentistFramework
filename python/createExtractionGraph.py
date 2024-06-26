@@ -44,24 +44,30 @@ def main(args):
     sigamps = set()
     dict_file = {}
     
-    if paths[0].endswith(".txt"):
-        print("Assuming file list input.")
-        filelists = paths
-        paths = []
-        for fl in filelists:
-            with open(fl, 'r') as f:
-                paths += f.read().splitlines()
-                # lines = f.read().splitlines()
-                # for l in lines:
-                #     paths.append(l)
+    # if paths[0].endswith(".txt"):
+    #     print("Assuming file list input.")
+    #     filelists = paths
+    #     paths = []
+    #     for fl in filelists:
+    #         with open(fl, 'r') as f:
+    #             paths += f.read().splitlines()
+    #             lines = f.read().splitlines()
+    #             for l in lines:
+    #                 paths.append(l)
 
     # print(paths)
-
+    paths = os.listdir("../run")
+    paths = ["../run/"+p for p in paths if "FitParameters_anaFit_mean" in p]
     for p in paths:
         try:
-            res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
-            m=int(res[0])
-            w=int(res[1])
+            # res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
+            # m=int(res[0])
+            # w=int(res[1])
+
+            pattern = r'mean(\d+)_width(\d+)'
+            match = re.search(pattern, p)
+            m = int(match.group(1))
+            w = int(match.group(2))
         except:
             print("ERROR: Cannot identify mean and width from path", p)
             return -1
@@ -129,7 +135,8 @@ def main(args):
                         f.Close()
                     except:
                         try:
-                            tmp_path_postfit = dict_file[(sigmean, sigwidth, sigamp)][0].replace("FitParameters", "PostFit")
+                            # tmp_path_postfit = dict_file[(sigmean, sigwidth, sigamp)][0].replace("FitParameters", "PostFit")
+                            tmp_path_postfit = "../run/postfit.root"
                             print("Postfit path:", tmp_path_injection)
                             f = TFile(tmp_path_postfit)
                             h = f.Get(options.postfithist)
@@ -144,7 +151,7 @@ def main(args):
                             f.Close()
                         except Exception as e:
                             print("WARNING: Could not find injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0])
-                            print(e)
+                            # print(e)
                             n_injected = 0
                 else:
                     n_injected = 0
@@ -160,7 +167,6 @@ def main(args):
 
                 for path in tmp_path_fitresult:
                     try:
-                        print("path", path)
                         f = TFile(path)
                         h = f.Get("postfit_params")
                         for i in range(1, h.GetNbinsX()+1):
@@ -245,10 +251,12 @@ def main(args):
                         
             fout.cd()
             g_allPoints.SetTitle("%d GeV Gauss (%d%%)" % (sigmean, sigwidth))
-            g_allPoints.Write("g1_extraction_gauss_%d_%d" % (sigmean, sigwidth))
+            # g_allPoints.Write("g1_extraction_gauss_%d_%d" % (sigmean, sigwidth))
+            g_allPoints.Write("g1_extraction_guass_mean%d_width%d" % (sigmean, sigwidth))
             
             g_profile.SetTitle("%d GeV Gauss (%d%%)" % (sigmean, sigwidth))
-            g_profile.Write("g1_profile_gauss_%d_%d" % (sigmean, sigwidth))
+            # g_profile.Write("g1_profile_gauss_%d_%d" % (sigmean, sigwidth))
+            g_profile.Write("g1_profile_guass_mean%d_width%d" % (sigmean, sigwidth))
 
             allPoints_list.append(g_allPoints)
             profile_list.append(g_profile)
@@ -283,12 +291,12 @@ def main(args):
 
     lumi = 29
     # if "lumi" in dict_file.values()[0]:
-    if "lumi" in list(next(iter(list(dict_file.items()))))[0]:
-        try:
-            # lumi=int(dict_file.values()[0].split("lumi")[-1].split("_")[0])
-            lumi=int(list(next(iter(list(dict_file.items()))))[0].split("lumi")[-1].split("_")[0])
-        except:
-            pass
+    # if "lumi" in list(next(iter(list(dict_file.items()))))[0]:
+    #     try:
+    #         # lumi=int(dict_file.values()[0].split("lumi")[-1].split("_")[0])
+    #         lumi=int(list(next(iter(list(dict_file.items()))))[0].split("lumi")[-1].split("_")[0])
+    #     except:
+    #         pass
     text1 = "Pseudodata %d fb^{-1}" % lumi
 
     text2 = "global fit"

@@ -11,7 +11,7 @@ class CondorHandler(object) :
     self.batch_path = batch_path
     # workday (8hs), tomorrow (1day), longlunch(2hs), testmatch (3days), nextweek(1week)
     self.job_length = "workday"
-    self.email = 'alex.gekow@cern.ch'
+    self.email = 'mariana.toscani@cern.ch'
 
   def send_job(self,command,tag, outputFolder) :
     # tag: if sending many jobs, tag distinguishes .sub and .sh files. (e.g.: mR)
@@ -23,7 +23,7 @@ class CondorHandler(object) :
     # do submit thing
     subprocess.call("condor_submit {0}".format(jobfile),shell=True)
 
-  def make_bash_file(self,command, tag) :
+  def make_bash_file(self,command, tag, outputFolder) :
 
     runFile = self.batch_path+"batch_{0}.sh".format(tag)
 
@@ -33,14 +33,35 @@ class CondorHandler(object) :
       fr.write('#!/bin/bash\n')
       fr.write('#$ -M '+self.email+'\n')
       # define localdir from where to copy everything to condor:
-      fr.write('localdir=/afs/cern.ch/work/a/agekow/tlarun3/FrequentistFramework\n')
+      fr.write('localdir=/afs/cern.ch/work/m/mtoscani/public/TLA/FrequentistFramework/\n')
       # general setup:
-      fr.write('cd /afs/cern.ch/work/a/agekow/tlarun3/FrequentistFramework\n')
+      fr.write('export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase\n')
+      fr.write('source /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh\n\n')
+      # prepare condor directories:
+      fr.write('mkdir dir\n')
+      fr.write('cd dir\n')
+      fr.write('mkdir out log err output\n')
+
+      # copy packages required:
+      fr.write('cp -rf ${localdir}/config . \n')
+      fr.write('cp -rf ${localdir}/Input . \n')
+      fr.write('cp -rf ${localdir}/python . \n')
+      fr.write('cp -rf ${localdir}/quickFit . \n')
+      fr.write('cp -rf ${localdir}/workspaceCombiner . \n')
+      fr.write('cp -rf ${localdir}/xmlAnaWSBuilder . \n')
+      fr.write('cp -rf ${localdir}/scripts/setup_buildCombineFit.sh . \n\n')
+      # TODO add outputfolder if exists? If no WS building, but yes fitting or limit  
+      fr.write('ls -a \n')
+      
+      # Setup the packages:
       fr.write('source setup_buildCombineFit.sh\n')
 
       # Run the command:
       fr.write('echo \"Evaluating command: \"' + command + "\n")
-      fr.write(command + '\n')
+      fr.write('eval ' + command + '\n')
+
+      # Copy output back to local directory:
+      fr.write('cp -rf output/* ${localdir}/'+ outputFolder + '\n')
       
       fr.write('echo \'Done!\'')
 
@@ -63,30 +84,3 @@ class CondorHandler(object) :
 
     print ("Made job file",batchFile)
     return batchFile
-
-
-if __name__ == "__main__":
-  """
-  Make condor submission per fit
-  """
-  # S+B fit of many toy pseudodata histograms
-  mass = list(range(200, 1000, 50))
-  # widths taken from mjj resolution 
-  widths = [0.090, 0.080, 0.070, .0725, .060, 0.058, 0.056, 0.054, 0.052, 0.05, 0.048, 0.046, 0.045, 0.043, 0.042, 0.041]
-  widths = [w*100 for w in widths]
-
-  # Number of toys in pseudodata file
-  pseudodata_index = range(1,100)
-
-  assert len(mass) == len(widths), "Number of mass points and widths are not equal"
-
-  logPath = "/afs/cern.ch/work/a/agekow/tlarun3/FrequentistFramework/run/condor/"
-  batchPath = logPath
-  ch = CondorHandler(logPath, batchPath)
-
-  for i in range(len(mass)):
-    m = mass[i]
-    w = width[i]
-    for p in pseudodata_index:
-      cmd = f". run_anaFitLoop.sh -m {m} -w {w} -p {p}"
-      ch.make_bash_file(cmd, f"mass{m}_width{w}_pseudodata{p}")

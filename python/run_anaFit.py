@@ -226,6 +226,7 @@ def run_anaFit(datafile,
                                                                 fitresultfile=outputfile, 
                                                                 poi=poi,
 							                                )
+                                                        
 
     print ("Global fit p(chi2)=%.3f" % pval_global)
 
@@ -306,7 +307,7 @@ def main(args):
     parser.add_argument('--dolimit', dest='dolimit', action="store_true", help='Perform limit setting')
     parser.add_argument('--signame', dest='signame', type=str, help='Name of the signal parameter')
     parser.add_argument('--sigmean', dest='sigmean', type=int, default=1000, help='Mean of signal Gaussian for s+b fit (in GeV)')
-    parser.add_argument('--sigwidth', dest='sigwidth', type=int, default=7, help='Width of signal Gaussian for s+b fit (in %). If -999 dealing with Zprime samples.')
+    parser.add_argument('--sigwidth', dest='sigwidth', type=float, default=7, help='Width of signal Gaussian for s+b fit (in %). If -999 dealing with Zprime samples.')
     parser.add_argument('--maskthreshold', dest='maskthreshold', type=float, default=0.01, help='Threshold of p(chi2) below which to run BH and mask the most significant window')
     parser.add_argument('--doprefit', dest='doprefit', action="store_true", help='Perform ROOT prefit before quickFit')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
@@ -324,7 +325,7 @@ def main(args):
     except OSError:
         if not os.path.isdir(args.folder):
             raise
-
+    print("current working directory", os.getcwd())
     run_anaFit(datafile=args.datafile,
                datahist=args.datahist,
                topfile=args.topfile,

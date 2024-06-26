@@ -35,14 +35,16 @@ def main(args):
     hists = {}
     
     for p in paths:
+        print(p)
         f = TFile(p)
 
         for k in f.GetListOfKeys():
             name = k.GetName()
-            d = f.Get(name)
+            print(name)
+            # d = f.Get(name)
             
-            if not isinstance(d, ROOT.TDirectory):
-                continue
+            # if not isinstance(d, ROOT.TDirectory):
+            #     continue
 
             res=re.search(r'mean(\d+)_width(\d+)(:?_amp\d+)?', name)
             m=int(res.group(1))
@@ -51,28 +53,27 @@ def main(args):
                 a=int(res.group(3)[4:])
             except:
                 a=0
+            # for k2 in d.GetListOfKeys():
+                # name = k2.GetName()
 
-            for k2 in d.GetListOfKeys():
-                name = k2.GetName()
+            # if not ("nsig" in name or "nbkg" in name):
+            #     continue
+            
+            h = f.Get(name)
+            # h.SetDirectory(0)
+            print(h)
+            if not m in hists:
+                hists[m]={}
+            if not w in hists[m]:
+                hists[m][w]={}
+            if not a in hists[m][w]:
+                hists[m][w][a]={}
+            if not name in hists[m][w][a]:
+                hists[m][w][a][name]=[]
 
-                if not ("nsig" in name or "nbkg" in name):
-                    continue
-                
-                h = d.Get(name)
-                h.SetDirectory(0)
+            hists[m][w][a][name].append(h)
 
-                if not m in hists:
-                    hists[m]={}
-                if not w in hists[m]:
-                    hists[m][w]={}
-                if not a in hists[m][w]:
-                    hists[m][w][a]={}
-                if not name in hists[m][w][a]:
-                    hists[m][w][a][name]=[]
-
-                hists[m][w][a][name].append(h)
-
-            d.Close()
+            # d.Close()
         f.Close()
 
     graphs = []
@@ -87,12 +88,12 @@ def main(args):
                 for name in hists[m][w][a]:
 
                     list_h = hists[m][w][a][name]
-
+                    print(m, w, a, name)
                     c = TCanvas("c1", "c1", 800, 600)
                     # c.SetLogy()
 
                     mean = []
-                    rms = []
+                    rms =  []
                     skew = []
                     kurt = []
 
@@ -134,8 +135,8 @@ def main(args):
                             ratios[i][(w,a)] = ROOT.TGraphErrors()
 
                             if abs(mean[i] / rms[i]) > 0.3:
-                                print "WARNING: mean/rms=%.2f for %s in file %s" % (mean[i]/rms[i], name, paths[i])
-
+                                print ("WARNING: mean/rms=%.2f for %s in file %s" % (mean[i]/rms[i], name, paths[i])
+)
                         j = graphs[i][(w,a)].GetN()
                         graphs[i][(w,a)].SetPoint(j, m+(w/5-2)*spacing, mean[i])
                         graphs[i][(w,a)].SetPointError(j, 0, rms[i])

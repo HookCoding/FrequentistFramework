@@ -61,7 +61,7 @@ def main(args):
     
     for i in range(0, args.nreplicas):
         if (i%steps == 0):
-            print i,"/",args.nreplicas
+            print (i,"/",args.nreplicas)
 
         gRand.SetSeed(i)
         h_out = fluctuatePoisson(h_in)

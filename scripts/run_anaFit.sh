@@ -7,23 +7,23 @@
     for pars in five
     do
 	# for trig in J50Comb J100
-	for trig in J100
-	do
-	    folder=run/outOfTheBoxFit
-	    signalfile=config/dijetTLA/signal/signal_dijetTLA.template
-	    backgroundfile=config/dijetTLA/background_dijetTLA_${trig/Comb/}yStar06_${pars}Par.template
-	    categoryfile=config/dijetTLA/category_dijetTLA.template
-	    topfile=config/dijetTLA/dijetTLA_J100yStar06.template
-	    wsfile=${folder}/dijetTLA_combWS_${pars}Par_${trig}yStar06.root
-	    sigmean=1000
-	    sigwidth=7
-	    dosignal=1
-	    dolimit=1
-	    outputfile=${folder}/FitResult_anaFit_${pars}Par_${trig}yStar06_mean${sigmean}_width${sigwidth}.root
-	    rangelow=457
-	    rangehigh=2997
-	    datafile=Input/data/dijetTLA/unblinding1_mjj_spectra.root
-	    datahist=L1${trig}/Mjj_1GeVbinning
+	    folder=run
+	    signalfile=config/dijetisrTLA/signal/signal_dijetisrTLA.template
+	    backgroundfile=config/dijetisrTLA/background_dijetisrTLA_${pars}Par.template
+	    categoryfile=config/dijetisrTLA/category_dijetisrTLA.template
+	    topfile=config/dijetisrTLA/dijetisrTLA.template
+	    wsfile=${folder}/dijetisrTLA_combWS_${pars}Par.root
+	    sigmean=200
+	    sigwidth=10
+	    dosignal=0
+	    dolimit=0
+	    # outputfile=${folder}/FitResult_anaFit_${pars}Par_mean${sigmean}_width${sigwidth}.root
+		outputfile=${folder}/FitResult_anaFit_${pars}Par_bkgOnly.root
+	    rangelow=150
+	    rangehigh=1000
+	    datafile=Input/data/dijetisrTLA/outputHistograms.root
+		# datafile=run/postfit.root
+	    datahist=mjj
 	    nbkg="dummy" #overwritten by prefit
 	    maskthreshold=0.01
 	    doprefit=1
@@ -50,6 +50,12 @@
 		--maskthreshold $maskthreshold \
 		--folder $folder \
 		$flags
-	done
+
+		toys=100
+		scalefactor=$( bc <<< 'scale=2; 30/1.015' )
+		echo python python/generatePseudoData.py --infile ${outputfile/FitResult/PostFit} --inhist Run3TLA/postfit --outhist pseudodata --outfile ${folder}/Run3_TLA${rangelow}_${rangehigh}_${pars}Par_finebinned_scale${scalefactor}.root --nreplicas $toys --scaling $scalefactor
+
+		python python/generatePseudoData.py --infile ${outputfile/FitResult/PostFit} --inhist Run3TLA/postfit --outhist pseudodata --outfile ${folder}/Run3_TLA${rangelow}_${rangehigh}_${pars}Par_finebinned_scale${scalefactor}.root --nreplicas $toys --scaling $scalefactor
+
     done
 }

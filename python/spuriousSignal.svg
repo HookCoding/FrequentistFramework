@@ -1,0 +1,23 @@
+<?xml version="1.0" standalone="no"?>
+<svg width="567.429" height="409.002" viewBox="0 0 567.429 409.002" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+<title>
+spuriousSignal.svg
+</title>
+<desc>
+Creator: ROOT Version 6.30/02
+CreationDate: Fri Jun 21 22:39:52 2024</desc>
+<defs>
+</defs>
+<rect x="0.5" y="0" width="566.929" height="408.502" fill="white"/>
+<rect x="0.5" y="0" width="566.929" height="285.951" fill="white"/>
+<text xml:space="preserve" x="113.46" y="41.2054" fill="black" font-size="16.8147" font-family="Helvetica" font-weight="bold" font-style="oblique">ATLAS</text>
+<text xml:space="preserve" x="178.82" y="40.4949" fill="black" font-size="16.8147" font-family="Helvetica">Work in progress</text>
+<text xml:space="preserve" x="293.911" y="58.2559" fill="black" font-size="16.8147" font-family="Helvetica"> PD</text>
+<text xml:space="preserve" x="286.096" y="51.1515" fill="black" font-size="11.3765" font-family="Helvetica">-1</text>
+<text xml:space="preserve" x="129.8" y="58.2559" fill="black" font-size="16.8147" font-family="Helvetica">=13 TeV, J100 130 fb</text>
+<text xml:space="preserve" x="121.985" y="58.2559" fill="black" font-size="16.8147" font-family="Helvetica">s</text>
+<path d="M116.301,49.0202l 2.13131, 9.94613" fill="none" stroke="black" stroke-width="2"/>
+<path d="M118.433,58.9663l 2.13131, -14.9192" fill="none" stroke="black"/>
+<path d="M120.564,44.0471h 9.23569" fill="none" stroke="black"/>
+<rect x="374.673" y="28.5951" width="130.394" height="85.7853" fill="white"/>
+<rect x="0.5" y="285.951" width="566.929" height="122.55" fill="white"/></svg>
