@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 #!/usr/bin/env python
 import ROOT
 import sys, re, os, math, argparse
@@ -5,12 +7,14 @@ from array import array
 from ROOT import *
 from math import sqrt
 from glob import glob
+import ctypes
 
 # Use -b as last cmdline argument to plotLimits.py to activate batch mode and get proper transparent png output
 
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasLabels.C")
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasStyle.C")
 gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
+gROOT.SetBatch(kTRUE)
 
 # lumi = 29500
 # lumi = 29300
@@ -22,22 +26,24 @@ def createFillBetweenGraphs(g1, g2):
   g_fill = TGraph()
   
   for i in range(g1.GetN()):
-      x=ROOT.Double()
-      y=ROOT.Double()
+      x=ctypes.c_double()
+      y=ctypes.c_double()
     
       g1.GetPoint(i, x, y)
-      if math.isnan(y) or math.isinf(y):
-        continue
+    
+      x=x.value
+      y=y.value
 
       g_fill.SetPoint(g_fill.GetN(), x, y)
 
   for i in range(g2.GetN()-1, -1, -1):
-      x=ROOT.Double()
-      y=ROOT.Double()
+      x=ctypes.c_double()
+      y=ctypes.c_double()
     
       g2.GetPoint(i, x, y)
-      if math.isnan(y) or math.isinf(y):
-        continue
+
+      x=x.value
+      y=y.value
     
       g_fill.SetPoint(g_fill.GetN(), x, y)
 
@@ -66,8 +72,8 @@ def main(args):
       if args.isZprime:
 	# res=re.search(r'mR(\d+)', p)
         res=re.search(r'mean(\d+)_width(-?\d+)', p)
-	w = -999 # dummy
-	xAxisTitle = "M_{Z'} [GeV]"
+        w = -999 # dummy
+        xAxisTitle = "M_{Z'} [GeV]"
         yMax = 100.
         yMin = 1e-2
         if "J50" in p:
@@ -79,11 +85,11 @@ def main(args):
         # print(p)
         res=re.search(r'mean(\d+)_width(-?\d+)', p)
         # print(res)
-	w=int(res.group(2))
+        w=int(res.group(2))
         xAxisTitle = "M_{G} [GeV]"
 
-	yMax = 50.
-	yMin = 1e-2
+        yMax = 50.
+        yMin = 1e-2
         if "J50" in p:
           yMax = 500.
           yMin = 0.1
@@ -130,7 +136,7 @@ def main(args):
                 if tmp_path.endswith(".root"):
                     f = TFile(tmp_path, "READ")
                     if f.IsZombie():
-                        print "WARNING: Missing point (%d,%d)" % (sigmean, sigwidth)
+                        print("WARNING: Missing point (%d,%d)" % (sigmean, sigwidth))
                         continue
                     h = f.Get("limit")
     
@@ -160,15 +166,17 @@ def main(args):
                 g_exp1d[i].SetPoint(g_exp1d[i].GetN(), sigmean, exp1d)
                 g_exp2d[i].SetPoint(g_exp2d[i].GetN(), sigmean, exp2d)
             except Exception as e:
-                print e
-                print "WARNING: Missing point (%d,%d)" % (sigmean, sigwidth)
+                print(e)
+                print("WARNING: Missing point (%d,%d)" % (sigmean, sigwidth))
 
 
         g_exp1.append( createFillBetweenGraphs(g_exp1d[-1], g_exp1u[-1]) )
         g_exp2.append( createFillBetweenGraphs(g_exp2d[-1], g_exp2u[-1]) )
 
-        g_exp1[-1].SetFillColorAlpha(colors[i], 0.2)
-        g_exp2[-1].SetFillColorAlpha(colors[i], 0.2)
+        g_exp1[-1].SetFillColor(colors[i]-9)
+        g_exp2[-1].SetFillColor(colors[i]-10)
+        # g_exp1[-1].SetFillColorAlpha(colors[i], 0.2)
+        # g_exp2[-1].SetFillColorAlpha(colors[i], 0.2)
         g_exp[-1].SetLineColor(colors[i])
         g_exp[-1].SetLineStyle(2)
         g_exp[-1].SetLineWidth(2)
@@ -187,7 +195,6 @@ def main(args):
       leg_obs = TLegend(0.65,0.70,0.85,0.85)
       leg_exp = TLegend(0.65,0.49,0.85,0.64)
      
-
     g_exp2[0].Draw("af")
     g_exp2[0].GetXaxis().SetTitle(xAxisTitle)
     g_exp2[0].GetYaxis().SetTitle("#sigma #times #it{A} #times #it{BR} [pb]")
@@ -201,17 +208,17 @@ def main(args):
     g_exp1[0].Draw("f")
 
     for i,g in enumerate(g_exp):
-        g.Draw("l")
-	if args.isZprime:
-	  leg_exp.AddEntry(g, "Expected", "l")
-	else:
-	  leg_exp.AddEntry(g, "#sigma_{G}/M_{G} = %.2f" % (sigwidths[i]/100.), "l")
+      g.Draw("l")
+      if args.isZprime:
+        leg_exp.AddEntry(g, "Expected", "l")
+      else:
+        leg_exp.AddEntry(g, "#sigma_{G}/M_{G} = %.2f" % (sigwidths[i]/100.), "l")
     for i,g in enumerate(g_obs):
-        g.Draw("pl")
-        if args.isZprime:
-          leg_obs.AddEntry(g, "Observed","lp")
-        else:
-          leg_obs.AddEntry(g, "#sigma_{G}/M_{G} = %.2f" % (sigwidths[i]/100.), "lp")
+      g.Draw("pl")
+      if args.isZprime:
+        leg_obs.AddEntry(g, "Observed","lp")
+      else:
+        leg_obs.AddEntry(g, "#sigma_{G}/M_{G} = %.2f" % (sigwidths[i]/100.), "lp")
         
     ATLASLabel(0.20, 0.90, "Work in progress", 13)
     myText(0.20, 0.85, 1, "95% CL_{s} upper limits", 13)
@@ -224,8 +231,9 @@ def main(args):
     leg_exp.Draw()
     leg_obs.Draw()
 
-    c1.Print(os.path.join(args.folder,args.outname+".svg"))
-    c1.Print(os.path.join(args.folder,args.outname+".pdf"))
+    c.Print(os.path.join(args.folder,args.outname+".svg"))
+    c.Print(os.path.join(args.folder,args.outname+".pdf"))
+    c.Print(os.path.join(args.folder,args.outname+".png"))
 
     fout=TFile(os.path.join(args.folder,args.outname+".root"), "RECREATE")
     for i,g in enumerate(g_exp):
@@ -242,5 +250,6 @@ def main(args):
     
 if __name__ == "__main__":  
    
-   args=[x for x in sys.argv[1:] if not (x.startswith("-") and not x.startswith("--"))]
-   sys.exit(main(args))
+   sys.exit(main(sys.argv[1:]))   
+   # args=[x for x in sys.argv[1:] if not (x.startswith("-") and not x.startswith("--"))]
+   # sys.exit(main(args))
