@@ -69,6 +69,9 @@ def main(args):
  
     parser = argparse.ArgumentParser(description='%prog [options] INPUT')
     parser.add_argument('--uncertainty', dest='uncertainty', type=float, default=0.5, help='Factor to multiply the RMS with to get the spurious signal uncertainty')
+    parser.add_argument('--minmass', dest='minmass', type=float, default=350., help='Minimal signal mass to provide uncertainty for')
+    parser.add_argument('--maxmass', dest='maxmass', type=float, default=1800., help='Maximal signal mass to provide uncertainty for')
+    parser.add_argument('--spacing', dest='spacing', type=float, default=5., help='Spacing of output signal masses')
     args, paths = parser.parse_known_args(args)
     
     graphs = []
@@ -79,15 +82,9 @@ def main(args):
     for i,p in enumerate(paths):
         dicts_out.append({})
 
-        # J100:
-        xmin = 500
-        xmax = 1800
-        spacing = 25
-
-        if "J50" in p:
-            xmin = 350
-            xmax = 700
-            spacing = 25
+	xmin = args.minmass
+	xmax = args.maxmass
+	spacing = args.spacing
 
         for j, (w,a) in enumerate(sorted(graphs[i])):
 
