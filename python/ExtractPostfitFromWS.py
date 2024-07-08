@@ -52,7 +52,7 @@ def getChi2(extractor, channelname, npars, useSumW2=False):
         valueData = h_data.GetBinContent(ibin)
         postFitValue = h_postfit.GetBinContent(ibin)
         if extractor.maskisbinnumber:
-            binCenter = ibin + 0.5
+            binCenter = extractor.datafirstbin + ibin - 0.5
         else:
             binCenter = h_data.GetBinCenter(ibin)
 
@@ -67,11 +67,11 @@ def getChi2(extractor, channelname, npars, useSumW2=False):
             h_residuals.SetBinError(ibin, 0)
 
             if binCenter < extractor.maskmin or binCenter > extractor.maskmax:
-                # print("binCenter %.1f outside of maskmin %.1f and maskmax %.1f" % (binCenter, extractor.maskmin, extractor.maskmax))
+                # print("binCenter %.1f (%.1f in residual hist) outside of maskmin %.1f and maskmax %.1f" % (binCenter, h_data.GetBinCenter(ibin), extractor.maskmin, extractor.maskmax))
                 chi2bins += 1
                 chi2 += binSig*binSig
             else:
-                # print("binCenter %.1f inside of maskmin %.1f and maskmax %.1f" % (binCenter, extractor.maskmin, extractor.maskmax))
+                # print("binCenter %.1f (%.1f in residual hist)  inside of maskmin %.1f and maskmax %.1f" % (binCenter, h_data.GetBinCenter(ibin), extractor.maskmin, extractor.maskmax))
                 maskedchi2bins += 1
 
     ndof = chi2bins - npars
