@@ -13,6 +13,10 @@ def main(args):
 
     print("Signal\t\tAcc\t>344GeV\t>481GeV")
 
+    g_acc_mjj0 = ROOT.TGraph()
+    g_acc_mjj344 = ROOT.TGraph()
+    g_acc_mjj481 = ROOT.TGraph()
+
     for s in signals:
     
         searchstring =r'mR(\d+)p(\d+).*_gSM(\d+)p(\d+)'
@@ -28,7 +32,30 @@ def main(args):
         N_344 = h_mjj.Integral(h_mjj.FindBin(344),-1)
         N_481 = h_mjj.Integral(h_mjj.FindBin(481),-1)
 
-        print("%s\t%.4f\t%.4f\t%.4f" % (name, N_sel/N_tot, N_344/N_tot, N_481/N_tot))
+        print("%s & %.3f & %.3f & %.3f \\\\" % (name, N_sel/N_tot, N_344/N_tot, N_481/N_tot))
+
+        m = None
+        if name == "mR0p35_mDM10_gSM0p10":
+            m = 350
+        elif name == "mR0p6_gSM0p1":
+            m = 600
+        elif name == "mR1p0_gSM0p1":
+            m = 1000
+        elif name == "mR2p0_gSM0p1":
+            m = 2000
+
+        if m != None:
+            g_acc_mjj0.SetPoint(g_acc_mjj0.GetN(), m, N_sel/N_tot)
+            g_acc_mjj344.SetPoint(g_acc_mjj344.GetN(), m, N_344/N_tot)
+            g_acc_mjj481.SetPoint(g_acc_mjj481.GetN(), m, N_481/N_tot)
+            
+    fout = ROOT.TFile("acceptance_zprime.root", "RECREATE")
+
+    g_acc_mjj0.Write("g_acc_mjj0")
+    g_acc_mjj344.Write("g_acc_mjj344")
+    g_acc_mjj481.Write("g_acc_mjj481")
+
+    fout.Close()
 
 
 if __name__ == "__main__":  
