@@ -166,7 +166,7 @@ def run_anaFit(datafile,
                       [("BACKGROUNDFILE", tmpbackgroundfile)])
 
         if doprefit:
-           nPars = 5
+            nPars = 5
             if "four" in backgroundfile:
                 nPars = 4
             elif "five" in backgroundfile:
