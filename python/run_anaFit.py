@@ -134,14 +134,18 @@ def run_anaFit(datafile,
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
         execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd {}AnaWSBuilder.dtd".format(folder))
     
+    suffix = "_bkgonly"
+    if dosignal:
+        suffix = "_mean{0}_width{1}".format(sigmean, sigwidth)
+
     tmpbackgroundfile=os.path.join(folder, os.path.basename(backgroundfile).replace(".template",".xml"))
-    tmpsignalfile=os.path.join(folder, "signal_mean{0}_width{1}.xml".format(sigmean, sigwidth))
-    tmpcategoryfile=tmpbackgroundfile.replace(".xml","_mean{0}_width{1}.xml".format(sigmean, sigwidth)).replace("background","category")
+    tmpsignalfile=os.path.join(folder, os.path.basename(signalfile).replace(".template", suffix + ".xml"))
+    tmpcategoryfile=os.path.join(folder, os.path.basename(categoryfile).replace(".template", suffix + ".xml"))
     tmptopfile=tmpcategoryfile.replace("category_","")
-    if sigwidth == -999: # running on zprime samples:
-      print("Running in Zprime samples")
-      tmpcategoryfile=tmpcategoryfile.split("_mean")[0]+"_mR{}.xml".format(sigmean)
-      tmptopfile=tmptopfile.split("_mean")[0]+"_mR{}.xml".format(sigmean)
+    if dosignal and sigwidth == -999: # running on zprime samples:
+        print("Running in Zprime samples")
+        tmpcategoryfile=tmpcategoryfile.split("_mean")[0]+"_mR{}.xml".format(sigmean)
+        tmptopfile=tmptopfile.split("_mean")[0]+"_mR{}.xml".format(sigmean)
     
     print("Generated following cards:\n")
     print("\tTop card:", tmptopfile)
@@ -166,7 +170,7 @@ def run_anaFit(datafile,
                       [("BACKGROUNDFILE", tmpbackgroundfile)])
 
         if doprefit:
-           nPars = 5
+            nPars = 5
             if "four" in backgroundfile:
                 nPars = 4
             elif "five" in backgroundfile:
