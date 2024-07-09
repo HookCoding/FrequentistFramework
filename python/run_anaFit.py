@@ -132,9 +132,7 @@ def run_anaFit(datafile,
 
     # generate the config files on the fly in run dir
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
-      execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd {}AnaWSBuilder.dtd".format(folder))
-      #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
-    
+        execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd {}AnaWSBuilder.dtd".format(folder))
     
     tmpbackgroundfile=os.path.join(folder, os.path.basename(backgroundfile).replace(".template",".xml"))
     tmpsignalfile=os.path.join(folder, "signal_mean{0}_width{1}.xml".format(sigmean, sigwidth))
