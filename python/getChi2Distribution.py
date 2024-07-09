@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import ROOT
 import sys, re, os, math, argparse
 import numpy as np
@@ -21,6 +22,7 @@ def main(args):
     parser.add_argument('--outfile', dest='outfile', type=str, default='chi2.root', help='Output file name')
     parser.add_argument('--outhist', dest='outhist', type=str, default='chi2', help='Output hist name')
     parser.add_argument('--nofit', dest='nofit', action='store_true', help='Do not fit the chi2 distribution')
+    parser.add_argument('--atlaslabel', dest='atlaslabel', action='store_true', help='Include ATLAS label in plot')
 
     args = parser.parse_args(args)
 
@@ -45,13 +47,13 @@ def main(args):
     mean = np.percentile(chi2,50)
     # boundary = np.percentile(chi2,95)
     boundary = 2*mean
-    print mean, boundary
+    print(mean, boundary)
 
     f_out = ROOT.TFile(args.outfile, "RECREATE")
     f_out.cd()
 
-    h_out = ROOT.TH1D("chi2", "chi2;#chi^{2};# toys, normalised", 250, 0, 3*mean)
-    h_pval_out = ROOT.TH1D("pval", "pval;#chi^{2} #it{p}-value;# toys, normalised", 100, 0, 1)
+    h_out = ROOT.TH1D("chi2", "chi2;#chi^{2};Toys (normalized)", 250, 0, 3*mean)
+    h_pval_out = ROOT.TH1D("pval", "pval;#chi^{2} #it{p}-value;Toys (normalized)", 100, 0, 1)
 
     for c in chi2:
         h_out.Fill(c)
@@ -70,9 +72,10 @@ def main(args):
     
     # h_out.GetXaxis().SetRangeUser(1250, 1950)
     h_out.Draw("hist")
-    
+    h_out.GetYaxis().SetTitleOffset(1.8)
+
     if not args.nofit:
-        print "Fitting with chi2 distribution"
+        print("Fitting with chi2 distribution")
         f1 = ROOT.TF1("chi-square distribution",ChiSquareDistr,0.,boundary,1);
         f1.SetNpx(2000)
         f1.SetParameter(0,h_out.GetMean())
@@ -84,11 +87,15 @@ def main(args):
 
         f1.Write("fit")
 
-    print "hist integral:", h_out.Integral("width")
+    print("hist integral:", h_out.Integral("width"))
     if not args.nofit:
-        print "fct  integral:", f1.Integral(0,2000)
+        print("fct  integral:", f1.Integral(0,2000))
 
-    ROOT.ATLASLabel(0.59, 0.90, "Work in progress", 13)
+    yshift = 0.
+    if args.atlaslabel:
+        ROOT.ATLASLabel(0.59, 0.90, "Work in progress", 13)
+    else:
+        yshift = 0.05
 
     text=""
     if "four" in args.infiles[0]:
@@ -106,23 +113,24 @@ def main(args):
             s=int(s[6:])
             text="NLOFit, #sigma=%d constraint" % s
 
-    ROOT.myText(0.92, 0.84, 1, text, 33)
+    ROOT.myText(0.90, 0.84+yshift, 1, text, 33)
 
-    l=ROOT.TLegend(0.65,0.66, 0.92, 0.78)
+    l=ROOT.TLegend(0.65,0.66+yshift, 0.90, 0.78+yshift)
     l.AddEntry(h_out, "%d toys" % len(chi2), "l")
     if not args.nofit:
-        ROOT.myText(0.75, 0.57, 1, "ndf:", 33)
-        ROOT.myText(0.92, 0.57, 1, "%.1f #pm %.1f" % (f1.GetParameter(0), f1.GetParError(0)), 33)
+        ROOT.myText(0.75, 0.57+yshift, 1, "ndf:", 33)
+        ROOT.myText(0.90, 0.57+yshift, 1, "%.1f #pm %.1f" % (f1.GetParameter(0), f1.GetParError(0)), 33)
         l.AddEntry(f1, "#chi^{2} distribution fit", "l")
     l.Draw()
 
-    ROOT.myText(0.75, 0.63, 1, "bins:", 33)
-    ROOT.myText(0.92, 0.63, 1, "%d" % bins, 33)
+    ROOT.myText(0.75, 0.63+yshift, 1, "bins:", 33)
+    ROOT.myText(0.90, 0.63+yshift, 1, "%d" % bins, 33)
 
     c.Update()
 
     c.Print(args.outfile.replace(".root", ".png"))
     c.Print(args.outfile.replace(".root", ".pdf"))
+    c.Print(args.outfile.replace(".root", ".svg"))
 
     f_out.Close()
 

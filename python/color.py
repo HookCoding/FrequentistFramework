@@ -1,25 +1,54 @@
+from __future__ import print_function
 import ROOT
 
 warm_palette = [ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7  ]
 classic_palette8 = [ROOT.kBlue-4, ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7  ]
+saturated_palette = [ROOT.kBlue, ROOT.kRed, ROOT.kGreen+1, ROOT.kOrange-2, ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7]
 
 # 1001 solid
-fill_styles = [3001, 3002, 0, 3004, 3005, 3006] 
+# fill_styles = [3001, 3002, 0, 3004, 3005, 3006] 
+# fill_styles = [3245, 3295, 3254, 3250, 3225, 3275]
+fill_styles = [3245, 3254, 3445, 3454, 3295, 3250]
+marker_styles_full = [ROOT.kFullCircle,ROOT.kFullSquare,ROOT.kFullTriangleUp,ROOT.kFullTriangleDown,ROOT.kFullDiamond,ROOT.kFullCross,ROOT.kFullStar]
+marker_styles_open = [ROOT.kOpenCircle,ROOT.kOpenSquare,ROOT.kOpenTriangleUp,ROOT.kOpenTriangleDown,ROOT.kOpenDiamond,ROOT.kOpenCross,ROOT.kOpenStar]
 
+def getMarkerStyle(index):
+    return marker_styles_full[index]
+
+def getMarkerStyleOpen(index):
+    return marker_styles_open[index]
+
+def getMarkerStyles():
+    return marker_styles_full
+
+def getMarkerStylesOpen():
+    return marker_styles_open
+
+def getFillStyles():
+    return fill_styles
+
+def getColors():
+    return saturated_palette
+
+def getColor(i):
+    return saturated_palette[i]
+
+# def getFillStyle(index):
+#     if index == 0: return 1001
+#     elif index == 1: return 3001
+#     else: return 0
+
+#     c = fill_styles.pop(0)
+#     fill_styles.append(c)
+#     return c
 
 def getFillStyle(index):
-    if index == 0: return 1001
-    elif index == 1: return 3001
-    else: return 0
-
-    c = fill_styles.pop(0)
-    fill_styles.append(c)
-    return c
+    return fill_styles[index]
 
 def hslToRgb(h, s, l):
     (r,g,b) = (0,0,0)
     if s == 0:
-        print 'achromatic'
+        print('achromatic')
         (r, g, b) = (l, l, l); # achromatic
     else:
         def hue2rgb(p, q, t):
@@ -62,7 +91,7 @@ def getInterpolatedColorSteps(startC, endC, n):
     return listcolors
 
 def getColorSteps(n):
-    print "Making color steps for {0} inputs".format(n)
+    print("Making color steps for {0} inputs".format(n))
     (C0, C1, C2, C3, C4, C5) = (ROOT.kBlue+2, ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7, ROOT.kMagenta+1)
     base_colors = [C1, C2, C3, C4, C5]
     if n == 1: return [C1]
@@ -70,18 +99,18 @@ def getColorSteps(n):
     elif n == 3: return [C1,C3,C4]
     elif n == 4: return [C1,C2,C3,C4]
     elif n == 5: return [C0, C1,C2,C3,C4]
-    #elif n == 6: return [C0, C1,C2,C3,C4, C5]
+    elif n == 6: return [C0, C1,C2,C3,C4, C5]
     else:
         n_extra = n-len(base_colors)
         
         n_spacers = len(base_colors) - 1
-        print n_extra, n_spacers, n_extra/n_spacers, n_extra%n_spacers
+        print(n_extra, n_spacers, n_extra/n_spacers, n_extra%n_spacers)
         #if n_spacers%n_padding == 0: 
-        #spacers01 = getInterpolatedColorSteps(C0,C1, n_extra/n_spacers + 1 if n_extra%n_spacers > 0 else 0)
-        spacers12 = getInterpolatedColorSteps(C1,C2, n_extra/n_spacers )
-        spacers23 = getInterpolatedColorSteps(C2,C3, n_extra/n_spacers  + (1 if n_extra%n_spacers > 0 else 0))
-        spacers34 = getInterpolatedColorSteps(C3,C4, n_extra/n_spacers  + (1 if n_extra%n_spacers > 1 else 0))
-        spacers45 = getInterpolatedColorSteps(C4,C5, n_extra/n_spacers  + (1 if n_extra%n_spacers > 2 else 0))
+        #spacers01 = getInterpolatedColorSteps(C0,C1, n_extra//n_spacers + 1 if n_extra%n_spacers > 0 else 0)
+        spacers12 = getInterpolatedColorSteps(C1,C2, n_extra//n_spacers )
+        spacers23 = getInterpolatedColorSteps(C2,C3, n_extra//n_spacers  + (1 if n_extra%n_spacers > 0 else 0))
+        spacers34 = getInterpolatedColorSteps(C3,C4, n_extra//n_spacers  + (1 if n_extra%n_spacers > 1 else 0))
+        spacers45 = getInterpolatedColorSteps(C4,C5, n_extra//n_spacers  + (1 if n_extra%n_spacers > 2 else 0))
         '''elif n_spacers%4 == 1: 
             spacers01 = getInterpolatedColorSteps(C0,C1, n_spacers/4 )
             spacers12 = getInterpolatedColorSteps(C1,C2, n_spacers/4 )
@@ -98,8 +127,8 @@ def getColorSteps(n):
             spacers23 = getInterpolatedColorSteps(C2,C3, n_spacers/4+1 )
             spacers34 = getInterpolatedColorSteps(C3,C4, n_spacers/4+1 )'''
 
-        print len(spacers12), len(spacers23),len(spacers34), len(spacers45)
+        print(len(spacers12), len(spacers23),len(spacers34), len(spacers45))
         color_spectrum = [C1] + spacers12  + [C2] +spacers23+ [C3] + spacers34+  [C4] + spacers45 + [C5]
-        print color_spectrum
-        return color_spectrum
+        print(color_spectrum)
+        return(color_spectrum)
 

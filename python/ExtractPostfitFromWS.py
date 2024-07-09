@@ -25,7 +25,13 @@ def getNPars(pdf, obs, exclSyst):
         
     return counter
 
-def getChi2(extractor, channelname, npars):
+def expHist(h):
+    for i in range(1, h.GetNbinsX()+1):
+        if h.GetBinContent(i) != 0:
+            h.SetBinContent(i, ROOT.TMath.Exp(h.GetBinContent(i)))
+            h.SetBinError(i, h.GetBinError(i)*h.GetBinContent(i))
+
+def getChi2(extractor, channelname, npars, useSumW2=False):
     chi2 = 0.
     chi2bins = 0
     maskedchi2bins = 0
@@ -45,31 +51,31 @@ def getChi2(extractor, channelname, npars):
         valueErrorData = h_data.GetBinError(ibin)
         valueData = h_data.GetBinContent(ibin)
         postFitValue = h_postfit.GetBinContent(ibin)
-        binCenter = h_data.GetBinCenter(ibin)
+        if extractor.maskisbinnumber:
+            binCenter = extractor.datafirstbin + ibin - 0.5
+        else:
+            binCenter = h_data.GetBinCenter(ibin)
 
         binSig = 0.
         if valueErrorData > 0. and postFitValue > 0.:
-            # binSig = (valueData - postFitValue)/valueErrorData
-            binSig = (valueData - postFitValue)/math.sqrt(postFitValue)
+            if useSumW2:
+                binSig = (valueData - postFitValue)/valueErrorData
+            else:
+                binSig = (valueData - postFitValue)/math.sqrt(postFitValue)
 
             h_residuals.SetBinContent(ibin, binSig)
             h_residuals.SetBinError(ibin, 0)
 
             if binCenter < extractor.maskmin or binCenter > extractor.maskmax:
+                # print("binCenter %.1f (%.1f in residual hist) outside of maskmin %.1f and maskmax %.1f" % (binCenter, h_data.GetBinCenter(ibin), extractor.maskmin, extractor.maskmax))
                 chi2bins += 1
                 chi2 += binSig*binSig
             else:
+                # print("binCenter %.1f (%.1f in residual hist)  inside of maskmin %.1f and maskmax %.1f" % (binCenter, h_data.GetBinCenter(ibin), extractor.maskmin, extractor.maskmax))
                 maskedchi2bins += 1
 
-    if extractor.externalchi2file and extractor.externalchi2fct and extractor.externalchi2bins:
-        f_chi2 = TFile(extractor.externalchi2file)
-        tf1_chi2 = f_chi2.Get(extractor.externalchi2fct)
-        ndof = chi2bins - extractor.externalchi2bins + tf1_chi2.GetParameter(0)
-        ndoferr = tf1_chi2.GetParError(0)
-        f_chi2.Close()
-    else:
-        ndof = chi2bins - npars
-        ndoferr = 0.
+    ndof = chi2bins - npars
+    ndoferr = 0.
 
     pval = ROOT.Math.chisquared_cdf_c(chi2, ndof)
 
@@ -114,11 +120,13 @@ class PostfitExtractor:
                  datafirstbin=0, 
                  rebinfile=None, 
                  rebinhist=None, 
-                 externalchi2file=None, 
-                 externalchi2fct=None, 
-                 externalchi2bins=40, 
+                 externalnpars=None, 
                  maskmin=-1, 
-                 maskmax=-1):
+                 maskmax=-1,
+                 bkgonly=False,
+                 undolog=False,
+                 maskisbinnumber=False,
+                 useSumW2=False):
 
         self.wsfile = wsfile
         self.datafile = datafile
@@ -128,11 +136,13 @@ class PostfitExtractor:
         self.datafirstbin = datafirstbin
         self.rebinfile = rebinfile
         self.rebinhist = rebinhist
-        self.externalchi2file = externalchi2file
-        self.externalchi2fct = externalchi2fct
-        self.externalchi2bins = externalchi2bins
+        self.externalnpars = externalnpars
         self.maskmin = maskmin
         self.maskmax = maskmax
+        self.bkgonly = bkgonly
+        self.undolog = undolog
+        self.maskisbinnumber = maskisbinnumber
+        self.useSumW2 = useSumW2
         self.h_data = None
         self.channel_chi2 = {}
         self.channel_nbins = {}
@@ -144,6 +154,7 @@ class PostfitExtractor:
         self.channel_hchi2 = {}
         self.channel_hresiduals = {}
  
+        print(self)
     
     def Extract(self):
         
@@ -153,6 +164,8 @@ class PostfitExtractor:
         fd =  ROOT.TFile(self.datafile, "READ")
         self.h_data = fd.Get(self.datahist)
         self.h_data.SetDirectory(0)
+        if self.undolog:
+            expHist(self.h_data)
 
         model = w.obj(self.modelname)
         pdf = model.GetPdf()
@@ -173,15 +186,31 @@ class PostfitExtractor:
             pdfi = pdf.getPdf(channelname)
             x = pdfi.getObservables(datai).first()
             npars = getNPars(pdfi, x, exclSyst=True)
+            if self.externalnpars != None:
+                npars = self.externalnpars
+            
+            if self.bkgonly:
+                pdf_bkg_unscaled = w.obj("pdf__background_"+channelname)
+                yield_bkg = w.obj("yield__background_"+channelname)
+                pdf_bkg = w.factory("ExtendPdf::pdf__background_ext_"+channelname+"(pdf__background_"+channelname+",yield__background_"+channelname+")")
+
+            expectedEvents = pdfi.expectedEvents(RooArgSet(x))
+            hpdf = pdfi.createHistogram("hpdf", x)
+
+            # hpdf.Scale(expectedEvents/hpdf.Integral())
+            try:
+                hpdf.Scale(expectedEvents/hpdf.Integral())
+                # hpdf.Scale(data.sumEntries()/hpdf.Integral())
+            except:
+                pass
+
+            if self.undolog:
+                expHist(hpdf)
             
             print "Channel %s:" % channelname
-            print "Expected:"
-            expectedEvents = pdfi.expectedEvents(RooArgSet(x))
-
-            print expectedEvents
-
-            hpdf = pdfi.createHistogram("hpdf", x)
-            hpdf.Scale(expectedEvents/hpdf.Integral())
+            print "Expected:", expectedEvents
+            print "sumEntries:", data.sumEntries()
+            print "Integral:", hpdf.Integral()
 
             binEdges = []
             nBins = hpdf.GetNbinsX()
@@ -199,7 +228,35 @@ class PostfitExtractor:
             self.channel_hdata[channelname].SetDirectory(0)
             self.channel_hpostfit[channelname] = h_postfit
 
-            getChi2(extractor=self, channelname=channelname, npars=npars)
+            getChi2(extractor=self, channelname=channelname, npars=npars, useSumW2=self.useSumW2)
+
+            if self.bkgonly:
+                expectedEvents_bkg = pdf_bkg.expectedEvents(RooArgSet(x))
+                hpdf_bkg = pdf_bkg.createHistogram("hpdf_bkg", x)
+                # hpdf_bkg.Scale(expectedEvents_bkg/hpdf_bkg.Integral())
+                try:
+                    hpdf.Scale(expectedEvents_bkg/hpdf.Integral())
+                    # hpdf_bkg.Scale(data.sumEntries()/hpdf_bkg.Integral())
+                except:
+                    pass
+
+                if self.undolog:
+                    expHist(hpdf_bkg)
+
+                channelname_bkg = channelname+"_bkgonly"
+
+                h_postfit_bkg = TH1D("postfit", "postfit", nBins, array.array('d', binEdges))
+                h_postfit_bkg.SetDirectory(0)
+    
+                for ibin in range(1, nBins+1):
+                    h_postfit_bkg.SetBinContent(ibin, hpdf_bkg.GetBinContent(ibin))
+                    h_postfit_bkg.SetBinError(ibin, 0)
+                    
+                self.channel_hdata[channelname_bkg] = self.h_data.Rebin(nBins, "h_data_crop", array.array('d', binEdges))
+                self.channel_hdata[channelname_bkg].SetDirectory(0)
+                self.channel_hpostfit[channelname_bkg] = h_postfit_bkg
+    
+                getChi2(extractor=self, channelname=channelname_bkg, npars=npars, useSumW2=self.useSumW2)
 
             binEdges = None
             if self.rebinfile and self.rebinhist:
@@ -221,8 +278,16 @@ class PostfitExtractor:
                 self.channel_hdata[rebinnedchannelname] = self.channel_hdata[channelname].Rebin(len(binEdges)-1, self.datahist, array.array('d', binEdges))
                 self.datafirstbin = self.channel_hdata[rebinnedchannelname].FindBin(self.datafirstbin) - 1
 
-                getChi2(extractor=self, channelname=rebinnedchannelname, npars=npars)
+                getChi2(extractor=self, channelname=rebinnedchannelname, npars=npars, useSumW2=self.useSumW2)
 
+            if self.bkgonly and self.rebinfile and self.rebinhist:
+                rebinnedchannelname_bkg=channelname_bkg+"_rebinned"
+                self.channel_hpostfit[rebinnedchannelname_bkg] = self.channel_hpostfit[channelname_bkg].Rebin(len(binEdges)-1, "postfit", array.array('d', binEdges))
+                self.channel_hdata[rebinnedchannelname_bkg] = self.channel_hdata[channelname_bkg].Rebin(len(binEdges)-1, self.datahist, array.array('d', binEdges))
+                self.datafirstbin = self.channel_hdata[rebinnedchannelname_bkg].FindBin(self.datafirstbin) - 1
+
+                getChi2(extractor=self, channelname=rebinnedchannelname_bkg, npars=npars, useSumW2=self.useSumW2)
+    
         fd.Close()
         f.Close()
 
@@ -333,12 +398,14 @@ def main(args):
     parser.add_argument('--outfile', dest='outfile', type=str, default='', help='Output file name')
     parser.add_argument('--rebinfile', dest='rebinfile', type=str, help='Specify if rebinning to different template wanted')
     parser.add_argument('--rebinhist', dest='rebinhist', type=str, help='Specify if rebinning to different template wanted')
-    parser.add_argument('--externalchi2file', dest='externalchi2file', type=str, help='File containing a TF1 chi2 pdf to calculate pval from')
-    parser.add_argument('--externalchi2fct', dest='externalchi2fct', type=str, help='Name of chi2 pdf TF1 to calculate pval from')
-    parser.add_argument('--externalchi2bins', dest='externalchi2bins', type=int, default=40, help='Number of bins for external chi2 TF1')
+    parser.add_argument('--externalnpars', dest='externalnpars', default=None, type=float, help='Number of effective parameters for chi2 calculation')
     parser.add_argument('--maskmin', dest='maskmin', type=int, default=-1, help='Masked range to exclude from chi2 calculation')
     parser.add_argument('--maskmax', dest='maskmax', type=int, default=-1, help='Masked range to exclude from chi2 calculation')
     parser.add_argument('--dirpercategory', dest='dirpercategory', action='store_true', help='Create one output directory per channel (also for rebinning)')
+    parser.add_argument('--bkgonly', dest='bkgonly', action='store_true', help='Add directory for bkg-only postfit. Needs --dirpercategory set.')
+    parser.add_argument('--undolog', dest='undolog', action='store_true', help='Perform exp(N) on all data and fit histograms if log(N) was used for fitting.')
+    parser.add_argument('--maskisbinnumber', dest='maskisbinnumber', action='store_true', help='Interprete maskmin and maskmax as bin numbers instead of values on the x-axis of the datahist. (Necessary for hacked NLOFit bins)')
+    parser.add_argument('--useSumW2', dest='useSumW2', action='store_true', help='Use data histogram errors instead of sqrt(N_fit) for the residual calculation.')
 
     args = parser.parse_args(args)
 
@@ -351,11 +418,13 @@ def main(args):
         modelname=args.modelname,
         rebinfile=args.rebinfile,
         rebinhist=args.rebinhist,
-        externalchi2file=args.externalchi2file,
-        externalchi2fct=args.externalchi2fct,
-        externalchi2bins=args.externalchi2bins,
+        externalnpars=args.externalnpars,
         maskmin=args.maskmin,
-        maskmax=args.maskmax
+        maskmax=args.maskmax,
+        bkgonly=args.bkgonly,
+        undolog=args.undolog,
+        maskisbinnumber=args.maskisbinnumber,
+        useSumW2=args.useSumW2
     )
     pfe.Extract()
     pfe.WriteRoot(args.outfile, args.dirpercategory)

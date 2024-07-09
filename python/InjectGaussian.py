@@ -1,8 +1,34 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import ROOT
 import sys, re, os, math, argparse
 
-def InjectGaussian(infile, histname, sigmean, sigwidth, sigamp, outfile, firsttoy=None, lasttoy=None):
+def GetNsig(histbkg, sigmean, sigwidth, sigamp, xmin=0, xmax=1e100):
+    # determine the gaussian amplitude (ntimes * sqrt(n) in FWHW range)
+    rangeLow = max(sigmean  - 1.18*(sigwidth*0.01) * sigmean, xmin)
+    rangeHigh = min(sigmean + 1.18*(sigwidth*0.01) * sigmean, xmax)
+    binLow = histbkg.FindBin(rangeLow)
+    binHigh = histbkg.FindBin(rangeHigh)
+    nBkg = histbkg.Integral(binLow, binHigh)
+    nSig = 0.
+
+    mygaus = ROOT.TF1( 'mygaus', 'gaus', 0, 10000) 
+    sigma = (sigwidth*0.01) * sigmean 
+    mygaus.SetParameters(1.0, sigmean, sigma) 
+    gaus_integral = mygaus.Integral(mygaus.GetXmin(), mygaus.GetXmax())
+
+    if nBkg > 0.:
+        # fSig = 0.762 #integral from -1.18 sigma to +1.18 sigma
+        fSig = mygaus.Integral(rangeLow, rangeHigh) / gaus_integral
+        nSig = int(math.sqrt(nBkg)*sigamp / fSig)
+
+    print("rangeLow:", rangeLow, "rangeHigh:", rangeHigh, "nBkg:", nBkg, "fSig:", fSig)
+    # print(histbkg.GetBinCenter(binLow), histbkg.GetBinCenter(binHigh), nBkg, fSig)
+
+    return nSig
+
+def InjectGaussian(infile, histname, sigmean, sigwidth, sigamp, outfile, firsttoy=None, lasttoy=None, xmin=0, xmax=1e100):
     f_in = ROOT.TFile(infile, "READ")
     f_out = ROOT.TFile(outfile, "RECREATE")
     f_out.cd()
@@ -29,24 +55,14 @@ def InjectGaussian(infile, histname, sigmean, sigwidth, sigamp, outfile, firstto
 
         # define the parameters of the gaussian and fill it
         if sigmean > 0.0:
+            nSig = GetNsig(hist, sigmean, sigwidth, sigamp, xmin, xmax)
+            if nSig > 0.:
+                print('Injecting Signal with mean = ', sigmean, ' Number of events = ', nSig, end=' ') 
+                print(' (ntimes = ', sigamp, ') Width = ', sigwidth)
 
-            # determine the gaussian amplitude (ntimes * sqrt(n) in FWHW range)
-            rangeLow = sigmean  - 1.18*(sigwidth*0.01) * sigmean
-            rangeHigh = sigmean + 1.18*(sigwidth*0.01) * sigmean
-            binLow = hist.FindBin(rangeLow)
-            binHigh = hist.FindBin(rangeHigh)
-            nBkg = hist.Integral(binLow, binHigh)
-
-            if nBkg > 0.0:
                 sigma = (sigwidth*0.01) * sigmean 
                 mygaus = ROOT.TF1( 'mygaus', 'gaus', 0, 10000) 
                 mygaus.SetParameters(1.0, sigmean, sigma) 
-
-                fSig = 0.762 #integral from -1.18 sigma to +1.18 sigma
-                nSig = int(math.sqrt(nBkg)*sigamp / fSig)
-
-                print 'Injecting Signal with mean = ', sigmean, ' Number of events = ', nSig, 
-                print ' (ntimes = ', sigamp, ') Width = ', sigwidth
 
                 gRand.SetSeed(seed)
                 hgaus.FillRandom('mygaus', nSig) 
@@ -70,8 +86,8 @@ def main(args):
     parser.add_argument('--sigwidth', dest='sigwidth', type=float, default=5, help='width of injected Gaussian (in %)')
     parser.add_argument('--sigamp', dest='sigamp', type=float, default=5, help='number of injected events (in sigmas of central bin)')
     parser.add_argument('--outfile', dest='outfile', type=str, default='', help='Output file name')
-    parser.add_argument('--firsttoy', dest='firsttoy', type=str, help='Only consider toys larger than this number')
-    parser.add_argument('--lasttoy', dest='lasttoy', type=str, help='Only consider toys lower than this number')
+    parser.add_argument('--firsttoy', dest='firsttoy', type=int, help='Only consider toys larger than this number')
+    parser.add_argument('--lasttoy', dest='lasttoy', type=int, help='Only consider toys lower than this number')
 
     args = parser.parse_args(args)
 

@@ -16,7 +16,11 @@ class PreFitter:
                  nRetries1 = 100000,
                  nRetries2 = 10,
                  seed=42,
-                 updatews=False):
+                 updatews=False,
+                 chi2fit=False,
+                 chi2constraints=True,
+                 poi=None,
+                 rangeName=None):
 
         self.wsfile = wsfile
         self.wsname = wsname
@@ -27,6 +31,10 @@ class PreFitter:
         self.nRetries2 = nRetries2
         self.seed = seed
         self.updatews = updatews
+        self.chi2fit = chi2fit
+        self.chi2constraints = chi2constraints
+        self.poi = poi
+        self.rangeName = rangeName
 
         ROOT.Math.MinimizerOptions.SetDefaultMaxFunctionCalls(50000)
         self.rnd = ROOT.TRandom3(self.seed)
@@ -35,8 +43,10 @@ class PreFitter:
     def RandomizeParameters(self, np):
         for p in np:
             if not "nbkg" in p.GetName() and not "nsig" in p.GetName():
-                # p.setVal(self.rnd.Uniform(p.getMin(), p.getMax()))
-                p.setVal(self.rnd.Gaus(0.5*(p.getMin()+p.getMax()), 0.1*(p.getMax()-p.getMin())))
+                if self.chi2constraints:
+                    p.setVal(self.rnd.Gaus(0.5*(p.getMin()+p.getMax()), 0.1*(p.getMax()-p.getMin())))
+                else:
+                    p.setVal(self.rnd.Uniform(p.getMin(), p.getMax()))
                 # p.setVal(self.rnd.Gaus(0., 1.))
 
     def Fit(self):
@@ -57,8 +67,8 @@ class PreFitter:
         nbkg = dh.sum(False)
         print("nbkg=",nbkg)
 
+        w.obj("nbkg").setRange(0.8*nbkg, 1.2*nbkg)
         w.obj("nbkg").setVal(nbkg)
-        w.obj("nbkg").setRange(0, 2*nbkg)
 
         args = ROOT.RooLinkedList()
         args.Add(ROOT.RooCmdArg(RooFit.Constrain(np)))
@@ -68,9 +78,16 @@ class PreFitter:
         args.Add(ROOT.RooCmdArg(RooFit.Hesse(0)))
         args.Add(ROOT.RooCmdArg(RooFit.Hesse(0)))
         args.Add(ROOT.RooCmdArg(RooFit.PrintLevel(-1)))
-        args.Add(ROOT.RooCmdArg(RooFit.PrintLevel(-1)))
         # args.Add(ROOT.RooCmdArg(RooFit.BatchMode(1)))
         args.Add(ROOT.RooCmdArg(RooFit.Strategy(2)))
+
+        args_chi2 = ROOT.RooLinkedList()
+        args_chi2.Add(ROOT.RooCmdArg(RooFit.Save(1)))
+        args_chi2.Add(ROOT.RooCmdArg(RooFit.Hesse(0)))
+        args_chi2.Add(ROOT.RooCmdArg(RooFit.Hesse(0)))
+        args_chi2.Add(ROOT.RooCmdArg(RooFit.PrintLevel(-1)))
+        # args_chi2.Add(ROOT.RooCmdArg(RooFit.BatchMode(1)))
+        args_chi2.Add(ROOT.RooCmdArg(RooFit.Strategy(2)))
 
         best_chi2Pars = [(float("inf"),None)]
         
@@ -80,7 +97,46 @@ class PreFitter:
         sw.Start()
         
         steps = max(1, self.nRetries1/10)
-        c = p.createChi2(dh, RooFit.DataError(0))
+        # c = p.createChi2(dh, RooFit.DataError(0))
+        if self.rangeName == None:
+            c = p.createChi2(dh, RooFit.Extended(True), RooFit.DataError(ROOT.RooAbsData.Poisson))
+        else:
+            # for some reason slower by factor ~10 in nretries1 and factor ~30 in nretries2
+            # but also chi2 ~10^9 if range not excluded
+            c = p.createChi2(dh, RooFit.Extended(True), RooFit.DataError(ROOT.RooAbsData.Poisson), RooFit.Range(self.rangeName), RooFit.SplitRange(False))
+
+        if self.poi:
+            #poi string is like "mu1=0_-1_1,mu2=0_0_0"
+            pois=self.poi.split(',')
+            for _p in pois:
+                _p=_p.split('=')[0]
+                w.var(_p).setConstant()
+                print("Setting constant:", _p)
+
+        # w.var("obs_x_J100yStar06").setConstant()
+                
+        if self.chi2fit:
+            constraints = ROOT.RooArgSet()
+            if self.chi2constraints:
+                for _pdf in w.allPdfs():
+                    if "ConstraintPdf" in _pdf.GetName():
+                        constraints.add(_pdf)
+
+            # crashes if "channellist" still in set of observables for RooConstraintSum
+            realobs = ROOT.RooArgSet()
+            for x in o:
+                if x.InheritsFrom("RooRealVar"):
+                    realobs.add(x)
+                
+            constraint_sum = ROOT.RooConstraintSum("constraint_sum", "constraint_sum", constraints, realobs)
+            # constraint_sum = ROOT.RooConstraintSum("constraint_sum", "constraint_sum", constraints, ROOT.RooArgSet())
+            constrained_chi2 = ROOT.RooFormulaVar("constrained_chi2", "0.5*@0+@1", ROOT.RooArgList(c, constraint_sum))
+               
+            minim = ROOT.RooMinimizer(constrained_chi2)
+            minim.setStrategy(1);
+            minim.setPrintLevel(-1);
+            minim.setEps(1.e-2);
+            minim.setMinimizerType("Minuit2");
 
         for i in range(self.nRetries1):
             if (i%steps == 0):
@@ -132,9 +188,14 @@ class PreFitter:
         for  i in range(self.nRetries2):
             w.loadSnapshot(best_chi2Pars[i][1])
 
-            p.fitTo(d, args)
+            if self.chi2fit:
+                # p.chi2FitTo(dh, args_chi2)
+                minim.minimize("Minuit2")
+            else:
+                p.fitTo(d, args)
 
-            c = p.createChi2(dh, RooFit.DataError(0))
+            # c = p.createChi2(dh, RooFit.DataError(0))
+            # c = p.createChi2(dh, RooFit.Extended(True), RooFit.DataError(RooAbsData.Poisson))
             thisFitChi2 = c.getVal()
             if (thisFitChi2 < bestChi2):
         	bestChi2 = thisFitChi2
@@ -151,15 +212,13 @@ class PreFitter:
         print("Best Total:")
         
         print("chi2 =", bestChi2)
+        w.loadSnapshot("bestPars")
         for p in np:
             print(p.GetName(), p.getVal())
             
         print("==================")
         
-        # f.Close()
         if self.updatews:
-            w.loadSnapshot("bestPars")
-            # f = ROOT.TFile(self.wsfile
             w.Write(self.wsname)
             
         f.Close()
@@ -176,6 +235,10 @@ def main(args):
     parser.add_argument('--nRetries2', dest='nRetries2', type=int, default=10, help='Number of tried fits')
     parser.add_argument('--seed', dest='seed', type=int, default=42, help='Seed for random number generator')
     parser.add_argument('--updatews', dest='updatews', type=strtobool, default=0, help='Write new initial pars to workspace')
+    parser.add_argument('--chi2fit', dest='chi2fit', type=strtobool, default=0, help='Minimize chi2 instead of NLL')
+    parser.add_argument('--chi2constraints', dest='chi2constraints', type=strtobool, default=1, help='Include constraint terms in chi2')
+    parser.add_argument('--poi', dest='poi', type=str, help='POI name to fix')
+    parser.add_argument('--rangeName', dest='rangeName', type=str, help='Name of range to restrict fit range')
     
     args = parser.parse_args(args)
 
@@ -188,6 +251,10 @@ def main(args):
         nRetries2 = args.nRetries2,
         seed = args.seed,
         updatews = args.updatews,
+        chi2fit = args.chi2fit,
+        chi2constraints = args.chi2constraints,
+        poi = args.poi,
+        rangeName = args.rangeName
     )
 
     print(pf.Fit())

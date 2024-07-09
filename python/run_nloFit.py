@@ -7,6 +7,7 @@ from ExtractPostfitFromWS import PostfitExtractor
 from ExtractFitParameters import FitParameterExtractor
 from PrepareTemplates import unifyBinning
 from PreFitWS import PreFitter
+import ROOT
 
 dict_initialpars = {
     "alpha_var_alpha1_edit":-1.0007e+00,
@@ -65,7 +66,7 @@ def replaceinfile(f, old_new_list):
     with open(f, 'w') as file:
         file.write(filedata)
 
-def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresultfile, poi=None, maskrange=None, combinefile=None, externalchi2file=None, externalchi2fct=None, externalchi2bins=40, doprefit=False):
+def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresultfile, poi=None, maskrange=None, combinefile=None, externalnpars=None, doprefit=False, dochi2fit=False, dochi2constraints=False, np=None):
     rtv=execute('XMLReader -x %s -o "logy integral" -s 0' % topfile) # minimizer strategy fast
     if rtv != 0:
         print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
@@ -74,17 +75,53 @@ def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresu
     if rtv != 0:
         print("WARNING: Non-zero return code from workspaceCombiner. Check if tolerable")
 
+    if maskrange:
+        # _range="--range SBLo,SBHi"
+        _range="--range SBLo_J100yStar06,SBHi_J100yStar06"
+        rangeName="SBLo_J100yStar06,SBHi_J100yStar06"
+        maskmin=maskrange[0]
+        maskmax=maskrange[1]
+    else:
+        _range=""
+        rangeName=None
+        maskmin=-1
+        maskmax=-1
+
     if doprefit:
         print(wsfile)
         pf = PreFitter(
             wsfile = wsfile,
             nRetries1 = 50000,
-            nRetries2 = 50,
+            nRetries2 = 20,
             updatews = 1,
+            chi2fit = dochi2fit,
+            chi2constraints = dochi2constraints,
+            poi=poi,
+            rangeName=rangeName
         )
 
-        pf.Fit()
+        np,nbkg = pf.Fit()
 
+    elif np:
+        f = ROOT.TFile(wsfile, "UPDATE")
+        w = f.Get("combWS")
+        mc = w.obj("ModelConfig")
+        _np = mc.GetNuisanceParameters()
+
+        for ip,p in enumerate(_np):
+            if "nsig" in p.GetName():
+                continue
+            if "nbkg" in p.GetName():
+                # need to adapt range
+                # print("setting range of parameter %s to [%.3f,%.3f]" % (p.GetName(), np[p.GetName()].getBinning().lowBound(), np[p.GetName()].getBinning().highBound()))
+                p.setRange(np[p.GetName()].getBinning().lowBound(), np[p.GetName()].getBinning().highBound())
+
+            # print("initializing parameter %s with value %.3f" % (p.GetName(), np[p.GetName()].getVal()))
+            p.setVal(np[p.GetName()].getVal())
+
+        w.Write("combWS")
+        f.Close()
+        
     if poi:
         print("Now running s+b quickFit")
         _poi="-p %s" % poi
@@ -92,16 +129,16 @@ def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresu
         print("Now running bkg-only quickFit")
         _poi=""
 
-    if maskrange:
-        _range="--range SBLo,SBHi"
-        maskmin=maskrange[0]
-        maskmax=maskrange[1]
+    if dochi2fit:
+        chi2flag = "--chi2fit 1"
     else:
-        _range=""
-        maskmin=-1
-        maskmax=-1
+        chi2flag = "--chi2fit 0"
+    if dochi2constraints:
+        chi2flag += " --chi2constraints 1"
+    else:
+        chi2flag += " --chi2constraints 0"
 
-    rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 1 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s" % (wsfile, _poi, _range, fitresultfile))
+    rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 1 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s %s -o %s" % (wsfile, _poi, _range, chi2flag, fitresultfile))
     if rtv != 0:
         print("WARNING: Non-zero return code from quickFit. Check if tolerable")
 
@@ -115,9 +152,8 @@ def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresu
         wsfile=fitresultfile,
         maskmin=maskmin,
         maskmax=maskmax,
-        externalchi2file=externalchi2file,
-        externalchi2fct=externalchi2fct,
-        externalchi2bins=externalchi2bins,
+        externalnpars=externalnpars,
+        maskisbinnumber=True
     )
     pval = pfe.GetPval()
     pfe.WriteRoot(postfitfile)
@@ -125,7 +161,7 @@ def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresu
     fpe = FitParameterExtractor(wsfile=fitresultfile)
     fpe.WriteRoot(parameterfile)
 
-    return (pval, postfitfile, parameterfile)
+    return (pval, postfitfile, parameterfile, np)
 
 def run_nloFit(datafile,
                datahist,
@@ -143,16 +179,20 @@ def run_nloFit(datafile,
                rangehigh,
                constr=1,
                externalchi2file=None,
-               externalchi2fct=None,
-               externalchi2bins=40,
+               externalchi2fct="npars",
                doinitialpars=False,
+               externalinitialpars=None,
                dosignal=False,
                dolimit=False,
+               doBH=False,
                signame='',
                nsig='',
                maskthreshold=0.01,
                folder="run/",
-               doprefit=False,):
+               doprefit=False,
+               dochi2fit=False, 
+               dochi2constraints=False,
+               spursig=0):
 
     rangelow=binning.index(rangelow)
     rangehigh=binning.index(rangehigh)
@@ -196,6 +236,7 @@ def run_nloFit(datafile,
                    ("SIGNAME", signame),
                    ("SIGNALFILE", tmpsigfile),
                    ("NSIG", nsig),
+                   ("SPURSIG", str(spursig)),
                ])
     replaceinfile(tmpbkgfile, 
                   [("BACKGROUNDMODEL", modelfile),])
@@ -210,9 +251,16 @@ def run_nloFit(datafile,
                ])
 
     if doinitialpars:
-        print("Inserting initial params")
+        if externalinitialpars:
+            print("Inserting initial params from file", externalinitialpars)
+            with open(externalinitialpars, 'r') as f:
+                _dict_initialpars = json.load(f)
+        else:
+            print("Inserting default initial params")
+            _dict_initialpars = dict_initialpars
+
         replacelist=[]
-        for var,val in dict_initialpars.items():
+        for var,val in _dict_initialpars.items():
             replacelist.append(('%s\[0,' % var, '%s[%.4e,' % (var, val)))
         replaceinfile(tmpcombinefile, replacelist) 
     else:
@@ -221,20 +269,28 @@ def run_nloFit(datafile,
     if dosignal:
         poi="nsig_%s" % signame
     else:
-        poi=None
+        poi="nsig_%s=0_0_0" % signame
+        # poi=None
 
-    pval_global, postfitfile, parameterfile = build_fit_extract(topfile=tmptopfile,
-                                                                datafile=datafile.replace("_fixedBins",""), #undo the binning hack
-                                                                datahist=datahist, 
-                                                                datafirstbin=rangelow, 
-                                                                wsfile=combwsfile, 
-                                                                fitresultfile=outputfile, 
-                                                                poi=poi,
-                                                                combinefile=tmpcombinefile,
-                                                                externalchi2file=externalchi2file,
-                                                                externalchi2fct=externalchi2fct,
-                                                                externalchi2bins=externalchi2bins,
-                                                                doprefit=doprefit)
+    if externalchi2file != None:
+        f_chi2 = ROOT.TFile(externalchi2file)
+        tf1_npars = f_chi2.Get(externalchi2fct)
+        externalnpars = tf1_npars.Eval(constr)
+    else:
+        externalnpars = None
+
+    pval_global, postfitfile, parameterfile, np = build_fit_extract(topfile=tmptopfile,
+                                                                    datafile=datafile.replace("_fixedBins",""), #undo the binning hack
+                                                                    datahist=datahist, 
+                                                                    datafirstbin=rangelow, 
+                                                                    wsfile=combwsfile, 
+                                                                    fitresultfile=outputfile, 
+                                                                    poi=poi,
+                                                                    combinefile=tmpcombinefile,
+                                                                    externalnpars=externalnpars,
+                                                                    doprefit=doprefit,
+                                                                    dochi2fit=dochi2fit, 
+                                                                    dochi2constraints=dochi2constraints,)
 
     print ("Global fit p(chi2)=%.3f" % pval_global)
 
@@ -273,38 +329,73 @@ def run_nloFit(datafile,
                       [(wsfile, wsfilemasked),
                        (combwsfile, combwsfilemasked),])
         
-        pval_masked,_,_ = build_fit_extract(tmptopfilemasked,
-                                            datafile=datafile, 
-                                            datahist=datahist, 
-                                            datafirstbin=rangelow, 
-                                            wsfile=combwsfilemasked, 
-                                            fitresultfile=outfilemasked, 
-                                            poi=poi, 
-                                            maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"])),
-                                            combinefile=tmpcombinefilemasked,
-                                            externalchi2file=externalchi2file,
-                                            externalchi2fct=externalchi2fct,
-                                            externalchi2bins=externalchi2bins,
-                                            doprefit=doprefit)
+        # disable prefit on masked run and load previous prefit NPs
+        # running new prefit with masking is factor ~20 slower
+        pval_masked,postfitfile,parameterfile,_ = build_fit_extract(tmptopfilemasked,
+                                              datafile=datafile.replace("_fixedBins",""),
+                                              # datafile=datafile, #masking in PostFitExtractor expects masking to be in bins of datahist
+                                              datahist=datahist, 
+                                              datafirstbin=rangelow, 
+                                              wsfile=combwsfilemasked, 
+                                              fitresultfile=outfilemasked, 
+                                              poi=poi, 
+                                              maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"])),
+                                              combinefile=tmpcombinefilemasked,
+                                              externalnpars=externalnpars,
+                                              doprefit=False, 
+                                              dochi2fit=dochi2fit, 
+                                              dochi2constraints=dochi2constraints,
+                                              np=np)
 
         print("Masked fit p(chi2)=%.3f" % pval_masked)
 
         if pval_masked > maskthreshold:
             print("p(chi2) threshold passed. Continuing with successful (window-excluded) fit.")
-            combwsfile=combwsfilemasked
-            _range="--range SBLo,SBHi"
         else:
             print("p(chi2) threshold still not passed.")
-            print("Exiting with failed fit status.")
-            return -1
+            # print("Exiting with failed fit status.")
+            # return -1
+
+        combwsfile=combwsfilemasked
+        _range="--range SBLo_J100yStar06,SBHi_J100yStar06"
+        outputfile=outfilemasked
+
+    if dochi2fit:
+        chi2flag = "--chi2fit 1"
+    else:
+        chi2flag = "--chi2fit 0"
+    if dochi2constraints:
+        chi2flag += " --chi2constraints 1"
+    else:
+        chi2flag += " --chi2constraints 0"
             
-    # blindrange not yet implemented with quickLimit
-    # if dolimit and dosignal and pval_global > maskthreshold:
     if dolimit and dosignal:
         print("Now running quickLimit")
-        rtv=execute("timeout --foreground 28800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-10 --muScanPoints 20 --minStrat 2 --nllOffset 1 --optConst 2 --GKIntegrator 1 %s -o %s" % (combwsfile, poi, _range, outputfile.replace("FitResult","Limits")))
+        rtv=execute("timeout --foreground 28800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-10 --muScanPoints 20 --minStrat 2 --nllOffset 1 --optConst 2 --GKIntegrator 1 %s %s -o %s" % (combwsfile, poi, _range, chi2flag, outputfile.replace("FitResult","Limits")))
         if rtv != 0:
             print("WARNING: Non-zero return code from quickLimit. Check if tolerable")
+
+    if doBH:
+        BHfile = outputfile.replace("FitResult","BHResult").replace(".root", ".json")
+        
+        # need to unset pythonpath in order to not use cvmfs numpy
+        execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile {0} --outputjson {1} --usebinnumbers; deactivate".format(postfitfile, BHfile))
+
+        # reduce file size by only keeping info of 3 most significant windows:
+        with open(BHfile) as f:
+            BHresults=json.load(f)
+    
+        keys_to_remove = []
+        for key in BHresults["pyBHresult"]:
+            if key.endswith("_ar"):
+                keys_to_remove.append(key)
+
+        for key in keys_to_remove:
+            # print("INFO: Pruning key %s from BH json" % key)
+            BHresults["pyBHresult"][key] = BHresults["pyBHresult"][key][:3]
+
+        with open(BHfile, "w") as f:
+            json.dump(BHresults, f)
     
     return 0
 
@@ -328,16 +419,20 @@ def main(args):
     parser.add_argument('--rangehigh', dest='rangehigh', type=int, help='End Start of fit range (in GeV)')
     parser.add_argument('--constr', dest='constr', type=int, default=1, help='Constraint term of NPs (in sigma)')
     parser.add_argument('--externalchi2file', dest='externalchi2file', type=str, help='Input file containing TF1 to use for p(chi2) calculation')
-    parser.add_argument('--externalchi2fct', dest='externalchi2fct', type=str, help='Name of TF1 to use for p(chi2) calculation')
-    parser.add_argument('--externalchi2bins', dest='externalchi2bins', type=int, default=40, help='Number of bins in external chi2 function')
+    parser.add_argument('--externalchi2fct', dest='externalchi2fct', type=str, default="npars", help='Name of TF1 to use for p(chi2) calculation')
     parser.add_argument('--doinitialpars', dest='doinitialpars', action="store_true", help='Initialise with empiric fit parameters != 0')
+    parser.add_argument('--externalinitialpars', dest='externalinitialpars', type=str, help='Path to json file with dict for initial conditions')
     parser.add_argument('--dosignal', dest='dosignal', action="store_true", help='Perform s+b fit (default: bkg-only)')
     parser.add_argument('--dolimit', dest='dolimit', action="store_true", help='Perform limit setting')
+    parser.add_argument('--doBH', dest='doBH', action="store_true", help='Run BumpHunter')
     parser.add_argument('--sigmean', dest='sigmean', type=int, default=1000, help='Mean of signal Gaussian for s+b fit (in GeV)')
     parser.add_argument('--sigwidth', dest='sigwidth', type=int, default=7, help='Width of signal Gaussian for s+b fit (in %)')
     parser.add_argument('--maskthreshold', dest='maskthreshold', type=float, default=0.01, help='Threshold of p(chi2) below which to run BH and mask the most significant window')
     parser.add_argument('--doprefit', dest='doprefit', action="store_true", help='Perform RooFit prefit before quickFit')
+    parser.add_argument('--dochi2fit', dest='dochi2fit', action="store_true", help='Minimize chi2 instead of NLL')
+    parser.add_argument('--dochi2constraints', dest='dochi2constraints', action="store_true", help='Include the constraint terms into chi2. Becomes virtually identical to NLL this way.')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
+    parser.add_argument('--spursigfile', dest='spursigfile', type=str, help='Path to json file containing spurious signal dict')
 
     args = parser.parse_args(args)
     signame="mean%s_width%s" % (args.sigmean, args.sigwidth)
@@ -354,6 +449,12 @@ def main(args):
     except OSError:
         if not os.path.isdir(args.folder):
             raise
+
+    spursig=0
+    if args.spursigfile:
+        with open(args.spursigfile) as f:
+            dict_spursig = json.load(f)
+        spursig = dict_spursig[str(args.sigmean)][str(args.sigwidth)]['0']['uncertainty']
 
     run_nloFit(datafile=args.datafile,
                datahist=args.datahist,
@@ -373,14 +474,18 @@ def main(args):
                constr=args.constr,
                externalchi2file=args.externalchi2file,
                externalchi2fct=args.externalchi2fct,
-               externalchi2bins=args.externalchi2bins,
                doinitialpars=args.doinitialpars,
+               externalinitialpars=args.externalinitialpars,
                dosignal=args.dosignal,
                dolimit=args.dolimit,
+               doBH=args.doBH,
                signame=signame,
                maskthreshold=args.maskthreshold,
                folder=args.folder,
-               doprefit=args.doprefit,)
+               doprefit=args.doprefit,
+               dochi2fit=args.dochi2fit,
+               dochi2constraints=args.dochi2constraints,
+               spursig=spursig)
 
 
 if __name__ == "__main__":  

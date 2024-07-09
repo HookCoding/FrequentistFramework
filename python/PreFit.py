@@ -36,6 +36,9 @@ class PreFitter:
         self.rnd = ROOT.TRandom3(self.seed)
         ROOT.gROOT.ProcessLine( "gErrorIgnoreLevel = 6001;")
 
+        print("Initialised PreFitter:")
+        print(vars(self))
+        
     def RandomizeParameters(self, function):
         for i in range(function.GetNpar()):
             function.SetParameter(i, self.rnd.Uniform(self.parRangeLow[i], self.parRangeHigh[i]))
@@ -68,6 +71,8 @@ class PreFitter:
         NParFunction[5] = ROOT.TF1("5ParFunction", "[0]*TMath::Power(1-x/13000.,[1])*TMath::Power(x/13000., -1*([2] + [3]*TMath::Log(x/13000.) + [4]*TMath::Power(TMath::Log(x/13000.),2.)))", self.xMin, self.xMax)
         NParFunction[6] = ROOT.TF1("6ParFunction", "[0]*TMath::Power(1-x/13000.,[1])*TMath::Power(x/13000., -1*([2] + [3]*TMath::Log(x/13000.) + [4]*TMath::Power(TMath::Log(x/13000.),2.) + [5]*TMath::Power(TMath::Log(x/13000.),3.)))", self.xMin, self.xMax)
         NParFunction[7] = ROOT.TF1("7ParFunction", "[0]*TMath::Power(1-x/13000.,[1])*TMath::Power(x/13000., -1*([2] + [3]*TMath::Log(x/13000.) + [4]*TMath::Power(TMath::Log(x/13000.),2.) + [5]*TMath::Power(TMath::Log(x/13000.),3.) + [6]*TMath::Power(TMath::Log(x/13000.),4.)))", self.xMin, self.xMax)
+        NParFunction[8] = ROOT.TF1("8ParFunction", "[0]*TMath::Power(1-x/13000.,[1])*TMath::Power(x/13000., -1*([2] + [3]*TMath::Log(x/13000.) + [4]*TMath::Power(TMath::Log(x/13000.),2.) + [5]*TMath::Power(TMath::Log(x/13000.),3.) + [6]*TMath::Power(TMath::Log(x/13000.),4.) + [7]*TMath::Power(TMath::Log(x/13000.),5.)))", self.xMin, self.xMax)
+        NParFunction[9] = ROOT.TF1("9ParFunction", "[0]*TMath::Power(1-x/13000.,[1])*TMath::Power(x/13000., -1*([2] + [3]*TMath::Log(x/13000.) + [4]*TMath::Power(TMath::Log(x/13000.),2.) + [5]*TMath::Power(TMath::Log(x/13000.),3.) + [6]*TMath::Power(TMath::Log(x/13000.),4.) + [7]*TMath::Power(TMath::Log(x/13000.),5.) + [8]*TMath::Power(TMath::Log(x/13000.),6.)))", self.xMin, self.xMax)
         
         LogNParFunction[1] = ROOT.TF1("Log1ParFunction", "TMath::Log([0])", self.xMin, self.xMax)
         LogNParFunction[2] = ROOT.TF1("Log2ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.)", self.xMin, self.xMax)
@@ -75,11 +80,35 @@ class PreFitter:
         LogNParFunction[4] = ROOT.TF1("Log4ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.)", self.xMin, self.xMax)
         LogNParFunction[5] = ROOT.TF1("Log5ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.)", self.xMin, self.xMax)
         LogNParFunction[6] = ROOT.TF1("Log6ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.)", self.xMin, self.xMax)
-        LogNParFunction[7] = ROOT.TF1("Log6ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.) - [6]*TMath::Power(TMath::Log(x/13000.),5.)", self.xMin, self.xMax)
+        LogNParFunction[7] = ROOT.TF1("Log7ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.) - [6]*TMath::Power(TMath::Log(x/13000.),5.)", self.xMin, self.xMax)
+        LogNParFunction[8] = ROOT.TF1("Log8ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.) - [6]*TMath::Power(TMath::Log(x/13000.),5.) - [7]*TMath::Power(TMath::Log(x/13000.),6.)", self.xMin, self.xMax)
+        LogNParFunction[9] = ROOT.TF1("Log9ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.) - [6]*TMath::Power(TMath::Log(x/13000.),5.) - [7]*TMath::Power(TMath::Log(x/13000.),6.) - [8]*TMath::Power(TMath::Log(x/13000.),7.)", self.xMin, self.xMax)
         
         if self.fitLog:
+            if not self.nPars in LogNParFunction:
+                fctName = "Log%dParFunction" % self.nPars
+                fctDef = "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.) - [6]*TMath::Power(TMath::Log(x/13000.),5.) - [7]*TMath::Power(TMath::Log(x/13000.),6.) - [8]*TMath::Power(TMath::Log(x/13000.),7.)"
+                for i in range(9,self.nPars):
+                    fctDef += " - [%d]*TMath::Power(TMath::Log(x/13000.),%d.)" % (i, i-1)
+
+                LogNParFunction[self.nPars] = ROOT.TF1(fctName, fctDef, self.xMin, self.xMax)
+                self.parRangeLow  += [-0.01]*(self.nPars-len(self.parRangeLow))
+                self.parRangeHigh += [-0.01]*(self.nPars-len(self.parRangeHigh))
+
             fitFunction = LogNParFunction[self.nPars]
+
         else:
+            if not self.nPars in NParFunction:
+                fctName = "%dParFunction" % self.nPars
+                fctDef = "[0]*TMath::Power(1-x/13000.,[1])*TMath::Power(x/13000., -1*([2] + [3]*TMath::Log(x/13000.) + [4]*TMath::Power(TMath::Log(x/13000.),2.) + [5]*TMath::Power(TMath::Log(x/13000.),3.) + [6]*TMath::Power(TMath::Log(x/13000.),4.) + [7]*TMath::Power(TMath::Log(x/13000.),5.) + [8]*TMath::Power(TMath::Log(x/13000.),6.)"
+                for i in range(9,self.nPars):
+                    fctDef += " + [%d]*TMath::Power(TMath::Log(x/13000.),%d.)" % (i, i-2)
+                fctDef += "))"
+
+                NParFunction[self.nPars] = ROOT.TF1(fctName, fctDef, self.xMin, self.xMax)
+                self.parRangeLow  += [-0.01]*(self.nPars-len(self.parRangeLow))
+                self.parRangeHigh += [-0.01]*(self.nPars-len(self.parRangeHigh))
+
             fitFunction = NParFunction[self.nPars]
         
         for i in range(fitFunction.GetNpar()):
@@ -128,9 +157,9 @@ class PreFitter:
         
         for  i in range(self.nRetries2):
             fitFunction.SetParameters(best_chi2Pars[i][1])
-        
+
             fR = h.Fit(fitFunction, "R0QS", "", self.xMin, self.xMax)
-        
+
             thisFitChi2 = fR.Chi2()
             if (thisFitChi2 < bestChi2):
         	bestChi2 = thisFitChi2

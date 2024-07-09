@@ -1,4 +1,119 @@
 # Mariana Toscani
+
+# Date 01.08.2022
+
+Retried the HF production + quickFit. Noticed that error specifies:
+
+	Info in MnHesse: 2nd derivative zero for Parameter  : name =
+	alpha_JET_BJES_Response_signal_mR1000_gq0p1
+
+which corresponds to a null uncertainty. Originally these were skipped, but
+when producing inputs for Projections Cross Checks I removed this step,
+because morphing failed when some ucnertainties were null for some mass points
+and not for others. 
+
+--> Going back on these changes. Redoing the morphing on the 29.07.2022.
+--> Testing 29.07 morphing, producing a HF for mR1000, testing quickFit.
+
+
+# Date 19.07.2022
+
+Redoing with 15.06 configuration because of bug when merging campaings
+Using :
+/eos/user/m/mtoscani/Rel21/TLA/SignalProcessing/morphing_outputs/p4130_230622/templates/HLT_j0_perf_ds1_L1J100/SignalTemplates_th1s_gq0p1.root
+
+Morphing again, remade:
+HistFactory_dijetTLA_J100yStar06_zprime_gq0p1_mR1000.root
+
+==> so now the code doesn't crash, however the fit fails, and all parameters
+are set to zero:
+
+us : MINIMIZE=-1 HESSE=303 
+
+    Floating Parameter    FinalValue +/-  Error   
+  --------------------  --------------------------
+  alpha_JET_BJES_Response_signal_mR1000_gq0p1    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_1    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_2    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_3    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_4    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_5    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_6    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_7    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EffectiveNP_8restTerm    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EtaIntercalibration_Modelling    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EtaIntercalibration_NonClosure_2018data    0.0000e+00 +/-
+0.00e+00
+  alpha_JET_EtaIntercalibration_NonClosure_highE    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EtaIntercalibration_NonClosure_negEta    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EtaIntercalibration_NonClosure_posEta    0.0000e+00 +/-  0.00e+00
+  alpha_JET_EtaIntercalibration_TotalStat    0.0000e+00 +/-  0.00e+00
+  alpha_JET_Flavor_Composition    0.0000e+00 +/-  0.00e+00
+  alpha_JET_Flavor_Response    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_DataVsMC_MC16    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_1    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_10    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_11    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_12restTerm    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_2    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_3    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_4    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_5    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_6    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_7    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_8    0.0000e+00 +/-  0.00e+00
+  alpha_JET_JER_EffectiveNP_9    0.0000e+00 +/-  0.00e+00
+  alpha_JET_Pileup_OffsetMu    0.0000e+00 +/-  0.00e+00
+  alpha_JET_Pileup_OffsetNPV    0.0000e+00 +/-  0.00e+00
+  alpha_JET_Pileup_PtTerm    0.0000e+00 +/-  0.00e+00
+  alpha_JET_Pileup_RhoTopology    0.0000e+00 +/-  0.00e+00
+  alpha_JET_SingleParticle_HighPt    0.0000e+00 +/-  0.00e+00
+                  nbkg    4.2000e+07 +/-  0.00e+00
+     nsig_mR1000_gq0p1    0.0000e+00 +/-  0.00e+00
+                    p2    1.8000e-01 +/-  0.00e+00
+                    p3    8.8000e+00 +/-  0.00e+00
+                    p4    7.1000e-01 +/-  0.00e+00
+                    p5    3.6000e-02 +/-  0.00e+00
+
+
+
+==> Overwrote HF rootfile with the one from 170621 to see if that one still
+works.-- check if it's not something related to framework updates. ==>
+framework works now, and the fit actually works with the NPs.
+
+==> Going to re-run the morphing on the old inputs from which files in 170621
+were made to see if I can reproduce the HF rootfile.
+
++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# Date 23.06.2022
+Redoing 15.06 configuration because of bug when merging campaings.
+Copied from : 
+/eos/user/m/mtoscani/Rel21/TLA/SignalProcessing/morphing_outputs/p4130_230622/templates/HLT_j0_perf_ds1_L1J100/HistFactory_dijetTLA_J100yStar06_zprime_gq0p1_mR2000.root
+
+==> Histfactory rootfiles throw segmentation fault when fitting. Deleting.
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# Date: 15.06.2022
+Updating signal inputs, updating pT cuts on signal (85GeV sub and leading
+jets)
+
+HistFactoryInputs:
+ Copied from:
+ /eos/user/m/mtoscani/Rel21/TLA/SignalProcessing/morphing_outputs/p4130_140622_processed_150622/templates/HLT_j0_perf_ds1_L1J100/
+ Called:
+ SignalTemplates_th1s_gq0p1.root
+ Contains: 
+ - all mass points
+ - all systs and nominal
+
+==> HistFactory rootfiles deleted.//
+
+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+==> moved these inputs to a folder called 170621/
+
 # Date: 15.11.2021
 
 HistFactoryInputs:

@@ -10,7 +10,7 @@ class CondorHandler(object) :
     self.log_path = log_path
     self.batch_path = batch_path
     # workday (8hs), tomorrow (1day), longlunch(2hs), testmatch (3days), nextweek(1week)
-    self.job_length = "workday"
+    self.job_length = "testmatch"
     self.email = 'mariana.toscani@cern.ch'
 
   def send_job(self,command,tag, outputFolder) :
@@ -46,6 +46,7 @@ class CondorHandler(object) :
       fr.write('cp -rf ${localdir}/config . \n')
       fr.write('cp -rf ${localdir}/Input . \n')
       fr.write('cp -rf ${localdir}/python . \n')
+      fr.write('cp -rf ${localdir}/pyBumpHunter . \n')
       fr.write('cp -rf ${localdir}/quickFit . \n')
       fr.write('cp -rf ${localdir}/workspaceCombiner . \n')
       fr.write('cp -rf ${localdir}/xmlAnaWSBuilder . \n')
@@ -61,7 +62,7 @@ class CondorHandler(object) :
       fr.write('eval ' + command + '\n')
 
       # Copy output back to local directory:
-      fr.write('cp -rf output/* ${localdir}/'+ outputFolder + '\n')
+      #fr.write('cp -rf output/* ${localdir}/'+ outputFolder + '\n')
       
       fr.write('echo \'Done!\'')
 
