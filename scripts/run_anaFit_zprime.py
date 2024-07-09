@@ -10,32 +10,44 @@ from InitialParameters import initialParameters
 ##########################
 
 # Run mode and dataset
-useBatch = True
-runData  = False   # run PD
+useBatch = False
+runData  = True   # run PD
 quietMode = False
 
 # Specs
 trigger = "J100"
-dataset = 'partialDataset2'  # 'full', 'partialDataset', 'TLA2016', (even if it's PD - specify the original dataset)
+#dataset = "unb2_smooth"
+dataset = "partialDataset2_OF_2017_TG3" #"unb2_over-fitted"#  # 'unb2_insituScale' 
+tag = "over-fitted"  # different calib options 
 
 # Range of fit:
 low= initialParameters[dataset][trigger]['low']
 high=initialParameters[dataset][trigger]['high']
+print low
+print high
 
 # Number of parameters in fit:
-parameters = [ "four","five", "six" ]
+#parameters = [ "five", "six", "seven", "eight", "nine"]
+parameters = [ "six" ] #"five","six", "seven", "eight"]
+pd_parameters = [ "seven" ]#"six", "seven","eight", "nine"]
 
 # ZPRIMES : 
 # sigmeans = [ 550,600,650,700,750,800,850,900,950,1000,1050,1100,1150,1200,1250,1300,1350,1400,1450,1500,1550,1600,1650,1700,1750,1800,1850,1900,1950,2000]
 # sigmeans = [ 350, 400, 450, 500, 550,600,650,700,750,800,850,900,950,1000,1050,1100,1150,1200,1250,1300,1350,1400,1450,1500]
+
 # GAUSSIANS:
 # J50
-# sigmeans = [ 350, 375, 400, 425, 450, 500, 600, 700, 800 ] 
+#sigmeans = [ 350, 375, 400, 425, 450, 500, 600, 700, 800 ] 
 # J100
+#sigmeans = [ 450, 500, 550, 600, 650, 700, 800, 1000, 1200, 1400, 1600, 1800]
 
-sigmeans = [ 450, 500, 550, 600, 650, 700, 800, 1000, 1200, 1400, 1600, 1800]
+#sigwidths = [ 5, 10, 15 ] 
+sigmeans = ['bOnly']
+sigwidths = [-999]
 
-sigwidths = [ 5, 10, 15 ] 
+# do chi2 fit instead of NLL:
+doChi2 = True
+doChi2constraints = True
 
 doLimit = False
 doPrefit = True
@@ -43,18 +55,23 @@ maskthreshold=0.01
 
 # Output folder -- where everything is stored:
 # default in python/run_anaFit.py is run/
-outFolder = "run/Unblinding2/J100_no2017_Toys/"
-
+outFolder = "run/Unblinding2/BOnly_to_2017_FullGSCTest_Unb2_{}_TG3/".format(tag)
+# XRootD:
+XRootD_preffix = "root://eosatlas.cern.ch/"
+eos_preffix = "/eos/user/m/mtoscani/Rel21/TLA/FrequentistFramework/"
 
 ############################################################################
 # Don't modify this, unless running on PD
 ############################################################################
 
+
 ################## Create output folder:
 
 # local or Condor, everything will be stored here:
-if not os.path.isdir(outFolder):
-  subprocess.call("mkdir -p " + outFolder, shell=True)
+if not os.path.isdir(eos_preffix + outFolder):
+  subprocess.call("mkdir -p " + eos_preffix + outFolder, shell=True)
+  if useBatch: # need to create a local folder for job submission:
+    subprocess.call("mkdir -p " + outFolder, shell=True)
 
 #######################################################3
 # PREPARE CONDOR:
@@ -72,31 +89,41 @@ if useBatch:
   batchmanager = CondorHandler( batch_logs, batch_scripts)
   
   # In condor I store everything in an output/ folder and at the end I copy everything from $Condor/output to outFolder/
-  folder = 'output/'
-else:
-  folder = outFolder
- 
+  #folder = 'output/'
+#else:
+  #folder = outFolder
+
+# Everything is stored in EOS
+folder =  eos_preffix + outFolder
+
+################## Generate Symbolic link:
+
+subprocess.call("ln -s $PWD/config/dijetTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder), shell=True)
+print "ln -s $PWD/config/dijetTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder)
 
 ########################### START SUBMISSION:
 
-for pars in parameters:
+for i,pars in enumerate(parameters):
 
   backgroundfile 	= "config/dijetTLA/background_dijetTLA_J100yStar06_{0}Par.template".format(pars)
-
   if runData:
     # Running on Data:
     datafile = initialParameters[dataset][trigger]['datafile']
     datahist = initialParameters[dataset][trigger]['datahist']
-    # nbkg is overriden if doPrefit:
     nbkg	   = initialParameters[dataset][trigger]['nbkg']
 
   else:
-    # Running on PD for tests
-    datafile = initialParameters[dataset + "_PD"][trigger][pars]
+    # Sanity check:
+    if len(parameters) is not len(pd_parameters):
+      print "ERROR: len(parameters) does not match len(pd_parameters)"
+      print "ERROR: check that you're running N fit to (N+1) PD, or Nfit to N PD for closure"
+      sys.exit()
 
+    # Running on PD
+    datafile = initialParameters[dataset][trigger][tag][pd_parameters[i]]
     datahist = "pseudodata"
     # 130ifb (overriden if doPrefit)
-    nbkg = initialParameters['full'][trigger]['nbkg']
+    nbkg = initialParameters[dataset][trigger]['nbkg']
 
     # 0 for no signal injection
     sigamp=0
@@ -122,9 +149,9 @@ for pars in parameters:
 	signalfile 	= "config/dijetTLA/signal/signal_dijetTLA.template"
 
       # WS file name for xmlAnaWSBuilder:
-      wsfile= folder + "dijetTLA_combWS_{0}Par_{1}yStar06_{2}_gq0p1.root"
+      wsfile= XRootD_preffix + folder + "dijetTLA_combWS_{0}Par_{1}yStar06_{2}_gq0p1.root"
       # Output file name for quickFit:
-      outputfile = folder + "FitResult_anaFit_{0}Par_{1}yStar06_{2}.root"
+      outputfile = XRootD_preffix + folder + "FitResult_anaFit_{0}Par_{1}yStar06_{2}.root"
 
       if sigmean == "bOnly":
 	wsfile = wsfile.format(pars, trigger, "bOnly")
@@ -132,6 +159,7 @@ for pars in parameters:
 	doSignal = False
 	doLimit = False
 	sigmean = 1000
+	sigStr = "bOnly"
       else:
 	if sigwidth == -999:
 	  sigStr = "mR"+sigmean
@@ -159,6 +187,12 @@ for pars in parameters:
       if doPrefit:
 	command += " --doprefit"
 
+      if doChi2:
+	command += " --dochi2fit"
+
+	if doChi2constraints:
+	  command += " --dochi2constraints"
+
     #######################################################3
       # SUBMISSION:
 
@@ -172,6 +206,6 @@ for pars in parameters:
 	  subprocess.call(command, shell=True)
 
 	else:
-	  batchmanager.send_job( command,sigStr, outFolder )
+	  batchmanager.send_job( command,"job_" + pars + "_" + sigStr, outFolder )
 	  print("submitted for {}\n\n".format(sigStr))
-	
+      print "\n"	
