@@ -10,7 +10,7 @@ class CondorHandler(object) :
     self.log_path = log_path
     self.batch_path = batch_path
     # workday (8hs), tomorrow (1day), longlunch(2hs), testmatch (3days), nextweek(1week)
-    self.job_length = "tomorrow"
+    self.job_length = "testmatch"
     self.email = 'mariana.toscani@cern.ch'
 
   def send_job(self,command,tag, outputFolder) :
@@ -62,7 +62,7 @@ class CondorHandler(object) :
       fr.write('eval ' + command + '\n')
 
       # Copy output back to local directory:
-      fr.write('cp -rf output/* ${localdir}/'+ outputFolder + '\n')
+      #fr.write('cp -rf output/* ${localdir}/'+ outputFolder + '\n')
       
       fr.write('echo \'Done!\'')
 

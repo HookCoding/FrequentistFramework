@@ -62,7 +62,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     if useSumW2:
         chi2flag += " --poissonerror 0"
 
-    rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s %s -o %s" % (wsfile, _poi, _range, chi2flag, fitresultfile))
+    rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s %s -o %s" % (wsfile.replace("root://eosatlas.cern.ch/",""), _poi, _range, chi2flag, fitresultfile))
     if rtv != 0:
         print("WARNING: Non-zero return code from quickFit. Check if tolerable")
 
@@ -132,19 +132,27 @@ def run_anaFit(datafile,
 
     # generate the config files on the fly in run dir
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
-        execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
+      execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd {}AnaWSBuilder.dtd".format(folder))
+      #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
+    
+    
+    tmpbackgroundfile=os.path.join(folder, os.path.basename(backgroundfile).replace(".template",".xml"))
+    tmpsignalfile=os.path.join(folder, "signal_mean{0}_width{1}.xml".format(sigmean, sigwidth))
+    tmpcategoryfile=tmpbackgroundfile.replace(".xml","_mean{0}_width{1}.xml".format(sigmean, sigwidth)).replace("background","category")
+    tmptopfile=tmpcategoryfile.replace("category_","")
     if sigwidth == -999: # running on zprime samples:
-        print("Running in Zprime samples")
-        tmpcategoryfile="{0}/category_dijetTLA_fromTemplate_mR{1}.xml".format(folder, sigmean)
-        tmptopfile="{0}/dijetTLA_fromTemplate_mR{1}.xml".format(folder, sigmean)
-    else:
-        tmpcategoryfile="{}/category_dijetTLA_fromTemplate.xml".format(folder)
-        tmptopfile="{}/dijetTLA_fromTemplate.xml".format(folder)
-    tmpsignalfile="{}/signal_dijetTLA_fromTemplate.xml".format(folder)
-    tmpbackgroundfile="{}/background_dijetTLA_fromTemplate.xml".format(folder)
+      print("Running in Zprime samples")
+      tmpcategoryfile=tmpcategoryfile.split("_mean")[0]+"_mR{}.xml".format(sigmean)
+      tmptopfile=tmptopfile.split("_mean")[0]+"_mR{}.xml".format(sigmean)
+    
+    print("Generated following cards:\n")
+    print("\tTop card:", tmptopfile)
+    print("\tCategory card:", tmpcategoryfile)
+    print("\tBackground card:", tmpbackgroundfile)
+    print("\tSignal card:", tmpsignalfile)
 
-    shutil.copy2(topfile, tmptopfile)
-    shutil.copy2(categoryfile, tmpcategoryfile)
+    shutil.copy2(topfile, tmptopfile) 
+    shutil.copy2(categoryfile, tmpcategoryfile) 
     if signalfile:
         shutil.copy2(signalfile, tmpsignalfile)
 
@@ -156,25 +164,22 @@ def run_anaFit(datafile,
 
     if backgroundfile:
         shutil.copy2(backgroundfile, tmpbackgroundfile)
-        replaceinfile(tmpcategoryfile,
+        replaceinfile(tmpcategoryfile, 
                       [("BACKGROUNDFILE", tmpbackgroundfile)])
 
         if doprefit:
-            nPars = 5
-
-            if "three" in  backgroundfile:
-                nPars = 3
-            elif "four" in  backgroundfile:
+           nPars = 5
+            if "four" in backgroundfile:
                 nPars = 4
-            elif "five" in  backgroundfile:
+            elif "five" in backgroundfile:
                 nPars = 5
-            elif "six" in  backgroundfile:
+            elif "six" in backgroundfile:
                 nPars = 6
-            elif "seven" in  backgroundfile:
+            elif "seven" in backgroundfile:
                 nPars = 7
-            elif "eight" in  backgroundfile:
+            elif "eight" in backgroundfile:
                 nPars = 8
-            elif "nine" in  backgroundfile:
+            elif "nine" in backgroundfile:
                 nPars = 9
             else:
                 searchstring =r'(\d+)Par'
@@ -197,8 +202,8 @@ def run_anaFit(datafile,
                             #m[2] is rangeHigh
                             parRangeLow[int(m[0])-1] = float(m[1])
                             parRangeHigh[int(m[0])-1] = float(m[2])
-
-            print("Starting PreFit in parameter ranges:")
+            
+	    print("Starting PreFit in parameter ranges:")
             print(parRangeLow)
             print(parRangeHigh)
 
