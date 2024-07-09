@@ -1,15 +1,18 @@
+from __future__ import print_function
+
 import sys, ROOT, math, glob, os, re, argparse
 from array import array
-from color import getColorSteps
+from color import getColorSteps, getMarkerStyle
 
 ROOT.gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasLabels.C")
 ROOT.gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasStyle.C")
 ROOT.gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasUtils.C")
 
-ROOT.gROOT.ProcessLine( "gErrorIgnoreLevel = 6001;")
-
+#produces too large whiskers in ROOT 6.30:
 ROOT.TCandle.SetBoxRange(0.68)
 ROOT.TCandle.SetWhiskerRange(0.90)
+
+disc_threshold = 0.05
 
 def natural_sort(l):
     convert = lambda text: int(text) if text.isdigit() else text.lower() 
@@ -23,13 +26,15 @@ def main(args):
     # parser.add_argument('--input_is_spurious', dest='input_is_spurious', action='store_true', help='Input is already a spurious signal graph. Otherwise a file created with createExtractionGraphs.py is expected.')
     parser.add_argument('--width', dest='width', type=int, default=None, help='Only plot given width')
     parser.add_argument('--means', dest='means', type=int, nargs='+', default=None, help='Means to draw in plot')
-    parser.add_argument('--doAtlasLabel', dest='doAtlasLabel', action='store_true', help='Draw ATLAS Label')
+    parser.add_argument('--doAtlasLabel', dest='doAtlasLabel', action='store_true', default=None, help='')
 
     args, paths = parser.parse_known_args(args)
     
     inpath = paths[0]
     infile = ROOT.TFile(inpath)
-    
+
+    amplitudes = [0,2,4,8,16,32]
+
     graphs_lim = {}
     for k in infile.GetListOfKeys():
         name = k.GetName()
@@ -37,8 +42,7 @@ def main(args):
         if not isinstance(g, ROOT.TGraph):
             continue
             
-        if not "g1_limit" in name:
-            # only care for observed limits
+        if not "g1_BHpval" in name:
             continue
             
         if not name.endswith("_%d" % args.width):
@@ -48,12 +52,13 @@ def main(args):
         res=re.search(searchstring, name)
         m=int(res.group(1))
         w=int(res.group(2))
-        # g.SetTitle("m_{G} = %.0f GeV" % m)
-        g.SetTitle("%.0f GeV" % m)
 
         if args.means and not m in args.means:
+            print("Skipping", g.GetTitle())
             continue
         
+        g.SetTitle("m_{G} = %.0f GeV" % m)
+
         graphs_lim[g.GetTitle()] = g
         print("adding", g.GetTitle())
     
@@ -66,12 +71,8 @@ def main(args):
     graphs_frac_below = {}
     h2_all_points = {}
     bin_edges = []
-    h1_all_limits = {}
     
     masses = natural_sort(list(graphs_lim.keys()))
-
-    print(("outfile:", inpath.replace(".root", "_hists_width%d.root" % args.width)))
-    fout = ROOT.TFile(inpath.replace(".root", "_hists_width%d.root" % args.width), "RECREATE")
     
     for mass in masses:
         graph = graphs_lim[mass]
@@ -83,14 +84,10 @@ def main(args):
     
         y_min = -1
         y_max = 0
-
-        h1_limits = ROOT.TH1D("limits_mean%s_width%d" % (mass, args.width), "Observed limits on nsig_mean%s_width%d;95%% limit / #sqrt{B};#toys" % (mass, args.width), 2000, 0, 100)
-        h1_limits.SetDirectory(0)
     
         for n in range(graph.GetN()):
-            ninj = graph.GetX()[n]
+            ninj = amplitudes.index(graph.GetX()[n])
             ulim = graph.GetY()[n]
-            # print(ulim)
             if math.isnan(ulim):
                 ulim = 0.
     
@@ -99,18 +96,12 @@ def main(args):
             if ninj not in above: above[ninj] = 0
             if ninj not in total: total[ninj] = 0
             total[ninj] += 1
-            if ulim > ninj:
+            if ulim > disc_threshold:
                 above[ninj] += 1
             if ulim > y_max:
                 y_max = ulim
             if ulim < y_max:
                 y_min = ulim
-
-            if ninj == 3:
-                h1_limits.Fill(ulim)
-
-        fout.cd()
-        h1_limits.Write("limits_mean%s_width%d" % (mass, args.width))
     
         ninj_list.sort()
         for n in ninj_list:
@@ -128,7 +119,7 @@ def main(args):
                 x_max = 1.1*n
             if n < x_min:
                 x_min = 1.1*n
-
+    
         # for candle plot:
         bin_width = ninj_list[-1] / 12. if ninj_list[-1] > 0. else 1
     
@@ -143,17 +134,16 @@ def main(args):
     
     
         h2_all_points[mass] = ROOT.TH2D("h2_"+str(mass), "", len(bin_edges)-1, bin_edges, 1000, 0, 5*bin_edges[-1]);
-        h2_all_points[mass].SetDirectory(0)
     
         for n in range(graph.GetN()):
-            ninj = graph.GetX()[n]
+            ninj = amplitudes.index(graph.GetX()[n])
             ulim = graph.GetY()[n]
             if math.isnan(ulim):
                 ulim = 0.
     
             h2_all_points[mass].Fill(ninj, ulim)
         
-    fout.Close()
+        
     
     canvas=ROOT.TCanvas("c","c", 800, 600)
     # canvas.SetRightMargin(0.10)
@@ -161,17 +151,15 @@ def main(args):
     pad1 = ROOT.TPad("pad1", "pad1", 0, 0.3, 1, 1.0)
     pad1.SetBottomMargin(0.005) #Upper and lower plot are joined
     pad1.Draw()
+    pad1.SetLogy()
     
     pad1.cd()
     
-    # legend = ROOT.TLegend(0.15,0.6,0.75,0.89)
-    # legend = ROOT.TLegend(0.20,0.55,0.75,0.90)
-    # legend = ROOT.TLegend(0.5,0.05,0.9,0.05+3*0.08)
-    legend = ROOT.TLegend(0.57,0.02,0.92,0.05+3*0.07)
-    legend.SetFillStyle(0)
-    legend.SetNColumns(2)
-
-    legend.AddEntry(0, "m_{G}:", "")
+    if len(masses) > 5:
+        legend = ROOT.TLegend(0.18,disc_threshold,0.73,0.4)
+        legend.SetNColumns(2)
+    else:
+        legend = ROOT.TLegend(0.18,disc_threshold,0.45,0.5)
     
     if "four" in inpath:
         text = "4-par fit"
@@ -188,7 +176,7 @@ def main(args):
     elif "nloFit" in inpath or "nlofit" in inpath:
         text = "NLOFit"
     
-    lumi = 132000
+    lumi = 132
     trig = "J100"
     if "lumi" in inpath:
         try:
@@ -196,62 +184,58 @@ def main(args):
         except:
             pass
 
-    text2 = "%s PD, %.0f fb^{-1}" % (trig, lumi/1000)
     if "J50" in inpath:
-        lumi = 15000
+        lumi = 15
         trig = "J50"
-        text2 = "%s PD, %.1f fb^{-1}" % (trig, lumi/1000)
-    
+
+    if args.doAtlasLabel:
+        text2 = ", %.1f fb^{-1} PD" % (lumi, trig)
+    else:
+        if "J50" in inpath:
+            # text2 = "#sqrt{s}=13 TeV, %.1f fb^{-1} PD" % lumi
+            text2 = "J50 PD, %.1f fb^{-1}" % lumi
+        else:
+            # text2 = "#sqrt{s}=13 TeV, %.0f fb^{-1} PD" % lumi
+            text2 = "J100 PD, %.0f fb^{-1}" % lumi
+
     colors = getColorSteps(len(masses))
     
-    print(h2_all_points)
-
     hs = ROOT.THStack("hs","")
     for i,mass in enumerate(masses):
     
         h2_all_points[mass].SetLineWidth(2)
         h2_all_points[mass].SetLineColor(colors[i])
         h2_all_points[mass].SetMarkerColor(colors[i])
+        h2_all_points[mass].SetMarkerStyle(getMarkerStyle(i))
         legend.AddEntry(h2_all_points[mass], mass)
         
         # hs.Add(h2_all_points[mass], "CANDLEX(00111011)") #(zhpawMmb)
         hs.Add(h2_all_points[mass], "CANDLEX(00001011)") #(zhpawMmb)
 
-    # legend.AddEntry(0,"#sigma_{G}/m_{G} = %.2f" % (args.width/100.),"")
+    legend.AddEntry(0,"#sigma_{G}/m_{G} = %.2f" % (args.width/100.),"")
     
     # hs.Draw("CANDLEX(00111011)")
     hs.Draw("CANDLEX(00001011)")
-    # hs.GetYaxis().SetLimits(-0.5,14.)
-    hs.GetYaxis().SetLimits(-0.5,20.)
+    hs.GetXaxis().SetNdivisions(0)
+    hs.GetYaxis().SetLimits(8e-4,1.)
     hs.GetXaxis().SetTitle("S_{inj} / #sqrt{B}")
-    hs.GetYaxis().SetTitle("95% CL_{s} limit / #sqrt{B}")
-    hs.GetYaxis().SetTitleOffset(1.4)
+    for i,a in enumerate(amplitudes):
+        hs.GetXaxis().SetBinLabel(i,str(a))
+    hs.GetYaxis().SetTitle("Global p(BH)")
+    hs.GetYaxis().SetTitleOffset(1.3)
     hs.GetXaxis().SetTitleOffset(2)
     hs.GetXaxis().SetLabelOffset(2)
-
-    box = ROOT.TPave(0.16,0.95,1.0,1.0,0,"NDC");
-    box.SetFillStyle(1001)
-    box.SetFillColor(ROOT.kWhite)
-    box.SetLineWidth(0)
-    box.Draw()
-
-    ROOT.gPad.Update()
-    ROOT.gPad.RedrawAxis()
        
-    line = ROOT.TLine(0, 0, bin_edges[-1], bin_edges[-1])
+    line = ROOT.TLine(bin_edges[0], disc_threshold, bin_edges[-1], disc_threshold)
     line.SetLineWidth(2)
     line.SetLineStyle(7)
     line.SetLineColor(ROOT.kGray+1)
     line.Draw()
     
     legend.Draw()
-    ROOT.myText(0.75,0.34,1,"#sigma_{G}/m_{G} = %.2f" % (args.width/100.), 13)
-    # ROOT.myText(0.75,0.29,1,"m_{G}:", 13)
 
-    # ROOT.ATLASLabel(0.58, 0.20, "Work in progress", 13)
-    # ROOT.myText(0.58, 0.25, 1, text+text2, 13)
-      
-
+    # ROOT.ATLASLabel(0.57, 0.10, "Work in progress", 13)
+    # ROOT.myText(0.91, 0.20, 1, text+text2, 33)
 
     canvas.Update()
     # canvas.Print(os.path.basename(inpath).replace(".root", ".png"))
@@ -281,6 +265,7 @@ def main(args):
         graph_below.SetMarkerStyle(ROOT.kFullCircle)
         graph_below.SetMarkerSize(1)
         graph_below.SetMarkerColor(colors[i])
+        graph_below.SetMarkerStyle(getMarkerStyle(i))
         graph_below.SetLineColor(colors[i])
         graph_below.SetLineWidth(2)
         # legend.AddEntry(graph_below,mass)
@@ -292,21 +277,31 @@ def main(args):
     
         if not axisExists:
             graph_below.Draw("APEL SAME")
-            graph_below.GetYaxis().SetTitle("False excl. rate")
+            graph_below.GetYaxis().SetTitle("p < %.2f rate" % disc_threshold)
             graph_below.GetXaxis().SetTitle("S_{inj} / #sqrt{B}")
+            graph_below.GetXaxis().SetNdivisions(6)
             graph_below.GetYaxis().SetNdivisions(505)
             # graph_below.GetXaxis().SetLimits(x_min,x_max)
             graph_below.GetXaxis().SetLimits(bin_edges[0],bin_edges[-1])
-            graph_below.GetYaxis().SetRangeUser(0.,0.16)
-            graph_below.GetYaxis().SetTitleOffset(1.4)
-            graph_below.GetXaxis().SetTitleOffset(3.5)
+
+            for j,a in enumerate(amplitudes):
+                graph_below.GetXaxis().ChangeLabel(j+1,-1,-1,-1,-1,-1,str(a));
+                # bin_index = graph_below.GetXaxis().FindBin(j)
+                # graph_below.GetXaxis().SetBinLabel(bin_index,str(a))
+
+            # graph_below.GetYaxis().SetRangeUser(0.,0.999)
+            graph_below.GetYaxis().SetRangeUser(0.,1.)
+            graph_below.GetYaxis().SetTitleOffset(1.3)
+            graph_below.GetXaxis().SetTitleOffset(3.5) # ROOT 6.20
+            # graph_below.GetXaxis().SetTitleOffset(1.2) # ROOT 6.30
+            graph_below.GetYaxis().ChangeLabel(6,-1,-1,-1,-1,-1," ");
             graph_below.Draw("APEL")
             canvas.Update()
             axisExists = 1
         else:
             graph_below.Draw("PEL")
     
-        line2 = ROOT.TLine(bin_edges[0], 0.05, bin_edges[-1], 0.05)
+        line2 = ROOT.TLine(bin_edges[0], disc_threshold, bin_edges[-1], disc_threshold)
         line2.SetLineWidth(2)
         line2.SetLineStyle(7)
         line2.SetLineColor(ROOT.kGray+1)
@@ -318,17 +313,20 @@ def main(args):
     # legend2.SetX2NDC(0.6)
     # legend2.SetY2NDC(0.9)
     # legend2.Draw()    
-    
     if args.doAtlasLabel:
-        ROOT.ATLASLabel(0.57, 0.10, "Work in progress", 13)
-        ROOT.myText(0.91, 0.20, 1, text+text2, 33)
+        ROOT.ATLASLabel(0.19, 0.9, "Work in progress", 13)
+        ROOT.myText(0.19, 0.75, 1, text+text2, 13)
     else:
         ROOT.myText(0.19, 0.93, 1, text2, 13)
         ROOT.myText(0.19, 0.75, 1, text, 13)
-
     
-    canvas.Print(inpath.replace(".root", "_width%d.pdf" % args.width))
-    canvas.Print(inpath.replace(".root", "_width%d.svg" % args.width))
+    if "_width" in inpath:
+        outname = inpath.replace(".root", "")
+    else:
+        outname = inpath.replace(".root", "_width%d" % args.width)
+    
+    canvas.Print(outname+".pdf")
+    canvas.Print(outname+".svf")
         
     # raw_input("Wait...")
 

@@ -1,0 +1,56 @@
+<!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
+<Channel Name="J100yStar06" Type="shape" Lumi="1">
+  <Data InputFile="DATAFILE" FileType="histogram" HistName="DATAHIST" Observable="obs_x_channel[RANGELOW,RANGEHIGH]" Binning="BINS" InjectGhost="1"/>
+
+  <Systematic Name="ATLAS_JET_OnlineOffline_NonClosure" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_DataVsMC_MC16" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_9" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_7" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EtaIntercalibration_NonClosure_2018data" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EtaIntercalibration_NonClosure_highE" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_2" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_1" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_10" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_5" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_Pileup_PtTerm" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_3" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_4" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EtaIntercalibration_TotalStat" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_Flavor_Response" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_Pileup_RhoTopology" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EtaIntercalibration_Modelling" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_4" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_8" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_8restTerm" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_3" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_6" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EtaIntercalibration_NonClosure_negEta" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_7" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_1" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_5" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_6" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_Pileup_OffsetMu" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EtaIntercalibration_NonClosure_posEta" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_12restTerm" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_Flavor_Composition" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_SingleParticle_HighPt" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_EffectiveNP_2" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_JER_EffectiveNP_11" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+  <Systematic Name="ATLAS_JET_Pileup_OffsetNPV" Constr="gaus" CentralValue="0" Mag="1" WhereTo="shape"/>
+
+  <!-- <Systematic Name="ATLAS_sigmean" Constr="gaus" CentralValue="0" Mag="SIGMEANUNC" WhereTo="shape"/> -->
+  <!-- <Systematic Name="ATLAS_sigwidth" Constr="gaus" CentralValue="0" Mag="SIGWIDTHUNC" WhereTo="shape"/> -->
+
+  <Sample Name="background" InputFile="BACKGROUNDFILE" MultiplyLumi="0" ImportSyst=":self:">
+    <NormFactor Name="nbkg[NBKG]"/>
+  </Sample>
+
+  <Sample Name="signal_SIGNAME" InputFile="SIGNALFILE" MultiplyLumi="0" ImportSyst=":common:" SharePdf="CommonSig">
+    <NormFactor Name="nsig_SIGNAME[NSIG]" />
+  </Sample>
+
+  <Sample Name="spurious_SIGNAME" InputFile="SIGNALFILE" MultiplyLumi="0" ImportSyst=":self:" SharePdf="CommonSig">
+    <Systematic Name="ATLAS_spurious_SIGNAME" Constr="gaus" CentralValue="0" Mag="SPURSIG" WhereTo="yield"/>
+  </Sample>
+
+</Channel>

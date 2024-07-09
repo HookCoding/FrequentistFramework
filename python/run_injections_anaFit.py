@@ -3,6 +3,7 @@
 from __future__ import print_function
 import os,sys,re,argparse
 from InjectGaussian import InjectGaussian
+from InjectZprime import InjectZprime, InjectDSCB
 from run_anaFit import run_anaFit
 import json
 
@@ -23,6 +24,7 @@ def main(args):
     parser.add_argument('--rangehigh', dest='rangehigh', type=int, required=True, help='End Start of fit range (in GeV)')
     parser.add_argument('--dosignal', dest='dosignal', action="store_true", help='Perform s+b fit (default: bkg-only)')
     parser.add_argument('--dolimit', dest='dolimit', action="store_true", help='Perform limit setting')
+    parser.add_argument('--doBH', dest='doBH', action="store_true", help='Run BumpHunter')
     parser.add_argument('--sigmean', dest='sigmean', type=int, default=1000, help='Mean of signal Gaussian for s+b fit (in GeV)')
     parser.add_argument('--sigwidth', dest='sigwidth', type=int, default=7, help='Width of signal Gaussian for s+b fit (in %)')
     parser.add_argument('--signame', dest='signame', type=str, help='Name of the signal parameter')
@@ -31,6 +33,9 @@ def main(args):
     parser.add_argument('--dochi2fit', dest='dochi2fit', action="store_true", help='Minimize chi2 instead of NLL')
     parser.add_argument('--dochi2constraints', dest='dochi2constraints', action="store_true", help='Include the constraint terms into chi2. Becomes virtually identical to NLL this way.')
     parser.add_argument('--spursigfile', dest='spursigfile', type=str, help='Path to json file containing spurious signal dict')
+    parser.add_argument('--theouncfile', dest='theouncfile', type=str, help='Path to json file containing dict with theory normalization uncertainty')
+    parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
+    parser.add_argument('--covariancefile', dest='covariancefile', type=str, help='Path to json file containing signal systematics covariance dict')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
     parser.add_argument('--categoryname', dest='categoryname', type=str, default='J100yStar06', help='Name of category to fit')
     parser.add_argument('--sigamp', dest='sigamp', type=float, default=0, help='Amplitude of Gaussian to inject (in sigma)')
@@ -57,22 +62,74 @@ def main(args):
             dict_spursig = json.load(f)
         spursig = dict_spursig[str(args.sigmean)][str(args.sigwidth)]['0']['uncertainty']
 
+    theounc=0
+    if args.theouncfile:
+        with open(args.theouncfile) as f:
+            dict_theounc = json.load(f)
+        theounc = dict_theounc[str(args.sigmean)]['xsec_uncertainty']
+
+    systdict = None
+    if args.sysfile:
+        with open(args.sysfile) as f:
+            systdict = json.load(f)[str(args.sigmean)]
+
+    covariancedict = None
+    if args.covariancefile:
+        with open(args.covariancefile) as f:
+            covariancedict = json.load(f)[str(args.sigmean)]
+
     injecteddatafile=args.datafile
     if (args.sigamp > 0):
-        print("Injecting signal of amplitude %.1f sigma (FWHM)" % args.sigamp)
+        
+        if (args.sigwidth != -999):
+            print("Injecting Gauss signal of amplitude %.1f sigma (FWHM)" % args.sigamp)
+    
+            injecteddatafile=os.path.join(args.folder, os.path.basename(args.datafile))
+            injecteddatafile=injecteddatafile.replace(".root","_injected_mean%d_width%d_amp%.0f.root" % (args.sigmean, args.sigwidth, args.sigamp))
+    
+            InjectGaussian(infile=args.datafile, 
+                           histname=args.datahist, 
+                           sigmean=args.sigmean, 
+                           sigwidth=args.sigwidth, 
+                           sigamp=args.sigamp,
+                           outfile=injecteddatafile,
+                           firsttoy=args.loopstart,
+                           lasttoy=args.loopend,
+                           xmin=args.rangelow,
+                           xmax=args.rangehigh)
+    
+        else:
+            print("Injecting Zprime signal of amplitude %.1f sigma (FWHM)" % args.sigamp)
+            injecteddatafile=os.path.join(args.folder, os.path.basename(args.datafile))
+            injecteddatafile=injecteddatafile.replace(".root","_injected_mR%d_amp%.0f.root" % (args.sigmean, args.sigamp))
+    
+            # InjectZprime(infile=args.datafile, 
+            #              histname=args.datahist, 
+            #              sigfile="Input/model/dijetTLA/zprime/HLT_j0_perf_ds1_L1J100/SignalTemplates_th1s_gq0p1.root",
+            #              sighist=("morphpdf_Linear_mR%d_gq0p1_nominal__0__dijet_mass" % args.sigmean),
+            #              sigamp=args.sigamp,
+            #              outfile=injecteddatafile,
+            #              firsttoy=args.loopstart,
+            #              lasttoy=args.loopend)
 
-        injecteddatafile=os.path.join(args.folder, os.path.basename(args.datafile))
-        injecteddatafile=injecteddatafile.replace(".root","_injected_mean%d_width%d_amp%.0f.root" % (args.sigmean, args.sigwidth, args.sigamp))
+            pars = []
+            pars.append(systdict["nominal_alpha_l"])
+            pars.append(systdict["nominal_alpha_h"])
+            pars.append(systdict["nominal_n_l"])
+            pars.append(systdict["nominal_n_h"])
+            pars.append(systdict["nominal_mean"])
+            pars.append(systdict["nominal_sigma"])
+            pars.append(1)
 
-        InjectGaussian(infile=args.datafile, 
+            InjectDSCB(infile=args.datafile, 
                        histname=args.datahist, 
-                       sigmean=args.sigmean, 
-                       sigwidth=args.sigwidth, 
+                       pars=pars,
                        sigamp=args.sigamp,
                        outfile=injecteddatafile,
                        firsttoy=args.loopstart,
                        lasttoy=args.loopend)
-        
+            
+            
     if args.loopstart!=None and args.loopend!=None:
         for toy in range(args.loopstart, args.loopend+1):
             datahist="%s_%d" % (args.datahist, toy)
@@ -92,6 +149,7 @@ def main(args):
                        rangehigh=args.rangehigh,
                        dosignal=args.dosignal,
                        dolimit=args.dolimit,
+                       doBH=args.doBH,
                        sigmean=args.sigmean,
                        sigwidth=args.sigwidth,
                        folder=args.folder,
@@ -100,7 +158,11 @@ def main(args):
                        doprefit=args.doprefit,
                        dochi2fit=args.dochi2fit, 
                        dochi2constraints=args.dochi2constraints,
-                       spursig=spursig)
+                       spursig=spursig,
+                       theounc=theounc,
+                       systdict=systdict,
+                       covariancedict=covariancedict,
+                       categoryname=args.categoryname)
     else:
         print("Running run_anaFit with datahist %s" % args.datahist)
         run_anaFit(datafile=injecteddatafile,
@@ -117,6 +179,7 @@ def main(args):
                    rangehigh=args.rangehigh,
                    dosignal=args.dosignal,
                    dolimit=args.dolimit,
+                   doBH=args.doBH,
                    sigmean=args.sigmean,
                    sigwidth=args.sigwidth,
                    folder=args.folder,
@@ -126,6 +189,9 @@ def main(args):
                    dochi2fit=args.dochi2fit, 
                    dochi2constraints=args.dochi2constraints,
                    spursig=spursig,
+                   theounc=theounc,
+                   systdict=systdict,
+                   covariancedict=covariancedict,
                    categoryname=args.categoryname)
 
 if __name__ == "__main__":  

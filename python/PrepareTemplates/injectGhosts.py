@@ -24,14 +24,14 @@ def main(args):
       new_histo.SetDirectory(0)
       new_histo.SetNameTitle(histo.GetName(), histo.GetTitle())
       for ibin in range(1, histo.GetNbinsX()+1):
-	val = histo.GetBinContent(ibin)
-	val_err = histo.GetBinError(ibin)
-	if val == 0. or val_err == 0.: # it's an empty bin
-	  new_histo.SetBinContent(ibin, ghost)
-	  new_histo.SetBinError(ibin, math.sqrt(ghost))
-	else:
-	  new_histo.SetBinContent(ibin, val)
-	  new_histo.SetBinError(ibin, val_err)
+        val = histo.GetBinContent(ibin)
+        val_err = histo.GetBinError(ibin)
+        if val == 0. or val_err == 0.: # it's an empty bin
+          new_histo.SetBinContent(ibin, ghost)
+          new_histo.SetBinError(ibin, math.sqrt(ghost))
+        else:
+          new_histo.SetBinContent(ibin, val)
+          new_histo.SetBinError(ibin, val_err)
       histograms.append(new_histo)
     
 

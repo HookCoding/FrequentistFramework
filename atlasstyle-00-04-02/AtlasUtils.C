@@ -268,11 +268,15 @@ TGraphErrors* TH1TOTGraph(TH1 *h1){
  return g1;
 }
 
-void myText(Double_t x,Double_t y,Color_t color, const char *text, Int_t align) {
+void myText(Double_t x,Double_t y,Color_t color, const char *text, Int_t align, Int_t tsize, Int_t font) {
 
   //Double_t tsize=0.05;
   TLatex l; 
-  l.SetTextAlign(align); //l.SetTextSize(tsize); 
+  l.SetTextAlign(align);
+  if (tsize != 0)
+    l.SetTextSize(tsize); 
+  if (font != 0)
+    l.SetTextFont(font); 
   l.SetNDC();
   l.SetTextColor(color);
   l.DrawLatex(x,y,text);

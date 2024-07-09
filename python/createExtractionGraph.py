@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+
 import ROOT
 import sys, re, os, math, optparse
 from array import array
@@ -7,13 +8,19 @@ from ROOT import *
 from math import sqrt
 from glob import glob
 import ExtractFitParameters as efp
+# from InjectGaussian import GetNsig
+import InjectGaussian
+import InjectZprime
 import numpy
 from color import getColorSteps
 
-gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasLabels.C")
-gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasStyle.C")
-gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
+gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasLabels.C")
+gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasStyle.C")
+gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasUtils.C")
 
+# opening files will throw errors in current root version (but probably still work):
+# Error in <TList::Clear>: A list is accessing an object (0x4e74ef0) already deleted (list name = TList)
+gROOT.ProcessLine( "gErrorIgnoreLevel = 6001;")
 
 
 def main(args):
@@ -21,9 +28,15 @@ def main(args):
 
     parser = optparse.OptionParser(description='%prog [options] INPUT')
     parser.add_option('--outfile', dest='outfile', type=str, default='extractionGraphs.root', help='Output file name')
+    parser.add_option('--pdhist', dest='pdhist', type=str, default='unfluctuated_injection', help='Data hist name in Pseudodata file')
+    parser.add_option('--postfithist', dest='postfithist', type=str, default='J100yStar06/data', help='Data hist name in PostFit file')
     parser.add_option('--notoys', dest='notoys', action='store_true', help='Use one fit instead of many toys')
+    parser.add_option('--percentile', dest='percentile', type=float, default=99, help='Range in % to include in percentile histogram')
     
     options, args = parser.parse_args(args)
+
+    perc_start = 0.5*(100-options.percentile)
+    perc_end = 100 - perc_start
 
     paths = args
     sigmeans = set()
@@ -31,16 +44,33 @@ def main(args):
     sigamps = set()
     dict_file = {}
     
+    if paths[0].endswith(".txt"):
+        print("Assuming file list input.")
+        filelists = paths
+        paths = []
+        for fl in filelists:
+            with open(fl, 'r') as f:
+                paths += f.read().splitlines()
+                # lines = f.read().splitlines()
+                # for l in lines:
+                #     paths.append(l)
+
+    # print(paths)
+
     for p in paths:
-        res=re.search(r'mean(\d+)_width(\d+)(:?_amp\d+)?', p)
-        m=int(res.group(1))
-        w=int(res.group(2))
+        try:
+            res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
+            m=int(res[0])
+            w=int(res[1])
+        except:
+            print("ERROR: Cannot identify mean and width from path", p)
+            return -1
         
         sigmeans.add(m)
         sigwidths.add(w)
 
         try:
-            a=int(res.group(3)[4:])
+            a=int(res[2][4:])
         except:
             a=0
         sigamps.add(a)
@@ -85,18 +115,37 @@ def main(args):
                 if sigamp > 0:
                     # tmp_path_injection = tmp_path_fitresult[0].replace("FitResult", "PD")
                     try:
-                        tmp_path_injection = glob(os.path.join(os.path.dirname(tmp_path_fitresult[0]),"*_injected_mean*_width*_amp*.root"))[0]
-                        print(tmp_path_injection)
+                        tmp_path_injection = glob(os.path.join(os.path.dirname(tmp_path_fitresult[0]),"*_injected_m*_amp*.root"))[0]
+                        # print("PD path:", tmp_path_injection)
                         f = TFile(tmp_path_injection)
-                        # for obj in f.GetListOfKeys():
-                        #     h=f.Get(obj.
-                        h = f.Get("unfluctuated_injection")
+                        for key in f.GetListOfKeys():
+                            if not "_injection" in key.GetName():
+                                continue
+                            h=f.Get(key.GetName())
+                            continue
+                        # h = f.Get(options.pdhist)
                         n_injected = h.Integral(0, h.GetNbinsX()+1)
+                        print("get n_injected from injected datafile:", tmp_path_injection)
                         f.Close()
                     except:
-                        print("WARNING: Could not find injection file for tmp_path_limits. Using n_injected=0 now.")
-#                        return
-                        n_injected = 0
+                        try:
+                            tmp_path_postfit = dict_file[(sigmean, sigwidth, sigamp)][0].replace("FitParameters", "PostFit")
+                            # print("Postfit path:", tmp_path_injection)
+                            f = TFile(tmp_path_postfit)
+                            h = f.Get(options.postfithist)
+                            if sigwidth == -999:
+                                sigfile = ROOT.TFile("../Input/model/dijetTLA/zprime/HLT_j0_perf_ds1_L1J100/SignalTemplates_th1s_gq0p1.root")
+                                sighist = sigfile.Get(("morphpdf_Linear_mR%d_gq0p1_nominal__0__dijet_mass" % sigmean))
+                                n_injected = InjectZprime.GetNsig(h, sighist, sigamp)
+                                print("get n_injected from morphpdf_Linear_mR%d_gq0p1_nominal__0__dijet_mass" % sigmean)
+                                sigfile.Close()
+                            else:
+                                n_injected = InjectGaussian.GetNsig(h, sigmean, sigwidth, sigamp)
+                            f.Close()
+                        except Exception as e:
+                            print("WARNING: Could not find injection file for %s. Using n_injected=0 now." % dict_file[(m, w, a)][0])
+                            print(e)
+                            n_injected = 0
                 else:
                     n_injected = 0
                 
@@ -129,12 +178,12 @@ def main(args):
                     par = parNames[i]
                     l = parLists[i]
                     h = TH1D("mean%d_width%d_amp%d/%s" % (sigmean, sigwidth, sigamp, par), par, 100, min(l), max(l))
-                    perc_1 = numpy.percentile(l,1)
-                    perc_99 = numpy.percentile(l,99)
+                    perc_1 = numpy.percentile(l,perc_start)
+                    perc_99 = numpy.percentile(l,perc_end)
                     delta = perc_99-perc_1
                     _min = max([min(l), perc_1 - 0.2*delta])
                     _max = min([max(l), perc_99 + 0.2*delta])
-                    h2 = TH1D("mean%d_width%d_amp%d_1to99_percentile/%s" % (sigmean, sigwidth, sigamp, par), par, 100, _min, _max)
+                    h2 = TH1D("mean%d_width%d_amp%d_%dto%d_percentile/%s" % (sigmean, sigwidth, sigamp, round(perc_start), round(perc_end), par), par, 100, _min, _max)
                     
                     for e in l:
                         h.Fill(e)
@@ -145,7 +194,7 @@ def main(args):
                     
                     if "nsig" in par:
                         # print n_injected, nsig
-                        print(l)
+                        # print(l)
                         for e in l:
                             inj_extr.append((n_injected, e))
                             if math.isnan(e):
@@ -172,13 +221,13 @@ def main(args):
     
                     d = fout.mkdir("hists_mean%d_width%d_amp%d" % (sigmean, sigwidth, sigamp))
                     d.cd()
-                    for h in parHists.values():
+                    for h in list(parHists.values()):
                         h.Write(h.GetName().split('/')[-1])
                     d.Close()
 
-                    d = fout.mkdir("hists_mean%d_width%d_amp%d_1to99_percentile" % (sigmean, sigwidth, sigamp))
+                    d = fout.mkdir("hists_mean%d_width%d_amp%d_%dto%d_percentile" % (sigmean, sigwidth, sigamp, round(perc_start), round(perc_end)))
                     d.cd()
-                    for h in parHists2.values():
+                    for h in list(parHists2.values()):
                         h.Write(h.GetName().split('/')[-1])
                     d.Close()
                     # print "Setting point at", sigamp, nFit / sqrtB
@@ -232,10 +281,10 @@ def main(args):
 
     lumi = 29
     # if "lumi" in dict_file.values()[0]:
-    if "lumi" in list(next(iter(dict_file.items())))[0]:
+    if "lumi" in list(next(iter(list(dict_file.items()))))[0]:
         try:
             # lumi=int(dict_file.values()[0].split("lumi")[-1].split("_")[0])
-            lumi=int(list(next(iter(dict_file.items())))[0].split("lumi")[-1].split("_")[0])
+            lumi=int(list(next(iter(list(dict_file.items()))))[0].split("lumi")[-1].split("_")[0])
         except:
             pass
     text1 = "Pseudodata %d fb^{-1}" % lumi
@@ -259,5 +308,6 @@ def main(args):
     c.Print(options.outfile.replace(".root", ".png"))
     
 if __name__ == "__main__":  
-   sys.exit(main(sys.argv[1:]))   
+   args=[x for x in sys.argv[1:] if not (x.startswith("-") and not x.startswith("--"))]
+   sys.exit(main(args))   
 

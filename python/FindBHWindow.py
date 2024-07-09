@@ -26,8 +26,6 @@ def main(args):
     parser.add_argument('--datahist', dest='datahist', type=str, default='data', help='data hist name')
     parser.add_argument('--bkghist', dest='bkghist', type=str, default='postfit', help='bkg hist name')
     parser.add_argument('--outputjson', dest='outputjson', type=str, default='BHresults.json', help='Name of output file with BH results')
-    parser.add_argument('--inputxmlcard', dest='inputxmlcard', type=str, help='Path of xmlAnaWSBuilder card to insert BlindRange into')
-    parser.add_argument('--outputxmlcard', dest='outputxmlcard', type=str, help='Output path of modified xmlAnaWSBuilder card')
     parser.add_argument('--usebinnumbers', dest='usebinnumbers', action='store_true', help='Use bin numbers instead of observable for BlindRange')
 
     args = parser.parse_args(args)
@@ -58,7 +56,7 @@ def main(args):
 
     # Create a BumpHunter1D class instance
     hunter = BH.BumpHunter1D(
-        width_min=2,
+        width_min=1,
         width_max=6,
         width_step=1,
         scan_step=1,
@@ -83,10 +81,12 @@ def main(args):
     # hunter.plot_tomography(data, is_hist=True, filename="tomography.png")
 
     # Get and save bump plot
-    hunter.plot_bump(data, bkg, is_hist=True, filename="bump.png")
+    bumpname=args.outputjson.replace(".json", "_bump.png")
+    hunter.plot_bump(data, bkg, is_hist=True, filename=bumpname)
 
     # Get and save statistics plot
-    hunter.plot_stat(show_Pval=True, filename="BH_statistics.png")
+    statname=args.outputjson.replace(".json", "_statistics.png")
+    hunter.plot_stat(show_Pval=True, filename=statname)
 
     state = hunter.save_state()
 
@@ -104,6 +104,11 @@ def main(args):
 
     with open(args.outputjson, 'w') as f:
         json.dump(out_dict, f, cls=NpEncoder)
+
+    print(len(out_dict["pyBHresult"]["res_ar"]))
+    print(len(out_dict["pyBHresult"]["bins"]))
+    print(out_dict["pyBHresult"]["res_ar"][0])
+    print(out_dict["pyBHresult"]["res_ar"])
 
     print(out_dict["BlindRange"])
 

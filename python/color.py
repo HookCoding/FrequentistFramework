@@ -3,19 +3,47 @@ import ROOT
 
 warm_palette = [ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7  ]
 classic_palette8 = [ROOT.kBlue-4, ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7  ]
+saturated_palette = [ROOT.kBlue, ROOT.kRed, ROOT.kGreen+1, ROOT.kOrange-2, ROOT.kAzure+5, ROOT.kSpring-8 , ROOT.kOrange-2, ROOT.kRed-7]
 
 # 1001 solid
-fill_styles = [3001, 3002, 0, 3004, 3005, 3006] 
+# fill_styles = [3001, 3002, 0, 3004, 3005, 3006] 
+# fill_styles = [3245, 3295, 3254, 3250, 3225, 3275]
+fill_styles = [3245, 3254, 3445, 3454, 3295, 3250]
+marker_styles_full = [ROOT.kFullCircle,ROOT.kFullSquare,ROOT.kFullTriangleUp,ROOT.kFullTriangleDown,ROOT.kFullDiamond,ROOT.kFullCross,ROOT.kFullStar]
+marker_styles_open = [ROOT.kOpenCircle,ROOT.kOpenSquare,ROOT.kOpenTriangleUp,ROOT.kOpenTriangleDown,ROOT.kOpenDiamond,ROOT.kOpenCross,ROOT.kOpenStar]
 
+def getMarkerStyle(index):
+    return marker_styles_full[index]
+
+def getMarkerStyleOpen(index):
+    return marker_styles_open[index]
+
+def getMarkerStyles():
+    return marker_styles_full
+
+def getMarkerStylesOpen():
+    return marker_styles_open
+
+def getFillStyles():
+    return fill_styles
+
+def getColors():
+    return saturated_palette
+
+def getColor(i):
+    return saturated_palette[i]
+
+# def getFillStyle(index):
+#     if index == 0: return 1001
+#     elif index == 1: return 3001
+#     else: return 0
+
+#     c = fill_styles.pop(0)
+#     fill_styles.append(c)
+#     return c
 
 def getFillStyle(index):
-    if index == 0: return 1001
-    elif index == 1: return 3001
-    else: return 0
-
-    c = fill_styles.pop(0)
-    fill_styles.append(c)
-    return c
+    return fill_styles[index]
 
 def hslToRgb(h, s, l):
     (r,g,b) = (0,0,0)
@@ -71,7 +99,7 @@ def getColorSteps(n):
     elif n == 3: return [C1,C3,C4]
     elif n == 4: return [C1,C2,C3,C4]
     elif n == 5: return [C0, C1,C2,C3,C4]
-    #elif n == 6: return [C0, C1,C2,C3,C4, C5]
+    elif n == 6: return [C0, C1,C2,C3,C4, C5]
     else:
         n_extra = n-len(base_colors)
         

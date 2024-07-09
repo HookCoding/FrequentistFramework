@@ -51,29 +51,30 @@ def generateSignalWS():
   signal = ROOT.RooStats.HistFactory.Sample("signal", nominalName, args.infile)
   signal.SetNormalizeByTheory(False) #no lumi unc on this
  
-  # Add systematics
-  for name in relevantNames:
-    histName = name
-    # print "histName:", histName
-    if "nominal" in histName:
-      continue
-    else:
-      # first let's clean the name
-      systName = (histName.split("_JET")[1]).split(suffix_up)[0]
-      systName = "JET"+systName
-
-      # Both morphed and original are available for some mass points:
-      # if original is available for this mass point, don't pick up mrphed:
-      if "morph" in histName:
-        if [ h for h in relevantNames if systName in h and "mjj" in h ]:
-	  continue
-      systUp = histName
-      systDown = histName.replace("1up","1down")
-
-      signal.AddHistoSys(systName, systDown, args.infile, "", systUp, args.infile, "")
-      # add just one systematic:
-      #break
-
+  if not args.nosyst:
+    # Add systematics
+    for name in relevantNames:
+      histName = name
+      # print "histName:", histName
+      if "nominal" in histName:
+        continue
+      else:
+        # first let's clean the name
+        systName = (histName.split("_JET")[1]).split(suffix_up)[0]
+        systName = "JET"+systName
+  
+        # Both morphed and original are available for some mass points:
+        # if original is available for this mass point, don't pick up mrphed:
+        if "morph" in histName:
+          if [ h for h in relevantNames if systName in h and "mjj" in h ]:
+            continue
+        systUp = histName
+        systDown = histName.replace("1up","1down")
+  
+        signal.AddHistoSys(systName, systDown, args.infile, "", systUp, args.infile, "")
+        # add just one systematic:
+        #break
+  
   chan.AddSample( signal )
 
   # Done with this channel
@@ -105,6 +106,7 @@ if __name__ == "__main__":
   parser.add_argument('--infile', dest='infile', type=str, default='', help='Input file name')
   parser.add_argument('--outfile', dest='outfile', type=str, default='', help='Output file name')
   parser.add_argument('--mass', dest='mass', type=str, default='', help='mass point')
+  parser.add_argument('--nosyst', dest='nosyst', action='store_true', help='do not include systematics in workspace')
   args = parser.parse_args()
   
   generateSignalWS()

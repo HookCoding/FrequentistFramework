@@ -19,7 +19,8 @@ class PreFitter:
                  updatews=False,
                  chi2fit=False,
                  chi2constraints=True,
-                 poi=None):
+                 poi=None,
+                 rangeName=None):
 
         self.wsfile = wsfile
         self.wsname = wsname
@@ -33,6 +34,7 @@ class PreFitter:
         self.chi2fit = chi2fit
         self.chi2constraints = chi2constraints
         self.poi = poi
+        self.rangeName = rangeName
 
         ROOT.Math.MinimizerOptions.SetDefaultMaxFunctionCalls(50000)
         self.rnd = ROOT.TRandom3(self.seed)
@@ -96,7 +98,12 @@ class PreFitter:
         
         steps = max(1, self.nRetries1/10)
         # c = p.createChi2(dh, RooFit.DataError(0))
-        c = p.createChi2(dh, RooFit.Extended(True), RooFit.DataError(ROOT.RooAbsData.Poisson))
+        if self.rangeName == None:
+            c = p.createChi2(dh, RooFit.Extended(True), RooFit.DataError(ROOT.RooAbsData.Poisson))
+        else:
+            # for some reason slower by factor ~10 in nretries1 and factor ~30 in nretries2
+            # but also chi2 ~10^9 if range not excluded
+            c = p.createChi2(dh, RooFit.Extended(True), RooFit.DataError(ROOT.RooAbsData.Poisson), RooFit.Range(self.rangeName), RooFit.SplitRange(False))
 
         if self.poi:
             #poi string is like "mu1=0_-1_1,mu2=0_0_0"
@@ -205,13 +212,13 @@ class PreFitter:
         print("Best Total:")
         
         print("chi2 =", bestChi2)
+        w.loadSnapshot("bestPars")
         for p in np:
             print(p.GetName(), p.getVal())
             
         print("==================")
         
         if self.updatews:
-            w.loadSnapshot("bestPars")
             w.Write(self.wsname)
             
         f.Close()
@@ -231,6 +238,7 @@ def main(args):
     parser.add_argument('--chi2fit', dest='chi2fit', type=strtobool, default=0, help='Minimize chi2 instead of NLL')
     parser.add_argument('--chi2constraints', dest='chi2constraints', type=strtobool, default=1, help='Include constraint terms in chi2')
     parser.add_argument('--poi', dest='poi', type=str, help='POI name to fix')
+    parser.add_argument('--rangeName', dest='rangeName', type=str, help='Name of range to restrict fit range')
     
     args = parser.parse_args(args)
 
@@ -246,6 +254,7 @@ def main(args):
         chi2fit = args.chi2fit,
         chi2constraints = args.chi2constraints,
         poi = args.poi,
+        rangeName = args.rangeName
     )
 
     print(pf.Fit())

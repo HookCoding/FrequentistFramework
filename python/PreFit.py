@@ -85,8 +85,30 @@ class PreFitter:
         LogNParFunction[9] = ROOT.TF1("Log9ParFunction", "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.) - [6]*TMath::Power(TMath::Log(x/13000.),5.) - [7]*TMath::Power(TMath::Log(x/13000.),6.) - [8]*TMath::Power(TMath::Log(x/13000.),7.)", self.xMin, self.xMax)
         
         if self.fitLog:
+            if not self.nPars in LogNParFunction:
+                fctName = "Log%dParFunction" % self.nPars
+                fctDef = "TMath::Log([0])+[1]*TMath::Log(1-x/13000.) - [2]*TMath::Log(x/13000.) - [3]*TMath::Power(TMath::Log(x/13000.),2.) - [4]*TMath::Power(TMath::Log(x/13000.),3.) - [5]*TMath::Power(TMath::Log(x/13000.),4.) - [6]*TMath::Power(TMath::Log(x/13000.),5.) - [7]*TMath::Power(TMath::Log(x/13000.),6.) - [8]*TMath::Power(TMath::Log(x/13000.),7.)"
+                for i in range(9,self.nPars):
+                    fctDef += " - [%d]*TMath::Power(TMath::Log(x/13000.),%d.)" % (i, i-1)
+
+                LogNParFunction[self.nPars] = ROOT.TF1(fctName, fctDef, self.xMin, self.xMax)
+                self.parRangeLow  += [-0.01]*(self.nPars-len(self.parRangeLow))
+                self.parRangeHigh += [-0.01]*(self.nPars-len(self.parRangeHigh))
+
             fitFunction = LogNParFunction[self.nPars]
+
         else:
+            if not self.nPars in NParFunction:
+                fctName = "%dParFunction" % self.nPars
+                fctDef = "[0]*TMath::Power(1-x/13000.,[1])*TMath::Power(x/13000., -1*([2] + [3]*TMath::Log(x/13000.) + [4]*TMath::Power(TMath::Log(x/13000.),2.) + [5]*TMath::Power(TMath::Log(x/13000.),3.) + [6]*TMath::Power(TMath::Log(x/13000.),4.) + [7]*TMath::Power(TMath::Log(x/13000.),5.) + [8]*TMath::Power(TMath::Log(x/13000.),6.)"
+                for i in range(9,self.nPars):
+                    fctDef += " + [%d]*TMath::Power(TMath::Log(x/13000.),%d.)" % (i, i-2)
+                fctDef += "))"
+
+                NParFunction[self.nPars] = ROOT.TF1(fctName, fctDef, self.xMin, self.xMax)
+                self.parRangeLow  += [-0.01]*(self.nPars-len(self.parRangeLow))
+                self.parRangeHigh += [-0.01]*(self.nPars-len(self.parRangeHigh))
+
             fitFunction = NParFunction[self.nPars]
         
         for i in range(fitFunction.GetNpar()):
