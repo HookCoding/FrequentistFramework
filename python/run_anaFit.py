@@ -132,7 +132,7 @@ def run_anaFit(datafile,
 
     # generate the config files on the fly in run dir
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
-        execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd {}AnaWSBuilder.dtd".format(folder))
+        execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
     
     suffix = "_bkgonly"
     if dosignal:
