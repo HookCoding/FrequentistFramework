@@ -7,9 +7,6 @@ import array
 import json
 from collections import OrderedDict
 
-from SignalFit_initialValues import InitialValues
-from SignalFit_FittingFunctions import doubleSidedCrystalBall
-from SignalFit_FittingFunctions import asymmDoubleSidedCrystalBall
 from preFit import *
 
 ROOT.gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasLabels.C")
