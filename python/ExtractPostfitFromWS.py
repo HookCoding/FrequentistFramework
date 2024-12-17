@@ -235,7 +235,7 @@ class PostfitExtractor:
                 hpdf_bkg = pdf_bkg.createHistogram("hpdf_bkg", x)
                 # hpdf_bkg.Scale(expectedEvents_bkg/hpdf_bkg.Integral())
                 try:
-                    hpdf.Scale(expectedEvents_bkg/hpdf.Integral())
+                    hpdf_bkg.Scale(expectedEvents_bkg/hpdf_bkg.Integral())
                     # hpdf_bkg.Scale(data.sumEntries()/hpdf_bkg.Integral())
                 except:
                     pass
