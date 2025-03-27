@@ -45,7 +45,9 @@
 			outputfile=${folder}/FitResult_anaFit_fivePar_pseudodata${p}_mean${sigmean}_width${sigwidth}.root
 			rangelow=150
 			rangehigh=1000
-			datafile=/afs/cern.ch/work/a/agekow/tlarun3/FrequentistFramework/run/Run3_TLA150_1000_fivePar_finebinned_scale29.55.root
+			#datafile=/afs/cern.ch/work/a/agekow/tlarun3/FrequentistFramework/run/Run3_TLA150_1000_fivePar_finebinned_scale29.55.root
+			#datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/alexFile/outputHistograms.root
+			datafile=/afs/cern.ch/work/l/lbazzano/tla/FrequentistFramework/run/Run3_TLA150_1000_fivePar_finebinned_scale29.55.root
 			datahist="pseudodata_${pseudodata}"
 			nbkg="dummy" #overwritten by prefit
 			maskthreshold=0.01

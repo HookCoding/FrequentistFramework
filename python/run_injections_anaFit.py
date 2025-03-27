@@ -4,6 +4,7 @@ from __future__ import print_function
 import os,sys,re,argparse
 from InjectGaussian import InjectGaussian
 from run_anaFit import run_anaFit
+import json
 
 def main(args):
     
@@ -27,17 +28,18 @@ def main(args):
     parser.add_argument('--signame', dest='signame', type=str, help='Name of the signal parameter')
     parser.add_argument('--maskthreshold', dest='maskthreshold', type=float, default=0.01, help='Threshold of p(chi2) below which to run BH and mask the most significant window')
     parser.add_argument('--doprefit', dest='doprefit', action="store_true", help='Perform ROOT prefit before quickFit')
+    parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
     parser.add_argument('--sigamp', dest='sigamp', type=float, default=0, help='Amplitude of Gaussian to inject (in sigma)')
-    parser.add_argument('--loopstart', dest='loopstart', type=int, help='First toy to fit')
-    parser.add_argument('--loopend', dest='loopend', type=int, help='Last toy to fit')
+    #parser.add_argument('--loopstart', dest='loopstart', type=int, help='First toy to fit')
+    #parser.add_argument('--loopend', dest='loopend', type=int, help='Last toy to fit')
 
     args = parser.parse_args(args)
     if not args.signame:
-      if args.sigwidth == -999:
-	args.signame="mR%s" % (args.sigmean)
-      else:
-        args.signame="mean%s_width%s" % (args.sigmean, args.sigwidth)
+        if args.sigwidth == -999:
+            args.signame="mR%s" % (args.sigmean)
+        else:
+            args.signame="mean%s_width%s" % (args.sigmean, args.sigwidth)
 
     # create dir if not exists: https://stackoverflow.com/questions/273192/how-can-i-safely-create-a-nested-directory
     try: 
@@ -45,6 +47,11 @@ def main(args):
     except OSError:
         if not os.path.isdir(args.folder):
             raise
+
+    systdict = None
+    if args.sysfile:
+        with open(args.sysfile) as f:
+            systdict = json.load(f)[str(args.sigmean)]
 
     injecteddatafile=args.datafile
     if (args.sigamp > 0):
@@ -59,56 +66,62 @@ def main(args):
                        sigwidth=args.sigwidth, 
                        sigamp=args.sigamp,
                        outfile=injecteddatafile,
-                       firsttoy=args.loopstart,
-                       lasttoy=args.loopend)
-        
-    if args.loopstart!=None and args.loopend!=None:
-        for toy in range(args.loopstart, args.loopend+1):
-            datahist="%s_%d" % (args.datahist, toy)
-            outputfile=args.outputfile.replace(".root", "_%d.root" % toy)
-            print("\n\nRunning run_anaFit with datahist %s" % datahist)
-            run_anaFit(datafile=injecteddatafile,
-                       datahist=datahist,
-                       topfile=args.topfile,
-                       backgroundfile=args.backgroundfile,
-                       signalfile=args.signalfile,
-                       categoryfile=args.categoryfile,
-                       wsfile=args.wsfile,
-                       outputfile=outputfile,
-                       nbkg=args.nbkg,
-                       nsig=args.nsig,
-                       rangelow=args.rangelow,
-                       rangehigh=args.rangehigh,
-                       dosignal=args.dosignal,
-                       dolimit=args.dolimit,
-                       sigmean=args.sigmean,
-                       sigwidth=args.sigwidth,
-                       folder=args.folder,
-                       signame=args.signame,
-                       maskthreshold=args.maskthreshold,
-                       doprefit=args.doprefit)
-    else:
-        print("Running run_anaFit with datahist %s" % args.datahist)
-        run_anaFit(datafile=injecteddatafile,
-                   datahist=args.datahist,
-                   topfile=args.topfile,
-                   backgroundfile=args.backgroundfile,
-                   signalfile=args.signalfile,
-                   categoryfile=args.categoryfile,
-                   wsfile=args.wsfile,
-                   outputfile=args.outputfile,
-                   nbkg=args.nbkg,
-                   nsig=args.nsig,
-                   rangelow=args.rangelow,
-                   rangehigh=args.rangehigh,
-                   dosignal=args.dosignal,
-                   dolimit=args.dolimit,
-                   sigmean=args.sigmean,
-                   sigwidth=args.sigwidth,
-                   folder=args.folder,
-                   signame=args.signame,
-                   maskthreshold=args.maskthreshold,
-                   doprefit=args.doprefit)
+                       #firsttoy=args.loopstart,
+                       #lasttoy=args.loopend
+                       )
+    #  if args.loopstart!=None and args.loopend!=None:
+    #      for toy in range(args.loopstart, args.loopend+1):
+    #          datahist="%s_%d" % (args.datahist, toy)
+    #          outputfile=args.outputfile.replace(".root", "_%d.root" % toy)
+    #          print("\n\nRunning run_anaFit with datahist %s" % datahist)
+    #          run_anaFit(datafile=injecteddatafile,
+    #                     datahist=datahist,
+    #                     topfile=args.topfile,
+    #                     backgroundfile=args.backgroundfile,
+    #                     signalfile=args.signalfile,
+    #                     categoryfile=args.categoryfile,
+    #                     wsfile=args.wsfile,
+    #                     outputfile=outputfile,
+    #                     nbkg=args.nbkg,
+    #                     nsig=args.nsig,
+    #                     rangelow=args.rangelow,
+    #                     rangehigh=args.rangehigh,
+    #                     dosignal=args.dosignal,
+    #                     #dolimit=args.dolimit,
+    #                     sigmean=args.sigmean,
+    #                     sigwidth=args.sigwidth,
+    #                     folder=args.folder,
+    #                     signame=args.signame,
+    #                     maskthreshold=args.maskthreshold,
+    #                     #doprefit=args.doprefit
+    #                     systdict=systdict
+    #                     )
+    #  else:
+    print("Running run_anaFit with datahist %s" % args.datahist)
+    print(args.nbkg,args.nsig,args.dosignal,args.dolimit,args.sigmean,args.sigwidth,args.signame,args.maskthreshold,args.doprefit,systdict)
+
+    run_anaFit(datafile=injecteddatafile,
+               datahist=args.datahist,
+               topfile=args.topfile,
+               backgroundfile=args.backgroundfile,
+               signalfile=args.signalfile,
+               categoryfile=args.categoryfile,
+               wsfile=args.wsfile,
+               outputfile=args.outputfile,
+               nbkg=args.nbkg,
+               nsig=args.nsig,
+               rangelow=args.rangelow,
+               rangehigh=args.rangehigh,
+               dosignal=args.dosignal,
+               #dolimit=args.dolimit,
+               sigmean=args.sigmean,
+               sigwidth=args.sigwidth,
+               folder=args.folder,
+               signame=args.signame,
+               maskthreshold=args.maskthreshold,
+               doprefit=args.doprefit,
+               systdict=systdict
+               )
 
 if __name__ == "__main__":  
     sys.exit(main(sys.argv[1:]))

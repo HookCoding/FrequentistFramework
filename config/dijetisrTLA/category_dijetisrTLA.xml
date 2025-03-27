@@ -1,13 +1,14 @@
 <!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
 <Channel Name="mc16d" Type="shape" Lumi="1">
   
-  <!-- <Data InputFile="/afs/cern.ch/work/a/agekow/FrequentistFramework/Input/data/dijetisrTLA/440447_subsample_bdtNoIso.root" FileType="histogram" HistName="mjj_yStar_BDT_cut/dijet/dijet_m" Observable="mjj[130,1000]" Binning="870" InjectGhost="1"/> -->
-   <Data InputFile="/afs/cern.ch/work/a/agekow/FrequentistFramework/mjj_bdt_cut.root" FileType="histogram" HistName="mjj" Observable="mjj[130,1000]" Binning="870" InjectGhost="1"/>
+  <!-- <Data InputFile="/afs/cern.ch/work/a/agekow/FrequentistFramework/Input/data/dijetisrTLA/440447_subsample_bdtNoIso.root" FileType="histogram" HistName="mjj_yStar_BDT_cut/dijet/dijet_m" Observable="mjj[130,1000]" Binning="870" InjectGhost="1"/> 
+   <Data InputFile="/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/alexFile/outputHistograms.root" FileType="histogram" HistName="mjj" Observable="mjj[130,1000]" Binning="870" InjectGhost="1"/>-->
+   <Data InputFile="/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/alexFile/outputHistograms.root" FileType="histogram" HistName="mjj" Observable="mjj[200,1000]" Binning="800" InjectGhost="1"/>
  
   <Sample Name="background" InputFile="config/dijetisrTLA/background_dijetisrTLA_fivePar.xml" MultiplyLumi="0" ImportSyst=":self:">
-    <NormFactor Name="nbkg[1E6,1E5,3E8]"/>
+    <NormFactor Name="nbkg[8E5,1E4,1E7]"/>
   </Sample>
-
+  <!--
   <Sample Name="signal_mean95_width9" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean95_width9.xml" MultiplyLumi="1">
     <NormFactor Name="nsig_mean95_width9[0,-1E6,1E7]" />
   </Sample>
@@ -47,7 +48,7 @@
   <Sample Name="signal_mean100_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean100_width10.xml" MultiplyLumi="1">
     <NormFactor Name="nsig_mean100_width10[0,-1E6,1E6]" />
   </Sample>
-
+  -->
   <Sample Name="signal_mean150_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean150_width5.xml" MultiplyLumi="1">
     <NormFactor Name="nsig_mean150_width5[0,-1E6,1E6]" />
   </Sample>
@@ -183,5 +184,5 @@
   <Sample Name="signal_mean950_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean950_width10.xml" MultiplyLumi="1">
     <NormFactor Name="nsig_mean950_width10[0,-1E6,1E6]" />
   </Sample>
-
+ 
 </Channel>

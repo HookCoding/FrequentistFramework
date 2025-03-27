@@ -13,6 +13,7 @@ import InjectGaussian
 import InjectZprime
 import numpy
 from color import getColorSteps
+import glob
 
 gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasLabels.C")
 gROOT.LoadMacro("$_DIRXMLWSBUILDER/../atlasstyle-00-04-02/AtlasStyle.C")
@@ -25,13 +26,14 @@ gROOT.ProcessLine( "gErrorIgnoreLevel = 6001;")
 
 def main(args):
     SetAtlasStyle()
-
+    
     parser = optparse.OptionParser(description='%prog [options] INPUT')
     parser.add_option('--outfile', dest='outfile', type=str, default='extractionGraphs.root', help='Output file name')
     parser.add_option('--pdhist', dest='pdhist', type=str, default='unfluctuated_injection', help='Data hist name in Pseudodata file')
     parser.add_option('--postfithist', dest='postfithist', type=str, default='J100yStar06/data', help='Data hist name in PostFit file')
     parser.add_option('--notoys', dest='notoys', action='store_true', help='Use one fit instead of many toys')
     parser.add_option('--percentile', dest='percentile', type=float, default=99, help='Range in % to include in percentile histogram')
+    parser.add_option('--filespath', dest='filespath', type=str, default='', help='Path to files to analyse')
     
     options, args = parser.parse_args(args)
 
@@ -55,9 +57,33 @@ def main(args):
     #             for l in lines:
     #                 paths.append(l)
 
-    # print(paths)
-    paths = os.listdir("../run")
-    paths = ["../run/"+p for p in paths if "FitParameters_anaFit_mean" in p]
+    #paths = os.listdir("../run/pseudodatafits/*")
+    #print(paths)
+    #paths = ["../run/pseudodatafits/"+p for p in paths if "FitParameters_anaFit_mean" in p]
+    #paths = ["../run/pseudodatafits/"+p for p in paths if "FitParameters_anaFit_fivePar_pseudodata_mean" in p]
+
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_fivePar/pseudodatafits/*/FitParameters_anaFit_fivePar_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_fourPar/pseudodatafits/*/FitParameters_anaFit_fourPar_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_fivePar/pseudodatafits_fourPar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_fivePar/pseudodatafits_fivePar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_sixPar/pseudodatafits_fivePar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_sevenPar/pseudodatafits_sixPar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_sixPar/pseudodatafits_fivePar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_fivePar/pseudodatafits_fourPar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_fourPar/pseudodatafits_fivePar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/120_run_fourPar/pseudodatafits_threePar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/100_run_fivePar/pseudodatafits_fourPar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/100_run_sixPar/pseudodatafits_fivePar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/100_run_sevenPar/pseudodatafits_sixPar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/120_run_eightPar/pseudodatafits_sevenPar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    
+
+    #paths = glob.glob("/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_110_1000_sevenPar/pseudodatafits_sixPar/*/FitParameters_anaFit_Par_pseudodata_mean*")
+    paths = glob.glob(options.filespath)
+
     for p in paths:
         try:
             # res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
@@ -264,6 +290,7 @@ def main(args):
     fout.Close()
 
     # Plotting:
+    ROOT.gROOT.SetBatch(True)
     c = TCanvas()
     mg = TMultiGraph()
 

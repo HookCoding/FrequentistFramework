@@ -33,13 +33,14 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     rtv=execute('XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
     if rtv != 0:
         print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
-
     if poi:
         print("Now running s+b quickFit")
         _poi="-p %s" % poi
+        #bkgonly_opt = False
     else:
         print("Now running bkg-only quickFit")
         _poi=""
+        #bkgonly_opt = True
 
     if maskrange:
         _range="--range SBLo,SBHi"
@@ -71,12 +72,13 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         rebinhist="mjjBinning",
         maskmin=maskmin,
         maskmax=maskmax,
+        #bkgonly=bkgonly_opt
         bkgonly=True
     )
     # pval = pfe.GetPval("J100yStar06_rebinned")
     pval=pfe.GetPval()
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
-    # pfe.WriteRoot(postfitfile)
+    #pfe.WriteRoot(postfitfile) # this looks problematic
 
     fpe = FitParameterExtractor(wsfile=fitresultfile)
     fpe.WriteRoot(parameterfile)
@@ -99,18 +101,25 @@ def run_anaFit(datafile,
                dosignal=False,
                dolimit=False,
                sigmean=1000,
-               sigwidth=7,
+               sigwidth=7.,
                maskthreshold=0.01,
                doprefit=False,
-               folder="run/"):
+               folder="run/",
+               systdict=None,
+               covariancedict=None):
 
     nbins=rangehigh - rangelow
-
     print("Fitting", nbins, "bins in range", rangelow, "-", rangehigh)
+
+    args_names = locals()
+    for key, value in args_names.items():
+      print(f"{key}: {value}")
 
     # generate the config files on the fly in run dir
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
-      execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
+      #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
+      execute("ln -sf ~/WORK/tla/FrequentistFramework/config/dijetTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
+      print("this is happening")
     if sigwidth == -999: # running on zprime samples:
       print("Running in Zprime samples")
       tmpcategoryfile="{0}/category_dijetTLA_fromTemplate_mR{1}.xml".format(folder, sigmean)
@@ -148,6 +157,8 @@ def run_anaFit(datafile,
                 nPars = 6
             elif "seven" in  backgroundfile:
                 nPars = 7
+            elif "eight" in  backgroundfile:
+                nPars = 8
             # [1, -30, -30, -30, ...]
             parRangeLow = [1]+[-30]*(nPars-1)
             parRangeHigh = [1]+[30]*(nPars-1)
@@ -183,7 +194,9 @@ def run_anaFit(datafile,
             )
             
             initPars,_nbkg = pf.Fit()
+            print(_nbkg)
             nbkg="%.1E, 0, %.1E" % (_nbkg, 2*_nbkg)
+            print(_nbkg)
             
             print("Starting fit with initial pars", initPars)
 
@@ -205,11 +218,45 @@ def run_anaFit(datafile,
     ])    
 
     if signalfile:
-        replaceinfile(tmpsignalfile, 
-                      [("SIGMEAN", str(sigmean)),
-                       ("SIGWIDTH", str(sigwidth)),
-                   ])
-            
+        #replaceinfile(tmpsignalfile, 
+        #              [("SIGMEAN", str(sigmean)),
+        #               ("SIGWIDTH", str(sigwidth)),
+        #]) 
+        replacements = [("SIGNAME", str(signame)),   
+                        ("SIGMEAN", str(sigmean)),   
+                        ("SIGWIDTH", str(sigwidth)), 
+            ]                                
+              
+        if systdict != None:
+            print("replacing in signalfile now")
+            replacements.append(("NOMINAL_MEAN", str(systdict["nominal_mean"])))
+            replacements.append(("NOMINAL_WIDTH", str(systdict["nominal_sigma"])))
+            replacements.append(("NOMINAL_ALPHAL", str(systdict["nominal_alpha_l"])))
+            replacements.append(("NOMINAL_ALPHAH", str(systdict["nominal_alpha_h"])))
+            replacements.append(("NOMINAL_NL", str(systdict["nominal_n_l"])))
+            replacements.append(("NOMINAL_NH", str(systdict["nominal_n_h"])))
+            for source in systdict["unc_mean_sources"]:
+                val = systdict["unc_mean_sources"][source]
+                replacements.append(("\[MAG_SCALE_"+str(source)+"\]", "["+str(val)+"]"))
+            for source in systdict["unc_sigma_sources"]:
+                val = systdict["unc_sigma_sources"][source]
+                replacements.append(("\[MAG_RESOLUTION_"+str(source)+"\]", "["+str(val)+"]"))
+
+        #  if covariancedict != None:
+        #      print("replacing in signalfile now")
+        #      replacements.append(("NOMINAL_MEAN", str(covariancedict["nominal_mean"])))
+        #      replacements.append(("NOMINAL_WIDTH", str(covariancedict["nominal_sigma"])))
+        #      replacements.append(("NOMINAL_ALPHAL", str(covariancedict["nominal_alpha_l"])))
+        #      replacements.append(("NOMINAL_ALPHAH", str(covariancedict["nominal_alpha_h"])))
+        #      replacements.append(("NOMINAL_NL", str(covariancedict["nominal_n_l"])))
+        #      replacements.append(("NOMINAL_NH", str(covariancedict["nominal_n_h"])))
+        #      replacements.append(("MAG_SCALE", str(covariancedict["covariance_cholesky"][4][4])))
+        #      replacements.append(("MAG_RESOLUTION", str(covariancedict["covariance_cholesky"][5][5])))
+        #      replacements.append(("MAG_CROSSTERM", str(covariancedict["covariance_cholesky"][5][4])))
+                
+        #set any unreplaced uncertainties to 0 (starting with MAG_ and then any letters, numbers or _ -):
+        replacements.append(("\[MAG_[a-zA-Z0-9_\-]*\]", "[0]"))
+        replaceinfile(tmpsignalfile, replacements)
 
     if dosignal:
         poi="nsig_%s" % signame
@@ -217,6 +264,10 @@ def run_anaFit(datafile,
     	    poi="nsig_mR{}_gq0p1".format(sigmean)
     else:
         poi=None
+
+    
+    print("##################################################################################################    do signal is ", dosignal)
+    print("##################################################################################################    poi is  ", poi)
 
     pval_global, postfitfile, parameterfile = build_fit_extract(topfile=tmptopfile,
                                                                 datafile=datafile, 
@@ -230,7 +281,7 @@ def run_anaFit(datafile,
 
     print ("Global fit p(chi2)=%.3f" % pval_global)
 
-    if pval_global > maskthreshold:
+    if pval_global > maskthreshold or True: # dont do BH!!!
         print("p(chi2) threshold passed. Exiting with succesful fit.")
     else:
         print("p(chi2) threshold not passed.")
@@ -307,10 +358,11 @@ def main(args):
     parser.add_argument('--dolimit', dest='dolimit', action="store_true", help='Perform limit setting')
     parser.add_argument('--signame', dest='signame', type=str, help='Name of the signal parameter')
     parser.add_argument('--sigmean', dest='sigmean', type=int, default=1000, help='Mean of signal Gaussian for s+b fit (in GeV)')
-    parser.add_argument('--sigwidth', dest='sigwidth', type=float, default=7, help='Width of signal Gaussian for s+b fit (in %). If -999 dealing with Zprime samples.')
+    parser.add_argument('--sigwidth', dest='sigwidth', type=float, default=7., help='Width of signal Gaussian for s+b fit (in %). If -999 dealing with Zprime samples.')
     parser.add_argument('--maskthreshold', dest='maskthreshold', type=float, default=0.01, help='Threshold of p(chi2) below which to run BH and mask the most significant window')
     parser.add_argument('--doprefit', dest='doprefit', action="store_true", help='Perform ROOT prefit before quickFit')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
+    parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
 
     args = parser.parse_args(args)
     if not args.signame:
@@ -326,6 +378,17 @@ def main(args):
         if not os.path.isdir(args.folder):
             raise
     print("current working directory", os.getcwd())
+
+    systdict = None
+    covariancedict = None
+    if args.sysfile:
+        with open(args.sysfile) as f:
+            systdict = json.load(f)[str(args.sigmean)]
+    #if args.covariancefile:
+    #    with open(args.covariancefile) as f:
+    #        covariancedict = json.load(f)[str(args.sigmean)]
+
+    print(args.nbkg,args.nsig,args.dosignal,args.dolimit,args.sigmean,args.sigwidth,args.signame,args.maskthreshold,args.doprefit,systdict)
     run_anaFit(datafile=args.datafile,
                datahist=args.datahist,
                topfile=args.topfile,
@@ -342,10 +405,11 @@ def main(args):
                dolimit=args.dolimit,
                sigmean=args.sigmean,
                sigwidth=args.sigwidth,
-               folder=args.folder,	       
+               folder=args.folder,
                signame=args.signame,
                maskthreshold=args.maskthreshold,
-               doprefit=args.doprefit)
+               doprefit=args.doprefit,
+               systdict=systdict)
 
 
 

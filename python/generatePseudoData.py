@@ -63,7 +63,8 @@ def main(args):
         if (i%steps == 0):
             print (i,"/",args.nreplicas)
 
-        gRand.SetSeed(i)
+        #gRand.SetSeed(i) # this means random only for the first replica, the rest are seeded in the same way for any job
+        gRand.SetSeed(0)
         h_out = fluctuatePoisson(h_in)
         h_out.Write("%s_%d" % (args.outhist, i))
    

@@ -9,8 +9,8 @@ saturated_palette = [ROOT.kBlue, ROOT.kRed, ROOT.kGreen+1, ROOT.kOrange-2, ROOT.
 # fill_styles = [3001, 3002, 0, 3004, 3005, 3006] 
 # fill_styles = [3245, 3295, 3254, 3250, 3225, 3275]
 fill_styles = [3245, 3254, 3445, 3454, 3295, 3250]
-marker_styles_full = [ROOT.kFullCircle,ROOT.kFullSquare,ROOT.kFullTriangleUp,ROOT.kFullTriangleDown,ROOT.kFullDiamond,ROOT.kFullCross,ROOT.kFullStar]
-marker_styles_open = [ROOT.kOpenCircle,ROOT.kOpenSquare,ROOT.kOpenTriangleUp,ROOT.kOpenTriangleDown,ROOT.kOpenDiamond,ROOT.kOpenCross,ROOT.kOpenStar]
+marker_styles_full = [ROOT.kFullCircle,ROOT.kFullSquare,ROOT.kFullTriangleUp,ROOT.kFullTriangleDown,ROOT.kFullDiamond,ROOT.kFullCross,ROOT.kFullStar,ROOT.kFullCircle,ROOT.kFullSquare,ROOT.kFullTriangleUp,ROOT.kFullTriangleDown,ROOT.kFullDiamond,ROOT.kFullCross,ROOT.kFullStar,ROOT.kFullCircle,ROOT.kFullSquare,ROOT.kFullTriangleUp,ROOT.kFullTriangleDown,ROOT.kFullDiamond,ROOT.kFullCross,ROOT.kFullStar,ROOT.kFullCircle,ROOT.kFullSquare,ROOT.kFullTriangleUp,ROOT.kFullTriangleDown,ROOT.kFullDiamond,ROOT.kFullCross,ROOT.kFullStar]
+marker_styles_open = [ROOT.kOpenCircle,ROOT.kOpenSquare,ROOT.kOpenTriangleUp,ROOT.kOpenTriangleDown,ROOT.kOpenDiamond,ROOT.kOpenCross,ROOT.kOpenStar,ROOT.kOpenCircle,ROOT.kOpenSquare,ROOT.kOpenTriangleUp,ROOT.kOpenTriangleDown,ROOT.kOpenDiamond,ROOT.kOpenCross,ROOT.kOpenStar,ROOT.kOpenCircle,ROOT.kOpenSquare,ROOT.kOpenTriangleUp,ROOT.kOpenTriangleDown,ROOT.kOpenDiamond,ROOT.kOpenCross,ROOT.kOpenStar,ROOT.kOpenCircle,ROOT.kOpenSquare,ROOT.kOpenTriangleUp,ROOT.kOpenTriangleDown,ROOT.kOpenDiamond,ROOT.kOpenCross,ROOT.kOpenStar]
 
 def getMarkerStyle(index):
     return marker_styles_full[index]

@@ -1,5 +1,5 @@
 # Define the executable
-executable = condor_script.sh
+executable = ../condor_script.sh
 
 # Define the log, output, and error files
 log = job_$(Process).log
@@ -10,4 +10,4 @@ error = job_$(Process).err
 universe = vanilla
 
 # Loop over arguments
-queue arguments from condor_args.txt
+queue arguments from ../condor_args.txt
