@@ -51,6 +51,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         maskmin=-1
         maskmax=-1
 
+    #rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s" % (wsfile, _poi, _range, fitresultfile)) # original
     rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s" % (wsfile, _poi, _range, fitresultfile))
     if rtv != 0:
         print("WARNING: Non-zero return code from quickFit. Check if tolerable")
@@ -159,6 +160,8 @@ def run_anaFit(datafile,
                 nPars = 7
             elif "eight" in  backgroundfile:
                 nPars = 8
+            elif "nine" in  backgroundfile:
+                nPars = 9
             # [1, -30, -30, -30, ...]
             parRangeLow = [1]+[-30]*(nPars-1)
             parRangeHigh = [1]+[30]*(nPars-1)

@@ -18,7 +18,8 @@ gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
 # spacing=8
 
 # J100:
-text="#sqrt{s}=13 TeV, 29.6 fb^{-1}"
+#text="#sqrt{s}=13 TeV, 29.6 fb^{-1}" #old lumi calc
+text="#sqrt{s}=13 TeV, 25.29 fb^{-1}"
 xmin=100#-0.49e5
 xmax=1000#0.49e5
 ymin=-3999#-0.49e5
@@ -82,17 +83,18 @@ def main(args):
                 hists[m][w][a][name]=[]
             hists[m][w][a][name].append(h_clone)
             # d.Close()
-            outname = p.replace("extractionGraphs", "spuriousSignal").replace(".root", "")
-
-    if "eightPar" in outname:
+        outname = p.replace("extractionGraphs", "spuriousSignal").replace(".root", "")
+    if "ninePar" in outname:
+        npar="9"
+    elif "eightPar" in outname:
         npar="8"
-    if "sevenPar" in outname:
+    elif "sevenPar" in outname:
         npar="7"
-    if "sixPar" in outname:
+    elif "sixPar" in outname:
         npar="6"
-    if "fivePar" in outname:
+    elif "fivePar" in outname:
         npar="5"
-    if "fourPar" in outname:
+    elif "fourPar" in outname:
         npar="4"
     graphs = []
     ratios = []
