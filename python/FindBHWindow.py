@@ -59,7 +59,7 @@ def main(args):
     # Create a BumpHunter1D class instance
     hunter = BH.BumpHunter1D(
         width_min=2,
-        width_max=6,
+        width_max=2,
         width_step=1,
         scan_step=1,
         npe=10000,
@@ -75,9 +75,11 @@ def main(args):
     print(f"time={end - begin}")
     print("")
 
+
     # Print bump
-    hunter.print_bump_info()
-    hunter.print_bump_true(data, bkg, is_hist=True)
+    #hunter.print_bump_info()
+    #hunter.print_bump_true(data, bkg, is_hist=True)
+    hunter.bump_info(data,is_hist=True)
 
     # Get and save tomography plot
     # hunter.plot_tomography(data, is_hist=True, filename="tomography.png")
