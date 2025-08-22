@@ -64,9 +64,20 @@ def main(args):
             w=int(res[1])
             a=int(res[2])
         except:
+            #print("ERROR: Cannot identify mean and width from path", p)
+            w = -1
+
+        try:
+            pattern = r'mean(\d+)_amp(:?\d+)?'
+            match = re.search(pattern, p)
+            #print(pattern,p,match)
+            m = int(match.group(1))
+            w = -1 #int(match.group(2))
+            a = int(match.group(2))
+        except:
             print("ERROR: Cannot identify mean and width from path", p)
             return -1
-        
+ 
         sigmeans.add(m)
         sigwidths.add(w)
         #try:
@@ -95,7 +106,7 @@ def main(args):
     profile_list = []
     allPoints_list = []
 
-    print(sigmeans,sigwidths,sigamps)
+    #print(sigmeans,sigwidths,sigamps)
     for j,sigmean in enumerate(sigmeans):
         
         for i,sigwidth in enumerate(sigwidths):
@@ -108,6 +119,7 @@ def main(args):
     
                 try:
                     tmp_path_fitresult = dict_file[(sigmean, sigwidth, sigamp)]
+                    #print(tmp_path_fitresult)
                 except:
                     print("WARNING: No fitresult file for", sigmean, sigwidth, sigamp)
                     continue
@@ -115,10 +127,29 @@ def main(args):
                 #find number of injected events:
                 if sigamp > 0:
                     # tmp_path_injection = tmp_path_fitresult[0].replace("FitResult", "PD")
-                    #tmp_path_injection = glob(os.path.join(os.path.dirname(os.path.dirname(tmp_path_fitresult[0])),"*_injected_mean*_amp*.root"))[0]
 
-                    tmp_path_injection = glob(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))),"*_mean"+str(sigmean)+"_width"+str(sigwidth)+"_amp"+str(sigamp)+".root"))[0]
-                    print(tmp_path_injection)
+                    if "zprime" in os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))):
+                        files_temp = os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0])))+"/*Zprime*_amp"+str(sigamp)+".root"
+                        tmp_path_injection = glob(files_temp)[0]
+                    else:
+                        tmp_path_injection = glob(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))),"*_mean"+str(sigmean)+"_width"+str(sigwidth)+"_amp"+str(sigamp)+".root"))[0]
+
+                    #try:
+                    #    print(os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))))
+                    #    print(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))),"*_mean"+str(sigmean)+"_width"+str(sigwidth)+"_amp"+str(sigamp)+".root"))
+
+
+                    #    print(tmp_path_injection)
+                    #except:
+                    #    #tmp_path_injection = glob(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))),"*_mean"+str(sigmean)+"_amp"+str(sigamp)+".root"))[0]
+                    #    print("DSFJaskdjf")
+                    #    base_dir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_87_1000_tenPar/injected_zprime"
+                    #    search_dir = os.path.join(base_dir, f"pseudodatafits_eightPar_quickFitEdit_minTol_injected_mean{sigmean}_amp{sigamp}")
+                    #    pattern = f"*mean{sigmean}_amp{sigamp}.root"
+                    #    tmp_path_injection = glob(os.path.join(search_dir, pattern))[0]
+
+
+                    #print(tmp_path_injection)
                     try:
                         #tmp_path_injection = glob(os.path.join(os.path.dirname(tmp_path_fitresult[0]),"*_injected_m*_amp*.root"))[0]
                         #tmp_path_injection = glob(os.path.join(os.path.dirname(os.path.dirname(tmp_path_fitresult[0])),"*_injected_mean*_amp*.root"))[0]
@@ -230,7 +261,7 @@ def main(args):
                         sqrtB = (n_injected / sigamp) if sigamp != 0 else 1
                     except:
                         sqrtB = 1
-                print(sqrtB) 
+                #print(sqrtB) 
                 if not options.notoys:
                     arr = numpy.array([x[1] for x in inj_extr])
                     nFit = numpy.mean(arr)

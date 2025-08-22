@@ -50,9 +50,9 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         _range=""
         maskmin=-1
         maskmax=-1
-
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
     #rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s" % (wsfile, _poi, _range, fitresultfile)) # original
-    rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s" % (wsfile, _poi, _range, fitresultfile))
+    rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-06 %s -o %s" % (wsfile, _poi, _range, fitresultfile))
     if rtv != 0:
         print("WARNING: Non-zero return code from quickFit. Check if tolerable")
 
@@ -131,6 +131,9 @@ def run_anaFit(datafile,
     tmpsignalfile="{}/signal_dijetTLA_fromTemplate.xml".format(folder)
     tmpbackgroundfile="{}/background_dijetTLA_fromTemplate.xml".format(folder)
     
+    print("--------------------------------------> tmpcategoryfile: "+tmpcategoryfile)
+    print("--------------------------------------> tmptopfile: "+tmptopfile)
+
     shutil.copy2(topfile, tmptopfile) 
     shutil.copy2(categoryfile, tmpcategoryfile) 
     if signalfile:
@@ -162,6 +165,8 @@ def run_anaFit(datafile,
                 nPars = 8
             elif "nine" in  backgroundfile:
                 nPars = 9
+            elif "ten" in  backgroundfile:
+                nPars = 10
             # [1, -30, -30, -30, ...]
             parRangeLow = [1]+[-30]*(nPars-1)
             parRangeHigh = [1]+[30]*(nPars-1)
@@ -293,7 +298,8 @@ def run_anaFit(datafile,
         tmpcategoryfilemasked=tmpcategoryfile.replace(".xml","_masked.xml")
 
         # need to unset pythonpath in order to not use cvmfs numpy
-        execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "J100yStar06_rebinned/postfit", "J100yStar06_rebinned/data", "{}/BHresults.json".format(folder)))
+        #execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "J100yStar06_rebinned/postfit", "J100yStar06_rebinned/data", "{}/BHresults.json".format(folder)))
+        execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "Run3TLA_rebinned/postfit", "Run3TLA_rebinned/data", "{}/BHresults.json".format(folder)))
 
         # pass results of pyBH via this json file
         with open("{}/BHresults.json".format(folder)) as f:
@@ -320,7 +326,8 @@ def run_anaFit(datafile,
                                             wsfile=wsfilemasked, 
                                             fitresultfile=outfilemasked, 
                                             poi=poi, 
-                                            maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"])))
+                                            maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"]))
+                                            )
 
         print("Masked fit p(chi2)=%.3f" % pval_masked)
 
@@ -336,7 +343,7 @@ def run_anaFit(datafile,
     if dolimit and dosignal and pval_global > maskthreshold:
         print("Now running quickLimit")
         #rtv=execute("timeout --foreground 1800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-8 --muScanPoints 20 --minStrat 1 --nllOffset 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
-        rtv=execute("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-10 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
+        rtv=execute("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-06 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
         if rtv != 0:
             print("WARNING: Non-zero return code from quickLimit. Check if tolerable")
     

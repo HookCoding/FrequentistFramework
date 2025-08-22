@@ -19,11 +19,12 @@ gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
 
 # J100:
 #text="#sqrt{s}=13 TeV, 29.6 fb^{-1}" #old lumi calc
-text="#sqrt{s}=13 TeV, 25.29 fb^{-1}"
-xmin=100#-0.49e5
+#text="#sqrt{s}=13 TeV, 25.29 fb^{-1}"
+text="#sqrt{s}=13.6 TeV, 1 fb^{-1}"
+xmin=80#-0.49e5
 xmax=1000#0.49e5
-ymin=-3999#-0.49e5
-ymax=4000#0.49e5
+ymin=-1999#-0.49e5
+ymax=2000#0.49e5
 spacing=20
 
 
@@ -41,7 +42,9 @@ def main(args):
         f = TFile(p)
 
         for k in f.GetListOfKeys():
+
             name = k.GetName()
+            print(name)
             if not ("hists_" in name):
                 continue
             if ("percentile" in name):
@@ -49,10 +52,22 @@ def main(args):
             #d = f.Get(name)
             #if not isinstance(d, ROOT.TDirectory):
             #    continue
+            
 
-            res=re.search(r'mean(\d+)_width(\d+)(:?_amp\d+)?', name)
-            m=int(res.group(1))
-            w=int(res.group(2))
+            
+            try:
+              res=re.search(r'mean(\d+)_width(\d+)(:?_amp\d+)?', name)
+              print(res)
+              print(res.group(1))
+              print(res.group(2))
+              m=int(res.group(1))
+              w=int(res.group(2))
+            except:
+              res=re.search(r'mean(\d+)_width(-\d+)(:?_amp\d+)?', name)
+              m=int(res.group(1))
+              w=-1
+
+
             try:
                 a=int(res.group(3)[4:])
             except:
@@ -84,7 +99,9 @@ def main(args):
             hists[m][w][a][name].append(h_clone)
             # d.Close()
         outname = p.replace("extractionGraphs", "spuriousSignal").replace(".root", "")
-    if "ninePar" in outname:
+    if "tenPar" in outname:
+        npar="10"
+    elif "ninePar" in outname:
         npar="9"
     elif "eightPar" in outname:
         npar="8"
@@ -129,6 +146,7 @@ def main(args):
                         #skew.append(h.GetSkewness())
                         #kurt.append(h.GetKurtosis())
 
+                        #h.Rebin(4)
                         h.Rebin(8)
                         # h.SetMaximum(h.GetMaximum()*5)
                         h.SetMaximum(h.GetMaximum()*1.3)
@@ -178,7 +196,8 @@ def main(args):
         pad1.Draw()
         pad1.cd()
 
-        leg = ROOT.TLegend(0.66,0.60,0.89,0.90)
+        leg = ROOT.TLegend(0.66,0.55,0.89,0.90)
+        leg.SetTextSize(20);
         first = True
 
         for j, (w,a) in enumerate(sorted(graphs[i])):
@@ -195,7 +214,10 @@ def main(args):
 
             g.Draw("p")
 
-            g.SetTitle("#sigma_{jj}/m_{jj} = %.2f" % (w/100.))
+            if w > 0:
+              g.SetTitle("#sigma_{jj}/m_{jj} = %.2f" % (w/100.))
+            else:
+              g.SetTitle("DSCB (nominal Z')")
             g.GetXaxis().SetTitle("m_{jj} [GeV]")
             g.GetXaxis().SetLimits(xmin,xmax)
             g.GetYaxis().SetTitle("N_{sig}")

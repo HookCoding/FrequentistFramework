@@ -85,6 +85,7 @@ def main(args):
     paths = glob.glob(options.filespath)
 
     for p in paths:
+        print(p)
         try:
             # res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
             # m=int(res[0])
@@ -92,11 +93,23 @@ def main(args):
 
             pattern = r'mean(\d+)_width(\d+)'
             match = re.search(pattern, p)
+            print(match)
             m = int(match.group(1))
             w = int(match.group(2))
         except:
-            print("ERROR: Cannot identify mean and width from path", p)
-            return -1
+            #print("ERROR: Cannot identify mean and width from path, maybe is DSCB...", p)
+            w=-1
+       
+        if w==-1:
+            try:
+                pattern = r'mean(\d+)'
+                match = re.search(pattern, p)
+                #print(pattern,p,match)
+                m = int(match.group(1))
+                w = -1 #int(match.group(2))
+            except:
+                print("ERROR: Cannot identify mean and width from path", p)
+                return -1
         
         sigmeans.add(m)
         sigwidths.add(w)
