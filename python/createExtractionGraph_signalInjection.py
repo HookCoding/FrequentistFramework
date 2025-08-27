@@ -161,7 +161,8 @@ def main(args):
                             h=f.Get(key.GetName())
                             continue
                         # h = f.Get(options.pdhist)
-                        n_injected = h.Integral(0, h.GetNbinsX()+1)
+                        #n_injected = h.Integral(0, h.GetNbinsX()+1)
+                        n_injected = h.Integral(1, h.GetNbinsX()+1)
                         print("get n_injected from injected datafile:", tmp_path_injection)
                         f.Close()
                     except:
