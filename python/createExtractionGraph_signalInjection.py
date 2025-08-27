@@ -129,7 +129,7 @@ def main(args):
                     # tmp_path_injection = tmp_path_fitresult[0].replace("FitResult", "PD")
 
                     if "zprime" in os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))):
-                        files_temp = os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0])))+"/*Zprime*_amp"+str(sigamp)+".root"
+                        files_temp = os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0])))+"/*Zprime"+str(sigmean)+"_amp"+str(sigamp)+".root"
                         tmp_path_injection = glob(files_temp)[0]
                     else:
                         tmp_path_injection = glob(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(tmp_path_fitresult[0]))),"*_mean"+str(sigmean)+"_width"+str(sigwidth)+"_amp"+str(sigamp)+".root"))[0]
@@ -207,7 +207,7 @@ def main(args):
                         for i in range(1, h.GetNbinsX()+1):
                             p = h.GetBinContent(i)
                             if not i in parNames:
-                                print(i)
+                                #print(i)
                                 parNames[i] = h.GetXaxis().GetBinLabel(i)
                                 parLists[i] = []
                                 parErrs[i] = []
@@ -216,15 +216,15 @@ def main(args):
                     except:
                         print("Couldn't read fit parameters from", path)
                         continue
-                    print(path)
-                    print(parNames)
-                    print(i)
+                    #print(path)
+                    #print(parNames)
+                    #print(i)
                     k = k+1
                     #if k > 30: # for tests
                     #    break
                 for i in parNames:
                     par = parNames[i]
-                    print(par)
+                    #print(par)
                     l = parLists[i]
                     #h = TH1D("mean%d_width%d_amp%d/%s" % (sigmean, sigwidth, sigamp, par), par, 100, min(l), max(l))
                     h = TH1D("mean%d_width%d_amp%d/%s" % (sigmean, sigwidth, sigamp, par), par, 100, min(l), max(l))
@@ -255,7 +255,7 @@ def main(args):
                 for t in inj_extr:
                     g_allPoints.SetPoint(g_allPoints.GetN(), t[0], t[1])
    
-                print(sigamp,n_injected)
+                #print(sigamp,n_injected)
                 if sqrtB == None:
                     try:
                         sqrtB = (n_injected / sigamp) if sigamp != 0 else 1

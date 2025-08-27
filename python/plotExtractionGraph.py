@@ -40,12 +40,22 @@ def readGraphsFromFile(paths, dicts_out, graphs, ratios, spacing, width, means=N
             if d.GetN()< 1:
                 continue
 
-            searchstring =r'_(\d+)_(-?\d+)$'
-            #searchstring =r'_mean(\d+)_width(-?\d+)$'
-            res=re.search(searchstring, name)
-            print(name)
-            m=int(res.group(1))
-            w=int(res.group(2))
+
+
+            try:
+              searchstring =r'_(\d+)_(-?\d+)$'
+              #searchstring =r'_mean(\d+)_width(-?\d+)$'
+              res=re.search(searchstring, name)
+              print(name)
+              print(res)
+              m=int(res.group(1))
+              w=int(res.group(2))
+            except:
+              res=re.search(r'_(\d+)_(-?\d+)$', name)
+              m=int(res.group(1))
+              w=-1
+
+
             #print(name,m,w)
             if width!=None and w!=width:
                 continue
@@ -112,13 +122,14 @@ def main(args):
     
     # J100:
     #text="#sqrt{s}=13 TeV, 132 fb^{-1} PD"
-    text="#sqrt{s}=13 TeV, 29.6 fb^{-1}"
+    #text="#sqrt{s}=13 TeV, 29.6 fb^{-1}"
+    text="#sqrt{s}=13.6 TeV, 1 fb^{-1}"
     #text=""#"J100 PD, 132 fb^{-1}"
-    xmin=-0.2
-    xmax=5.2
+    xmin=-0.3
+    xmax=5.3
     ymin=-2.99
-    ymax=7
-    spacing=0.5
+    ymax=9
+    spacing=0.2
 
     if "J50" in paths[0] or "302" in paths[0]:
         # J50:
@@ -147,21 +158,29 @@ def main(args):
         print(p)
         legend = ""
         if "fourPar" in p:
-            legend = "4-par fit"
+            legend = "Npar+2=4par fit"
         elif "fivePar" in p:
-            legend = "5-par fit"
+            legend = "Npar+2=5par fit"
         elif "sixPar" in p:
-            legend = "6-par fit"
+            legend = "Npar+2=6par fit"
         elif "sevenPar" in p:
-            legend = "7-par fit"
+            legend = "Npar+2=7par fit"
         elif "eightPar" in p:
-            legend = "8-par fit"
+            legend = "Npar+2=8par fit"
+        elif "ninePar" in p:
+            legend = "Npar+2=9par fit"
+        elif "tenPar" in p:
+            legend = "Npar+2=10par fit"
         else:
             searchstring =r'constr(\d+)'
             print(searchstring)
             res=re.search(searchstring, p)
             sigma=int(res.group(1))
             legend = "NLOFit, #sigma=%d" % sigma
+        
+        if "min" in p:
+            matches = re.findall("min(\d+)", p)
+            legend += ", fit range: ["+matches[0]+",1000]" 
 
         outname = "SignalExtraction_%d" % i
         if "extractionGraphs" in p:
@@ -180,17 +199,18 @@ def main(args):
         print(graphs)
         #leg = ROOT.TLegend(0.20,0.50,0.50,0.90)
         if len(graphs[i]) > 5:
-            leg = ROOT.TLegend(0.2,0.55,0.8,0.9)
+            #leg = ROOT.TLegend(0.2,0.55,0.8,0.9)
+            leg = ROOT.TLegend(0.2,0.70,0.73,0.90)
             leg.SetNColumns(2)
-            leg.SetFillStyle(0)
-            box1 = ROOT.TPave(0.2,0.62,0.75,0.90,0,"NDC");
-            box2 = ROOT.TPave(0.2,0.55,0.4,0.62,0,"NDC");
-            box1.SetFillStyle(1001)
-            box1.SetFillColor(ROOT.kWhite)
-            box1.SetLineWidth(0)
-            box2.SetFillStyle(1001)
-            box2.SetFillColor(ROOT.kWhite)
-            box2.SetLineWidth(0)
+            #leg.SetFillStyle(0)
+            #box1 = ROOT.TPave(0.2,0.62,0.75,0.90,0,"NDC");
+            #box2 = ROOT.TPave(0.2,0.55,0.4,0.62,0,"NDC");
+            #box1.SetFillStyle(1001)
+            #box1.SetFillColor(ROOT.kWhite)
+            #box1.SetLineWidth(0)
+            #box2.SetFillStyle(1001)
+            #box2.SetFillColor(ROOT.kWhite)
+            #box2.SetLineWidth(0)
         else:
             leg = ROOT.TLegend(0.20,0.55,0.55,0.90)
         
