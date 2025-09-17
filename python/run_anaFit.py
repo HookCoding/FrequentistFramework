@@ -63,13 +63,18 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     d=f.Get(datahist)
     datafirstbin=d.FindBin(rangelow)-1
     f.Close()
+    
+    # Define resolution binning for BH
+	binningFileName = f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+    if not os.path.exists(binningFileName):
+        execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
 
     pfe = PostfitExtractor(
         datafile=datafile,
         datahist=datahist,
         datafirstbin=datafirstbin,
         wsfile=fitresultfile,
-        rebinfile="Input/data/dijetisrTLA/mjjBinning.root",
+        rebinfile="input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
         rebinhist="mjjBinning",
         maskmin=maskmin,
         maskmax=maskmax,
@@ -119,7 +124,7 @@ def run_anaFit(datafile,
     # generate the config files on the fly in run dir
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
       #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
-      execute("ln -sf ~/WORK/tla/FrequentistFramework/config/dijetTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
+      execute("ln -sf /eos/user/a/agekow/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
       print("this is happening")
     if sigwidth == -999: # running on zprime samples:
       print("Running in Zprime samples")
@@ -269,7 +274,8 @@ def run_anaFit(datafile,
     if dosignal:
         poi="nsig_%s" % signame
         if sigwidth == -999:
-    	    poi="nsig_mR{}_gq0p1".format(sigmean)
+    	    # poi="nsig_mR{}_gq0p1".format(sigmean)
+            poi="nsig_mR{}".format(sigmean)
     else:
         poi=None
 
@@ -398,7 +404,7 @@ def main(args):
     #    with open(args.covariancefile) as f:
     #        covariancedict = json.load(f)[str(args.sigmean)]
 
-    print(args.nbkg,args.nsig,args.dosignal,args.dolimit,args.sigmean,args.sigwidth,args.signame,args.maskthreshold,args.doprefit,systdict)
+    print(args.nbkg,args.nsig,args.dosignal,args.dolimit,args.sigmean,args.sigwidth,args.signame,args.maskthreshold,args.doprefit)
     run_anaFit(datafile=args.datafile,
                datahist=args.datahist,
                topfile=args.topfile,
