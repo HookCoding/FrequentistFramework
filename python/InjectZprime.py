@@ -130,7 +130,8 @@ def InjectZprime(infile, histname, sigfile, sighist, sigamp, outfile, firsttoy=N
         hinjonly.Write(histName+"_injection")
 
         seed += 1
-            
+
+    print("writing file "+str(outfile))        
     f_out.Close()
 
 def InjectDSCB(infile, histname, pars, sigamp, outfile, firsttoy=None, lasttoy=None, xmin=0, xmax=1e100):
@@ -186,21 +187,26 @@ def main(args):
     parser.add_argument('--histname', dest='histname', type=str, default='data', help='original data hist name')
     parser.add_argument('--sigfile', dest='sigfile', type=str, help='path to histogram of signal histogram')
     parser.add_argument('--sighist', dest='sighist', type=str, help='histogram name of input signal')
-    parser.add_argument('--sigamp', dest='sigamp', type=float, default=5, help='number of injected events (in sigmas of central bin)')
+    parser.add_argument('--sigamp', dest='sigamp', type=float, default=3, help='number of injected events (in sigmas of central bin)')
     parser.add_argument('--outfile', dest='outfile', type=str, default='', help='Output file name')
     parser.add_argument('--firsttoy', dest='firsttoy', type=int, help='Only consider toys larger than this number')
     parser.add_argument('--lasttoy', dest='lasttoy', type=int, help='Only consider toys lower than this number')
 
     args = parser.parse_args(args)
 
-    searchstring =r'mR(\d+)'
-    res=re.search(searchstring, args.sighist)
+    searchstring =r"mRp(\d+)"
+    print(args.sighist)
+    print(searchstring)
+    res=re.search(searchstring, args.sigfile)
+    print(res)
     m=int(res.group(1))
-
+    print(m)
     if args.outfile == "":
-        args.outfile = os.path.split(args.infile)[-1].replace(".root", "_mR%d_amp%.0f.root" % (m, args.sigamp))
+        # args.outfile = os.path.split(args.infile)[-1].replace(".root", "_mR%d_amp%.0f.root" % (m, args.sigamp))
+        args.outfile = args.infile.replace(".root", "_Zprime%.0f_amp%.0f.root" % (m,  args.sigamp)) #.replace("/run_fivePar/", "/run_fivePar/injected/")
 
-    InjectSignal(infile=args.infile,
+
+    InjectZprime(infile=args.infile,
                  histname=args.histname,
                  sigfile=args.sigfile,
                  sighist=args.sighist,
