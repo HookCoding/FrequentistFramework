@@ -81,8 +81,12 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         #bkgonly=bkgonly_opt
         bkgonly=True
     )
-    # pval = pfe.GetPval("J100yStar06_rebinned")
-    pval=pfe.GetPval()
+    # If we used masking in a b-only fit then we need to calculate the p-val from the correctly normalized postfit distribution
+    if maskmin > -1 or maskmax > -1:
+		pval = pfe.GetPval("Run3TLA_bkgonly_rebinned") #should be Run3TLA or Run3TLA_rebinned?
+	else:
+		pval = pfe.GetPval("Run3TLA_rebinned") #should be Run3TLA or Run3TLA_rebinned?
+    
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
     #pfe.WriteRoot(postfitfile) # this looks problematic
 

@@ -154,8 +154,22 @@ class PostfitExtractor:
         self.channel_hchi2 = {}
         self.channel_hresiduals = {}
  
-        print(self)
     
+    def normalizePostFit(self, h_postfit, h_data):
+        """
+        Normalize postfit so that the number of events in the fitted regions agree
+        """
+    
+        nEvents_data_min = h_data.Integral(1, h_data.GetXaxis().FindBin(self.maskmin))
+        nEvents_data_max = h_data.Integral(h_data.GetXaxis().FindBin(self.maskmax), h_data.GetNbinsX()+1)
+
+        nEvents_postfit_min = h_postfit.Integral(1, h_postfit.GetXaxis().FindBin(self.maskmin))
+        nEvents_postfit_max = h_postfit.Integral(h_postfit.GetXaxis().FindBin(self.maskmax), h_postfit.GetNbinsX()+1)
+
+
+        h_postfit.Scale( (nEvents_data_min+nEvents_data_max) / (nEvents_postfit_min+nEvents_postfit_max))
+
+        return h_postfit
     def Extract(self):
         
         f = ROOT.TFile(self.wsfile, "READ")
@@ -254,6 +268,9 @@ class PostfitExtractor:
                     
                 self.channel_hdata[channelname_bkg] = self.h_data.Rebin(nBins, "h_data_crop", array.array('d', binEdges))
                 self.channel_hdata[channelname_bkg].SetDirectory(0)
+                # if a mask was used we need to normalize the postfit correctly
+                if self.maskmin > -1 or self.maskmax > -1:
+                    h_postfit_bkg = self.normalizePostFit(h_postfit_bkg, self.channel_hdata[channelname_bkg])
                 self.channel_hpostfit[channelname_bkg] = h_postfit_bkg
     
                 getChi2(extractor=self, channelname=channelname_bkg, npars=npars, useSumW2=self.useSumW2)
