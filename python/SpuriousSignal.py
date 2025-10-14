@@ -22,6 +22,7 @@ gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
 #text="#sqrt{s}=13 TeV, 25.29 fb^{-1}"
 text="#sqrt{s}=13.6 TeV, 1 fb^{-1}"
 xmin=80#-0.49e5
+xmin_label=108
 xmax=1000#0.49e5
 ymin=-1999#-0.49e5
 ymax=2000#0.49e5
@@ -115,9 +116,24 @@ def main(args):
         npar="4"
     graphs = []
     ratios = []
+    legend = ""
     for p in paths:
         graphs.append({})
         ratios.append({})
+        if "fourPar" in p:
+            legend = "Npar+2=4par fit, fit range: ["+str(xmin_label)+",1000]"
+        elif "fivePar" in p:
+            legend = "Npar+2=5par fit, fit range: ["+str(xmin_label)+",1000]"
+        elif "sixPar" in p:
+            legend = "Npar+2=6par fit, fit range: ["+str(xmin_label)+",1000]"
+        elif "sevenPar" in p:
+            legend = "Npar+2=7par fit, fit range: ["+str(xmin_label)+",1000]"
+        elif "eightPar" in p:
+            legend = "Npar+2=8par fit, fit range: ["+str(xmin_label)+",1000]"
+        elif "ninePar" in p:
+            legend = "Npar+2=9par fit, fit range: ["+str(xmin_label)+",1000]"
+        elif "tenPar" in p:
+            legend = "Npar+2=10par fit, fit range: ["+str(xmin_label)+",1000]"
     print("now I will analize the histograms:")
     print(hists)
     for m in sorted(hists):
@@ -158,9 +174,11 @@ def main(args):
                     #leg.AddEntry(list_h[1], "#splitline{5-par:}{#it{S}_{spur}/#sigma_{fit}=%.2f}" % (mean[1]/rms[1]), "f")
                     #leg.Draw()
 
+
+
                     ATLASLabel(0.20, 0.90, "Work in progress", 13)
                     myText(0.20, 0.84, 1, text, 13)
-                    myText(0.20, 0.77, 1, npar+"-par fit", 13)
+                    myText(0.20, 0.77, 1, legend, 13)
 
                     #c.Print("spuriousSignal_%s.png" % name)
                     c.SaveAs(outname+"_%s.pdf" % name)
@@ -235,7 +253,7 @@ def main(args):
         #myText(0.20, 0.77, 1, npar+"-par fit", 13)
         ATLASLabel(0.57, 0.10, "Work in progress", 13)
         myText(0.91, 0.20, 1, text, 33)
-        myText(0.905, 0.26, 1,npar+"-par fit", 33)
+        myText(0.905, 0.26, 1,legend, 33)
         leg.Draw()
 
         c.cd()

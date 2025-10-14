@@ -93,7 +93,8 @@ def main(args):
 
     if args.outfile == "":
         #args.outfile = os.path.split(args.infile)[-1].replace(".root", "_mean%.0f_width%.0f_amp%.0f.root" % (args.sigmean, args.sigwidth, args.sigamp))
-        args.outfile = args.infile.replace(".root", "_mean%.0f_width%.0f_amp%.0f.root" % (args.sigmean, args.sigwidth, args.sigamp)).replace("/run_fivePar/", "/run_fivePar/injected/")
+        #args.outfile = args.infile.replace(".root", "_mean%.0f_width%.0f_amp%.0f.root" % (args.sigmean, args.sigwidth, args.sigamp)).replace("/run_fivePar/", "/run_fivePar/injected/")
+        args.outfile = args.infile.replace(".root", "_mean%.0f_width%.0f_amp%.0f.root" % (args.sigmean, args.sigwidth, args.sigamp)).replace("Par/", "Par/injected/")
         print(args.outfile)
 
     InjectGaussian(infile=args.infile,

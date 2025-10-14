@@ -108,6 +108,16 @@ class PreFitter:
             # don't need default 1e-12 precision here. it also throws errors
             p0 = ROOT.TMath.Exp(integral/fitFunction.Integral(self.xMin, self.xMax, 1e-10))
             fitFunction.SetParameter(0, p0)
+            fitFunction.SetParameter(1, 80)
+            fitFunction.SetParameter(2, 10)
+            fitFunction.SetParameter(3, 10)
+            fitFunction.SetParameter(4, 2)
+            fitFunction.SetParameter(5, 0)
+            fitFunction.SetParameter(6, 0)
+            fitFunction.SetParameter(7, 0)
+            fitFunction.SetParameter(8, 0)
+            fitFunction.SetParameter(9, 0)
+
             if self.fitLog:
                 fitFunction.SetParLimits(0, 0, p0+ROOT.TMath.Log(10))
             else:

@@ -67,14 +67,15 @@ def main(args):
             #print("ERROR: Cannot identify mean and width from path", p)
             w = -1
 
-        try:
+        if w==-1 :
+          try:
             pattern = r'mean(\d+)_amp(:?\d+)?'
             match = re.search(pattern, p)
             #print(pattern,p,match)
             m = int(match.group(1))
             w = -1 #int(match.group(2))
             a = int(match.group(2))
-        except:
+          except:
             print("ERROR: Cannot identify mean and width from path", p)
             return -1
  

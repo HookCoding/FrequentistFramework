@@ -59,7 +59,7 @@ def main(args):
     # Create a BumpHunter1D class instance
     hunter = BH.BumpHunter1D(
         width_min=2,
-        width_max=2,
+        width_max=3,
         width_step=1,
         scan_step=1,
         npe=10000,

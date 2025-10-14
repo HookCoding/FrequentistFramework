@@ -12,12 +12,18 @@ ROOT.gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
 
 ROOT.gROOT.SetBatch(True)
 
-def rebin_hist(h_ref):
-    #_binEdges = [95, 109, 122, 137, 152, 168, 185, 202, 221, 240, 260, 281, 302, 324, 346, 370, 394, 419, 446, 473, 501, 531, 560, 590, 621, 652, 683, 716, 750, 786, 824, 862, 901, 941, 982, 1023, 1066, 1110, 1155, 1201, 1247, 1294, 1342, 1391, 1442, 1493, 1544, 1597, 1651, 1706, 1762, 1820, 1878, 1938, 1998]
-    _binEdges = [ 152, 168, 185, 202, 221, 240, 260, 281, 302, 324, 346, 370, 394, 419, 446, 473, 501, 531, 560, 590, 621, 652, 683, 716, 750, 786, 824, 862, 901, 941, 982]
-    h_new = h_ref.Clone()
-    h_new.Rebin(len(_binEdges)-1, h_ref.GetName(), array.array('d', _binEdges))
-    return h_new
+_hist_store = [] # pyRoot need this
+
+def rebin_hist(h_ref,_binEdges):
+    if not h_ref:
+      print("No reference file")
+      return
+    h_new = h_ref.Clone(h_ref.GetName() + "_clone")
+    h_new.SetDirectory(0)
+    h_reb = h_new.Rebin(len(_binEdges)-1, h_ref.GetName() + "_rebin", array.array('d', _binEdges))
+    h_reb.SetDirectory(0)
+    _hist_store.append(h_reb)
+    return h_reb
 
 def main(args):
     ROOT.SetAtlasStyle()
@@ -48,14 +54,34 @@ def main(args):
                 paths += f.read().splitlines()
 
     print("Reading toy files")
-    _binEdges = [ 152, 168, 185, 202, 221, 240, 260, 281, 302, 324, 346, 370, 394, 419, 446, 473, 501, 531, 560, 590, 621, 652, 683, 716, 750, 786, 824, 862, 901, 941, 982]
+
+    # rebinning !
+    _binEdges = [  109, 122, 137, 152, 168, 185, 202, 221, 240, 260, 281, 302, 324, 346, 370, 394, 419, 446, 473, 501, 531, 560, 590, 621, 652, 683, 716, 750, 786, 824, 862, 901, 941, 982]
+    do_rebin = True
+
+
     for path in paths:
-        f_in = ROOT.TFile(path, "READ")
+        try:
+            f_in = ROOT.TFile(path, "READ")
+        except:
+            print("file "+path+" does not exist, skip")
+            continue
         h1 = f_in.Get(args.toyhist)
+        if not h1:
+            print(f"WARNING: Histogram '{args.toyhist}' not found in {path}")
+            f_in.Close()
+            continue
         h1.SetDirectory(0)
-        h1_rebinned=h1.Rebin(len(_binEdges)-1, h1.GetName()+"_rebinned", array.array('d', _binEdges))
-        h1_rebinned.SetDirectory(0)
-        h_toys.append(h1_rebinned)
+        
+        if do_rebin:
+            h1_rebinned = rebin_hist(h1, _binEdges)
+            if h1_rebinned is None:
+                print(f"WARNING: Falló el rebin para {path}")
+                continue
+            h_toys.append(h1_rebinned)
+        else:
+            h_toys.append(h1)
+        
         f_in.Close()
 
     f_in = ROOT.TFile(args.reffile, "READ")
@@ -66,6 +92,7 @@ def main(args):
     # rebin ref to toys:
     binEdges = []
     nBins = h_toys[0].GetNbinsX()
+
     for i in range(1, nBins+2):
         binEdges.append(h_toys[0].GetBinLowEdge(i))
     oldLow = h_ref.GetBinLowEdge(1)
@@ -116,10 +143,13 @@ def main(args):
     # xmin=457
     xmin=min(_binEdges)
     xmax=max(_binEdges)
-    ymin=0.974
-    ymax=1.026
+    #ymin=0.974
+    ymin=0.874
+    #ymax=1.025
+    ymax=1.125
 
-    text1="29.6 fb^{-1} Pseudodata"
+    #text1="29.6 fb^{-1} Pseudodata"
+    text1="1 fb^{-1} Pseudodata"
     #text1="J100 PD, 132 fb^{-1}"
     #text1=""
 
@@ -132,28 +162,58 @@ def main(args):
 
     # text2 = "bkg-component of "
     text2 = ""
-    print(paths[0])
-    if "run_fourPar" in paths[0]:
-        text2 += "4-par"
-    elif "run_fivePar" in paths[0]:
-        text2 += "5-par"
-    elif "run_sixPar" in paths[0]:
-        text2 += "6-par"
-    elif "run_sevenPar" in paths[0]:
-        text2 += "7-par"
-    elif "run_eightPar" in paths[0]:
-        text2 += "8-par"
+    if "tenPar" in paths[0]:
+        text2 += "Npar+2=10par fit"
+    elif "ninePar" in paths[0]:
+        text2 += "Npar+2=9par fit"
+    elif "eightPar" in paths[0]:
+        text2 += "Npar+2=8par fit"
+    elif "sevenPar" in paths[0]:
+        text2 += "Npar+2=7par fit"
+    elif "sixPar" in paths[0]:
+        text2 += "Npar+2=6par fit"
+    elif "fivePar" in paths[0]:
+        text2 += "Npar+2=5par fit"
+    elif "fourPar" in paths[0]:
+        text2 += "Npar+2=4par fit"
     # text2 += " s+b fit"
-    text2 += " fit"
-    
-    searchstring =r'mean(\d+)_width(-?\d+)(:?_amp\d+)?'
-    res=re.search(searchstring, paths[0])
-    m=int(res.group(1))
-    w=int(res.group(2))
+
+
+    p=paths[0]
     try:
-        a=int(res.group(3)[4:])
+        #res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
+        res=re.findall(r'mean(\d+)_width(-?\d+)_amp(:?\d+)?', p)[0]
+        print(res)
+        m=int(res[0])
+        w=int(res[1])
+        a=int(res[2])
     except:
-        a=0
+        #print("ERROR: Cannot identify mean and width from path", p)
+        w = -1
+
+    if w==-1:
+        try:
+            pattern = r'mean(\d+)_amp(:?\d+)?'
+            match = re.search(pattern, p)
+            #print(pattern,p,match)
+            m = int(match.group(1))
+            w = -1 #int(match.group(2))
+            a = int(match.group(2))
+        except:
+            print("ERROR: Cannot identify mean and width from path", p)
+            return -1
+
+
+
+    
+    #searchstring =r'mean(\d+)_width(-?\d+)(:?_amp\d+)?'
+    #res=re.search(searchstring, paths[0])
+    #m=int(res.group(1))
+    #w=int(res.group(2))
+    #try:
+    #    a=int(res.group(3)[4:])
+    #except:
+    #    a=0
 
     if a>0:
         if w > 0:

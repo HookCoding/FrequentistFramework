@@ -24,6 +24,7 @@ def calcFpF(chi2_nom, chi2_alt, npars_nom, npars_alt, nbins, zerochi2):
 
 def main(args):
     ROOT.SetAtlasStyle()
+    ROOT.gROOT.SetBatch(True)
 
     parser = argparse.ArgumentParser(description='%prog [options] INPUT')
     parser.add_argument('--chi2hist', dest='chi2hist', type=str, default="chi2", help='name of the chi2 hist')
@@ -100,6 +101,7 @@ def main(args):
     c = ROOT.TCanvas("c","c",800,600)
     c.SetGridy()
 
+    #leg = ROOT.TLegend(0.185,0.75,0.65,0.92)
     leg = ROOT.TLegend(0.185,0.75,0.925,0.92)
     leg.SetNColumns(2)
     leg.SetTextSize(20)
@@ -299,24 +301,27 @@ def main(args):
     
         leg2.Draw()
     else:
-        if "partial" in paths[i].lower():
-            text1="Partial data, 6-par fit"
-        elif "jzw" in paths[i].lower():
-            text1="Pythia MC, 6-par fit"
-        else:
-            text1="Run-2 data, 6-par fit"
+        #if "partial" in paths[i].lower():
+        #    text1="Partial data, 6-par fit"
+        #elif "jzw" in paths[i].lower():
+        #    text1="Pythia MC, 6-par fit"
+        #else:
+        #    text1="Run-2 data, 6-par fit"
         # text2="GSC enabled, original on-off"
         # box = ROOT.TPave(0.60,0.19,0.925,0.29,0,"NDC");
         # text2="GSC disabled, rederived on-off"
-        text2="N90 disabled, on-off FW75%max"
+        #text2="N90 disabled, on-off FW75%max"
+
+        text1="Run-3 data, 1 fb^{-1}"
+        #text2=", on-off FW75%max"
         box = ROOT.TPave(0.55,0.19,0.925,0.29,0,"NDC");
         box.SetFillStyle(1001)
         box.SetFillColor(ROOT.kWhite)
         box.SetLineWidth(0)
-        box.Draw()
+        #box.Draw()
 
-        ROOT.myText(0.92,0.20, 1, text1, 31, 21) # bottom right aligned, same size as legend
-        ROOT.myText(0.92,0.25, 1, text2, 31, 21) # bottom right aligned, same size as legend
+        ROOT.myText(0.9,0.25, 1, text1, 31)#, 21) # bottom right aligned, same size as legend
+        #ROOT.myText(0.92,0.25, 1, text2, 31)#, 21) # bottom right aligned, same size as legend
         
 
     leg.Draw()
