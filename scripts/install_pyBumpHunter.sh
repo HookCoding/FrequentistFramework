@@ -1,7 +1,9 @@
 #!/bin/bash
 
 cd pyBumpHunter
-virtualenv --python=/cvmfs/sft.cern.ch/lcg/releases/LCG_96bpython3/Python/3.6.5/x86_64-centos7-gcc8-opt/bin/python3 pyBH_env  # create a venv w/ python3 (if we don’t use --python=... then it defaults to python 2.7)
+
+pip3 install virtualenv -t virtualenv
+python3 -m venv pyBH_env
 source pyBH_env/bin/activate # activate it 
 # installing everything
 pip install --upgrade pip

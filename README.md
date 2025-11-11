@@ -12,7 +12,7 @@ You can also see the slides in the _docs/_ directory.
 This follows the README of the XmlAnaWSBuilder and quickFit. pyBumpHunter is run in a virtualenv to run python 3.6 alongside python 2.7 setup with ROOT
 
 ```
-setupATLAS
+setupATLAS -c centos7
 lsetup git
 git clone https://:@gitlab.cern.ch:8443/atlas-phys-exotics-dijet-tla/FrequentistFramework.git
 cd FrequentistFramework/
@@ -29,6 +29,7 @@ source scripts/HistFactory/generate.sh
 
 In the future you can setup your environment via
 ```
+setupATLAS -c centos7
 source scripts/setup_buildCombineFit.sh
 ```
 
