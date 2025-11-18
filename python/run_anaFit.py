@@ -73,11 +73,6 @@ def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresu
     postfitfile=fitresultfile.replace("FitResult","PostFit")
     parameterfile=fitresultfile.replace("FitResult","FitParameters")
 
-    f=ROOT.TFile(datafile)
-    d=f.Get(datahist)
-    datafirstbin=d.FindBin(rangelow)-1
-    f.Close()
-
     pfe = PostfitExtractor(
         datafile=datafile,
         datahist=datahist,
@@ -129,8 +124,14 @@ def run_anaFit(datafile,
                systdict=None,
                covariancedict=None,
                categoryname="J100yStar06"):
+    
+    f=ROOT.TFile(datafile)
+    d=f.Get(datahist)
+    binlow=d.FindBin(rangelow)-1
+    binhigh=d.FindBin(rangehigh)-1
+    f.Close()
 
-    nbins=rangehigh - rangelow
+    nbins=binhigh - binlow
 
     print("Fitting", nbins, "bins in range", rangelow, "-", rangehigh)
 
@@ -301,7 +302,7 @@ def run_anaFit(datafile,
     pval_global, postfitfile, parameterfile = build_fit_extract(topfile=tmptopfile,
                                                                 datafile=datafile,
                                                                 datahist=datahist,
-                                                                rangelow=rangelow,
+                                                                datafirstbin=binlow,
                                                                 wsfile=wsfile,
                                                                 fitresultfile=outputfile,
                                                                 categoryname=categoryname,
@@ -344,7 +345,7 @@ def run_anaFit(datafile,
         pval_masked, postfitfile, parameterfile = build_fit_extract(tmptopfilemasked,
                                                                     datafile=datafile,
                                                                     datahist=datahist,
-                                                                    rangelow=rangelow,
+                                                                    datafirstbin=binlow,
                                                                     wsfile=wsfilemasked,
                                                                     fitresultfile=outfilemasked,
                                                                     categoryname=categoryname,
