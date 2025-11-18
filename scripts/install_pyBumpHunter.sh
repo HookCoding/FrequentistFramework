@@ -1,20 +1,28 @@
 #!/bin/bash
 
-cd pyBumpHunter
+cwd=$(pwd)
 
-pip3 install virtualenv -t virtualenv
-python3 -m venv pyBH_env
-source pyBH_env/bin/activate # activate it 
+
+pip3 install virtualenv -t ${cwd}/pyBumpHunter/virtualenv
+python3 -m venv ${cwd}/pyBumpHunter/pyBH_env
+source ${cwd}/pyBumpHunter/pyBH_env/bin/activate # activate it 
+
+packagepath=$(python3 -c "import site;print(site.getsitepackages()[0])")
+
 # installing everything
-pip install --upgrade pip
-python3 -m pip install numpy 
-python3 -m pip install matplotlib
-python3 -m pip install scipy
-python3 -m pip install uproot
-python3 -m pip install --upgrade setuptools
-python3 -m pip install setuptools_scm
+python3 -m pip install --upgrade pip -t ${packagepath}
+python3 -m pip install numpy -t ${packagepath}
+python3 -m pip install matplotlib -t ${packagepath}
+python3 -m pip install scipy -t ${packagepath}
+python3 -m pip install uproot -t ${packagepath}
+python3 -m pip install --upgrade setuptools -t ${packagepath}
+python3 -m pip install setuptools_scm -t ${packagepath}
 
+cd ${cwd}/pyBumpHunter
+
+#only works if cd'ed into pyBumpHunter directory before, --prefix does not help:
 python3 setup.py install
 
+cd ${cwd}
+
 deactivate
-cd ..
