@@ -29,7 +29,11 @@ def replaceinfile(f, old_new_list):
     with open(f, 'w') as file:
         file.write(filedata)
 
-def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, categoryname, poi=None, maskrange=None, dochi2fit=False, dochi2constraints=False, useSumW2=False):
+def findBHwindow(inputfile, bkghist, datahist, outputjson):
+    # need to unset pythonpath in order to not use cvmfs numpy
+    execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (inputfile, bkghist, datahist, outputjson))
+    
+def build_fit_extract(topfile, datafile, datahist, datafirstbin, wsfile, fitresultfile, categoryname, poi=None, maskrange=None, dochi2fit=False, dochi2constraints=False, useSumW2=False):
     rtv=execute('XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
     if rtv != 0:
         print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
@@ -317,8 +321,7 @@ def run_anaFit(datafile,
 
         tmpcategoryfilemasked=tmpcategoryfile.replace(".xml","_masked.xml")
 
-        # need to unset pythonpath in order to not use cvmfs numpy
-        execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "{}_rebinned/postfit".format(categoryname), "{}_rebinned/data".format(categoryname), "{}/BHresults.json".format(folder)))
+        findBHwindow(postfitfile, "{}_rebinned/postfit".format(categoryname), "{}_rebinned/data".format(categoryname), "{}/BHresults.json".format(folder))
 
         # pass results of pyBH via this json file
         with open("{}/BHresults.json".format(folder)) as f:
@@ -385,8 +388,7 @@ def run_anaFit(datafile,
     if doBH:
         BHfile = outputfile.replace("FitResult","BHResult").replace(".root", ".json")
 
-        # need to unset pythonpath in order to not use cvmfs numpy
-        execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "{}_rebinned/postfit".format(categoryname), "{}_rebinned/data".format(categoryname), BHfile))
+        findBHwindow(postfitfile, "{}_rebinned/postfit".format(categoryname), "{}_rebinned/data".format(categoryname), BHfile)
 
         # reduce file size by removing info of pseudoexperiments
         # "min_Pval_arr" contains min local p-value of data [0] and N pseudoexperiments [1:]
