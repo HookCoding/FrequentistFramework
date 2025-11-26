@@ -62,8 +62,7 @@ This test injects signal into each background pseudodata toy and checks whether 
 ### Gaussian Injection Example
 
 ```
-python InjectGaussian.py \
-  --infile /eos/.../Run3_TLA108_1000_tenPar_finebinned_scale.root --histname pseudodata --sigmean 800 --sigwidth 15 --sigamp 5 --firsttoy 0 --lasttoy 99
+python InjectGaussian.py --infile /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/Run3_TLA108_1000_tenPar_finebinned_scale.root --histname pseudodata --sigmean 800 --sigwidth 15 --sigamp 5 --firsttoy 0 --lasttoy 99
 ```
 
 `sigamp` is given in units of √B, where **B** is the number of background events within ±1σ of the signal (determined of course by the sigmean and sigwidth).
@@ -73,28 +72,13 @@ python InjectGaussian.py \
 Using only DSCB shape (JSON):
 
 ```
-python InjectZprime.py \
-  --infile ... \
-  --histname pseudodata \
-  --sigfile signalUncertainty_interpolated.json \
-  --sighist mjj_yStar_cut_nominal \
-  --sigamp 5 \
-  --firsttoy 0 \
-  --lasttoy 99
+python InjectZprime.py --infile /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/Run3_TLA108_1000_tenPar_finebinned_scale.root --histname pseudodata --sigfile /eos/user/l/lbazzano/TLA/tla-ntuple-analysis/condor_result/MGPy8EG_S1_qqa_Ph25_mRp400_gASp1_qContentUDSC/signalUncertainty_interpolated.json --sighist mjj_yStar_cut_nominal --sigamp 5 --firsttoy 0 --lasttoy 99
 ```
 
 Using Monte-Carlo histogram (preferred for realistic tails):
 
 ```
-python InjectZprime.py \
-  --infile ... \
-  --histname pseudodata \
-  --sigfile systematics.root \
-  --sigfile_dscb signalUncertainty_interpolated.json \
-  --sighist mjj_yStar_cut_nominal \
-  --sigamp 5 \
-  --firsttoy 0 \
-  --lasttoy 99
+python InjectZprime.py --infile /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/Run3_TLA108_1000_tenPar_finebinned_scale.root --histname pseudodata --sigfile /eos/user/l/lbazzano/TLA/tla-ntuple-analysis/condor_result/MGPy8EG_S1_qqa_Ph25_mRp400_gASp1_qContentUDSC/systematic_updown_mjj_MGPy8EG_S1_qqa_Ph25_mRp400_gASp1_qContentUDSC.root --sigfile_dscb /eos/user/l/lbazzano/TLA/tla-ntuple-analysis/condor_result/MGPy8EG_S1_qqa_Ph25_mRp400_gASp1_qContentUDSC/signalUncertainty_interpolated.json --sighist mjj_yStar_cut_nominal --sigamp 5 --firsttoy 0 --lasttoy 99 n
 ```
 In TLA Run 3 this was the chosen method to analyze Z′ injections because a DSCB fit to montecarlo spectrums may not perform well in the tails, leading to slow decays. This means that if this parametrized function was used for sampling, there would be a bias and many events would be sampled from these tails. In order to avoid this, the only use of the DSCB function was to find the range where we would sample from the original montecarlo histogram.
 
@@ -109,7 +93,7 @@ python createExtractionGraph_signalInjection.py injected_paths_tenPar_width5.txt
 The txt file is supposed to contain a list of injected data. Here is an example on how to do this file collection:
 
 ```
-find /eos/.../fit_eightPar_mass*_width*_pseudodata*_injected*/FitParameters_anaFit_Par_pseudodata_*.root > injected_paths_tenPar_width5.txt
+find /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/injected/pseudodatafits_eightPar_quickFitEdit_minTol_injected_mean*_width5_amp*/fit_eightPar_mass*_width*_pseudodata*_injected_mean*_width*_amp*/FitParameters_anaFit_Par_pseudodata_*.root > injected_paths_tenPar_width5.txt
 ```
 
 Plot results:
@@ -127,7 +111,7 @@ This completes the **Signal Injection Linearity Test** (Gaussian or Z′). For Z
 This test compares the original background template and the background component from B+S fits to injected toys. Run:
 
 ```
-python BackgroundStability.py --toyfiles injected_paths/...txt  --toyhist Run3TLA_bkgonly/postfit --reffile /eos/.../Run3_TLA108_1000_tenPar_finebinned_scale.root --refhist unfluctuated --outfile backgroundStability_tenPar_injected_min108_mean120_width15_amp3.pdf
+python BackgroundStability.py --toyfiles injected_paths/injected_paths_tenPar_injected_min108_mean120_width15_amp3_BS.txt --toyhist Run3TLA_bkgonly/postfit --reffile /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/Run3_TLA108_1000_tenPar_finebinned_scale.root --refhist unfluctuated --outfile backgroundStability_tenPar_injected_min108_mean120_width15_amp3.pdf
 ```
 
 This helps identify statistical fluctuations or outliers causing SS or SILT issues.
@@ -139,7 +123,7 @@ This helps identify statistical fluctuations or outliers causing SS or SILT issu
 Finally, compare different background parameterizations:
 
 ```
-python FTest.py /eos/.../PostFit_anaFit_eightPar_bkgOnly.root /eos/.../PostFit_anaFit_sevenPar_bkgOnly.root /eos/.../PostFit_anaFit_sixPar_bkgOnly.root /eos/.../PostFit_anaFit_fivePar_bkgOnly.root
+python FTest.py /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_130_1000_eightPar/PostFit_anaFit_eightPar_bkgOnly.root /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_130_1000_sevenPar/PostFit_anaFit_sevenPar_bkgOnly.root /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_130_1000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_130_1000_fivePar/PostFit_anaFit_fivePar_bkgOnly.root
 ```
 
 This evaluates whether using a higher-order fit is statistically justified.
