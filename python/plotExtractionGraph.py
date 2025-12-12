@@ -200,7 +200,7 @@ def main(args):
         #leg = ROOT.TLegend(0.20,0.50,0.50,0.90)
         if len(graphs[i]) > 5:
             #leg = ROOT.TLegend(0.2,0.55,0.8,0.9)
-            leg = ROOT.TLegend(0.2,0.70,0.73,0.90)
+            leg = ROOT.TLegend(0.2,0.65,0.7,0.92)
             leg.SetNColumns(2)
             #leg.SetFillStyle(0)
             #box1 = ROOT.TPave(0.2,0.62,0.75,0.90,0,"NDC");
