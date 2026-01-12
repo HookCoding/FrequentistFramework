@@ -77,7 +77,7 @@ if __name__ == "__main__":
   ##############################################
   ##############################################
   
-  rangelow="87"
+  rangelow="125"
   rangehigh="1000"
 
   #params_B = "five"
@@ -114,7 +114,7 @@ if __name__ == "__main__":
   # widths taken from mjj resolution 
   mass =   [ 100, 120,  140, 150,  160, 180, 200, 225, 250, 300,  350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950]
   widths = [12.5,  11, 10.5,  10,  9.5,   9, 8.5,   8, 7.6,   7,  6.5,   6, 5.8, 5.5, 5.2,   5, 4.8, 4.7, 4.5, 4.4, 4.3, 4.2, 4.1] # in percent
-  times_width = 1.5
+  times_width = 1
 
   # Z' spurious signal
   #mass   =   [150, 160, 180, 200, 225, 250, 300, 350, 400]
@@ -133,7 +133,7 @@ if __name__ == "__main__":
   assert len(mass) == len(widths), "Number of mass points and widths are not equal"
 
 
-  signalInjection = False
+  signalInjection = True
   #si_means  = [650,650,650,650,650,650]
   #si_widths = [5,5,5,5,5,5]
   #si_amps   = [0,1,2,3,4,5]
@@ -142,18 +142,18 @@ if __name__ == "__main__":
   #si_widths = [10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10]
   #si_widths = [15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15]
 
-  #si_means = [120,150,180,200,400,600,800]
-  #si_widths = [15,15,15,15,15,15,15]
-  #si_widths = [10,10,10,10,10,10,10]
-  #si_widths = [5,5,5,5,5,5,5]
+  si_means = [120,150,180,200,250,300,400,600,800]
+  si_widths = [15,15,15,15,15,15,15,10,10]
+  #si_widths = [10,10,10,10,10,10,10,10,10]
+  #si_widths = [5,5,5,5,5,5,5,5,5]
   
   si_amps   = [0,1,2,3,4,5] 
   
   # Z' spurious signal signal injection
   #si_means   =   [150, 160, 180, 200]
   #si_widths  =   [ -1,  -1,  -1,  -1]
-  si_means   =   [225, 250, 300, 350, 400]
-  si_widths  =   [ -1,  -1,  -1,  -1, -1]
+  #si_means   =   [225, 250, 300, 350, 400]
+  #si_widths  =   [ -1,  -1,  -1,  -1, -1]
 
 
   if signalInjection:
@@ -183,12 +183,12 @@ if __name__ == "__main__":
             #if m != si_mean: continue
             
             # injection of gaussians
-            #signalInjection_tag = "_injected_mean"+str(si_mean)+"_width"+str(si_width)+"_amp"+str(si_amp)
-            #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/injected/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol"+signalInjection_tag+"/fit_"+params_BS+"Par_"+tag+signalInjection_tag
-
-            # z prime injection
-            signalInjection_tag = "_injected_mean"+str(si_mean)+"_amp"+str(si_amp)
-            outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/injected_zprime/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol"+signalInjection_tag+"/fit_"+params_BS+"Par_"+tag+signalInjection_tag
+            if w > 0:# gaus
+              signalInjection_tag = "_injected_mean"+str(si_mean)+"_width"+str(si_width)+"_amp"+str(si_amp)
+              outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/injected/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol"+signalInjection_tag+"/fit_"+params_BS+"Par_"+tag+signalInjection_tag
+            else: # z prime injection
+              signalInjection_tag = "_injected_mean"+str(si_mean)+"_amp"+str(si_amp)
+              outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/injected_zprime/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol"+signalInjection_tag+"/fit_"+params_BS+"Par_"+tag+signalInjection_tag
 
             # Create an args file so we can submit one job which will automatically expand to an individual job per argument
             f.write(f"-m {m} -w {w:.2f} -p {p} -M {si_mean} -W {si_width} -A {si_amp} -r {outputdir}")
@@ -201,9 +201,14 @@ if __name__ == "__main__":
           #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/120_run_"+params_B+"Par/pseudodatafits_"+params_BS+"Par/fit_"+params_BS+"Par_"+tag
           #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_minimizerTolerance_01/fit_"+params_BS+"Par_"+tag
           #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_1000toys/fit_"+params_BS+"Par_"+tag
-          #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol/fit_"+params_BS+"Par_"+tag
-          #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol_zprime/fit_"+params_BS+"Par_"+tag
-          outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol_1p5width/fit_"+params_BS+"Par_"+tag
+          
+          if w > 0:# gaus
+            outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol/fit_"+params_BS+"Par_"+tag
+          else:# z prime
+            outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol_zprime/fit_"+params_BS+"Par_"+tag
+            #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/bkg_only_pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol_zprime/fit_"+params_BS+"Par_"+tag
+          
+          #outputdir = "/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_"+rangelow+"_"+rangehigh+"_"+params_B+"Par/pseudodatafits_"+params_BS+"Par_quickFitEdit_minTol_1p5width/fit_"+params_BS+"Par_"+tag
           # Create an args file so we can submit one job which will automatically expand to an individual job per argument
           f.write(f"-m {m} -w {w:.2f} -p {p} -r {outputdir}") #-B {params_BS} -S {params_B} -L {rangelow} -H {rangehigh}
           f.write('\n')

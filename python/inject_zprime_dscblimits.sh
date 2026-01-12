@@ -1,7 +1,9 @@
 #!/bin/bash
 
 #infile="/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_87_1000_tenPar/Run3_TLA87_1000_tenPar_finebinned_scale.root"
-infile="/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/Run3_TLA108_1000_tenPar_finebinned_scale.root"
+#infile="/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/Run3_TLA108_1000_tenPar_finebinned_scale.root"
+#infile="/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_125_1000_tenPar/Run3_TLA125_1000_tenPar_finebinned_scale.root"
+infile="/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_123_1000_tenPar/Run3_TLA123_1000_tenPar_finebinned_scale.root"
 histname="pseudodata"
 firsttoy=0
 lasttoy=99

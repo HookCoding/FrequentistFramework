@@ -55,6 +55,7 @@ def readGraphsFromFile(paths, dicts_out, graphs, ratios, spacing, width, means=N
               m=int(res.group(1))
               w=-1
 
+            if m < 175: continue
 
             #print(name,m,w)
             if width!=None and w!=width:

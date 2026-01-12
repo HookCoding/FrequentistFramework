@@ -20,12 +20,26 @@ gROOT.LoadMacro("../atlasstyle-00-04-02/AtlasUtils.C")
 # J100:
 #text="#sqrt{s}=13 TeV, 29.6 fb^{-1}" #old lumi calc
 #text="#sqrt{s}=13 TeV, 25.29 fb^{-1}"
-text="#sqrt{s}=13.6 TeV, 1 fb^{-1}"
 xmin=80#-0.49e5
-xmin_label=108
+#xmin_label=123
 xmax=1000#0.49e5
+
+# 1fb
+text="#sqrt{s}=13.6 TeV, 1 fb^{-1}"
 ymin=-1999#-0.49e5
 ymax=2000#0.49e5
+
+# 5 fb
+text="#sqrt{s}=13.6 TeV, 5 fb^{-1}"
+ymin=-9999
+ymax=10000
+
+# 25 fb
+#text="#sqrt{s}=13.6 TeV, 25 fb^{-1}"
+#ymin=-49999
+#ymax=50000
+
+
 spacing=20
 
 
@@ -68,6 +82,7 @@ def main(args):
               m=int(res.group(1))
               w=-1
 
+            if m < 175: continue
 
             try:
                 a=int(res.group(3)[4:])
@@ -117,6 +132,13 @@ def main(args):
     graphs = []
     ratios = []
     legend = ""
+
+
+
+    if "min" in p:
+        xmin_label = re.findall("min(\d+)", p)[0]
+
+
     for p in paths:
         graphs.append({})
         ratios.append({})

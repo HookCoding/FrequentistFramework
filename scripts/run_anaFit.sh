@@ -4,10 +4,10 @@
     . scripts/setup_buildAndFit.sh
 
     # for pars in five six seven
-    for pars in ten # seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
+    for pars in eight #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
     do
           
-        for rangelow in 130 #90 100 110 #87 #120 #88 89 90 #120 130 140 150
+        for rangelow in 125 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
 	do	
             for sigmean in 400 #350 300 250 225 200 180 160 150
             do	
@@ -32,7 +32,8 @@
 
 
                 # regular studies
-	        datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/alexFile/1fb/data23_1fb_eta2p1_EMFrac0p93_ystar0p8.root # june 2025, partial unblinding
+	        #datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/alexFile/1fb/data23_1fb_eta2p1_EMFrac0p93_ystar0p8.root # june 2025, partial unblinding
+		datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/maxFile/5fb/data23_histos.root
 	        datahist=mjj
 
 		# regular pseudodata validation tests
@@ -115,7 +116,7 @@
 	        #Input/data/dijetisrTLA/outputHistograms.root
 	        # datafile=run/postfit.root
 	        nbkg="dummy" #overwritten by prefit
-	        maskthreshold=0.01
+	        maskthreshold=0.01 #0.01
 	        doprefit=1
 
 	        flags=""
@@ -147,6 +148,8 @@
                     #nsig=args.nsig,
 
 		    toys=100
+
+		    python python/plotPostFit.py -i  ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root -o ${folder}/postFit.pdf 
 
 		    # upscaling
 		    #scalefactor=$( bc <<< 'scale=2; 30/1.015' )

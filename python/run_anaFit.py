@@ -46,11 +46,14 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         _range="--range SBLo,SBHi"
         maskmin=maskrange[0]
         maskmax=maskrange[1]
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>> BH mask range: "+str(maskmin)+","+str(maskmax))
     else:
         _range=""
         maskmin=-1
         maskmax=-1
-    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>> no BH mask range: setting to -1 both maskmin and maskmax!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+    #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
     #rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s" % (wsfile, _poi, _range, fitresultfile)) # original
     rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-06 %s -o %s" % (wsfile, _poi, _range, fitresultfile))
     if rtv != 0:
@@ -65,7 +68,8 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     f.Close()
     
     # Define resolution binning for BH
-	binningFileName = f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+    binningFileName = f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+    print(binningFileName)
     if not os.path.exists(binningFileName):
         execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
 
@@ -74,7 +78,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         datahist=datahist,
         datafirstbin=datafirstbin,
         wsfile=fitresultfile,
-        rebinfile="input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
+        rebinfile=f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
         rebinhist="mjjBinning",
         maskmin=maskmin,
         maskmax=maskmax,
@@ -83,9 +87,9 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     )
     # If we used masking in a b-only fit then we need to calculate the p-val from the correctly normalized postfit distribution
     if maskmin > -1 or maskmax > -1:
-		pval = pfe.GetPval("Run3TLA_bkgonly_rebinned") #should be Run3TLA or Run3TLA_rebinned?
-	else:
-		pval = pfe.GetPval("Run3TLA_rebinned") #should be Run3TLA or Run3TLA_rebinned?
+        pval = pfe.GetPval("Run3TLA_bkgonly_rebinned") #should be Run3TLA or Run3TLA_rebinned?
+    else:
+        pval = pfe.GetPval("Run3TLA_rebinned") #should be Run3TLA or Run3TLA_rebinned?
     
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
     #pfe.WriteRoot(postfitfile) # this looks problematic
@@ -128,7 +132,7 @@ def run_anaFit(datafile,
     # generate the config files on the fly in run dir
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
       #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
-      execute("ln -sf /eos/user/a/agekow/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
+      execute("ln -sf ~/WORK/tla/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
       print("this is happening")
     if sigwidth == -999: # running on zprime samples:
       print("Running in Zprime samples")
@@ -299,10 +303,12 @@ def run_anaFit(datafile,
 
     print ("Global fit p(chi2)=%.3f" % pval_global)
 
-    if pval_global > maskthreshold or True: # dont do BH!!!
+    if pval_global > maskthreshold : #or True:
         print("p(chi2) threshold passed. Exiting with succesful fit.")
     else:
         print("p(chi2) threshold not passed.")
+
+        #   if True:
         print("Now running BH for masking.")
 
         tmpcategoryfilemasked=tmpcategoryfile.replace(".xml","_masked.xml")
@@ -348,7 +354,9 @@ def run_anaFit(datafile,
             print("p(chi2) threshold still not passed.")
             print("Exiting with failed fit status.")
             return -1
-            
+    
+    print()
+
     # blindrange not yet implemented with quickLimit
     if dolimit and dosignal and pval_global > maskthreshold:
         print("Now running quickLimit")

@@ -86,6 +86,16 @@ def main(args):
 
     for p in paths:
         print(p)
+
+        ## only if good pvalue
+        #postfit_file = ROOT.TFile.Open(p.replace("FitParameters","PostFit"))
+        #postfit_d = postfit_file.Get("Run3TLA_bkgonly_rebinned")
+        #postfit_h = postfit_d.Get("chi2")
+        #pvalue = postfit_h.GetBinContent(6)
+        #if pvalue < 0.01:
+        #    print("bad pvalue: "+str(pvalue))
+        #    continue
+
         try:
             # res=re.findall(r'mean(\d+)_width(-?\d+)(:?_amp\d+)?', p)[-1]
             # m=int(res[0])
