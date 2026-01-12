@@ -94,6 +94,11 @@ The txt file is supposed to contain a list of injected data. Here is an example 
 
 ```
 find /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/injected/pseudodatafits_eightPar_quickFitEdit_minTol_injected_mean*_width5_amp*/fit_eightPar_mass*_width*_pseudodata*_injected_mean*_width*_amp*/FitParameters_anaFit_Par_pseudodata_*.root > injected_paths_tenPar_width5.txt
+
+```
+another example:
+```
+find /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_125_1000_tenPar/injected/pseudodatafits_eightPar_quickFitEdit_minTol_injected_mean*_width5_amp*/fit_eightPar_mass*_width*_pseudodata*_injected_mean*_width*_amp*/FitParameters_anaFit_Par_pseudodata_*0.root > injected_paths/injected_paths_125_tenPar_width5.txt
 ```
 
 Plot results:
