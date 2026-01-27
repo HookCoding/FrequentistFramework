@@ -7,7 +7,7 @@ parser.add_argument("-e", "--end", type=int, default=1000, help="End of bin rang
 parser.add_argument("-o", "--output", type=str, required=True, help="output file path and histogram name")
 args = parser.parse_args()
 
-tfile = ROOT.TFile.Open("/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/resolutionFits.root", "READ")
+tfile = ROOT.TFile.Open("/afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/Input/data/dijetisrTLA/resolutionFits.root", "READ")
 reso_fit = tfile.Get("gsc_mjj_reso_fit")
 bin_edge = args.start
 bin_edges = [args.start]

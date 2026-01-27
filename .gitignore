@@ -7,6 +7,8 @@ run/
 *.pyc
 *.png
 
+log
+
 Input/model/dijetTLAnlo/
 !Input/model/dijetTLAnlo/HistFactoryInput/
 Input/model/dijetTLAnlo/HistFactoryInput/*/signal

@@ -4,7 +4,7 @@
     . scripts/setup_buildAndFit.sh
 
     # for pars in five six seven
-    for pars in eight #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
+    for pars in ten #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
     do
           
         for rangelow in 125 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
@@ -33,7 +33,9 @@
 
                 # regular studies
 	        #datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/alexFile/1fb/data23_1fb_eta2p1_EMFrac0p93_ystar0p8.root # june 2025, partial unblinding
-		datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/maxFile/5fb/data23_histos.root
+		#datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/maxFile/5fb/data23_histos.root
+    datafile=/afs/cern.ch/work/t/tofitsch/tlafits/data23_histos.root
+
 	        datahist=mjj
 
 		# regular pseudodata validation tests
@@ -41,7 +43,8 @@
 		#datahist=pseudodata_0
 	        
                 #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/120_run_${pars}Par
-	        folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par
+	        #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par
+	        folder=/eos/home-t/tofitsch/tlafits/run_${rangelow}_${rangehigh}_${pars}Par
 	        #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par_BH # using BumpHunter !!!
 	        #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par_1000toys
 
