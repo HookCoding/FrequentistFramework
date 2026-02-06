@@ -7,7 +7,7 @@
     for pars in ten #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
     do
           
-        for rangelow in 125 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
+        for rangelow in 125 130 135 140 145 150 155 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
 	do	
             for sigmean in 400 #350 300 250 225 200 180 160 150
             do	
@@ -153,6 +153,8 @@
 		    toys=100
 
 		    python python/plotPostFit.py -i  ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root -o ${folder}/postFit.pdf 
+
+        root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\")"
 
 		    # upscaling
 		    #scalefactor=$( bc <<< 'scale=2; 30/1.015' )
