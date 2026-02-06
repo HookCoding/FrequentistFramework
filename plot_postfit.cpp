@@ -76,17 +76,11 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
 
   }
 
-  ifstream bh_log_stream(bh_log_name);
-  json bh_log;
-  bh_log_stream >> bh_log;
-
-  float const
-    bh_global_pval = bh_log.at("pyBHresult").at("global_Pval").get<float>(),
-    bh_significance = bh_log.at("pyBHresult").at("significance").get<float>(),
-    bh_mask_min = bh_log.at("MaskMin").get<float>(),
-    bh_mask_max = bh_log.at("MaskMax").get<float>();
-
   float
+    bh_global_pval{0.},
+    bh_significance{0.},
+    bh_mask_min{0.},
+    bh_mask_max{0.},
     native_chi2_ndof{0.},
     masked_chi2_ndof{0.},
     native_pval{0.},
@@ -95,6 +89,24 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     masked_chi2_ndof_rebinned{0.},
     native_pval_rebinned{0.},
     masked_pval_rebinned{0.};
+
+  ifstream bh_log_stream(bh_log_name);
+
+  bool bump_hunter{true};
+
+  if (bh_log_stream.is_open()) {
+
+    json bh_log;
+
+    bh_log_stream >> bh_log;
+
+    bh_global_pval = bh_log.at("pyBHresult").at("global_Pval").get<float>(),
+    bh_significance = bh_log.at("pyBHresult").at("significance").get<float>(),
+    bh_mask_min = bh_log.at("MaskMin").get<float>(),
+    bh_mask_max = bh_log.at("MaskMax").get<float>();
+
+  } else 
+    bump_hunter = false;
 
   native_chi2_ndof = h_native_chi2->GetBinContent(2);
   native_pval = h_native_chi2->GetBinContent(6);
@@ -130,9 +142,6 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
 
     can->Clear();
 
-    auto leg = make_unique<TLegend>(0.65, 0.8, 0.95, 0.93);
-    leg->SetFillStyle(0);
-    leg->SetBorderSize(0);
 
     h.first->GetYaxis()->SetRangeUser(-5., 5.);
     h.first->SetTitle(";m_{jj} [GeV];residuals");
@@ -143,26 +152,32 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     line->SetLineStyle(2);
     line->SetLineWidth(2);
     line->Draw("same");
-    
+
+    auto leg = make_unique<TLegend>(0.65, 0.8, 0.95, 0.93);
+    leg->SetFillStyle(0);
+    leg->SetBorderSize(0);
+
+    leg->AddEntry(h.first, "native fit", "l");
+
     auto bh_line_min = make_unique<TLine>(bh_mask_min, -5., bh_mask_min, 5.);
     bh_line_min->SetLineStyle(2);
     bh_line_min->SetLineWidth(2);
     bh_line_min->SetLineColor(kRed);
-    bh_line_min->Draw("same");
 
     auto bh_line_max = make_unique<TLine>(bh_mask_max, -5., bh_mask_max, 5.);
     bh_line_max->SetLineStyle(2);
     bh_line_max->SetLineWidth(2);
     bh_line_max->SetLineColor(kRed);
-    bh_line_max->Draw("same");
 
-    if (h_masked) {
-
-      leg->AddEntry(h.first, "native fit", "l");
-      leg->AddEntry(h.second, "masked fit", "l");
-      leg->AddEntry(bh_line_min.get(), "masked region", "l");
+    if (bump_hunter) {
 
       h.second->Draw("same");
+
+      bh_line_min->Draw("same");
+      bh_line_max->Draw("same");
+
+      leg->AddEntry(h.second, "masked fit", "l");
+      leg->AddEntry(bh_line_min.get(), "masked region", "l");
 
     }
 
@@ -175,29 +190,38 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
 
     if (is_rebinned) {
 
+      if (bump_hunter) {
+
+        myText(.75, .3, 1, "masked fit");
+        myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof_rebinned));
+        myText(.75, .2, 1, Form("p-val: %.4f", masked_pval_rebinned));
+
+      }
+
       myText(.57, .3, 1, "native fit");
       myText(.57, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", native_chi2_ndof_rebinned));
       myText(.57, .2, 1, Form("p-val: %.4f", native_pval_rebinned));
 
-      myText(.75, .3, 1, "masked fit");
-      myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof_rebinned));
-      myText(.75, .2, 1, Form("p-val: %.4f", masked_pval_rebinned));
-
-
     } else {
 
       myText(.2, .35, 1, "Bump Hunter");
-      myText(.2, .3, 1, Form("global p-val: %.4f", bh_global_pval));
-      myText(.2, .25, 1, Form("significance: %.2f", bh_significance));
-      myText(.2, .2, 1, Form("mask range: %.0f, %.0f GeV", bh_mask_min, bh_mask_max));
+
+      if (bump_hunter) {
+
+        myText(.2, .3, 1, Form("global p-val: %.4f", bh_global_pval));
+        myText(.2, .25, 1, Form("significance: %.2f", bh_significance));
+        myText(.2, .2, 1, Form("mask range: %.0f, %.0f GeV", bh_mask_min, bh_mask_max));
+
+        myText(.75, .3, 1, "masked fit");
+        myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof));
+        myText(.75, .2, 1, Form("p-val: %.4f", masked_pval));
+
+      } else
+        myText(.2, .3, 1, "N/A");
 
       myText(.57, .3, 1, "native fit");
       myText(.57, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", native_chi2_ndof));
       myText(.57, .2, 1, Form("p-val: %.4f", native_pval));
-
-      myText(.75, .3, 1, "masked fit");
-      myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof));
-      myText(.75, .2, 1, Form("p-val: %.4f", masked_pval));
 
     }
 
