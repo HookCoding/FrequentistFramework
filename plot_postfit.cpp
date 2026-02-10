@@ -22,6 +22,9 @@ useage:
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
+bool const
+  plot_masked{true};
+
 string const 
   atlas_label = "Work in progress",
   lumi_label = "#sqrt{s} = 13 TeV, 25 fb^{-1}";
@@ -31,11 +34,15 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
   char const 
     * in_file_name_native = Form("%s/PostFit_anaFit_%sPar_bkgOnly.root", in_dir, pars_str),
     * in_file_name_masked = Form("%s/PostFit_anaFit_%sPar_bkgOnly_masked.root", in_dir, pars_str),
+    * in_file_name_native_params = Form("%s/FitParameters_anaFit_%sPar_bkgOnly.root", in_dir, pars_str),
+    * in_file_name_masked_params = Form("%s/FitParameters_anaFit_%sPar_bkgOnly_masked.root", in_dir, pars_str),
     * out_file_name = Form("%s/post_fit.pdf", in_dir),
     * bh_log_name = Form("%s/BHresults.json", in_dir);
 
 	unique_ptr<TFile> in_file_native {TFile::Open(in_file_name_native, "READ")};
 	unique_ptr<TFile> in_file_masked {TFile::Open(in_file_name_masked, "READ")};
+	unique_ptr<TFile> in_file_native_params {TFile::Open(in_file_name_native_params, "READ")};
+	unique_ptr<TFile> in_file_masked_params {TFile::Open(in_file_name_masked_params, "READ")};
 
   TH1D 
     * h_native{nullptr}, 
@@ -45,7 +52,9 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     * h_masked{nullptr},
     * h_masked_rebinned{nullptr},
     * h_masked_chi2{nullptr},
-    * h_masked_chi2_rebinned{nullptr};
+    * h_masked_chi2_rebinned{nullptr},
+    * h_native_params{nullptr},
+    * h_masked_params{nullptr}; 
 
   if (in_file_native) {
 
@@ -53,6 +62,7 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     h_native_rebinned = in_file_native->Get<TH1D>("Run3TLA_bkgonly_rebinned/residuals");
     h_native_chi2 = in_file_native->Get<TH1D>("Run3TLA_bkgonly/chi2");
     h_native_chi2_rebinned = in_file_native->Get<TH1D>("Run3TLA_bkgonly_rebinned/chi2");
+    h_native_params = in_file_native_params->Get<TH1D>("postfit_params");
 
   }
 
@@ -62,9 +72,11 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     h_masked_rebinned = in_file_masked->Get<TH1D>("Run3TLA_bkgonly_rebinned/residuals");
     h_masked_chi2 = in_file_masked->Get<TH1D>("Run3TLA_bkgonly/chi2");
     h_masked_chi2_rebinned = in_file_masked->Get<TH1D>("Run3TLA_bkgonly_rebinned/chi2");
+    h_masked_params = in_file_masked_params->Get<TH1D>("postfit_params");
 
     h_masked->SetLineColor(kRed);
     h_masked_rebinned->SetLineColor(kRed);
+    h_masked_params->SetLineColor(kRed);
 
   }
 
@@ -88,11 +100,15 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     native_chi2_ndof_rebinned{0.},
     masked_chi2_ndof_rebinned{0.},
     native_pval_rebinned{0.},
-    masked_pval_rebinned{0.};
+    masked_pval_rebinned{0.},
+    native_nbkg{0.},
+    masked_nbkg{0.};
 
   ifstream bh_log_stream(bh_log_name);
 
-  bool bump_hunter{true};
+  cout << bh_log_name << endl;
+
+  bool bump_hunter{plot_masked};
 
   if (bh_log_stream.is_open()) {
 
@@ -105,11 +121,19 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     bh_mask_min = bh_log.at("MaskMin").get<float>(),
     bh_mask_max = bh_log.at("MaskMax").get<float>();
 
-  } else 
+  } else
     bump_hunter = false;
 
   native_chi2_ndof = h_native_chi2->GetBinContent(2);
   native_pval = h_native_chi2->GetBinContent(6);
+
+  if (h_native_params) {
+    native_nbkg = h_native_params->GetBinContent(1);
+    h_native_params->GetXaxis()->SetRangeUser(1, h_native_params->GetNbinsX());
+  }
+
+  if (h_masked_params)
+    masked_nbkg = h_masked_params->GetBinContent(1);
 
   native_chi2_ndof_rebinned = h_native_chi2_rebinned->GetBinContent(2);
   native_pval_rebinned = h_native_chi2_rebinned->GetBinContent(6);
@@ -134,7 +158,7 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
 
   bool is_rebinned{false};
 
-  for (pair<TH1D *, TH1D *> h : vector<pair<TH1D *, TH1D *>>{{h_native, h_masked}, {h_native_rebinned, h_masked_rebinned}}) {
+  for (pair<TH1D *, TH1D *> h : vector<pair<TH1D *, TH1D *>>{{h_native_params, h_masked_params}, {h_native, h_masked}, {h_native_rebinned, h_masked_rebinned}}) {
 
     float const
       range_min = h.first->GetBinLowEdge(1),
@@ -143,15 +167,23 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     can->Clear();
 
 
-    h.first->GetYaxis()->SetRangeUser(-5., 5.);
-    h.first->SetTitle(";m_{jj} [GeV];residuals");
+    if (h.first == h_native_params)
+      h.first->GetYaxis()->SetRangeUser(-10., 50.);
+    else {
 
-    h.first->Draw();
+      h.first->GetYaxis()->SetRangeUser(-5., 5.);
+      h.first->SetTitle(";m_{jj} [GeV];residuals");
+
+    }
+
+
+    h.first->Draw(h.first == h_native_params ? "HIST" : "");
 
     auto line = make_unique<TLine>(range_min, 0., range_max, 0.);
     line->SetLineStyle(2);
     line->SetLineWidth(2);
-    line->Draw("same");
+    if (h.first != h_native_params)
+      line->Draw("same");
 
     auto leg = make_unique<TLegend>(0.65, 0.8, 0.95, 0.93);
     leg->SetFillStyle(0);
@@ -171,13 +203,19 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
 
     if (bump_hunter) {
 
-      h.second->Draw("same");
-
-      bh_line_min->Draw("same");
-      bh_line_max->Draw("same");
+      h.second->Draw(h.first == h_native_params ? "same HIST" : "same");
 
       leg->AddEntry(h.second, "masked fit", "l");
-      leg->AddEntry(bh_line_min.get(), "masked region", "l");
+
+      if (h.first != h_native_params) {
+
+        bh_line_min->Draw("same");
+        bh_line_max->Draw("same");
+
+        leg->AddEntry(bh_line_min.get(), "masked region", "l");
+
+      }
+
 
     }
 
@@ -186,23 +224,11 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     ATLASLabel(.2, .9, atlas_label.c_str());
     myText(.2, .85, 1, lumi_label.c_str());
     myText(.2, .8, 1, Form("%s parameter fit, bkg only", pars_str));
-    myText(.2, .75, 1, Form("range: %.0f - %.0f GeV", range_min, range_max));
+    
+    if (h.first != h_native_params)
+      myText(.2, .75, 1, Form("range: %.0f - %.0f GeV", range_min, range_max));
 
-    if (is_rebinned) {
-
-      if (bump_hunter) {
-
-        myText(.75, .3, 1, "masked fit");
-        myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof_rebinned));
-        myText(.75, .2, 1, Form("p-val: %.4f", masked_pval_rebinned));
-
-      }
-
-      myText(.57, .3, 1, "native fit");
-      myText(.57, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", native_chi2_ndof_rebinned));
-      myText(.57, .2, 1, Form("p-val: %.4f", native_pval_rebinned));
-
-    } else {
+    if (h.first == h_native_rebinned) {
 
       myText(.2, .35, 1, "Bump Hunter");
 
@@ -213,11 +239,25 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
         myText(.2, .2, 1, Form("mask range: %.0f, %.0f GeV", bh_mask_min, bh_mask_max));
 
         myText(.75, .3, 1, "masked fit");
-        myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof));
-        myText(.75, .2, 1, Form("p-val: %.4f", masked_pval));
+        myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof_rebinned));
+        myText(.75, .2, 1, Form("p-val: %.4f", masked_pval_rebinned));
 
       } else
         myText(.2, .3, 1, "N/A");
+
+      myText(.57, .3, 1, "native fit");
+      myText(.57, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", native_chi2_ndof_rebinned));
+      myText(.57, .2, 1, Form("p-val: %.4f", native_pval_rebinned));
+
+    } else if (h.first == h_native) {
+
+      if (bump_hunter) {
+
+        myText(.75, .3, 1, "masked fit");
+        myText(.75, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", masked_chi2_ndof));
+        myText(.75, .2, 1, Form("p-val: %.4f", masked_pval));
+
+      }
 
       myText(.57, .3, 1, "native fit");
       myText(.57, .25, 1, Form("#chi^{2}/N_{dof}: %.2f", native_chi2_ndof));
@@ -226,8 +266,6 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
     }
 
     can->Print(out_file_name);
-
-    is_rebinned = true;
 
   }
   
