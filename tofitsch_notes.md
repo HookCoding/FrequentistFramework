@@ -33,10 +33,11 @@ to
 cd work/tlafits
 setupATLAS
 lsetup git
-git clone https://:@gitlab.cern.ch:8443/tla-atlas-run3/FrequentistFramework.git --branch lbazzano-fitValidation --recursive
+git clone https://:@gitlab.cern.ch:8443/tla-atlas-run3/FrequentistFramework.git --branch dev_tofitsch --recursive
 cd FrequentistFramework
+rm -r quickFit
+cp -r ../FrequentistFramework_tomas/quickFit/
 . scripts/install_FrequentistFramework.sh
-
 . scripts/install_pyBumpHunter.sh
 . pyBumpHunter/pyBH_env/bin/activate
 deactivate
