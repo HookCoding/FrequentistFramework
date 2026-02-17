@@ -7,7 +7,7 @@
     for pars in ten #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
     do
           
-        for rangelow in 125 130 135 140 145 150 155 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
+        for rangelow in 135 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
 	do	
             for sigmean in 400 #350 300 250 225 200 180 160 150
             do	
@@ -163,8 +163,9 @@
 		    #python python/generatePseudoData.py --infile ${outputfile/FitResult/PostFit} --inhist Run3TLA/postfit --outhist pseudodata --outfile ${folder}/Run3_TLA${rangelow}_${rangehigh}_${pars}Par_finebinned_scale${scalefactor}.root --nreplicas $toys --scaling $scalefactor
 		    
 		    # no upscaling
-		    echo python python/generatePseudoData.py --infile ${outputfile/FitResult/PostFit} --inhist Run3TLA/postfit --outhist pseudodata --outfile ${folder}/Run3_TLA${rangelow}_${rangehigh}_${pars}Par_finebinned_scale${scalefactor}.root --nreplicas $toys 
-		    python python/generatePseudoData.py --infile ${outputfile/FitResult/PostFit} --inhist Run3TLA/postfit --outhist pseudodata --outfile ${folder}/Run3_TLA${rangelow}_${rangehigh}_${pars}Par_finebinned_scale${scalefactor}.root --nreplicas $toys 
+        # XXX
+		    #echo python python/generatePseudoData.py --infile ${outputfile/FitResult/PostFit} --inhist Run3TLA/postfit --outhist pseudodata --outfile ${folder}/Run3_TLA${rangelow}_${rangehigh}_${pars}Par_finebinned_scale${scalefactor}.root --nreplicas $toys 
+		    #python python/generatePseudoData.py --infile ${outputfile/FitResult/PostFit} --inhist Run3TLA/postfit --outhist pseudodata --outfile ${folder}/Run3_TLA${rangelow}_${rangehigh}_${pars}Par_finebinned_scale${scalefactor}.root --nreplicas $toys 
 
             done
         done

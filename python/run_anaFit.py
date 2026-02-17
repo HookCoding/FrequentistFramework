@@ -295,6 +295,7 @@ def run_anaFit(datafile,
     print("##################################################################################################    do signal is ", dosignal)
     print("##################################################################################################    poi is  ", poi)
 
+    shutil.copy2('/afs/cern.ch/work/t/tofitsch/tlafits/tomas/background_dijetTLA_fromTemplate.xml', tmpbackgroundfile) #XXX
     pval_global, postfitfile, parameterfile = build_fit_extract(topfile=tmptopfile,
                                                                 datafile=datafile, 
                                                                 datahist=datahist, 
