@@ -16,6 +16,7 @@
 	        #rangelow=150
 	        #rangelow=200
 	        #rangelow=300 
+	        #rangehigh=1000
 	        rangehigh=1000
 	        #rangehigh=200
 

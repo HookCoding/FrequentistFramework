@@ -50,6 +50,32 @@ cd work/tlafits/FrequentistFramework
 . scripts/setup_buildCombineFit.sh
 ```
 
+# changes suggested by Max
+
+```
+# quickFit/app/quickFit.cxx (https://gitlab.cern.ch/tla-atlas-run3/quickFit/-/blob/main/app/quickFit.cxx?ref_type=heads)
+# after L292 (https://gitlab.cern.ch/tla-atlas-run3/quickFit/-/blob/main/app/quickFit.cxx?ref_type=heads#L292)
+fitter->setChi2Fit(_chi2fit);
+fitter->setChi2Constraints(_chi2constraints);
+fitter->setPoissonError(_poissonerror);
+
+# FrequentistFramework/python/run_anaFit.py (https://gitlab.cern.ch/tla-atlas-run3/FrequentistFramework/-/blob/lbazzano-fitValidation/python/run_anaFit.py?ref_type=heads#L58)
+# wherever you run quickFit command replace with the string below:
+"quickFit --chi2fit 1 --poissonerror 0 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s"
+
+# NOTE adding "--poissonerror 0" to the command means that the data hist errors will be used for chi2 instead of sqrt(N_fit) -- I don't know which behaviour we actually want
+```
+
+then:
+```
+cd quickfit
+rm -rf build/*
+cd build
+cmake ..
+make
+cd ../..
+```
+
 # Run
 in `scripts/run_anaFit.sh` change:
 

@@ -6,6 +6,7 @@ import json
 from ExtractPostfitFromWS import PostfitExtractor
 from ExtractFitParameters import FitParameterExtractor
 from PreFit import PreFitter
+import subprocess
 import ROOT
 
 def execute(cmd):  
@@ -53,11 +54,16 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         maskmax=-1
         print(">>>>>>>>>>>>>>>>>>>>>>>>>> no BH mask range: setting to -1 both maskmin and maskmax!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
+    logfile=fitresultfile.replace("FitResult","quickFitLog").replace(".root", ".log")
+    edmplot=fitresultfile.replace("FitResult","edm").replace(".root", ".pdf")
+
     #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
     #rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-10 %s -o %s" % (wsfile, _poi, _range, fitresultfile)) # original
-    rtv=execute("quickFit -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-06 %s -o %s" % (wsfile, _poi, _range, fitresultfile))
+    rtv=execute("quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s" % (wsfile, _poi, _range, fitresultfile, logfile))
     if rtv != 0:
         print("WARNING: Non-zero return code from quickFit. Check if tolerable")
+
+    execute("python plot_edm.py %s %s" % (logfile, edmplot))
 
     postfitfile=fitresultfile.replace("FitResult","PostFit")
     parameterfile=fitresultfile.replace("FitResult","FitParameters")
@@ -296,6 +302,7 @@ def run_anaFit(datafile,
     print("##################################################################################################    poi is  ", poi)
 
     shutil.copy2('/afs/cern.ch/work/t/tofitsch/tlafits/tomas/background_dijetTLA_fromTemplate.xml', tmpbackgroundfile) #XXX
+    #shutil.copy2('/afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/background_dijetTLA_fromTemplate.xml', tmpbackgroundfile) #XXX
     pval_global, postfitfile, parameterfile = build_fit_extract(topfile=tmptopfile,
                                                                 datafile=datafile, 
                                                                 datahist=datahist, 
@@ -321,6 +328,21 @@ def run_anaFit(datafile,
         # need to unset pythonpath in order to not use cvmfs numpy
         #execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "J100yStar06_rebinned/postfit", "J100yStar06_rebinned/data", "{}/BHresults.json".format(folder)))
         execute("source pyBumpHunter/pyBH_env/bin/activate; python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "Run3TLA_rebinned/postfit", "Run3TLA_rebinned/data", "{}/BHresults.json".format(folder)))
+
+
+        #blind_min = 135
+        #blind_max = 136
+
+        #cmd = [
+        #    "sed",
+        #    "-i",
+        #    "-E",
+        #    f's/"MaskMin": [0-9.]+, "MaskMax": [0-9.]+, "BlindRange": "[0-9]+,[0-9]+"/'
+        #    f'"MaskMin": {blind_min}, "MaskMax": {blind_max}, "BlindRange": "{blind_min},{blind_max}"/',
+        #    "{}/BHresults.json".format(folder)
+        #]
+        #
+        #subprocess.run(cmd, check=True)
 
         # pass results of pyBH via this json file
         with open("{}/BHresults.json".format(folder)) as f:
