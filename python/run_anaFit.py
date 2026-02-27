@@ -44,7 +44,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         #bkgonly_opt = True
 
     if maskrange:
-        _range="--range SBLo,SBHi"
+        _range="--range SBLo_Run3TLA,SBHi_Run3TLA"
         maskmin=maskrange[0]
         maskmax=maskrange[1]
         print(">>>>>>>>>>>>>>>>>>>>>>>>>> BH mask range: "+str(maskmin)+","+str(maskmax))
@@ -81,6 +81,18 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     if not os.path.exists(binningFileName):
         execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
 
+    print("EXECUTE: pfe = PostfitExtractor(")
+    print("datafile=", datafile)
+    print("datahist=", datahist)
+    print("datafirstbin=", datafirstbin)
+    print("wsfile=", fitresultfile)
+        #rebinfile=f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
+    print("rebinfile=", f"/afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root")
+    print("rebinhist=", "mjjBinning")
+    print("maskmin=", maskmin)
+    print("bkgonly=", True)
+    print(")")
+
     pfe = PostfitExtractor(
         datafile=datafile,
         datahist=datahist,
@@ -100,6 +112,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     else:
         pval = pfe.GetPval("Run3TLA_rebinned") #should be Run3TLA or Run3TLA_rebinned?
     
+    print("pfe.WriteRoot(", postfitfile, ", dirPerCategory=True)")
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
     #pfe.WriteRoot(postfitfile) # this looks problematic
 

@@ -6,7 +6,7 @@ import numpy as np
 
 def plot_minuit_continuous(filename, outname):
     # Regex to capture: [iteration] [FCN] [Edm] [NCalls]
-    pattern = re.compile(r"VariableMetricBuilder\s+(\d+)\s+-\s+FCN\s+=\s+([-e\d.]+)\s+Edm\s+=\s+([-e\d.]+)\s+NCalls")
+    pattern = re.compile(r"VariableMetric.*\s+(\d+)\s+-\s+FCN\s+=\s+([-e\d.]+)\s+Edm\s+=\s+([-e\d.]+)\s+NCalls")
 
     cumulative_x = []
     edm_values = []
@@ -31,7 +31,7 @@ def plot_minuit_continuous(filename, outname):
                     total_counter += 1
                 
     except FileNotFoundError:
-        print(f"Error: The file '{filename}' was not found.")
+        print("Error: The file was not found.")
         sys.exit(1)
 
     if not cumulative_x:
@@ -64,9 +64,9 @@ def plot_minuit_continuous(filename, outname):
     plt.savefig(outname, bbox_inches='tight')
     
     print("-" * 35)
-    print(f"Total points plotted: {len(cumulative_x)}")
-    print(f"Total runs (stars):   {len(star_indices)}")
-    print(f"Plot saved to:        {outname}")
+    #print(f"Total points plotted: {len(cumulative_x)}")
+    #print(f"Total runs (stars):   {len(star_indices)}")
+    #print(f"Plot saved to:        {outname}")
     print("-" * 35)
 
 if __name__ == "__main__":

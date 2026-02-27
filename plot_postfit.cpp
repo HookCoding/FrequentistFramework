@@ -19,8 +19,7 @@ useage:
 #include <TLine.h>
 #include <TH1D.h>
 
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
+#include <regex>
 
 bool const
   plot_masked{true};
@@ -112,14 +111,28 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
 
   if (bh_log_stream.is_open()) {
 
-    json bh_log;
+    stringstream buffer;
+    buffer << bh_log_stream.rdbuf();
+    string json_str = buffer.str();
 
-    bh_log_stream >> bh_log;
+    auto get_val = [&](string key) {
+      regex re("\"" + key + "\"\\s*:\\s*([-+]?[0-9]*\\.?[0-9]+(?:[eE][-+]?[0-9]+)?)");
+      smatch match;
+      if (regex_search(json_str, match, re) && match.size() > 1) {
+        return stof(match.str(1));
+      }
+      return 0.0f;
+    };
 
-    bh_global_pval = bh_log.at("pyBHresult").at("global_Pval").get<float>(),
-    bh_significance = bh_log.at("pyBHresult").at("significance").get<float>(),
-    bh_mask_min = bh_log.at("MaskMin").get<float>(),
-    bh_mask_max = bh_log.at("MaskMax").get<float>();
+    bh_global_pval  = get_val("global_Pval");
+    bh_significance = get_val("significance");
+    bh_mask_min     = get_val("MaskMin");
+    bh_mask_max     = get_val("MaskMax");
+
+    if (bh_global_pval == 0.0f && bh_significance == 0.0f) {
+        cout << "WARNING: Could not parse values from " << bh_log_name << ". Check keys." << endl;
+    }
+
 
   } else
     bump_hunter = false;

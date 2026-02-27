@@ -1,4 +1,4 @@
-# Instructions
+
 * [FrequentistFramework](https://gitlab.cern.ch/tla-atlas-run3/FrequentistFramework/-/tree/lbazzano-fitValidation?ref_type=heads)
 * [Falk's tutorial recording](https://indico.cern.ch/event/1266089/)
 * [Falk's slides](https://gitlab.cern.ch/atlas-phys-exotics-dijet-tla/FrequentistFramework/-/tree/master/doc?ref_type=heads)
@@ -66,6 +66,17 @@ fitter->setPoissonError(_poissonerror);
 # NOTE adding "--poissonerror 0" to the command means that the data hist errors will be used for chi2 instead of sqrt(N_fit) -- I don't know which behaviour we actually want
 ```
 
+additionally (for masked fit):
+
+```
+# in:
+      if (_poissonerror) {
+        spdlog::info("Building chi2 with splitrange and Poisson error...");
+        chi2 = pdf->createChi2(*dh, RooFit::Extended(true), RooFit::DataError(RooAbsData::Poisson), RooFit::Range(_rangeName), RooFit::SplitRange(False));
+      } 
+# change False to true in SplitRange
+```
+
 then:
 ```
 cd quickfit
@@ -122,3 +133,9 @@ mkdir -p /eos/home-t/tofitsch/tlafits
 
 . scripts/run_anaFit.sh
 ```
+
+# R21
+this version of FrequentistFramework cannot be run fuly in R21 but you can run it in R22 (like above) and then run only the relevant parts (xmlAnaWSBuilder, quickFit) on the given output and compare. Do so with `test.sh`.
+For this just use a centos7 container (`setupATLAS -c centos7`) and install quickFit and xmlAnaWSBuilder as described in their readmes from:
+[quickFit](https://gitlab.cern.ch/atlas-phys-exotics-dijet-tla/quickFit) branch: muscan,
+[xmlAnaWSBuilder](https://gitlab.cern.ch/atlas-phys-exotics-dijet-tla/quickFit) commit: @8027946f
