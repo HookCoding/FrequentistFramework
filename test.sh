@@ -1,9 +1,21 @@
-par=three
+par=seven
 mjj=135
 
+#R22
+xm=xmlAnaWSBuilder/build/bin/XMLReader
+qf=quickFit/build/quickFit
+
+#R21
+#xm=xmlAnaWSBuilderR21/build/XMLReader
+#qf=quickFitR21/build/quickFit
+
 # native
-XMLReader -x /eos/home-t/tofitsch/tlafits/run_135_1000_${par}Par/dijetTLA_fromTemplate.xml -o "logy integral" --minimizerStrategy 0
-quickFit \
+$xm \
+  -x /eos/home-t/tofitsch/tlafits/run_135_1000_${par}Par/dijetTLA_fromTemplate.xml \
+  -o "logy integral" \
+  --minimizerStrategy 0
+
+$qf \
   --chi2fit 1 \
   --poissonerror 1 \
   -f /eos/home-t/tofitsch/tlafits/run_${mjj}_1000_${par}Par/dijetisrTLA_combWS_${par}Par.root \
@@ -29,8 +41,12 @@ python plot_edm.py \
 python python/pfe.py --params $par --firstbin $mjj --maskstr ""
 
 ### masked
-XMLReader -x /eos/home-t/tofitsch/tlafits/run_135_1000_${par}Par/dijetTLA_fromTemplate_masked.xml -o "logy integral" --minimizerStrategy 0
-quickFit \
+$xm \
+  -x /eos/home-t/tofitsch/tlafits/run_135_1000_${par}Par/dijetTLA_fromTemplate_masked.xml \
+  -o "logy integral" \
+  --minimizerStrategy 0
+
+$qf \
   --chi2fit 1 \
   --poissonerror 1 \
   -f /eos/home-t/tofitsch/tlafits/run_${mjj}_1000_${par}Par/dijetisrTLA_combWS_${par}Par_masked.root \

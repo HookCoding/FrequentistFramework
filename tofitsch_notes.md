@@ -139,3 +139,14 @@ this version of FrequentistFramework cannot be run fuly in R21 but you can run i
 For this just use a centos7 container (`setupATLAS -c centos7`) and install quickFit and xmlAnaWSBuilder as described in their readmes from:
 [quickFit](https://gitlab.cern.ch/atlas-phys-exotics-dijet-tla/quickFit) branch: muscan,
 [xmlAnaWSBuilder](https://gitlab.cern.ch/atlas-phys-exotics-dijet-tla/quickFit) commit: @8027946f
+intsall them into quickFitR21 and xmlAnaWSBuilderR21
+for R21 setup instead of `setup_buildCombineFit`:
+```
+cd xmlAnaWSBuilderR21
+. setup_lxplus.sh
+cd ..
+cd quickFitR21
+. setup_lxplus.sh
+cd ..
+```
+Note: do not run `make install` so you don't overwrite the R22 binaries. Instead use the R21 binaries always by providing their full path (no install needed then)
