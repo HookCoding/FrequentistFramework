@@ -13,7 +13,7 @@ git checkout 0408030b6c8d74a2e2c27a864a02756132d08f5a
 cd ..
 
 #workspaceCombiner
-rm -rf quickFit
+rm -rf workspaceCombiner
 git clone https://:@gitlab.cern.ch:8443/tla-atlas-run3/workspaceCombiner.git --branch tofitsch_baseline_fit
 cd workspaceCombiner
 git checkout 7d484ad3f89c4075d2c567aa4503fc56e1bb9468
@@ -26,6 +26,8 @@ for x in xmlAnaWSBuilder quickFit workspaceCombiner; do
   . setup_lxplus.sh
 
   . scripts/install_roofitext.sh
+
+  . setup_lxplus.sh
 
   cd RooFitExtensions
 
