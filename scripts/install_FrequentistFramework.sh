@@ -11,20 +11,9 @@ cwd=$(pwd)
 
 source scripts/setup_buildCombineFit.sh
 
-source scripts/install_roofitext.sh $cwd/xmlAnaWSBuilder
+source scripts/install_quickFit_and_xmlAnaWSBuilder.sh
 
-cd $cwd/xmlAnaWSBuilder/
-mkdir build && cd build
-cmake ..
-make -j4
-make install
-
-cd $cwd/quickFit/
-mkdir build && cd build
-cmake ..
-make -j4
-make install
-
+# TODO: integrate in above script?
 cd $cwd/workspaceCombiner
 mkdir build && cd build
 cmake ..
