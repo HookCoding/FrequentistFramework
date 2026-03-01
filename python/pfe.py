@@ -1,3 +1,5 @@
+# used to run PostfitExtractor and FitParameterExtractor without having to run all of run_anaFit.py
+
 import argparse
 from ExtractPostfitFromWS import PostfitExtractor
 from ExtractFitParameters import FitParameterExtractor
@@ -9,11 +11,17 @@ parser.add_argument("--maskstr", type=str, required=True,
                     help="'' or '_masked'")
 parser.add_argument("--firstbin", type=int, required=True,
                     help="First bin number, e.g., 135")
+parser.add_argument("--maskmin", type=int, required=True,
+                    help="maskmin")
+parser.add_argument("--maskmax", type=int, required=True,
+                    help="maskmax")
 args = parser.parse_args()
 
 params_str = args.params
 first_bin = args.firstbin
 maskstr = args.maskstr
+maskmin = args.maskmin
+maskmax = args.maskmax
 
 pfe = PostfitExtractor(
     datafile="/afs/cern.ch/work/t/tofitsch/tlafits/data23_histos.root",
@@ -22,11 +30,13 @@ pfe = PostfitExtractor(
     wsfile="/eos/home-t/tofitsch/tlafits/run_{0}_1000_{1}Par/FitResult_anaFit_{1}Par_bkgOnly{2}.root".format(first_bin, params_str, maskstr),
     rebinfile="/afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_135.root",
     rebinhist="mjjBinning",
-    maskmin=-1,
+    maskmin=maskmin,
+    maskmax=maskmax,
     bkgonly=True
 )
 
 fpe = FitParameterExtractor(wsfile="/eos/home-t/tofitsch/tlafits/run_{0}_1000_{1}Par/FitResult_anaFit_{1}Par_bkgOnly{2}.root".format(first_bin, params_str, maskstr))
+
 fpe.WriteRoot("/eos/home-t/tofitsch/tlafits/run_{0}_1000_{1}Par/FitParameters_anaFit_{1}Par_bkgOnly{2}.root".format(first_bin, params_str, maskstr))
 
 pfe.WriteRoot(
