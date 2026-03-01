@@ -22,5 +22,6 @@ quickFit
 xmlAnaWSBuilderR21
 quickFitR21
 workspaceCombiner
+pyBumpHunter
 
 !doc/*

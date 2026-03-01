@@ -49,4 +49,16 @@ for x in xmlAnaWSBuilder quickFit workspaceCombiner; do
 done
 
 # pyBumpHunter
-. scripts/install_pyBumpHunter.sh
+rm -rf pyBumpHunter
+git clone https://github.com/scikit-hep/pyBumpHunter.git
+cd pyBumpHunter
+
+git checkout 91f49a622bd77622edb02a1a2788fc12835e5b72
+
+python3 -m venv pyBH_env
+. pyBH_env/bin/activate
+
+python3 setup.py install
+
+deactivate
+cd ..
