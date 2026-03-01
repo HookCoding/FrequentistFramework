@@ -154,7 +154,7 @@ def run_anaFit(datafile,
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
       #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
       #execute("ln -sf ~/WORK/tla/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
-      execute("ln -sf FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
+      execute("ln -sf `realpath config/dijetisrTLA/AnaWSBuilder.dtd` {}/AnaWSBuilder.dtd".format(folder))
       print("this is happening")
     if sigwidth == -999: # running on zprime samples:
       print("Running in Zprime samples")
