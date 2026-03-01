@@ -17,4 +17,9 @@ Input/model/dijetTLAnlo/HistFactoryInput/*/bkg/*_range*.root
 config/dijetTLA/signal/signal*width*.xml
 config/dijetTLAnlo/*/signal/signal*.xml
 
+xmlAnaWSBuilder
+quickFit
+xmlAnaWSBuilderR21
+quickFitR21
+
 !doc/*
