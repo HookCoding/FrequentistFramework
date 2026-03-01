@@ -94,6 +94,14 @@ def getChi2(extractor, channelname, npars, useSumW2=False):
     h_chi2.SetBinContent(6, pval)
     h_chi2.SetBinError(6, 0)
 
+    print()
+    print('TEST chi2bins', chi2bins)
+    print('TEST npars', npars)
+    print('TEST ndof', ndof)
+    print('TEST chi2', chi2)
+    print('TEST pval', pval)
+    print('TEST chi2/ndof', chi2/ndof)
+
     h_chi2.GetXaxis().SetBinLabel(1, "chi2")
     h_chi2.GetXaxis().SetBinLabel(2, "chi2/ndof")
     h_chi2.GetXaxis().SetBinLabel(3, "nbins")
@@ -269,8 +277,8 @@ class PostfitExtractor:
                 self.channel_hdata[channelname_bkg] = self.h_data.Rebin(nBins, "h_data_crop", array.array('d', binEdges))
                 self.channel_hdata[channelname_bkg].SetDirectory(0)
                 # if a mask was used we need to normalize the postfit correctly
-                if self.maskmin > -1 or self.maskmax > -1:
-                    h_postfit_bkg = self.normalizePostFit(h_postfit_bkg, self.channel_hdata[channelname_bkg])
+#                if self.maskmin > -1 or self.maskmax > -1:
+#                    h_postfit_bkg = self.normalizePostFit(h_postfit_bkg, self.channel_hdata[channelname_bkg])
                 self.channel_hpostfit[channelname_bkg] = h_postfit_bkg
     
                 getChi2(extractor=self, channelname=channelname_bkg, npars=npars, useSumW2=self.useSumW2)
