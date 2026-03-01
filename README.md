@@ -4,18 +4,13 @@ setupATLAS
 lsetup git
 git clone https://:@gitlab.cern.ch:8443/tla-atlas-run3/FrequentistFramework.git --branch tofitsch_baseline_fit
 cd FrequentistFramework
-. scripts/install_FrequentistFramework.sh
-. scripts/install_pyBumpHunter.sh
-. pyBumpHunter/pyBH_env/bin/activate
-deactivate
-. scripts/install_quickFit_and_xmlAnaWSBuilder.sh
+. install.sh
 ```
 
 # Setup
 
 ```
-cd work/tlafits/FrequentistFramework
-. scripts/setup_buildCombineFit.sh
+. setup.sh
 ```
 
 # Run
