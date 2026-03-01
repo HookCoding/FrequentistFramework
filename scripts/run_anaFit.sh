@@ -1,5 +1,9 @@
 #!/bin/bash
 
+out_dir=/eos/home-t/tofitsch/tlafits
+
+mkdir -p $out_dir
+
 {
     . scripts/setup_buildAndFit.sh
 
@@ -32,11 +36,7 @@
 
 
 
-                # regular studies
-	        #datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/alexFile/1fb/data23_1fb_eta2p1_EMFrac0p93_ystar0p8.root # june 2025, partial unblinding
-		#datafile=/eos/user/l/lbazzano/TLA/FreqFrameTestBranch/FrequentistFramework/maxFile/5fb/data23_histos.root
-    datafile=/afs/cern.ch/work/t/tofitsch/tlafits/data23_histos.root
-
+          datafile=data/data23_histos.root
 	        datahist=mjj
 
 		# regular pseudodata validation tests
@@ -45,7 +45,7 @@
 	        
                 #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/minimumStudy/120_run_${pars}Par
 	        #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par
-	        folder=/eos/home-t/tofitsch/tlafits/run_${rangelow}_${rangehigh}_${pars}Par
+	        folder=$out_dir/run_${rangelow}_${rangehigh}_${pars}Par
 	        #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par_BH # using BumpHunter !!!
 	        #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par_1000toys
 

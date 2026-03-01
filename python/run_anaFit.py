@@ -74,7 +74,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     
     # Define resolution binning for BH
     #binningFileName = f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
-    binningFileName = f"/afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+    binningFileName = f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
 
     print(binningFileName)
     if not os.path.exists(binningFileName):
@@ -86,7 +86,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     print("datafirstbin=", datafirstbin)
     print("wsfile=", fitresultfile)
         #rebinfile=f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
-    print("rebinfile=", f"/afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root")
+    print("rebinfile=", f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root")
     print("rebinhist=", "mjjBinning")
     print("maskmin=", maskmin)
     print("bkgonly=", True)
@@ -98,7 +98,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         datafirstbin=datafirstbin,
         wsfile=fitresultfile,
         #rebinfile=f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
-        rebinfile=f"/afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
+        rebinfile=f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
         rebinhist="mjjBinning",
         maskmin=maskmin,
         maskmax=maskmax,
@@ -154,7 +154,7 @@ def run_anaFit(datafile,
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
       #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
       #execute("ln -sf ~/WORK/tla/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
-      execute("ln -sf /afs/cern.ch/work/t/tofitsch/tlafits/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
+      execute("ln -sf FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
       print("this is happening")
     if sigwidth == -999: # running on zprime samples:
       print("Running in Zprime samples")

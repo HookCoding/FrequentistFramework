@@ -7,6 +7,8 @@ cd FrequentistFramework
 . install.sh
 ```
 
+then change `out_dir` at the start of `scripts/run_anaFit.sh`. This is where all results will be stored
+
 # Setup
 
 ```
