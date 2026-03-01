@@ -26,24 +26,11 @@ cd FrequentistFramework
 * [1k slides of notes](https://docs.google.com/presentation/d/10mfb9mbDt6-nh7eKaL4_34VH2Yx_fdRuKtgvNG3sepE/edit?slide=id.p#slide=id.p)
 
 # Files
+the 100% unblinding file
 ```
-mkdir data_partial
-
-cp /afs/cern.ch/user/l/lbazzano/public/data23_histos.root data_partial
-
-cp /afs/cern.ch/user/l/lbazzano/public/PostFit_anaFit_tenPar_bkgOnly.root data_partial
-cp /afs/cern.ch/user/l/lbazzano/public/dijetisrTLA_combWS_tenPar.pdf data_partial
-
-mkdir -p zprime_shapes
-cp -r /afs/cern.ch/user/l/lbazzano/public/MGPy8EG_S1_qqa_Ph25_mRp*_gASp1_qContentUDSC zprime_shapes
+./data/data23_histos.root
 ```
-
-copy the 100% unblinding file from:
+ is from:
 ```
 https://gitlab.cern.ch/tla-atlas-run3/tla-ntuple-analysis/-/tree/full-unblinding/outputs/FINAL_100pc_unblinding_histograms?ref_type=heads
-```
-
-to 
-```
-./data23_histos.root
 ```
