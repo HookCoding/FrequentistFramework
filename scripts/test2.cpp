@@ -28,7 +28,7 @@ void test2() {
   
 //  x->setRange("x", 150, 160);
 
-  for (std::string const range_name : {"SBLo", "SBHi", "SBLo_Run3TLA", "SBHi_Run3TLA"})
+  for (std::string const range_name : {"", "SBLo", "SBHi", "SBLo_Run3TLA", "SBHi_Run3TLA"})
     cout << range_name << ": "<< x->getRange(range_name.c_str()).first << " - " << x->getRange(range_name.c_str()).second << endl;
 
   f->Close();

@@ -1,5 +1,11 @@
 par=seven
 mjj=135
+maskmin=232 #only for pfe
+maskmax=271 #only for pfe
+
+#None
+xm=""
+qf=""
 
 #R22
 xm=xmlAnaWSBuilder/build/bin/XMLReader
@@ -40,7 +46,7 @@ python plot_edm.py \
 
 python python/pfe.py --params $par --firstbin $mjj --maskstr ""
 
-### masked
+# masked
 $xm \
   -x /eos/home-t/tofitsch/tlafits/run_135_1000_${par}Par/dijetTLA_fromTemplate_masked.xml \
   -o "logy integral" \
@@ -70,8 +76,8 @@ python plot_edm.py \
   /eos/home-t/tofitsch/tlafits/run_${mjj}_1000_${par}Par/quickFitLog_anaFit_${par}Par_bkgOnly_masked.log \
   /eos/home-t/tofitsch/tlafits/run_${mjj}_1000_${par}Par/edm_anaFit_${par}Par_bkgOnly_masked.pdf
 
-python python/pfe.py --params $par --firstbin $mjj --maskstr "_masked"
+python python/pfe.py --params $par --firstbin $mjj --maskstr "_masked" --maskmin $maskmin --maskmax $maskmax
 
 root -l -q "plot_postfit.cpp(\"/eos/home-t/tofitsch/tlafits/run_${mjj}_1000_${par}Par\", \"${par}\")"
 
-#root -l -q test.cpp
+alert
