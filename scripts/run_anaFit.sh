@@ -1,6 +1,6 @@
 #!/bin/bash
 
-out_dir=/eos/home-t/tofitsch/tlafits
+out_dir=/afs/cern.ch/work/t/tofitsch/harry/tlafits
 
 mkdir -p $out_dir
 
@@ -11,7 +11,7 @@ mkdir -p $out_dir
     for pars in seven #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
     do
           
-        for rangelow in 135 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
+        for rangelow in 125 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
 	do	
             for sigmean in 400 #350 300 250 225 200 180 160 150
             do	
