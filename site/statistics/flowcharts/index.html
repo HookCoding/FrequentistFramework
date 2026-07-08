@@ -1,0 +1,1279 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Statistical framework for the Run 3 dijet+ISR Trigger-Level Analysis: workspace building, background fits, BumpHunter, fit-strategy validation and limit setting.">
+      
+      
+        <meta name="author" content="TLA ATLAS Run 3">
+      
+      
+      
+        <link rel="prev" href="../validation-tests/">
+      
+      
+        <link rel="next" href="../../flowchart-steps/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.47">
+    
+    
+      
+        <title>Unblinding flowcharts - FrequentistFramework</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.5e19f6ca.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#unblinding-flowcharts" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="FrequentistFramework" class="md-header__button md-logo" aria-label="FrequentistFramework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            FrequentistFramework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Unblinding flowcharts
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="FrequentistFramework" class="md-nav__button md-logo" aria-label="FrequentistFramework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    FrequentistFramework
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Installation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Setup
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running a fit
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Statistical procedure
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Statistical procedure
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Validation tests
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Unblinding flowcharts
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Unblinding flowcharts
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-validating-a-fit-strategy-figure-101" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        1. Validating a fit strategy (Figure 10.1)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-choosing-a-fit-strategy-figure-102" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        2. Choosing a fit strategy (Figure 10.2)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-inspecting-partially-unblinded-data-figure-104-4-and-20-stages" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        3. Inspecting partially unblinded data (Figure 10.4 — 4% and 20% stages)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-inspecting-the-fully-unblinded-data-figure-105-100-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        4. Inspecting the fully unblinded data (Figure 10.5 — 100% stage)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visual-summary-figure-103" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Visual summary (Figure 10.3)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../flowchart-steps/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running the flowchart
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Running the flowchart
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/bkg-only-fit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  1. Background-only fit
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/pseudodata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  2. Pseudo-data generation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/spurious-signal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  3. Spurious signal test
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/signal-injection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  4. Signal injection test
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/background-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  5. Background stability
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/choose-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  6. Choosing the fit strategy
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/inspection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  7. Inspecting the data
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flowchart-steps/limits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  8. S+B fits and limits
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../condor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Batch submission (HTCondor)
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Reference
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-validating-a-fit-strategy-figure-101" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        1. Validating a fit strategy (Figure 10.1)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-choosing-a-fit-strategy-figure-102" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        2. Choosing a fit strategy (Figure 10.2)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-inspecting-partially-unblinded-data-figure-104-4-and-20-stages" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        3. Inspecting partially unblinded data (Figure 10.4 — 4% and 20% stages)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-inspecting-the-fully-unblinded-data-figure-105-100-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        4. Inspecting the fully unblinded data (Figure 10.5 — 100% stage)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visual-summary-figure-103" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Visual summary (Figure 10.3)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  
+  <span class="md-ellipsis">
+    Statistical procedure
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="unblinding-flowcharts">Unblinding flowcharts<a class="headerlink" href="#unblinding-flowcharts" title="Permanent link">&para;</a></h1>
+<p>The unblinding procedure (analysis note, Section 10.1, Figures 10.1–10.5) is organised as four flowcharts. The first three are executed <strong>at every unblinding stage</strong> (4%, 20%, 100%); the last one replaces the "inspection" flowchart at the 100% stage. Throughout, <em>fail</em> means <span class="arithmatex">\(p(\chi^2) \le 0.01\)</span> <strong>or</strong> a numerically unstable fit, and every BumpHunter window exclusion is capped at <strong>three <span class="arithmatex">\(m_{jj}\)</span> resolution bins</strong>.</p>
+<div class="admonition note">
+<p class="admonition-title">Guidelines, not law</p>
+<p>The flowcharts are guidelines agreed with the conveners. If the data produces a situation they don't cover, the procedure is adapted in consultation with the conveners rather than followed blindly.</p>
+</div>
+<h2 id="1-validating-a-fit-strategy-figure-101">1. Validating a fit strategy (Figure 10.1)<a class="headerlink" href="#1-validating-a-fit-strategy-figure-101" title="Permanent link">&para;</a></h2>
+<p>Starting point: <span class="arithmatex">\(N_\text{par} = 4\)</span> and the full fit range (from the 95% trigger-efficiency point; ~85 GeV at the first stage, later 125 GeV).</p>
+<pre class="mermaid"><code>flowchart TD
+    START([Unblinded dataset&lt;br/&gt;Npar = 4, full range]) --&gt; BFIT{"B-only fit (Npar+2)&lt;br/&gt;p &gt; 0.01 and stable?"}
+
+    BFIT -- fail 1st time --&gt; BH[BumpHunter window exclusion&lt;br/&gt;max 3 resolution bins]
+    BH --&gt; ATSTART{Window at start&lt;br/&gt;of spectrum?}
+    ATSTART -- yes --&gt; INC[Npar += 1]
+    ATSTART -- no --&gt; BFIT
+    BFIT -- fail 2nd time --&gt; INC
+    INC --&gt; NPMAX{Npar &amp;le; 8?}
+    NPMAX -- yes --&gt; BFIT
+    NPMAX -- no --&gt; RANGE[Fit range start +1 GeV,&lt;br/&gt;re-derive resolution binning,&lt;br/&gt;reset Npar = 4] --&gt; BFIT
+
+    BFIT -- pass --&gt; PD[Generate pseudo-data:&lt;br/&gt;bin-wise Poisson fluctuation of the&lt;br/&gt;Npar+2 template, 100 toys, no upscaling]
+    PD --&gt; TESTS{"Tests on pseudo-data&lt;br/&gt;(per signal type, mass, width)&lt;br/&gt;1. B-only fit (Npar)&lt;br/&gt;2. Spurious signal &amp;lt; 0.5 sigma_fit&lt;br/&gt;3. Signal injection &amp;lt; 0.5 sigma_fit&lt;br/&gt;4. Bkg stability &amp;lt; 3 sigma_stat"}
+    TESTS -- any failure --&gt; DISC[Discard Npar,&lt;br/&gt;Npar += 1] --&gt; NPMAX2{Npar &amp;le; 8?}
+    NPMAX2 -- yes --&gt; TESTS
+    NPMAX2 -- no --&gt; ALT[Fit range start +1 GeV&lt;br/&gt;OR drop a signal point] --&gt; BFIT
+    TESTS -- all pass --&gt; KEEP([Fit strategy retained&lt;br/&gt;Npar, range])</code></pre>
+<p>Key prescriptions:</p>
+<ul>
+<li><strong>Pseudo-data generation privileges a wide range over low <span class="arithmatex">\(N_\text{par}\)</span></strong>: only after <span class="arithmatex">\(N_\text{par} = 8\)</span> fails is the range reduced (by 1 GeV at the lower edge), and the resolution binning is re-derived from the new range start (otherwise BumpHunter masking misbehaves).</li>
+<li>A BumpHunter exclusion sitting <strong>at the beginning of the spectrum</strong> signals a turn-on/selection bias rather than a bump — it is absorbed by increasing <span class="arithmatex">\(N_\text{par}\)</span>, not masked.</li>
+<li><strong>The test phase privileges increasing <span class="arithmatex">\(N_\text{par}\)</span> over restricting the range</strong> (the successful B-only fit already validated the range).</li>
+<li>Once a strategy with <span class="arithmatex">\(N_\text{par} \le 8\)</span> passes, higher <span class="arithmatex">\(N_\text{par}\)</span> values (up to 8) are also validated so an <span class="arithmatex">\(F\)</span>-test can be made later.</li>
+<li>All passing <span class="arithmatex">\((N_\text{par}, \text{range})\)</span> combinations are retained, ordered by ascending range start.</li>
+</ul>
+<h2 id="2-choosing-a-fit-strategy-figure-102">2. Choosing a fit strategy (Figure 10.2)<a class="headerlink" href="#2-choosing-a-fit-strategy-figure-102" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TD
+    IN([Strategies from&lt;br/&gt;'Validating a fit strategy']) --&gt; SORT[Sort by fit range,&lt;br/&gt;largest to smallest]
+    SORT --&gt; ONE{Largest fit range&lt;br/&gt;appears once?}
+    ONE -- yes --&gt; DONE([Chosen fit strategy&lt;br/&gt;Npar, range])
+    ONE -- no --&gt; NP[Sort its Npar values,&lt;br/&gt;smallest to largest]
+    NP --&gt; FIT{"B-only fit (Npar)&lt;br/&gt;pass and stable?"}
+    FIT -- fail 1st --&gt; BH2[BumpHunter window exclusion&lt;br/&gt;max 3 resolution bins] --&gt; FIT
+    FIT -- fail 2nd --&gt; DROP[Discard this Npar] --&gt; FIT
+    FIT -- pass --&gt; FT{F-test vs next larger Npar:&lt;br/&gt;p F &amp;ge; 0.05?}
+    FT -- yes: keep simplest --&gt; DONE
+    FT -- no: prefer larger Npar --&gt; FIT</code></pre>
+<p>The widest validated fit range wins; among equal ranges the <a href="../validation-tests/#f-test"><span class="arithmatex">\(F\)</span>-test</a> selects the <strong>lowest <span class="arithmatex">\(N_\text{par}\)</span></strong> that still describes the data.</p>
+<h2 id="3-inspecting-partially-unblinded-data-figure-104-4-and-20-stages">3. Inspecting partially unblinded data (Figure 10.4 — 4% and 20% stages)<a class="headerlink" href="#3-inspecting-partially-unblinded-data-figure-104-4-and-20-stages" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TD
+    IN([Chosen fit strategy]) --&gt; FIT{"B-only fit (Npar)&lt;br/&gt;pass and stable?"}
+    FIT -- pass --&gt; BHP{Full-range BumpHunter&lt;br/&gt;p &amp;gt; 0.05?}
+    FIT -- fail --&gt; BH[BumpHunter window exclusion&lt;br/&gt;max 3 resolution bins] --&gt; FIT2{"B-only fit (Npar)&lt;br/&gt;pass and stable?"}
+    FIT2 -- fail --&gt; CAL[Check for calibration /&lt;br/&gt;selection features]
+    FIT2 -- pass --&gt; BHP
+    BHP --&gt; CAL2[Check for calibration features&lt;br/&gt;regardless of outcome]
+    CAL --&gt; UND[Understand features]
+    CAL2 --&gt; GOOD{All good?}
+    UND --&gt; GOOD
+    GOOD -- yes, with convener approval --&gt; NEXT([Proceed to next&lt;br/&gt;unblinding phase])</code></pre>
+<p>Unblinding proceeds <strong>only after any feature introduced by the jet calibration or analysis selection is understood</strong>.</p>
+<h2 id="4-inspecting-the-fully-unblinded-data-figure-105-100-stage">4. Inspecting the fully unblinded data (Figure 10.5 — 100% stage)<a class="headerlink" href="#4-inspecting-the-fully-unblinded-data-figure-105-100-stage" title="Permanent link">&para;</a></h2>
+<p>Two independent workflows run on the chosen fit strategy:</p>
+<pre class="mermaid"><code>flowchart TD
+    subgraph BHI[BumpHunter interpretation]
+        B1{"B-only fit (Npar)&lt;br/&gt;pass and stable?"} -- pass --&gt; CONS([Data consistent&lt;br/&gt;with B-only])
+        B1 -- fail 1st --&gt; M1[BumpHunter window exclusion&lt;br/&gt;max 3 resolution bins] --&gt; B2{"B-only fit (Npar)&lt;br/&gt;pass?"}
+        B2 -- fail 2nd --&gt; F2[Understand feature affecting fit] --&gt; NOI([No clear BH interpretation&lt;br/&gt;consult conveners])
+        B2 -- pass --&gt; P{Full-range BH&lt;br/&gt;p &amp;gt; 0.05?}
+        P -- yes --&gt; CHK[Check masked features] --&gt; CONS
+        P -- no --&gt; CHK2[Check for calibration features] --&gt; SIG([Quantify discovery&lt;br/&gt;significance])
+    end
+
+    subgraph ZI[Gaussian / Z' interpretation]
+        S1{"S+B fit per signal&lt;br/&gt;type, mass, width&lt;br/&gt;pass and stable?"} -- fail 1st --&gt; M2[BumpHunter window exclusion&lt;br/&gt;max 3 resolution bins] --&gt; S1
+        S1 -- fail 2nd --&gt; DEAD([S+B model failed&lt;br/&gt;to describe the data])
+        S1 -- "pass, significant S" --&gt; C2[Check for calibration features] --&gt; STAT
+        S1 -- "pass, no significant S" --&gt; STAT([Statistical analysis:&lt;br/&gt;CLs limits or discovery])
+    end</code></pre>
+<ul>
+<li>The <strong>BumpHunter interpretation</strong> displays the B-only fit and the most discrepant region; discovery significance is quantified from its B-only fit results.</li>
+<li>The <strong>Gaussian/<span class="arithmatex">\(Z'\)</span> interpretation</strong> performs S+B fits for every signal hypothesis; in the absence of a significant signal, CL<span class="arithmatex">\(_\text{s}\)</span> limit setting proceeds. Signal properties would be measured with the S+B fits if an excess appears.</li>
+<li>Before the 100% stage the "validating" and "choosing" flowcharts (1 and 2) are re-run <strong>without modification</strong> on the full dataset.</li>
+</ul>
+<h2 id="visual-summary-figure-103">Visual summary (Figure 10.3)<a class="headerlink" href="#visual-summary-figure-103" title="Permanent link">&para;</a></h2>
+<p>The first flowchart can be viewed as a scan of the 2D plane spanned by the lower fit boundary <span class="arithmatex">\(m_{jj}^\text{min}\)</span> (x-axis) and <span class="arithmatex">\(N_\text{par}\)</span> (y-axis): starting at (85 GeV, <span class="arithmatex">\(N_\text{par}\)</span> = 4–5), each column is scanned upward through <span class="arithmatex">\(N_\text{par} \le 8\)</span> with B-only fits; the surviving points are then scanned upward again with the SS/SILT tests; and the passing configuration with the <strong>lowest <span class="arithmatex">\(m_{jj}^\text{min}\)</span></strong> is selected, to preserve sensitivity to the lowest signal masses.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../validation-tests/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Validation tests">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Validation tests
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../flowchart-steps/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Overview
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; ATLAS Collaboration
+
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.code.annotate","content.code.copy","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.indexes","navigation.instant","navigation.instant.prefetch","navigation.path","navigation.sections","navigation.top","navigation.tracking","search.highlight","toc.follow"],"search":"../../assets/javascripts/workers/search.b6b7e04f.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.0df4f2d0.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
