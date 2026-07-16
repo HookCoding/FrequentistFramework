@@ -1,0 +1,523 @@
+[7mlsetup              [0m lsetup <tool1> [ <tool2> ...] (see lsetup -h):
+[7m lsetup asetup      [0m  (or asetup) to setup an Athena release
+[7m lsetup astyle      [0m  ATLAS style macros
+[7m lsetup atlantis    [0m  Atlantis: event display
+[7m lsetup centralpage [0m  Find samples
+[7m lsetup eiclient    [0m  Event Index 
+[7m lsetup emi         [0m  EMI: grid middleware user interface 
+[7m lsetup lcgenv      [0m  lcgenv: setup tools from cvmfs SFT repository
+[7m lsetup panda       [0m  Panda: Production ANd Distributed Analysis
+[7m lsetup pyami       [0m  pyAMI: ATLAS Metadata Interface python client
+[7m lsetup root        [0m  ROOT data processing framework
+[7m lsetup rucio       [0m  distributed data management system client
+[7m lsetup scikit      [0m  python data analysis ecosystem
+[7m lsetup views       [0m  Set up a full LCG release
+[7m lsetup xcache      [0m  XRootD local proxy cache
+[7m lsetup xrootd      [0m  XRootD data access
+[7madvancedTools       [0m advanced tools menu
+[7mdiagnostics         [0m diagnostic tools menu
+[7mhelpMe              [0m more help
+[7minstallPip          [0m install relocatable pip modules locally
+[7minstallRpm          [0m install relocatable rpms locally
+[7mprintMenu           [0m show this menu
+[7mqueryC              [0m find / whatis container query
+[7mshowVersions        [0m show versions of installed software
+
+************************************************************************
+Requested:  views ... 
+ Setting up [4mviews LCG_102a:x86_64-centos9-gcc11-opt[0m ... 
+>>>>>>>>>>>>>>>>>>>>>>>>> Information for user <<<<<<<<<<<<<<<<<<<<<<<<<
+************************************************************************
+************************************************************************
+Requested:  cmake ... 
+ Setting up [4mcmake 4.2.1[0m ... 
+>>>>>>>>>>>>>>>>>>>>>>>>> Information for user <<<<<<<<<<<<<<<<<<<<<<<<<
+************************************************************************
+[7mlsetup              [0m lsetup <tool1> [ <tool2> ...] (see lsetup -h):
+[7m lsetup asetup      [0m  (or asetup) to setup an Athena release
+[7m lsetup astyle      [0m  ATLAS style macros
+[7m lsetup atlantis    [0m  Atlantis: event display
+[7m lsetup centralpage [0m  Find samples
+[7m lsetup eiclient    [0m  Event Index 
+[7m lsetup emi         [0m  EMI: grid middleware user interface 
+[7m lsetup lcgenv      [0m  lcgenv: setup tools from cvmfs SFT repository
+[7m lsetup panda       [0m  Panda: Production ANd Distributed Analysis
+[7m lsetup pyami       [0m  pyAMI: ATLAS Metadata Interface python client
+[7m lsetup root        [0m  ROOT data processing framework
+[7m lsetup rucio       [0m  distributed data management system client
+[7m lsetup scikit      [0m  python data analysis ecosystem
+[7m lsetup views       [0m  Set up a full LCG release
+[7m lsetup xcache      [0m  XRootD local proxy cache
+[7m lsetup xrootd      [0m  XRootD data access
+[7madvancedTools       [0m advanced tools menu
+[7mdiagnostics         [0m diagnostic tools menu
+[7mhelpMe              [0m more help
+[7minstallPip          [0m install relocatable pip modules locally
+[7minstallRpm          [0m install relocatable rpms locally
+[7mprintMenu           [0m show this menu
+[7mqueryC              [0m find / whatis container query
+[7mshowVersions        [0m show versions of installed software
+
+************************************************************************
+Requested:  views ... 
+ Setting up [4mviews LCG_102a:x86_64-centos9-gcc11-opt[0m ... 
+>>>>>>>>>>>>>>>>>>>>>>>>> Information for user <<<<<<<<<<<<<<<<<<<<<<<<<
+************************************************************************
+************************************************************************
+Requested:  cmake ... 
+ Setting up [4mcmake 4.2.1[0m ... 
+>>>>>>>>>>>>>>>>>>>>>>>>> Information for user <<<<<<<<<<<<<<<<<<<<<<<<<
+************************************************************************
+[7mlsetup              [0m lsetup <tool1> [ <tool2> ...] (see lsetup -h):
+[7m lsetup asetup      [0m  (or asetup) to setup an Athena release
+[7m lsetup astyle      [0m  ATLAS style macros
+[7m lsetup atlantis    [0m  Atlantis: event display
+[7m lsetup centralpage [0m  Find samples
+[7m lsetup eiclient    [0m  Event Index 
+[7m lsetup emi         [0m  EMI: grid middleware user interface 
+[7m lsetup lcgenv      [0m  lcgenv: setup tools from cvmfs SFT repository
+[7m lsetup panda       [0m  Panda: Production ANd Distributed Analysis
+[7m lsetup pyami       [0m  pyAMI: ATLAS Metadata Interface python client
+[7m lsetup root        [0m  ROOT data processing framework
+[7m lsetup rucio       [0m  distributed data management system client
+[7m lsetup scikit      [0m  python data analysis ecosystem
+[7m lsetup views       [0m  Set up a full LCG release
+[7m lsetup xcache      [0m  XRootD local proxy cache
+[7m lsetup xrootd      [0m  XRootD data access
+[7madvancedTools       [0m advanced tools menu
+[7mdiagnostics         [0m diagnostic tools menu
+[7mhelpMe              [0m more help
+[7minstallPip          [0m install relocatable pip modules locally
+[7minstallRpm          [0m install relocatable rpms locally
+[7mprintMenu           [0m show this menu
+[7mqueryC              [0m find / whatis container query
+[7mshowVersions        [0m show versions of installed software
+
+************************************************************************
+Requested:  views ... 
+ Setting up [4mviews LCG_102a:x86_64-centos9-gcc11-opt[0m ... 
+>>>>>>>>>>>>>>>>>>>>>>>>> Information for user <<<<<<<<<<<<<<<<<<<<<<<<<
+************************************************************************
+************************************************************************
+Requested:  cmake ... 
+ Setting up [4mcmake 4.2.1[0m ... 
+>>>>>>>>>>>>>>>>>>>>>>>>> Information for user <<<<<<<<<<<<<<<<<<<<<<<<<
+************************************************************************
+current working directory /afs/cern.ch/work/t/tofitsch/harry/FrequentistFramework
+dummy 0,-1E6,1E6 False False 400 8.0 mean400_width8.0 0.01 True
+Fitting 875 bins in range 125 - 1000
+datafile: data/data23_histos.root
+datahist: mjj
+topfile: config/dijetisrTLA/dijetisrTLA.template
+categoryfile: config/dijetisrTLA/category_dijetisrTLA.template
+wsfile: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar.root
+outputfile: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly.root
+nbkg: dummy
+nsig: 0,-1E6,1E6
+rangelow: 125
+rangehigh: 1000
+signame: mean400_width8.0
+backgroundfile: config/dijetisrTLA/background_dijetisrTLA_sevenPar.template
+signalfile: config/dijetisrTLA/signal/signal_dijetisrTLA.template
+dosignal: False
+dolimit: False
+sigmean: 400
+sigwidth: 8.0
+maskthreshold: 0.01
+doprefit: True
+folder: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar
+systdict: None
+covariancedict: None
+nbins: 875
+EXECUTE: ln -sf `realpath config/dijetisrTLA/AnaWSBuilder.dtd` /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/AnaWSBuilder.dtd
+Real time 0:00:09, CP time 9.480
+Real time 0:00:13, CP time 13.130
+this is happening
+--------------------------------------> tmpcategoryfile: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/category_dijetTLA_fromTemplate.xml
+--------------------------------------> tmptopfile: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetTLA_fromTemplate.xml
+Starting PreFit in parameter ranges:
+[1, -1000.0, -100.0, -10.0, -10.0, -1.0, -1.0]
+[1, 1000.0, 100.0, 10.0, 10.0, 1.0, 1.0]
+In Prefit. Attempting to read data/data23_histos.root hist mjj
+==================
+Rolling 14000 samples:
+0
+5000
+10000
+==================
+Finished sampling
+Starting fit of 14 best samples
+integral 11755.136964245827
+trial  0: chi2=904.0729
+integral 11755.136964245827
+trial  1: chi2=904.6313
+integral 11755.136964245827
+trial  2: chi2=904.6413
+integral 11755.136964245827
+trial  3: chi2=904.2271
+integral 11755.136964245827
+trial  4: chi2=904.6263
+integral 11755.136964245827
+trial  5: chi2=904.6345
+integral 11755.136964245827
+trial  6: chi2=904.6166
+integral 11755.136964245827
+trial  7: chi2=904.6201
+integral 11755.136964245827
+trial  8: chi2=904.6285
+integral 11755.136964245827
+trial  9: chi2=904.6413
+integral 11755.136964245827
+trial 10: chi2=904.6204
+integral 11755.136964245827
+trial 11: chi2=904.6365
+integral 11755.136964245827
+trial 12: chi2=904.6455
+integral 11755.136964245827
+trial 13: chi2=902.5165
+==================
+Finished fitting
+Best Total:
+chi2 = 902.516530402206
+p1 = 0.00002781
+p2 = 15.47951883
+p3 = 14.27267599
+p4 = 5.79268175
+p5 = 1.54368043
+p6 = 0.20473637
+p7 = 0.01053119
+==================
+21136229.0
+21136229.0
+Starting fit with initial pars array('d', [2.7814170746056154e-05, 15.479518831431847, 14.272675986218104, 5.792681753243592, 1.54368042936472, 0.2047363707193801, 0.010531190435871585])
+##################################################################################################    do signal is  False
+##################################################################################################    poi is   None
+EXECUTE: xmlAnaWSBuilder/build/bin/XMLReader -x /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetTLA_fromTemplate.xml -o "logy integral" --minimizerStrategy 0
+
+[1mRooFit v3.60 -- Developed by Wouter Verkerke and David Kirkby[0m 
+                Copyright (C) 2000-2013 NIKHEF, University of California & Stanford University
+                All rights reserved, please read http://roofit.sourceforge.net/license.txt
+
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Set plot option: logy integral
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Set minimizer strategy to 0
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Parsing file: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetTLA_fromTemplate.xml
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Wed Jul  8 13:12:06 2026
+
+[2026-07-08 13:12:06] [thread 816980] [info] 	 =======================================
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Output file: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar.root
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Workspace name: combWS
+[2026-07-08 13:12:06] [thread 816980] [info] 	 ModelConfig name: ModelConfig
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Data name: combData
+[2026-07-08 13:12:06] [thread 816980] [info] 	 POI:  nbkg nsig_mean400_width8.0 
+[2026-07-08 13:12:06] [thread 816980] [info] 	 1 categories to be included
+[2026-07-08 13:12:06] [thread 816980] [info] 	 XML file 0: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/category_dijetTLA_fromTemplate.xml
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Following asimov dataset will be generated: 
+[2026-07-08 13:12:06] [thread 816980] [info] 	 =======================================
+
+	 ------------------------------------------
+	 ----------   Category Run3TLA   ----------
+	 ------------------------------------------
+
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Yield for category "Run3TLA" process "background": 2.1e+07
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Yield for category "Run3TLA" process "signal_mean400_width8.0": 0
+[2026-07-08 13:12:06] [thread 816980] [warning] 	 Fixing p1 to constant as it has same upper and lower boundary
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Adding nbkg to the nuisance parameter set
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Adding p2 to the nuisance parameter set
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Adding p3 to the nuisance parameter set
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Adding p4 to the nuisance parameter set
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Adding p5 to the nuisance parameter set
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Adding p6 to the nuisance parameter set
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Adding p7 to the nuisance parameter set
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Number of nuisance parameters looks good!
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Number of data events: 2.11361e+07
+[2026-07-08 13:12:06] [thread 816980] [warning] 	 No need to keep binned dataset, as the number of data events is smaller than or equals to the number of bins in all categories
+
+	 ++++++++++++++++++++++++++++++++++++++++++
+	 ++++++++++  Operation POISnap   ++++++++++
+	 ++++++++++++++++++++++++++++++++++++++++++
+
+[2026-07-08 13:12:06] [thread 816980] [warning] 	 There is no setup info provided. Proceed with current variable values and ranges...
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Action list (savesnapshot)
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Saving snapshot nominalPOI for current parameters of interest
+
+	 ++++++++++++++++++++++++++++++++++++++++++
+	 ++++++++++   Operation NPSnap   ++++++++++
+	 ++++++++++++++++++++++++++++++++++++++++++
+
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Fixing variable nsig_mean400_width8.0 to 0
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Action list (fixsyst:fit:float:savesnapshot:nominalPOI)
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Saving snapshot nominalNuis for current nuisance parameters
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Saving snapshot nominalGlobs for current global observables
+[2026-07-08 13:12:06] [thread 816980] [info] 	 ========================================================================
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Applying ATLAS style settings...
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Plotting: Setting y-axis to log scale
+
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	 ~~~~~~~~~~    Begin summary     ~~~~~~~~~~
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[2026-07-08 13:12:06] [thread 816980] [info] 	 There are 1 sub channels:
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Index: 0, Pdf: _model_Run3TLA, Data: Run3TLA, SumEntries: 2.11361e+07
+
+	 ------------------------------------------
+	 ----------         POI          ----------
+	 ------------------------------------------
+
+  1) 0x460e220 RooRealVar:: nsig_mean400_width8.0 = 0  L(-1e+06 - 1e+06)  "nsig_mean400_width8.0"
+
+	 ------------------------------------------
+	 ----------       Dataset        ----------
+	 ------------------------------------------
+
+RooDataSet::combData[obs_x_channel,channellist,weight:wt] = 875 entries (2.11361e+07 weighted)
+[2026-07-08 13:12:06] [thread 816980] [info] 	 Overall p-value from likelihood: -nan% from 875 bins and 8 free parameters, likelihood difference inf
+[2026-07-08 13:12:06] [thread 816980] [info] 	 REGTEST: Overall p-value from chi2: 0.0% from 875 bins and 8 free parameters, chi2 1390152.25
+
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	 ~~~~~~~~~~     End summary      ~~~~~~~~~~
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[2026-07-08 13:12:07] [thread 816980] [info] 	 Workspace combWS has be successfully generated and saved in file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar.root
+[2026-07-08 13:12:07] [thread 816980] [info] 	 Plots for each category are summarized in /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar.pdf
+[2026-07-08 13:12:07] [thread 816980] [info] 	 Wed Jul  8 13:12:07 2026
+
+[2026-07-08 13:12:07] [thread 816980] [info] 	 ========================================================================
+Real time 0:00:01, CP time 0.770
+Now running bkg-only quickFit
+>>>>>>>>>>>>>>>>>>>>>>>>>> no BH mask range: setting to -1 both maskmin and maskmax!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+EXECUTE: quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar.root -d combData  --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6  -o /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly.root &> /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/quickFitLog_anaFit_sevenPar_bkgOnly.log
+EXECUTE: python plot_edm.py /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/quickFitLog_anaFit_sevenPar_bkgOnly.log /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/edm_anaFit_sevenPar_bkgOnly.pdf
+-----------------------------------
+-----------------------------------
+
+[1mRooFit v3.60 -- Developed by Wouter Verkerke and David Kirkby[0m 
+                Copyright (C) 2000-2013 NIKHEF, University of California & Stanford University
+                All rights reserved, please read http://roofit.sourceforge.net/license.txt
+
+RooArgSet::dependents = (channellist,obs_x_channel)
+[#0] WARNING:Eval -- RooStatsUtils::MakeNuisancePdf - no constraints found on nuisance parameters in the input model
+[#1] INFO:NumericIntegration -- RooRealIntegral::init(pdf__background_Run3TLA_Int[obs_x_channel]) using numeric integrator RooIntegrator1D to calculate Int(obs_x_channel)
+[#1] INFO:NumericIntegration -- RooRealIntegral::init(pdf__background_Run3TLA_Int[obs_x_channel]) using numeric integrator RooIntegrator1D to calculate Int(obs_x_channel)
+Input/data/dijetisrTLA/mjjResolutionBinning_125.root
+EXECUTE: pfe = PostfitExtractor(
+datafile= data/data23_histos.root
+datahist= mjj
+datafirstbin= 125
+wsfile= /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly.root
+rebinfile= Input/data/dijetisrTLA/mjjResolutionBinning_125.root
+rebinhist= mjjBinning
+maskmin= -1
+bkgonly= True
+)
+There are 1 channels
+Channel Run3TLA:
+Expected: 21136282.61730009
+sumEntries: 21136090.0
+Integral: 21136282.615112305
+
+TEST chi2bins 875
+TEST npars 7
+TEST ndof 868
+TEST chi2 883.7979146876182
+TEST pval 0.3472102687131026
+TEST chi2/ndof 1.018200362543339
+
+TEST chi2bins 875
+TEST npars 7
+TEST ndof 868
+TEST chi2 883.8130598942123
+TEST pval 0.34707764645919487
+TEST chi2/ndof 1.0182178109380327
+
+TEST chi2bins 33
+TEST npars 7
+TEST ndof 26
+TEST chi2 50.386205215252694
+TEST pval 0.0028266558728250227
+TEST chi2/ndof 1.9379309698174114
+
+TEST chi2bins 33
+TEST npars 7
+TEST ndof 26
+TEST chi2 50.386392353501584
+TEST pval 0.0028265096755147336
+TEST chi2/ndof 1.9379381674423686
+pfe.WriteRoot( /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/PostFit_anaFit_sevenPar_bkgOnly.root , dirPerCategory=True)
+Global fit p(chi2)=0.003
+p(chi2) threshold not passed.
+Now running BH for masking.
+EXECUTE: source pyBumpHunter/pyBH_env/bin/activate; python3 python/FindBHWindow.py --inputfile /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/PostFit_anaFit_sevenPar_bkgOnly.root --bkghist Run3TLA_rebinned/postfit --datahist Run3TLA_rebinned/data --outputjson /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/BHresults.json; deactivate
+####bump_scan call####
+Generating histograms
+2 values of width will be tested
+SCAN
+Global p-value : 0.0488  (488 / 10000)
+Significance = 1.65660
+
+time=0:00:03.261532
+
+238,298
+EXECUTE: xmlAnaWSBuilder/build/bin/XMLReader -x /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetTLA_fromTemplate_masked.xml -o "logy integral" --minimizerStrategy 0
+
+[1mRooFit v3.60 -- Developed by Wouter Verkerke and David Kirkby[0m 
+                Copyright (C) 2000-2013 NIKHEF, University of California & Stanford University
+                All rights reserved, please read http://roofit.sourceforge.net/license.txt
+
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Set plot option: logy integral
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Set minimizer strategy to 0
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Parsing file: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetTLA_fromTemplate_masked.xml
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Wed Jul  8 13:12:24 2026
+
+[2026-07-08 13:12:24] [thread 817347] [info] 	 =======================================
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Output file: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar_masked.root
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Workspace name: combWS
+[2026-07-08 13:12:24] [thread 817347] [info] 	 ModelConfig name: ModelConfig
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Data name: combData
+[2026-07-08 13:12:24] [thread 817347] [warning] 	 Blind analysis
+[2026-07-08 13:12:24] [thread 817347] [info] 	 POI:  nbkg nsig_mean400_width8.0 
+[2026-07-08 13:12:24] [thread 817347] [info] 	 1 categories to be included
+[2026-07-08 13:12:24] [thread 817347] [info] 	 XML file 0: /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/category_dijetTLA_fromTemplate_masked.xml
+[2026-07-08 13:12:24] [thread 817347] [info] 	 Following asimov dataset will be generated: 
+[2026-07-08 13:12:24] [thread 817347] [info] 	 =======================================
+
+	 ------------------------------------------
+	 ----------   Category Run3TLA   ----------
+	 ------------------------------------------
+
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Yield for category "Run3TLA" process "background": 2.1e+07
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Yield for category "Run3TLA" process "signal_mean400_width8.0": 0
+[2026-07-08 13:12:25] [thread 817347] [warning] 	 Implement blind range 238,298
+[2026-07-08 13:12:25] [thread 817347] [warning] 	 Fixing p1 to constant as it has same upper and lower boundary
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Adding nbkg to the nuisance parameter set
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Adding p2 to the nuisance parameter set
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Adding p3 to the nuisance parameter set
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Adding p4 to the nuisance parameter set
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Adding p5 to the nuisance parameter set
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Adding p6 to the nuisance parameter set
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Adding p7 to the nuisance parameter set
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Number of nuisance parameters looks good!
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Number of data events: 1.91115e+07
+[2026-07-08 13:12:25] [thread 817347] [warning] 	 No need to keep binned dataset, as the number of data events is smaller than or equals to the number of bins in all categories
+
+	 ++++++++++++++++++++++++++++++++++++++++++
+	 ++++++++++  Operation POISnap   ++++++++++
+	 ++++++++++++++++++++++++++++++++++++++++++
+
+[2026-07-08 13:12:25] [thread 817347] [warning] 	 There is no setup info provided. Proceed with current variable values and ranges...
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Action list (savesnapshot)
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Saving snapshot nominalPOI for current parameters of interest
+
+	 ++++++++++++++++++++++++++++++++++++++++++
+	 ++++++++++   Operation NPSnap   ++++++++++
+	 ++++++++++++++++++++++++++++++++++++++++++
+
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Fixing variable nsig_mean400_width8.0 to 0
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Action list (fixsyst:fit:float:savesnapshot:nominalPOI)
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Saving snapshot nominalNuis for current nuisance parameters
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Saving snapshot nominalGlobs for current global observables
+[2026-07-08 13:12:25] [thread 817347] [info] 	 ========================================================================
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Applying ATLAS style settings...
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Plotting: Setting y-axis to log scale
+
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	 ~~~~~~~~~~    Begin summary     ~~~~~~~~~~
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[2026-07-08 13:12:25] [thread 817347] [info] 	 There are 1 sub channels:
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Index: 0, Pdf: _model_Run3TLA, Data: Run3TLA, SumEntries: 1.91115e+07
+
+	 ------------------------------------------
+	 ----------         POI          ----------
+	 ------------------------------------------
+
+  1) 0x36372d0 RooRealVar:: nsig_mean400_width8.0 = 0  L(-1e+06 - 1e+06)  "nsig_mean400_width8.0"
+
+	 ------------------------------------------
+	 ----------       Dataset        ----------
+	 ------------------------------------------
+
+RooDataSet::combData[obs_x_channel,channellist,weight:wt] = 815 entries (1.91115e+07 weighted)
+[2026-07-08 13:12:25] [thread 817347] [info] 	 Overall p-value from likelihood: -nan% from 815 bins and 8 free parameters, likelihood difference inf
+[2026-07-08 13:12:25] [thread 817347] [info] 	 REGTEST: Overall p-value from chi2: 0.0% from 815 bins and 8 free parameters, chi2 1205106.91
+
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	 ~~~~~~~~~~     End summary      ~~~~~~~~~~
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[2026-07-08 13:12:26] [thread 817347] [info] 	 Workspace combWS has be successfully generated and saved in file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar_masked.root
+[2026-07-08 13:12:26] [thread 817347] [info] 	 Plots for each category are summarized in /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar_masked.pdf
+[2026-07-08 13:12:26] [thread 817347] [info] 	 Wed Jul  8 13:12:26 2026
+
+[2026-07-08 13:12:26] [thread 817347] [info] 	 ========================================================================
+Real time 0:00:01, CP time 0.820
+Now running bkg-only quickFit
+>>>>>>>>>>>>>>>>>>>>>>>>>> BH mask range: 238,298
+EXECUTE: quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/dijetisrTLA_combWS_sevenPar_masked.root -d combData  --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 --range SBLo_Run3TLA,SBHi_Run3TLA -o /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly_masked.root &> /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/quickFitLog_anaFit_sevenPar_bkgOnly_masked.log
+EXECUTE: python plot_edm.py /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/quickFitLog_anaFit_sevenPar_bkgOnly_masked.log /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/edm_anaFit_sevenPar_bkgOnly_masked.pdf
+-----------------------------------
+-----------------------------------
+RooArgSet::dependents = (channellist,obs_x_channel)
+[#0] WARNING:Eval -- RooStatsUtils::MakeNuisancePdf - no constraints found on nuisance parameters in the input model
+[#1] INFO:NumericIntegration -- RooRealIntegral::init(pdf__background_Run3TLA_Int[obs_x_channel]) using numeric integrator RooIntegrator1D to calculate Int(obs_x_channel)
+[#1] INFO:NumericIntegration -- RooRealIntegral::init(pdf__background_Run3TLA_Int[obs_x_channel]) using numeric integrator RooIntegrator1D to calculate Int(obs_x_channel)
+Input/data/dijetisrTLA/mjjResolutionBinning_125.root
+EXECUTE: pfe = PostfitExtractor(
+datafile= data/data23_histos.root
+datahist= mjj
+datafirstbin= 125
+wsfile= /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly_masked.root
+rebinfile= Input/data/dijetisrTLA/mjjResolutionBinning_125.root
+rebinhist= mjjBinning
+maskmin= 238
+bkgonly= True
+)
+There are 1 channels
+Channel Run3TLA:
+Expected: 21128842.92930441
+sumEntries: 19111519.0
+Integral: 21128842.999954224
+
+TEST chi2bins 815
+TEST npars 7
+TEST ndof 808
+TEST chi2 812.1533529089421
+TEST pval 0.45235253184923535
+TEST chi2/ndof 1.0051402882536413
+
+TEST chi2bins 815
+TEST npars 7
+TEST ndof 808
+TEST chi2 812.167011064379
+TEST pval 0.4522184271921172
+TEST chi2/ndof 1.0051571919113602
+
+TEST chi2bins 30
+TEST npars 7
+TEST ndof 23
+TEST chi2 27.91705767959336
+TEST pval 0.21893436056404858
+TEST chi2/ndof 1.2137851165040592
+
+TEST chi2bins 30
+TEST npars 7
+TEST ndof 23
+TEST chi2 27.91695892925494
+TEST pval 0.21893813358835373
+TEST chi2/ndof 1.2137808230110843
+pfe.WriteRoot( /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/PostFit_anaFit_sevenPar_bkgOnly_masked.root , dirPerCategory=True)
+Masked fit p(chi2)=0.219
+p(chi2) threshold passed. Continuing with successful (window-excluded) fit.
+
+Info in <TCanvas::Print>: pdf file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/postFit.pdf has been created
+
+Processing plot_postfit.cpp("/afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar", "seven")...
+/afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/BHresults.json
+
+Applying ATLAS style settings...
+
+Info in <TCanvas::Print>: pdf file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/post_fit.pdf has been created
+Info in <TCanvas::Print>: Current canvas added to pdf file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/post_fit.pdf
+Info in <TCanvas::Print>: Current canvas added to pdf file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/post_fit.pdf
+Info in <TCanvas::Print>: Current canvas added to pdf file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/post_fit.pdf
+Info in <TCanvas::Print>: pdf file /afs/cern.ch/work/t/tofitsch/harry/tlafits/run_125_1000_sevenPar/post_fit.pdf has been closed
+scripts/run_anaFit.sh: line 173: alert: command not found

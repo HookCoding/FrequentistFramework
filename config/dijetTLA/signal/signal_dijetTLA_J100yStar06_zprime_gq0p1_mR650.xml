@@ -1,0 +1,42 @@
+<!DOCTYPE Model  SYSTEM 'AnaWSBuilder.dtd'>
+<Model Type="External" Input="Input/model/dijetTLA/zprime/HLT_j0_perf_ds1_L1J100/HistFactory_dijetTLA_J100yStar06_zprime_gq0p1_mR650.root" WSName="combined" ModelName="J100yStar06_model" ObservableName="obs_x_J100yStar06">
+
+ <Item Name="unit[1]" />
+ <Rename OldName="Lumi" NewName="unit" />
+
+ <ExtSyst ConstrName="alpha_JET_Pileup_OffsetMuConstraint" NPName="alpha_JET_Pileup_OffsetMu" GOName="nom_alpha_JET_Pileup_OffsetMu" />
+ <ExtSyst ConstrName="alpha_JET_EtaIntercalibration_TotalStatConstraint" NPName="alpha_JET_EtaIntercalibration_TotalStat" GOName="nom_alpha_JET_EtaIntercalibration_TotalStat" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_3Constraint" NPName="alpha_JET_JER_EffectiveNP_3" GOName="nom_alpha_JET_JER_EffectiveNP_3" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_2Constraint" NPName="alpha_JET_JER_EffectiveNP_2" GOName="nom_alpha_JET_JER_EffectiveNP_2" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_1Constraint" NPName="alpha_JET_JER_EffectiveNP_1" GOName="nom_alpha_JET_JER_EffectiveNP_1" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_7Constraint" NPName="alpha_JET_JER_EffectiveNP_7" GOName="nom_alpha_JET_JER_EffectiveNP_7" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_6Constraint" NPName="alpha_JET_JER_EffectiveNP_6" GOName="nom_alpha_JET_JER_EffectiveNP_6" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_5Constraint" NPName="alpha_JET_JER_EffectiveNP_5" GOName="nom_alpha_JET_JER_EffectiveNP_5" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_4Constraint" NPName="alpha_JET_JER_EffectiveNP_4" GOName="nom_alpha_JET_JER_EffectiveNP_4" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_9Constraint" NPName="alpha_JET_JER_EffectiveNP_9" GOName="nom_alpha_JET_JER_EffectiveNP_9" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_8Constraint" NPName="alpha_JET_JER_EffectiveNP_8" GOName="nom_alpha_JET_JER_EffectiveNP_8" />
+ <ExtSyst ConstrName="alpha_JET_EtaIntercalibration_NonClosure_negEtaConstraint" NPName="alpha_JET_EtaIntercalibration_NonClosure_negEta" GOName="nom_alpha_JET_EtaIntercalibration_NonClosure_negEta" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_5Constraint" NPName="alpha_JET_EffectiveNP_5" GOName="nom_alpha_JET_EffectiveNP_5" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_4Constraint" NPName="alpha_JET_EffectiveNP_4" GOName="nom_alpha_JET_EffectiveNP_4" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_7Constraint" NPName="alpha_JET_EffectiveNP_7" GOName="nom_alpha_JET_EffectiveNP_7" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_6Constraint" NPName="alpha_JET_EffectiveNP_6" GOName="nom_alpha_JET_EffectiveNP_6" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_1Constraint" NPName="alpha_JET_EffectiveNP_1" GOName="nom_alpha_JET_EffectiveNP_1" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_11Constraint" NPName="alpha_JET_JER_EffectiveNP_11" GOName="nom_alpha_JET_JER_EffectiveNP_11" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_3Constraint" NPName="alpha_JET_EffectiveNP_3" GOName="nom_alpha_JET_EffectiveNP_3" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_2Constraint" NPName="alpha_JET_EffectiveNP_2" GOName="nom_alpha_JET_EffectiveNP_2" />
+ <ExtSyst ConstrName="alpha_JET_EffectiveNP_8restTermConstraint" NPName="alpha_JET_EffectiveNP_8restTerm" GOName="nom_alpha_JET_EffectiveNP_8restTerm" />
+ <ExtSyst ConstrName="alpha_JET_EtaIntercalibration_NonClosure_posEtaConstraint" NPName="alpha_JET_EtaIntercalibration_NonClosure_posEta" GOName="nom_alpha_JET_EtaIntercalibration_NonClosure_posEta" />
+ <ExtSyst ConstrName="alpha_JET_EtaIntercalibration_ModellingConstraint" NPName="alpha_JET_EtaIntercalibration_Modelling" GOName="nom_alpha_JET_EtaIntercalibration_Modelling" />
+ <ExtSyst ConstrName="alpha_JET_Pileup_RhoTopologyConstraint" NPName="alpha_JET_Pileup_RhoTopology" GOName="nom_alpha_JET_Pileup_RhoTopology" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_12restTermConstraint" NPName="alpha_JET_JER_EffectiveNP_12restTerm" GOName="nom_alpha_JET_JER_EffectiveNP_12restTerm" />
+ <ExtSyst ConstrName="alpha_JET_SingleParticle_HighPtConstraint" NPName="alpha_JET_SingleParticle_HighPt" GOName="nom_alpha_JET_SingleParticle_HighPt" />
+ <ExtSyst ConstrName="alpha_JET_EtaIntercalibration_NonClosure_2018dataConstraint" NPName="alpha_JET_EtaIntercalibration_NonClosure_2018data" GOName="nom_alpha_JET_EtaIntercalibration_NonClosure_2018data" />
+ <ExtSyst ConstrName="alpha_JET_Flavor_ResponseConstraint" NPName="alpha_JET_Flavor_Response" GOName="nom_alpha_JET_Flavor_Response" />
+ <ExtSyst ConstrName="alpha_JET_JER_DataVsMC_MC16Constraint" NPName="alpha_JET_JER_DataVsMC_MC16" GOName="nom_alpha_JET_JER_DataVsMC_MC16" />
+ <ExtSyst ConstrName="alpha_JET_JER_EffectiveNP_10Constraint" NPName="alpha_JET_JER_EffectiveNP_10" GOName="nom_alpha_JET_JER_EffectiveNP_10" />
+ <ExtSyst ConstrName="alpha_JET_Pileup_OffsetNPVConstraint" NPName="alpha_JET_Pileup_OffsetNPV" GOName="nom_alpha_JET_Pileup_OffsetNPV" />
+ <ExtSyst ConstrName="alpha_JET_Flavor_CompositionConstraint" NPName="alpha_JET_Flavor_Composition" GOName="nom_alpha_JET_Flavor_Composition" />
+ <ExtSyst ConstrName="alpha_JET_Pileup_PtTermConstraint" NPName="alpha_JET_Pileup_PtTerm" GOName="nom_alpha_JET_Pileup_PtTerm" />
+ <ExtSyst ConstrName="alpha_JET_EtaIntercalibration_NonClosure_highEConstraint" NPName="alpha_JET_EtaIntercalibration_NonClosure_highE" GOName="nom_alpha_JET_EtaIntercalibration_NonClosure_highE" />
+
+</Model>

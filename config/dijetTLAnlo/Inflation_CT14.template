@@ -1,0 +1,263 @@
+<!DOCTYPE Organization  SYSTEM 'Organization.dtd'>
+<Organization InFile="INWSFILE" OutFile="OUTWSFILE"
+             ModelName="ModelConfig"
+             POINames="nsig_SIGNAME"
+	     WorkspaceName="combWS"
+	     DataName="combData"
+>
+
+  <Item Name="constr_sigma[CONSTRSIGMA]"/>
+
+  <Item Name="alpha_var_alpha1_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_alpha1_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_alpha1_ConstraintPdf(alpha_var_alpha1_edit,RNDM__alpha_var_alpha1_edit,constr_sigma)" Type="constraint" NP="alpha_var_alpha1_edit" GO="RNDM__alpha_var_alpha1_edit"/>
+
+  <Item Name="alpha_var_scale1_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_scale1_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_scale1_ConstraintPdf(alpha_var_scale1_edit,RNDM__alpha_var_scale1_edit,constr_sigma)" Type="constraint" NP="alpha_var_scale1_edit" GO="RNDM__alpha_var_scale1_edit"/>
+
+  <Item Name="alpha_var_pdf1_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf1_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf1_ConstraintPdf(alpha_var_pdf1_edit,RNDM__alpha_var_pdf1_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf1_edit" GO="RNDM__alpha_var_pdf1_edit"/>
+
+  <Item Name="alpha_var_pdf2_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf2_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf2_ConstraintPdf(alpha_var_pdf2_edit,RNDM__alpha_var_pdf2_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf2_edit" GO="RNDM__alpha_var_pdf2_edit"/>
+
+  <Item Name="alpha_var_pdf3_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf3_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf3_ConstraintPdf(alpha_var_pdf3_edit,RNDM__alpha_var_pdf3_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf3_edit" GO="RNDM__alpha_var_pdf3_edit"/>
+
+  <Item Name="alpha_var_pdf4_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf4_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf4_ConstraintPdf(alpha_var_pdf4_edit,RNDM__alpha_var_pdf4_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf4_edit" GO="RNDM__alpha_var_pdf4_edit"/>
+
+  <Item Name="alpha_var_pdf5_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf5_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf5_ConstraintPdf(alpha_var_pdf5_edit,RNDM__alpha_var_pdf5_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf5_edit" GO="RNDM__alpha_var_pdf5_edit"/>
+
+  <Item Name="alpha_var_pdf6_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf6_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf6_ConstraintPdf(alpha_var_pdf6_edit,RNDM__alpha_var_pdf6_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf6_edit" GO="RNDM__alpha_var_pdf6_edit"/>
+
+  <Item Name="alpha_var_pdf7_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf7_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf7_ConstraintPdf(alpha_var_pdf7_edit,RNDM__alpha_var_pdf7_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf7_edit" GO="RNDM__alpha_var_pdf7_edit"/>
+
+  <Item Name="alpha_var_pdf8_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf8_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf8_ConstraintPdf(alpha_var_pdf8_edit,RNDM__alpha_var_pdf8_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf8_edit" GO="RNDM__alpha_var_pdf8_edit"/>
+
+  <Item Name="alpha_var_pdf9_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf9_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf9_ConstraintPdf(alpha_var_pdf9_edit,RNDM__alpha_var_pdf9_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf9_edit" GO="RNDM__alpha_var_pdf9_edit"/>
+
+  <Item Name="alpha_var_pdf10_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf10_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf10_ConstraintPdf(alpha_var_pdf10_edit,RNDM__alpha_var_pdf10_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf10_edit" GO="RNDM__alpha_var_pdf10_edit"/>
+
+  <Item Name="alpha_var_pdf11_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf11_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf11_ConstraintPdf(alpha_var_pdf11_edit,RNDM__alpha_var_pdf11_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf11_edit" GO="RNDM__alpha_var_pdf11_edit"/>
+
+  <Item Name="alpha_var_pdf12_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf12_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf12_ConstraintPdf(alpha_var_pdf12_edit,RNDM__alpha_var_pdf12_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf12_edit" GO="RNDM__alpha_var_pdf12_edit"/>
+
+  <Item Name="alpha_var_pdf13_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf13_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf13_ConstraintPdf(alpha_var_pdf13_edit,RNDM__alpha_var_pdf13_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf13_edit" GO="RNDM__alpha_var_pdf13_edit"/>
+
+  <Item Name="alpha_var_pdf14_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf14_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf14_ConstraintPdf(alpha_var_pdf14_edit,RNDM__alpha_var_pdf14_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf14_edit" GO="RNDM__alpha_var_pdf14_edit"/>
+
+  <Item Name="alpha_var_pdf15_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf15_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf15_ConstraintPdf(alpha_var_pdf15_edit,RNDM__alpha_var_pdf15_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf15_edit" GO="RNDM__alpha_var_pdf15_edit"/>
+
+  <Item Name="alpha_var_pdf16_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf16_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf16_ConstraintPdf(alpha_var_pdf16_edit,RNDM__alpha_var_pdf16_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf16_edit" GO="RNDM__alpha_var_pdf16_edit"/>
+
+  <Item Name="alpha_var_pdf17_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf17_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf17_ConstraintPdf(alpha_var_pdf17_edit,RNDM__alpha_var_pdf17_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf17_edit" GO="RNDM__alpha_var_pdf17_edit"/>
+
+  <Item Name="alpha_var_pdf18_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf18_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf18_ConstraintPdf(alpha_var_pdf18_edit,RNDM__alpha_var_pdf18_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf18_edit" GO="RNDM__alpha_var_pdf18_edit"/>
+
+  <Item Name="alpha_var_pdf19_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf19_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf19_ConstraintPdf(alpha_var_pdf19_edit,RNDM__alpha_var_pdf19_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf19_edit" GO="RNDM__alpha_var_pdf19_edit"/>
+
+  <Item Name="alpha_var_pdf20_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf20_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf20_ConstraintPdf(alpha_var_pdf20_edit,RNDM__alpha_var_pdf20_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf20_edit" GO="RNDM__alpha_var_pdf20_edit"/>
+
+  <Item Name="alpha_var_pdf21_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf21_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf21_ConstraintPdf(alpha_var_pdf21_edit,RNDM__alpha_var_pdf21_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf21_edit" GO="RNDM__alpha_var_pdf21_edit"/>
+
+  <Item Name="alpha_var_pdf22_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf22_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf22_ConstraintPdf(alpha_var_pdf22_edit,RNDM__alpha_var_pdf22_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf22_edit" GO="RNDM__alpha_var_pdf22_edit"/>
+
+  <Item Name="alpha_var_pdf22_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf22_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf22_ConstraintPdf(alpha_var_pdf22_edit,RNDM__alpha_var_pdf22_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf22_edit" GO="RNDM__alpha_var_pdf22_edit"/>
+
+  <Item Name="alpha_var_pdf23_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf23_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf23_ConstraintPdf(alpha_var_pdf23_edit,RNDM__alpha_var_pdf23_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf23_edit" GO="RNDM__alpha_var_pdf23_edit"/>
+
+  <Item Name="alpha_var_pdf24_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf24_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf24_ConstraintPdf(alpha_var_pdf24_edit,RNDM__alpha_var_pdf24_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf24_edit" GO="RNDM__alpha_var_pdf24_edit"/>
+
+  <Item Name="alpha_var_pdf24_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf24_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf24_ConstraintPdf(alpha_var_pdf24_edit,RNDM__alpha_var_pdf24_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf24_edit" GO="RNDM__alpha_var_pdf24_edit"/>
+
+  <Item Name="alpha_var_pdf25_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf25_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf25_ConstraintPdf(alpha_var_pdf25_edit,RNDM__alpha_var_pdf25_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf25_edit" GO="RNDM__alpha_var_pdf25_edit"/>
+
+  <Item Name="alpha_var_pdf26_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf26_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf26_ConstraintPdf(alpha_var_pdf26_edit,RNDM__alpha_var_pdf26_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf26_edit" GO="RNDM__alpha_var_pdf26_edit"/>
+
+  <Item Name="alpha_var_pdf27_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf27_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf27_ConstraintPdf(alpha_var_pdf27_edit,RNDM__alpha_var_pdf27_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf27_edit" GO="RNDM__alpha_var_pdf27_edit"/>
+
+  <Item Name="alpha_var_pdf28_edit[0,-PARLIMIT,PARLIMIT]"/>
+  <Item Name="RNDM__alpha_var_pdf28_edit[0]"/>
+  <Item Name="RooGaussian::alpha_var_pdf28_ConstraintPdf(alpha_var_pdf28_edit,RNDM__alpha_var_pdf28_edit,constr_sigma)" Type="constraint" NP="alpha_var_pdf28_edit" GO="RNDM__alpha_var_pdf28_edit"/>
+
+  <Item Name="const_unit[1]" />
+
+  <Map Name="EDIT::NEWPDF(OLDPDF,
+
+              alpha_var_alpha1=alpha_var_alpha1_edit,
+              RNDM__alpha_var_alpha1=RNDM__alpha_var_alpha1_edit,
+              constr__alpha_var_alpha1=const_unit,
+
+              alpha_var_scale1=alpha_var_scale1_edit,
+              RNDM__alpha_var_scale1=RNDM__alpha_var_scale1_edit,
+              constr__alpha_var_scale1=const_unit,
+              
+              alpha_var_pdf1=alpha_var_pdf1_edit,
+              RNDM__alpha_var_pdf1=RNDM__alpha_var_pdf1_edit,
+              constr__alpha_var_pdf1=const_unit,
+              
+              alpha_var_pdf2=alpha_var_pdf2_edit,
+              RNDM__alpha_var_pdf2=RNDM__alpha_var_pdf2_edit,
+              constr__alpha_var_pdf2=const_unit,
+              
+              alpha_var_pdf3=alpha_var_pdf3_edit,
+              RNDM__alpha_var_pdf3=RNDM__alpha_var_pdf3_edit,
+              constr__alpha_var_pdf3=const_unit,
+              
+              alpha_var_pdf4=alpha_var_pdf4_edit,
+              RNDM__alpha_var_pdf4=RNDM__alpha_var_pdf4_edit,
+              constr__alpha_var_pdf4=const_unit,
+              
+              alpha_var_pdf5=alpha_var_pdf5_edit,
+              RNDM__alpha_var_pdf5=RNDM__alpha_var_pdf5_edit,
+              constr__alpha_var_pdf5=const_unit,
+              
+              alpha_var_pdf6=alpha_var_pdf6_edit,
+              RNDM__alpha_var_pdf6=RNDM__alpha_var_pdf6_edit,
+              constr__alpha_var_pdf6=const_unit,
+              
+              alpha_var_pdf7=alpha_var_pdf7_edit,
+              RNDM__alpha_var_pdf7=RNDM__alpha_var_pdf7_edit,
+              constr__alpha_var_pdf7=const_unit,
+              
+              alpha_var_pdf8=alpha_var_pdf8_edit,
+              RNDM__alpha_var_pdf8=RNDM__alpha_var_pdf8_edit,
+              constr__alpha_var_pdf8=const_unit,
+              
+              alpha_var_pdf9=alpha_var_pdf9_edit,
+              RNDM__alpha_var_pdf9=RNDM__alpha_var_pdf9_edit,
+              constr__alpha_var_pdf9=const_unit,
+              
+              alpha_var_pdf10=alpha_var_pdf10_edit,
+              RNDM__alpha_var_pdf10=RNDM__alpha_var_pdf10_edit,
+              constr__alpha_var_pdf10=const_unit,
+              
+              alpha_var_pdf11=alpha_var_pdf11_edit,
+              RNDM__alpha_var_pdf11=RNDM__alpha_var_pdf11_edit,
+              constr__alpha_var_pdf11=const_unit,
+              
+              alpha_var_pdf12=alpha_var_pdf12_edit,
+              RNDM__alpha_var_pdf12=RNDM__alpha_var_pdf12_edit,
+              constr__alpha_var_pdf12=const_unit,
+              
+              alpha_var_pdf13=alpha_var_pdf13_edit,
+              RNDM__alpha_var_pdf13=RNDM__alpha_var_pdf13_edit,
+              constr__alpha_var_pdf13=const_unit,
+              
+              alpha_var_pdf14=alpha_var_pdf14_edit,
+              RNDM__alpha_var_pdf14=RNDM__alpha_var_pdf14_edit,
+              constr__alpha_var_pdf14=const_unit,
+              
+              alpha_var_pdf15=alpha_var_pdf15_edit,
+              RNDM__alpha_var_pdf15=RNDM__alpha_var_pdf15_edit,
+              constr__alpha_var_pdf15=const_unit,
+              
+              alpha_var_pdf16=alpha_var_pdf16_edit,
+              RNDM__alpha_var_pdf16=RNDM__alpha_var_pdf16_edit,
+              constr__alpha_var_pdf16=const_unit,
+              
+              alpha_var_pdf17=alpha_var_pdf17_edit,
+              RNDM__alpha_var_pdf17=RNDM__alpha_var_pdf17_edit,
+              constr__alpha_var_pdf17=const_unit,
+              
+              alpha_var_pdf18=alpha_var_pdf18_edit,
+              RNDM__alpha_var_pdf18=RNDM__alpha_var_pdf18_edit,
+              constr__alpha_var_pdf18=const_unit,
+              
+              alpha_var_pdf19=alpha_var_pdf19_edit,
+              RNDM__alpha_var_pdf19=RNDM__alpha_var_pdf19_edit,
+              constr__alpha_var_pdf19=const_unit,
+              
+              alpha_var_pdf20=alpha_var_pdf20_edit,
+              RNDM__alpha_var_pdf20=RNDM__alpha_var_pdf20_edit,
+              constr__alpha_var_pdf20=const_unit,
+              
+              alpha_var_pdf21=alpha_var_pdf21_edit,
+              RNDM__alpha_var_pdf21=RNDM__alpha_var_pdf21_edit,
+              constr__alpha_var_pdf21=const_unit,
+              
+              alpha_var_pdf22=alpha_var_pdf22_edit,
+              RNDM__alpha_var_pdf22=RNDM__alpha_var_pdf22_edit,
+              constr__alpha_var_pdf22=const_unit,
+              
+              alpha_var_pdf23=alpha_var_pdf23_edit,
+              RNDM__alpha_var_pdf23=RNDM__alpha_var_pdf23_edit,
+              constr__alpha_var_pdf23=const_unit,
+              
+              alpha_var_pdf24=alpha_var_pdf24_edit,
+              RNDM__alpha_var_pdf24=RNDM__alpha_var_pdf24_edit,
+              constr__alpha_var_pdf24=const_unit,
+              
+              alpha_var_pdf25=alpha_var_pdf25_edit,
+              RNDM__alpha_var_pdf25=RNDM__alpha_var_pdf25_edit,
+              constr__alpha_var_pdf25=const_unit,
+              
+              alpha_var_pdf26=alpha_var_pdf26_edit,
+              RNDM__alpha_var_pdf26=RNDM__alpha_var_pdf26_edit,
+              constr__alpha_var_pdf26=const_unit,
+              
+              alpha_var_pdf27=alpha_var_pdf27_edit,
+              RNDM__alpha_var_pdf27=RNDM__alpha_var_pdf27_edit,
+              constr__alpha_var_pdf27=const_unit,
+              
+              alpha_var_pdf28=alpha_var_pdf28_edit,
+              RNDM__alpha_var_pdf28=RNDM__alpha_var_pdf28_edit,
+              constr__alpha_var_pdf28=const_unit,
+              )"/>
+</Organization>

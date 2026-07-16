@@ -1,0 +1,17 @@
+<!DOCTYPE Combination  SYSTEM 'AnaWSBuilder.dtd'>  
+<Combination WorkspaceName="combWS" ModelConfigName="ModelConfig" DataName="combData" OutputFile="workspace/ttHyy/ttHyy_blind.root" Blind="true" >
+
+  <Input>config/ttHyy/ttH_c27.xml</Input>
+  <Input>config/ttHyy/ttH_c28.xml</Input>
+  <Input>config/ttHyy/ttH_c29.xml</Input>
+  <Input>config/ttHyy/ttH_c30.xml</Input>
+  <Input>config/ttHyy/ttH_c31.xml</Input>
+  <Input>config/ttHyy/ttH_c32.xml</Input>
+  <Input>config/ttHyy/ttH_c33.xml</Input>
+  <POI>mu_ttH,mu</POI>
+
+  <Asimov Name="asimovData_0"   Setup="mu=0"     Action="fixsyst:fit:genasimov:float:savesnapshot" SnapshotNuis="nominalNuis" SnapshotGlob="nominalGlob"/>
+  <Asimov Name="asimovData_1_prefit"  Setup="mu=1"     Action="genasimov:reset"/>
+
+</Combination>
+

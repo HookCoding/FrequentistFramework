@@ -1,0 +1,8 @@
+<!DOCTYPE Combination  SYSTEM 'AnaWSBuilder.dtd'>
+<Combination WorkspaceName="combWS" ModelConfigName="ModelConfig" DataName="combData" OutputFile="workspace/dijetTLA/dijetTLA_J75yStar03_v01.root" >
+  <Input>config/dijetTLA/category_dijetTLA_J75yStar03_v01.xml</Input>
+  <POI>mu</POI>
+  <Asimov Name="asimovData_0"   Setup="mu=0"     Action="fixsyst:fit:genasimov:float:savesnapshot" SnapshotNuis="nominalNuis" SnapshotGlob="nominalGlob"/>
+  <Asimov Name="asimovData_1_prefit"  Setup="mu=1"     Action="genasimov:reset"/>
+  <Asimov Name="asimovData_1" Setup="mu=1" Action="fit:matchglob:genasimov:savesnapshot:reset" SnapshotNuis="conditionalNuis_1" SnapshotGlob="conditionalGlob_1"/>
+</Combination>

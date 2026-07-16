@@ -1,0 +1,15 @@
+<!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
+<Channel Name="J75yStar03" Type="shape" Lumi="3.6">
+  <Data InputFile="Input/data/dijetTLA/lookInsideTheBoxWithUniformMjj.root" FileType="histogram" HistName="Nominal/DSJ75yStar03_TriggerJets_J75_yStar03_mjj_finebinned_all_data" Observable="obs_x_channel[400,2079]" Binning="1679" InjectGhost="1"/>
+  <!-- <Data InputFile="Input/data/dijetTLA/DSJ75yStar03_TriggerJets_J75_yStar03_mjj_finebinned_all_data.txt" Observable="obs_x_channel[400,2079]" Binning="1679" InjectGhost="1"/> -->
+  <!-- <Data InputFile="Input/data/dijetTLA/dummyData.txt" Observable="obs_x_channel[400,2079]" Binning="1679" InjectGhost="1"/> -->
+
+  <Sample Name="background" InputFile="config/dijetTLA/20200701_j75_bkgonly_test/background_dijetTLA_J75yStar03_v01.xml" MultiplyLumi="0" ImportSyst=":self:">
+    <NormFactor Name="nbkg[3E7,0,6E7]" />
+  </Sample>
+
+  <Sample Name="signal" InputFile="config/dijetTLA/20200701_j75_bkgonly_test/signal_dijetTLA_J75yStar03_v01.xml" MultiplyLumi="1" >
+    <NormFactor Name="mu[0,0,1000]" />
+  </Sample>
+
+</Channel>

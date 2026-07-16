@@ -1,0 +1,37 @@
+<!DOCTYPE Model SYSTEM 'AnaWSBuilder.dtd'>
+<Model Type="External" Input="BACKGROUNDMODEL" WSName="combined" ModelName="J100yStar06_model" ObservableName="obs_x_J100yStar06">
+  <Item Name="unit[1]"/>
+  <Rename OldName="Lumi" NewName="unit"/>
+
+  <ExtSyst ConstrName="alpha_var_alpha1Constraint" NPName="alpha_var_alpha1" GOName="nom_alpha_var_alpha1" />
+  <ExtSyst ConstrName="alpha_var_scale1Constraint" NPName="alpha_var_scale1" GOName="nom_alpha_var_scale1" />
+  <ExtSyst ConstrName="alpha_var_pdf1Constraint" NPName="alpha_var_pdf1" GOName="nom_alpha_var_pdf1" />
+  <ExtSyst ConstrName="alpha_var_pdf2Constraint" NPName="alpha_var_pdf2" GOName="nom_alpha_var_pdf2" />
+  <ExtSyst ConstrName="alpha_var_pdf3Constraint" NPName="alpha_var_pdf3" GOName="nom_alpha_var_pdf3" />
+  <ExtSyst ConstrName="alpha_var_pdf4Constraint" NPName="alpha_var_pdf4" GOName="nom_alpha_var_pdf4" />
+  <ExtSyst ConstrName="alpha_var_pdf5Constraint" NPName="alpha_var_pdf5" GOName="nom_alpha_var_pdf5" />
+  <ExtSyst ConstrName="alpha_var_pdf6Constraint" NPName="alpha_var_pdf6" GOName="nom_alpha_var_pdf6" />
+  <ExtSyst ConstrName="alpha_var_pdf7Constraint" NPName="alpha_var_pdf7" GOName="nom_alpha_var_pdf7" />
+  <ExtSyst ConstrName="alpha_var_pdf8Constraint" NPName="alpha_var_pdf8" GOName="nom_alpha_var_pdf8" />
+  <ExtSyst ConstrName="alpha_var_pdf9Constraint" NPName="alpha_var_pdf9" GOName="nom_alpha_var_pdf9" />
+  <ExtSyst ConstrName="alpha_var_pdf10Constraint" NPName="alpha_var_pdf10" GOName="nom_alpha_var_pdf10" />
+  <ExtSyst ConstrName="alpha_var_pdf11Constraint" NPName="alpha_var_pdf11" GOName="nom_alpha_var_pdf11" />
+  <ExtSyst ConstrName="alpha_var_pdf12Constraint" NPName="alpha_var_pdf12" GOName="nom_alpha_var_pdf12" />
+  <ExtSyst ConstrName="alpha_var_pdf13Constraint" NPName="alpha_var_pdf13" GOName="nom_alpha_var_pdf13" />
+  <ExtSyst ConstrName="alpha_var_pdf14Constraint" NPName="alpha_var_pdf14" GOName="nom_alpha_var_pdf14" />
+  <ExtSyst ConstrName="alpha_var_pdf15Constraint" NPName="alpha_var_pdf15" GOName="nom_alpha_var_pdf15" />
+  <ExtSyst ConstrName="alpha_var_pdf16Constraint" NPName="alpha_var_pdf16" GOName="nom_alpha_var_pdf16" />
+  <ExtSyst ConstrName="alpha_var_pdf17Constraint" NPName="alpha_var_pdf17" GOName="nom_alpha_var_pdf17" />
+  <ExtSyst ConstrName="alpha_var_pdf18Constraint" NPName="alpha_var_pdf18" GOName="nom_alpha_var_pdf18" />
+  <ExtSyst ConstrName="alpha_var_pdf19Constraint" NPName="alpha_var_pdf19" GOName="nom_alpha_var_pdf19" />
+  <ExtSyst ConstrName="alpha_var_pdf20Constraint" NPName="alpha_var_pdf20" GOName="nom_alpha_var_pdf20" />
+  <ExtSyst ConstrName="alpha_var_pdf21Constraint" NPName="alpha_var_pdf21" GOName="nom_alpha_var_pdf21" />
+  <ExtSyst ConstrName="alpha_var_pdf22Constraint" NPName="alpha_var_pdf22" GOName="nom_alpha_var_pdf22" />
+  <ExtSyst ConstrName="alpha_var_pdf23Constraint" NPName="alpha_var_pdf23" GOName="nom_alpha_var_pdf23" />
+  <ExtSyst ConstrName="alpha_var_pdf24Constraint" NPName="alpha_var_pdf24" GOName="nom_alpha_var_pdf24" />
+  <ExtSyst ConstrName="alpha_var_pdf25Constraint" NPName="alpha_var_pdf25" GOName="nom_alpha_var_pdf25" />
+  <ExtSyst ConstrName="alpha_var_pdf26Constraint" NPName="alpha_var_pdf26" GOName="nom_alpha_var_pdf26" />
+  <ExtSyst ConstrName="alpha_var_pdf27Constraint" NPName="alpha_var_pdf27" GOName="nom_alpha_var_pdf27" />
+  <ExtSyst ConstrName="alpha_var_pdf28Constraint" NPName="alpha_var_pdf28" GOName="nom_alpha_var_pdf28" />
+
+</Model>

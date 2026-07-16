@@ -1,0 +1,363 @@
+<!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
+<Channel Name="J75yStar03" Type="shape" Lumi="1">
+  <Data InputFile="Input/data/dijetTLAnlo/data_J75yStar03_range400_2079_fixedBins.root" FileType="histogram" HistName="data" Observable="obs_x_J75yStar03[0,39]" Binning="39" InjectGhost="1"/>
+
+  <Sample Name="background" InputFile="config/dijetTLAnlo/background_dijetTLAnlo_J75yStar03.xml" MultiplyLumi="0">
+  <!-- <Sample Name="background" InputFile="config/dijetTLAnlo/background_dijetTLAnlo_J75yStar03.xml" MultiplyLumi="0" ImportSyst=":self:"> -->
+    <NormFactor Name="nbkg[4.1E7,0,6E7]" />
+  </Sample>
+  
+  <Sample Name="signal_mean450_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean450_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean450_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean450_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean450_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean450_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean450_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean450_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean450_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean450_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean450_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean450_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean450_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean450_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean450_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean500_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean500_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean500_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean500_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean500_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean500_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean500_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean500_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean500_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean500_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean500_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean500_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean500_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean500_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean500_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean550_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean550_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean550_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean550_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean550_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean550_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean550_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean550_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean550_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean550_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean550_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean550_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean550_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean550_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean550_width15[0,0,1E5]" />
+  </Sample>
+  
+  <Sample Name="signal_mean600_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean600_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean600_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean600_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean600_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean600_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean600_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean600_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean600_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean600_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean600_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean600_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean600_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean600_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean600_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean650_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean650_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean650_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean650_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean650_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean650_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean650_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean650_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean650_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean650_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean650_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean650_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean650_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean650_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean650_width15[0,0,1E5]" />
+  </Sample>
+  
+  <Sample Name="signal_mean700_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean700_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean700_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean700_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean700_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean700_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean700_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean700_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean700_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean700_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean700_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean700_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean700_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean700_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean700_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean750_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean750_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean750_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean750_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean750_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean750_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean750_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean750_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean750_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean750_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean750_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean750_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean750_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean750_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean750_width15[0,0,1E5]" />
+  </Sample>
+  
+  <Sample Name="signal_mean800_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean800_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean800_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean800_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean800_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean800_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean800_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean800_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean800_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean800_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean800_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean800_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean800_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean800_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean800_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean850_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean850_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean850_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean850_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean850_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean850_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean850_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean850_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean850_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean850_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean850_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean850_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean850_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean850_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean850_width15[0,0,1E5]" />
+  </Sample>
+  
+  <Sample Name="signal_mean900_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean900_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean900_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean900_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean900_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean900_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean900_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean900_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean900_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean900_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean900_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean900_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean900_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean900_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean900_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean950_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean950_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean950_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean950_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean950_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean950_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean950_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean950_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean950_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean950_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean950_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean950_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean950_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean950_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean950_width15[0,0,1E5]" />
+  </Sample>
+  
+  <Sample Name="signal_mean1000_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1000_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1000_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1000_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1000_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1000_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1000_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1000_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1000_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1000_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1000_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1000_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1000_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1000_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1000_width15[0,0,1E5]" />
+  </Sample>
+
+
+  <Sample Name="signal_mean1050_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1050_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1050_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1050_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1050_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1050_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1050_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1050_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1050_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1050_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1050_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1050_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1050_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1050_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1050_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1100_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1100_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1100_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1100_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1100_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1100_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1100_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1100_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1100_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1100_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1100_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1100_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1100_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1100_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1100_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1150_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1150_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1150_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1150_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1150_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1150_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1150_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1150_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1150_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1150_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1150_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1150_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1150_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1150_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1150_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1200_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1200_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1200_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1200_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1200_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1200_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1200_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1200_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1200_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1200_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1200_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1200_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1200_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1200_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1200_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1300_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1300_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1300_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1300_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1300_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1300_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1300_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1300_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1300_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1300_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1300_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1300_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1300_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1300_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1300_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1400_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1400_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1400_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1400_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1400_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1400_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1400_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1400_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1400_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1400_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1400_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1400_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1400_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1400_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1400_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1500_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1500_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1500_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1500_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1500_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1500_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1500_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1500_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1500_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1500_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1500_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1500_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1500_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1500_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1500_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1600_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1600_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1600_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1600_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1600_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1600_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1600_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1600_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1600_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1600_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1600_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1600_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1600_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1600_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1600_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1700_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1700_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1700_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1700_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1700_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1700_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1700_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1700_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1700_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1700_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1700_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1700_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1700_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1700_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1700_width15[0,0,1E5]" />
+  </Sample>
+
+  <Sample Name="signal_mean1800_width5" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1800_width5.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1800_width5[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1800_width7" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1800_width7.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1800_width7[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1800_width10" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1800_width10.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1800_width10[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1800_width12" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1800_width12.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1800_width12[0,0,1E5]" />
+  </Sample>
+  <Sample Name="signal_mean1800_width15" InputFile="config/dijetTLAnlo/signal/signal_dijetTLAnlo_J75yStar03_mean1800_width15.xml" MultiplyLumi="1" >
+    <NormFactor Name="nsig_mean1800_width15[0,0,1E5]" />
+  </Sample>
+
+</Channel>

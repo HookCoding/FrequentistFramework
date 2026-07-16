@@ -1,0 +1,159 @@
+<!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
+<Channel Name="J100yStar06" Type="shape" Lumi="1">
+
+  <Data InputFile="Input/data/dijetTLA/lookInsideTheBoxWithUniformMjj.root" FileType="histogram" HistName="Nominal/DSJ100yStar06_TriggerJets_J100_yStar06_mjj_finebinned_all_data" Observable="obs_x_channel[531,2079]" Binning="1548" InjectGhost="1"/>
+
+  <Sample Name="background" InputFile="config/dijetTLA/background_dijetTLA_J100yStar06_fivePar.xml" MultiplyLumi="0" ImportSyst=":self:">
+    <!-- 29/fb: -->
+    <NormFactor Name="nbkg[2E8,0,3E8]"/>
+  </Sample>
+
+  <Sample Name="signal_mR200_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR200.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR200_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR250_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR250.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR250_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR300_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR300.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR300_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR350_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR350.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR350_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR400_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR400.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR400_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR450_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR450.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR450_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR500_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR500.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR500_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR550_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR550.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR550_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR600_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR600.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR600_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR650_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR650.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR650_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR700_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR700.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR700_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR750_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR750.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR750_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR800_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR800.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR800_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR850_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR850.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR850_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR900_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR900.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR900_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR950_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR950.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR950_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1000_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1000.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1000_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1050_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1050.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1050_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1100_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1100.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1100_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1150_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1150.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1150_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1200_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1200.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1200_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1250_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1250.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1250_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1300_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1300.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1300_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1350_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1350.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1350_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1400_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1400.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1400_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1450_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1450.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1450_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1500_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1500.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1500_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1550_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1550.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1550_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1600_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1600.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1600_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1650_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1650.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1650_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1700_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1700.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1700_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1750_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1750.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1750_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1800_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1800.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1800_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1850_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1850.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1850_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1900_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1900.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1900_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR1950_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR1950.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR1950_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+  <Sample Name="signal_mR2000_gq0p1" InputFile="config/dijetTLA/signal/signal_dijetTLA_J100yStar06_zprime_gq0p1_mR2000.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mR2000_gq0p1[0,-1E6,1E6]"/>
+  </Sample>
+
+</Channel>

@@ -1,0 +1,6 @@
+<!DOCTYPE Model  SYSTEM 'AnaWSBuilder.dtd'>
+<Model Type="UserDef">
+  <Item Name="mass_1800[1800]"/>
+  <Item Name="prod::width_1800_5(mass_1800,0.05)"/>
+  <ModelItem Name="RooGaussian::signal(:observable:, mass_1800, width_1800_5)"/>
+</Model>

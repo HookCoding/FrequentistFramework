@@ -1,0 +1,281 @@
+<!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
+<Channel Name="mc16d" Type="shape" Lumi="1">
+  <Data InputFile="/afs/cern.ch/work/a/agekow/FrequentistFramework/dijetisrTLA/root_files/singlePhoton_mjj.root" FileType="histogram" HistName="mjj" Observable="mjj[100,1000]" Binning="900"/>
+
+  <Sample Name="background" InputFile="config/dijetisrTLA/background_dijetISR_fivePar.xml" MultiplyLumi="0" ImportSyst=":self:">
+    <NormFactor Name="nbkg[3E8,3E8,6E8]"/>
+  </Sample>
+
+  <Sample Name="signal_mean150_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean150_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean150_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean150_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean150_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean150_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean175_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean175_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean175_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean175_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean175_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean175_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean200_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean200_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean200_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean200_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean200_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean200_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean225_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean225_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean225_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean225_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean225_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean225_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean250_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean250_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean250_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean250_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean250_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean250_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean275_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean275_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean275_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean275_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean275_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean275_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean300_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean300_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean300_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean300_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean300_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean300_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean325_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean325_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean325_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean325_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean325_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean325_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean350_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean350_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean350_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean350_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean350_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean350_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean375_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean375_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean375_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean375_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean375_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean375_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean400_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean400_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean400_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean400_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean400_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean400_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean425_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean425_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean425_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean425_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean425_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean425_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean450_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean450_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean450_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean450_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean450_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean450_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean475_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean475_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean475_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean475_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean475_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean475_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean500_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean500_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean500_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean500_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean500_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean500_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean525_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean525_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean525_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean525_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean525_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean525_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean550_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean550_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean550_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean550_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean550_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean550_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean575_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean575_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean575_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean575_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean575_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean575_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean600_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean600_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean600_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean600_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean600_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean600_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean625_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean625_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean625_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean625_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean625_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean625_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean650_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean650_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean650_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean650_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean650_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean650_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean675_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean675_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean675_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean675_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean675_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean675_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean700_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean700_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean700_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean700_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean700_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean700_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean725_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean725_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean725_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean725_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean725_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean725_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean750_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean750_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean750_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean750_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean750_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean750_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean775_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean775_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean775_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean775_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean775_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean775_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean800_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean800_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean800_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean800_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean800_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean800_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean825_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean825_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean825_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean825_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean825_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean825_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean850_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean850_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean850_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean850_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean850_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean850_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean875_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean875_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean875_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean875_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean875_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean875_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean900_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean900_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean900_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean900_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean900_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean900_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean925_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean925_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean925_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean925_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean925_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean925_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean950_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean950_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean950_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean950_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean950_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean950_width10[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean975_width5" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean975_width5.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean975_width5[0,-1E3,1E3]" />
+  </Sample>
+
+  <Sample Name="signal_mean975_width10" InputFile="config/dijetisrTLA/signal/gaussianSignal_mean975_width10.xml" MultiplyLumi="1">
+    <NormFactor Name="nsig_mean975_width10[0,-1E3,1E3]" />
+  </Sample>
+
+</Channel>

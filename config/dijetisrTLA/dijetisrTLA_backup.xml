@@ -1,0 +1,7 @@
+<!DOCTYPE Combination SYSTEM 'AnaWSBuilder.dtd'>
+<Combination WorkspaceName="combWS" ModelConfigName="ModelConfig" DataName="combData" OutputFile="workspace/dijetisrTLA/dijetisrTLA.root" Blind="false">
+  <Input>config/dijetISRRun3/category_dijetISRRun3.xml</Input>
+  <POI>nsig_mean450_width5,nbkg</POI>
+  <Asimov Name="POISnap"  Setup=""  Action="savesnapshot" SnapshotPOI="nominalPOI"/>
+  <Asimov Name="NPSnap"  Setup="nsig_mean450_width5=0" Action="fixsyst:fit:float:savesnapshot:nominalPOI" SnapshotNuis="nominalNuis" SnapshotGlob="nominalGlobs"/>
+</Combination>

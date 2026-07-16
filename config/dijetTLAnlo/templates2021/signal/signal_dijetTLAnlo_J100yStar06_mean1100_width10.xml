@@ -1,0 +1,5 @@
+<!DOCTYPE Model SYSTEM 'AnaWSBuilder.dtd'>
+<Model Type="External" Input="Input/model/dijetTLAnlo/templates2021/signal/HistFactory_dijetTLAnlo_J100yStar06_sig_mean1100_width10_ws.root" WSName="combined" ModelName="J100yStar06_model" ObservableName="obs_x_J100yStar06">
+  <Item Name="unit[1]"/>
+  <Rename OldName="Lumi" NewName="unit"/>
+</Model>

@@ -1,0 +1,6 @@
+<!DOCTYPE Model  SYSTEM 'AnaWSBuilder.dtd'>
+<Model Type="UserDef">
+  <Item Name="mass_SIGMEAN[SIGMEAN]"/>
+  <Item Name="prod::width_SIGMEAN_SIGWIDTH(mass_SIGMEAN,0.01,SIGWIDTH)"/>
+  <ModelItem Name="RooGaussian::signal(:observable:, mass_SIGMEAN, width_SIGMEAN_SIGWIDTH)"/>
+</Model>

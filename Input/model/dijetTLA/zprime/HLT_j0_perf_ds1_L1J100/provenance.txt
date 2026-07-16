@@ -1,0 +1,12 @@
+# Mariana Toscani
+# Date: 15.11.2021
+
+HistFactoryInputs:
+ Copied from:
+ /eos/user/m/mtoscani/Rel21/TLA/SignalProcessing/morphing_outputs/p4130_170621_processed_011021/templates/HLT_j0_perf_ds1_L1J100/
+ Called:
+ SignalTemplates_th1s_gq0p1.root
+ Contains: 
+ - all mass points
+ - all systs and nominal
+ - 1up,1down 

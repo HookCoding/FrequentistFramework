@@ -1,0 +1,5 @@
+<!DOCTYPE Combination  SYSTEM 'AnaWSBuilder.dtd'>
+<Combination WorkspaceName="combWS" ModelConfigName="ModelConfig" DataName="combData" OutputFile="OUTPUTFILE">
+  <Input>CATEGORYFILE</Input>
+  <POI>nsig_SIGNAME_gq0p1</POI>
+</Combination>

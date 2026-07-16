@@ -1,0 +1,8 @@
+<!DOCTYPE Combination  SYSTEM 'AnaWSBuilder.dtd'>
+<Combination WorkspaceName="combWS" ModelConfigName="ModelConfig" DataName="combData" OutputFile="OUTPUTFILE" >
+  <Input>CATEGORYFILE</Input>
+  <POI>nsig_SIGNAME</POI>
+  <Asimov Name="POISnap"  Setup=""  Action="savesnapshot" SnapshotPOI="nominalPOI"/>
+  <!-- <Asimov Name="NPSnap"   Setup="nsig_SIGNAME=0,"      Action="fixsyst:fit:float:savesnapshot:nominalPOI" SnapshotNuis="nominalNuis" SnapshotGlob="nominalGlobs"/> -->
+  <!-- <Asimov Name="asimovData_0" Setup="nsig_SIGNAME=0"  Action="fit:genasimov:matchglob:savesnapshot:nominalGlobs" SnapshotGlob="conditionalGlobs_0" SnapshotNuis="conditionalNuis_0"/> -->
+</Combination>

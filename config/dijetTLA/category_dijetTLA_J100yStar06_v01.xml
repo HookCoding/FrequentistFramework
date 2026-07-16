@@ -1,0 +1,21 @@
+<!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
+<Channel Name="J100yStar06" Type="shape" Lumi="3.213">
+  <Data InputFile="Input/data/run2_high_mass_diphoton/data15/mass_points_data15_13TeV_EKHI_3.2ifb_h015.txt " Observable="obs_x_channel[200,5000]" Binning="960" InjectGhost="1"/>
+
+  <Systematic Name="ATLAS_lumi_run2" Constr="logn" CentralValue="1" Mag="0.02" WhereTo="yield"/>
+  <Sample Name="background" InputFile="config/dijetTLA/background_dijetTLA_J100yStar06_v01.xml" MultiplyLumi="0" ImportSyst=":self:">
+    <NormFactor Name="nbkg[15.000000,0,100000]" />
+  </Sample>
+
+  <Sample Name="signal" InputFile="config/dijetTLA/signal_dijetTLA_J100yStar06_v01.xml" MultiplyLumi="1" >
+    <Systematic Name="ATLAS_lumi"      Constr="logn" CentralValue="1" Mag="0.0114" WhereTo="yield"/>
+    <Systematic Name="ATLAS_lumi_2015" Constr="logn" CentralValue="1" Mag="0.0179" WhereTo="yield"/>
+    <NormFactor Name="mu[0,0,1000]" />
+  </Sample>
+
+  <Sample Name="spurious" InputFile="config/dijetTLA/signal_dijetTLA_J100yStar06_v01.xml" ImportSyst=":self:" MultiplyLumi="false" SharePdf="commonSig">
+    <Systematic Name="ATLAS_Hgg_BIAS_ttH_c27" Constr="gaus" CentralValue="0" Mag="0.948" WhereTo="yield"/>
+  </Sample>
+  
+
+</Channel>

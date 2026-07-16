@@ -1,0 +1,13 @@
+<!DOCTYPE Combination  SYSTEM 'AnaWSBuilder.dtd'>
+<Combination WorkspaceName="combWS" ModelConfigName="ModelConfig" DataName="combData" OutputFile="run/dijetTLA_J100yStar06_zprime.root">
+
+  <Input>config/dijetTLA/category_dijetTLA_J100yStar06_fivePar_zprime.xml</Input>
+
+  <POI>nsig_mR200_gq0p1,nsig_mR250_gq0p1,nsig_mR300_gq0p1,nsig_mR350_gq0p1,nsig_mR400_gq0p1,nsig_mR450_gq0p1,nsig_mR500_gq0p1,nsig_mR550_gq0p1,nsig_mR600_gq0p1,nsig_mR650_gq0p1,nsig_mR700_gq0p1,nsig_mR750_gq0p1,nsig_mR800_gq0p1,nsig_mR850_gq0p1,nsig_mR900_gq0p1,nsig_mR950_gq0p1,nsig_mR1000_gq0p1,nsig_mR1050_gq0p1,nsig_mR1100_gq0p1,nsig_mR1150_gq0p1,nsig_mR1200_gq0p1,nsig_mR1250_gq0p1,nsig_mR1300_gq0p1,nsig_mR1350_gq0p1,nsig_mR1400_gq0p1,nsig_mR1450_gq0p1,nsig_mR1500_gq0p1,nsig_mR1550_gq0p1,nsig_mR1600_gq0p1,nsig_mR1650_gq0p1,nsig_mR1700_gq0p1,nsig_mR1750_gq0p1,nsig_mR1800_gq0p1,nsig_mR1850_gq0p1,nsig_mR1900_gq0p1,nsig_mR1950_gq0p1,nsig_mR2000_gq0p1</POI>
+
+  <!-- <Asimov Name="POISnap"  Setup=""  Action="savesnapshot" SnapshotPOI="nominalPOI"/>  -->
+
+  <!--  <Asimov Name="NPSnap"  Setup="nsig_mR200_gq0p1=0,nsig_mR250_gq0p1=0,nsig_mR300_gq0p1=0,nsig_mR350_gq0p1=0,nsig_mR400_gq0p1=0,nsig_mR450_gq0p1=0,nsig_mR500_gq0p1=0,nsig_mR550_gq0p1=0,nsig_mR600_gq0p1=0,nsig_mR650_gq0p1=0,nsig_mR700_gq0p1=0,nsig_mR750_gq0p1=0,nsig_mR800_gq0p1=0,nsig_mR850_gq0p1=0,nsig_mR900_gq0p1=0,nsig_mR950_gq0p1=0,nsig_mR1000_gq0p1=0,nsig_mR1050_gq0p1=0,nsig_mR1100_gq0p1=0,nsig_mR1150_gq0p1=0,nsig_mR1200_gq0p1=0,nsig_mR1250_gq0p1=0,nsig_mR1300_gq0p1=0,nsig_mR1350_gq0p1=0,nsig_mR1400_gq0p1=0,nsig_mR1450_gq0p1=0,nsig_mR1500_gq0p1=0,nsig_mR1550_gq0p1=0,nsig_mR1600_gq0p1=0,nsig_mR1650_gq0p1=0,nsig_mR1700_gq0p1=0,nsig_mR1750_gq0p1=0,nsig_mR1800_gq0p1=0,nsig_mR1850_gq0p1=0,nsig_mR1900_gq0p1=0,nsig_mR1950_gq0p1=0,nsig_mR2000_gq0p1=0"  Action="fixsyst:fit:float:savesnapshot:nominalPOI" SnapshotNuis="nominalNuis" SnapshotGlob="nominalGlobs"/> -->
+
+
+</Combination>
