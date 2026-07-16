@@ -1,6 +1,0 @@
-<!DOCTYPE Model  SYSTEM 'AnaWSBuilder.dtd'>
-<Model Type="UserDef">
-  <!-- <ModelItem Name="EXPR::background('@1*TMath::Power(1-@0/13000.,@2)*TMath::Power(@0/13000, -1*(@3*@0/13000. + @4*TMath::Log(@0/13000.)))', :observable:, p1[1, 1, 1], p2[10.38,-50,50], p3[-22, -50, 50], p4[-0.45, -10, 10])"/> -->
-  <!-- <ModelItem Name="EXPR::background('@1*TMath::Power(1-@0/13000.,@2)*TMath::Power(@0/13000, -1*(@3 + @4*TMath::Log(@0/13000.)))', :observable:, p1[1, 1, 1], p2[3.9, -30, 30], p3[7.1, -30, 30], p4[0.3, -10, 10])"/> -->
-  <ModelItem Name="EXPR::background('@1*TMath::Power(1-@0/13000.,@2)*TMath::Power(@0/13000, -1*(@3 + @4*TMath::Log(@0/13000.)))', :observable:, p1[1,1,1], p2[0.18, -30, 30], p3[8.8, -30, 30], p4[0.71, -10, 10])"/>
-</Model>

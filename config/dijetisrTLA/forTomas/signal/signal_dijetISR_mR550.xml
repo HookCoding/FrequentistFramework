@@ -1,3 +1,0 @@
-<!DOCTYPE Model  SYSTEM 'AnaWSBuilder.dtd'>
-<Model Type="External" Input="Input/model/dijetISR/dijetISR_signal.root" WSName="combined" ModelName="model_ISR" ObservableName="obs_x_ISR">
-</Model>
