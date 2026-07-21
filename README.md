@@ -50,3 +50,5 @@ The checks currently cover:
 - a small repo-root regression test under tests/
 - linting with ruff
 - formatting validation with black
+
+For the Tier 1 regression workflow and the frozen-reference documentation, see [doc/TIER1_SYSTEM.md](doc/TIER1_SYSTEM.md).

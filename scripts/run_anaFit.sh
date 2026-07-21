@@ -4,9 +4,10 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out_dir="$repo_dir/run/fits"
 
 mkdir -p "$out_dir"
+cd "$repo_dir"
 
 {
-    . scripts/setup_buildAndFit.sh
+    . "$repo_dir/scripts/setup_buildAndFit.sh"
 
     # for pars in five six seven
     for pars in seven #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
@@ -129,7 +130,7 @@ mkdir -p "$out_dir"
 	        if (( $dolimit )); then flags="$flags --dolimit"; fi
 	        if (( $doprefit )); then flags="$flags --doprefit"; fi
 
-	        ./python/run_anaFit.py \
+	        "$repo_dir/python/run_anaFit.py" \
     		    --datafile $datafile \
     		    --datahist $datahist \
     		    --backgroundfile $backgroundfile \
@@ -154,7 +155,7 @@ mkdir -p "$out_dir"
 
 		    toys=100
 
-		    python python/plotPostFit.py -i  ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root -o ${folder}/postFit.pdf 
+		    python "$repo_dir/python/plotPostFit.py" -i  ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root -o ${folder}/postFit.pdf 
 
         root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\")"
 
@@ -171,6 +172,8 @@ mkdir -p "$out_dir"
 
             done
         done
-        alert
+        if command -v alert >/dev/null 2>&1; then
+            alert
+        fi
     done
 }
