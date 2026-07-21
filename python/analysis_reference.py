@@ -20,17 +20,36 @@ def _fallback_analysis_reference() -> dict[str, Any]:
     }
 
 
+def _read_json_payload(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        return read_analysis_reference(path)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 def build_analysis_reference() -> dict[str, Any]:
     """Create an analysis-output reference payload from real outputs when present."""
     repo_root = Path(__file__).resolve().parents[1]
     candidate_files = [
         repo_root / "tests" / "references" / "analysis_reference.json",
         repo_root / "run" / "fits" / "analysis_reference.json",
+        repo_root / "run" / "fits" / "run_135_1000_sevenPar" / "BHresults.json",
     ]
 
     for candidate in candidate_files:
-        if candidate.exists():
-            return read_analysis_reference(candidate)
+        payload = _read_json_payload(candidate)
+        if payload is not None:
+            return payload
+
+    fit_dir = repo_root / "run" / "fits" / "run_135_1000_sevenPar"
+    if fit_dir.exists():
+        bh_results = fit_dir / "BHresults.json"
+        if bh_results.exists():
+            payload = _read_json_payload(bh_results)
+            if payload is not None:
+                return payload
 
     return _fallback_analysis_reference()
 
