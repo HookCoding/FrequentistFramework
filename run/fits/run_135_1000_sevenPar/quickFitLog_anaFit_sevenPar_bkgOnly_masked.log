@@ -3,23 +3,23 @@
                 Copyright (C) 2000-2013 NIKHEF, University of California & Stanford University
                 All rights reserved, please read http://roofit.sourceforge.net/license.txt
 
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Including external constraints:
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Preparing parameters of interest: 
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Preparing list parameters for running MINOS over them: 
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Summary of POI setup in the likelihood model
-  1) 0x5397360 RooRealVar:: nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06)  "nsig_mean400_width8.0"
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Performing sanity checks on model...
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Sanity checks on the model: OK
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Starting fit...
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Building NLL...
-[2026-07-21 14:09:45] [thread 3903853] [info] 	 Building chi2 with splitrange and Poisson error...
-[2026-07-21 14:09:46] [thread 3903853] [info] 	 chi2 SBLo_Run3TLA,SBHi_Run3TLA: 1.21e+06
-[2026-07-21 14:09:46] [thread 3903853] [info] 	 chi2: 1212294.37520952
-[2026-07-21 14:09:46] [thread 3903853] [info] 	 half_chi2: 606147.18760476
-[2026-07-21 14:09:46] [thread 3903853] [info] 	 constraint_sum: 0
-[2026-07-21 14:09:46] [thread 3903853] [info] 	 constrained_chi2: 606147.18760476
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Including external constraints:
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Preparing parameters of interest: 
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Preparing list parameters for running MINOS over them: 
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Summary of POI setup in the likelihood model
+  1) 0x461c370 RooRealVar:: nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06)  "nsig_mean400_width8.0"
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Performing sanity checks on model...
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Sanity checks on the model: OK
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Starting fit...
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Building NLL...
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 Building chi2 with splitrange and Poisson error...
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 chi2 SBLo_Run3TLA,SBHi_Run3TLA: 1.21e+06
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 chi2: 1212294.37520952
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 half_chi2: 606147.18760476
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 constraint_sum: 0
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 constrained_chi2: 606147.18760476
 RooFormulaVar::constrained_chi2[ actualVars=(half_chi2,constraint_sum) formula="x[0]+x[1]" ] = 606147
-[2026-07-21 14:09:46] [thread 3903853] [info] 	 NLL built in 0.000833333333333334 min (cpu), 0.005667050679524739 min (real)
+[2026-07-21 14:53:28] [thread 4016856] [info] 	 NLL built in 0.0006666666666666673 min (cpu), 0.0006509145100911458 min (real)
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1283,14 +1283,14 @@ p4	  = 6.10552	 +/-  0.00141597	(limited)
 p5	  = 1.64348	 +/-  0.000235958	(limited)
 p6	  = 0.226694	 +/-  4.28882e-05	(limited)
 p7	  = 0.0122094	 +/-  7.59041e-06	(limited)
-Real time 0:00:01, CP time 1.740
-Real time 0:00:01, CP time 1.740
-[2026-07-21 14:09:48] [thread 3903853] [info] 	 Starting fit with HESSE...
+Real time 0:00:01, CP time 1.660
+Real time 0:00:01, CP time 1.660
+[2026-07-21 14:53:30] [thread 4016856] [info] 	 Starting fit with HESSE...
 Info in <Minuit2>: Minuit2Minimizer::Hesse Using max-calls 60000
 Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00590008
 Info in <Minuit2>: Minuit2Minimizer::Hesse Hesse is valid - matrix is full but made positive defined
-Real time 0:00:00, CP time 0.130
-Real time 0:00:02, CP time 1.870, 2 slices
+Real time 0:00:00, CP time 0.090
+Real time 0:00:01, CP time 1.750, 2 slices
 
   RooFitResult: minimized FCN value: 422.995, estimated distance to minimum: 9.96251e-07
                 covariance matrix quality: Full matrix, but forced positive-definite
@@ -1307,7 +1307,7 @@ Real time 0:00:02, CP time 1.870, 2 slices
                     p7    1.2209e-02 +/-  7.59e-06
 
 ....................INITIALIZING THE FIT UNTIL CONVERGENCE TEST..................................................................
-[2026-07-21 14:09:48] [thread 3903853] [info] 	 Minimization attempt 1 with strategy 2
+[2026-07-21 14:53:30] [thread 4016856] [info] 	 Minimization attempt 1 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1519,10 +1519,10 @@ p4	  = 6.78227	 +/-  0.00142196	(limited)
 p5	  = 0.64902	 +/-  0.000235752	(limited)
 p6	  = -0.0106428	 +/-  4.30259e-05	(limited)
 p7	  = -0.00427746	 +/-  7.59882e-06	(limited)
-Real time 0:00:06, CP time 6.140
-Real time 0:00:08, CP time 8.010, 3 slices
-[2026-07-21 14:09:54] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:54] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:04, CP time 4.830
+Real time 0:00:06, CP time 6.580, 3 slices
+[2026-07-21 14:53:35] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:35] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1573,9 +1573,9 @@ p4	  = 6.78227	 +/-  0.00142198	(limited)
 p5	  = 0.64902	 +/-  0.000235748	(limited)
 p6	  = -0.0106428	 +/-  4.30254e-05	(limited)
 p7	  = -0.00427746	 +/-  7.59869e-06	(limited)
-Real time 0:00:00, CP time 0.360
-Real time 0:00:08, CP time 8.370, 4 slices
-[2026-07-21 14:09:55] [thread 3903853] [info] 	 Minimization attempt 2 with strategy 2
+Real time 0:00:00, CP time 0.210
+Real time 0:00:06, CP time 6.790, 4 slices
+[2026-07-21 14:53:35] [thread 4016856] [info] 	 Minimization attempt 2 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1626,10 +1626,10 @@ p4	  = 6.78227	 +/-  0.00142218	(limited)
 p5	  = 0.64902	 +/-  0.000235759	(limited)
 p6	  = -0.0106428	 +/-  4.30088e-05	(limited)
 p7	  = -0.00427746	 +/-  7.59971e-06	(limited)
-Real time 0:00:00, CP time 0.320
-Real time 0:00:09, CP time 8.690, 5 slices
-[2026-07-21 14:09:55] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:55] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:00, CP time 0.250
+Real time 0:00:07, CP time 7.040, 5 slices
+[2026-07-21 14:53:35] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:35] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1680,9 +1680,9 @@ p4	  = 6.78227	 +/-  0.00142198	(limited)
 p5	  = 0.64902	 +/-  0.000235749	(limited)
 p6	  = -0.0106428	 +/-  4.30256e-05	(limited)
 p7	  = -0.00427746	 +/-  7.59863e-06	(limited)
-Real time 0:00:00, CP time 0.300
-Real time 0:00:09, CP time 8.990, 6 slices
-[2026-07-21 14:09:55] [thread 3903853] [info] 	 Minimization attempt 3 with strategy 2
+Real time 0:00:00, CP time 0.270
+Real time 0:00:07, CP time 7.310, 6 slices
+[2026-07-21 14:53:35] [thread 4016856] [info] 	 Minimization attempt 3 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1734,10 +1734,10 @@ p4	  = 6.78227	 +/-  0.00142216	(limited)
 p5	  = 0.64902	 +/-  0.000235753	(limited)
 p6	  = -0.0106428	 +/-  4.30203e-05	(limited)
 p7	  = -0.00427746	 +/-  7.60058e-06	(limited)
-Real time 0:00:00, CP time 0.280
-Real time 0:00:09, CP time 9.270, 7 slices
-[2026-07-21 14:09:56] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:56] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:00, CP time 0.270
+Real time 0:00:07, CP time 7.580, 7 slices
+[2026-07-21 14:53:36] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:36] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1789,9 +1789,9 @@ p4	  = 6.78227	 +/-  0.0014221	(limited)
 p5	  = 0.64902	 +/-  0.00023576	(limited)
 p6	  = -0.0106428	 +/-  4.30175e-05	(limited)
 p7	  = -0.00427746	 +/-  7.59912e-06	(limited)
-Real time 0:00:00, CP time 0.270
-Real time 0:00:10, CP time 9.540, 8 slices
-[2026-07-21 14:09:56] [thread 3903853] [info] 	 Minimization attempt 4 with strategy 2
+Real time 0:00:00, CP time 0.260
+Real time 0:00:08, CP time 7.840, 8 slices
+[2026-07-21 14:53:36] [thread 4016856] [info] 	 Minimization attempt 4 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1843,10 +1843,10 @@ p4	  = 6.78227	 +/-  0.00142207	(limited)
 p5	  = 0.64902	 +/-  0.000235758	(limited)
 p6	  = -0.0106428	 +/-  4.30196e-05	(limited)
 p7	  = -0.00427746	 +/-  7.59897e-06	(limited)
-Real time 0:00:00, CP time 0.250
-Real time 0:00:10, CP time 9.790, 9 slices
-[2026-07-21 14:09:56] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:56] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:00, CP time 0.260
+Real time 0:00:08, CP time 8.100, 9 slices
+[2026-07-21 14:53:36] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:36] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1897,9 +1897,9 @@ p4	  = 6.78227	 +/-  0.00142209	(limited)
 p5	  = 0.649018	 +/-  0.000235758	(limited)
 p6	  = -0.0106426	 +/-  4.30174e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59903e-06	(limited)
-Real time 0:00:00, CP time 0.240
-Real time 0:00:10, CP time 10.030, 10 slices
-[2026-07-21 14:09:56] [thread 3903853] [info] 	 Minimization attempt 5 with strategy 2
+Real time 0:00:00, CP time 0.280
+Real time 0:00:08, CP time 8.380, 10 slices
+[2026-07-21 14:53:36] [thread 4016856] [info] 	 Minimization attempt 5 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -1950,10 +1950,10 @@ p4	  = 6.78227	 +/-  0.00142198	(limited)
 p5	  = 0.649018	 +/-  0.000235748	(limited)
 p6	  = -0.0106426	 +/-  4.3026e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59864e-06	(limited)
-Real time 0:00:00, CP time 0.240
-Real time 0:00:10, CP time 10.270, 11 slices
-[2026-07-21 14:09:57] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:57] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:00, CP time 0.260
+Real time 0:00:08, CP time 8.640, 11 slices
+[2026-07-21 14:53:37] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:37] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -2004,9 +2004,9 @@ p4	  = 6.78227	 +/-  0.00142199	(limited)
 p5	  = 0.649018	 +/-  0.000235747	(limited)
 p6	  = -0.0106426	 +/-  4.30253e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59863e-06	(limited)
-Real time 0:00:00, CP time 0.220
-Real time 0:00:11, CP time 10.490, 12 slices
-[2026-07-21 14:09:57] [thread 3903853] [info] 	 Minimization attempt 6 with strategy 2
+Real time 0:00:00, CP time 0.250
+Real time 0:00:09, CP time 8.890, 12 slices
+[2026-07-21 14:53:37] [thread 4016856] [info] 	 Minimization attempt 6 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -2058,9 +2058,9 @@ p5	  = 0.649018	 +/-  0.000235747	(limited)
 p6	  = -0.0106426	 +/-  4.30261e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59895e-06	(limited)
 Real time 0:00:00, CP time 0.260
-Real time 0:00:11, CP time 10.750, 13 slices
-[2026-07-21 14:09:57] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:57] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:09, CP time 9.150, 13 slices
+[2026-07-21 14:53:37] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:37] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -2111,9 +2111,9 @@ p4	  = 6.78227	 +/-  0.00142202	(limited)
 p5	  = 0.649018	 +/-  0.000235749	(limited)
 p6	  = -0.0106426	 +/-  4.30262e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59893e-06	(limited)
-Real time 0:00:00, CP time 0.280
-Real time 0:00:11, CP time 11.030, 14 slices
-[2026-07-21 14:09:57] [thread 3903853] [info] 	 Minimization attempt 7 with strategy 2
+Real time 0:00:00, CP time 0.260
+Real time 0:00:09, CP time 9.410, 14 slices
+[2026-07-21 14:53:37] [thread 4016856] [info] 	 Minimization attempt 7 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -2164,10 +2164,10 @@ p4	  = 6.78227	 +/-  0.00142202	(limited)
 p5	  = 0.649018	 +/-  0.000235747	(limited)
 p6	  = -0.0106426	 +/-  4.30257e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59893e-06	(limited)
-Real time 0:00:00, CP time 0.340
-Real time 0:00:11, CP time 11.370, 15 slices
-[2026-07-21 14:09:58] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:58] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:00, CP time 0.270
+Real time 0:00:09, CP time 9.680, 15 slices
+[2026-07-21 14:53:38] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:38] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -2218,9 +2218,9 @@ p4	  = 6.78227	 +/-  0.00142216	(limited)
 p5	  = 0.649018	 +/-  0.000235754	(limited)
 p6	  = -0.0106426	 +/-  4.30215e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59991e-06	(limited)
-Real time 0:00:00, CP time 0.300
-Real time 0:00:12, CP time 11.670, 16 slices
-[2026-07-21 14:09:58] [thread 3903853] [info] 	 Minimization attempt 8 with strategy 2
+Real time 0:00:00, CP time 0.260
+Real time 0:00:10, CP time 9.940, 16 slices
+[2026-07-21 14:53:38] [thread 4016856] [info] 	 Minimization attempt 8 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -2271,10 +2271,10 @@ p4	  = 6.78227	 +/-  0.00142197	(limited)
 p5	  = 0.649018	 +/-  0.00023575	(limited)
 p6	  = -0.0106426	 +/-  4.30258e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59868e-06	(limited)
-Real time 0:00:00, CP time 0.280
-Real time 0:00:12, CP time 11.950, 17 slices
-[2026-07-21 14:09:58] [thread 3903853] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-21 14:09:58] [thread 3903853] [info] 	 Trying MIGRAD again...
+Real time 0:00:00, CP time 0.290
+Real time 0:00:10, CP time 10.230, 17 slices
+[2026-07-21 14:53:38] [thread 4016856] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 14:53:38] [thread 4016856] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
@@ -2325,12 +2325,12 @@ p4	  = 6.78227	 +/-  0.00142197	(limited)
 p5	  = 0.649018	 +/-  0.000235748	(limited)
 p6	  = -0.0106426	 +/-  4.30264e-05	(limited)
 p7	  = -0.00427743	 +/-  7.59868e-06	(limited)
-Real time 0:00:00, CP time 0.280
-Real time 0:00:12, CP time 12.230, 18 slices
+Real time 0:00:00, CP time 0.290
+Real time 0:00:10, CP time 10.520, 18 slices
 .........................................I'M DONE HOPE THIS WORKED BYE..............................................
-[2026-07-21 14:09:59] [thread 3903853] [info] 	 minimized nll value 418.3625705623471:
-[2026-07-21 14:09:59] [thread 3903853] [info] 	 Saving results to /afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/run_135_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly_masked.root
-[2026-07-21 14:09:59] [thread 3903853] [info] 	 All fits done in 0.20966666666666667 min (cpu), 0.22847731510798136 min (real)
-[2026-07-21 14:09:59] [thread 3903853] [info] 	   Fit Summary of POIs ([92m STATUS OK [0m)
-[2026-07-21 14:09:59] [thread 3903853] [info] 	 ------------------------------------------------
+[2026-07-21 14:53:39] [thread 4016856] [info] 	 minimized nll value 418.3625705623471:
+[2026-07-21 14:53:39] [thread 4016856] [info] 	 Saving results to /afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/run_135_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly_masked.root
+[2026-07-21 14:53:39] [thread 4016856] [info] 	 All fits done in 0.18016666666666667 min (cpu), 0.18673508564631144 min (real)
+[2026-07-21 14:53:39] [thread 4016856] [info] 	   Fit Summary of POIs ([92m STATUS OK [0m)
+[2026-07-21 14:53:39] [thread 4016856] [info] 	 ------------------------------------------------
 RooRealVar::nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06) 
