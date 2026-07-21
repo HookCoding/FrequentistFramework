@@ -36,3 +36,17 @@ the 100% unblinding file
 ```
 https://gitlab.cern.ch/tla-atlas-run3/tla-ntuple-analysis/-/tree/full-unblinding/outputs/FINAL_100pc_unblinding_histograms?ref_type=heads
 ```
+
+# Quality checks
+
+Run the lightweight safety-net checks locally with:
+
+```bash
+py -3 -m pip install pytest ruff black
+py -3 scripts/quality_check.py
+```
+
+The checks currently cover:
+- a small repo-root regression test under tests/
+- linting with ruff
+- formatting validation with black

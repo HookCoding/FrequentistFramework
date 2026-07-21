@@ -1,0 +1,22 @@
+{
+  "cls_limit_points": [
+    {
+      "limit": 1.2,
+      "mass": 400.0
+    },
+    {
+      "limit": 1.5,
+      "mass": 500.0
+    },
+    {
+      "limit": 1.8,
+      "mass": 600.0
+    }
+  ],
+  "fit_parameters": {
+    "intercept": 0.94,
+    "slope": 0.94
+  },
+  "p_bh": 0.2,
+  "p_chi2": 0.36
+}
