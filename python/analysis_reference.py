@@ -47,9 +47,30 @@ def _extract_fit_parameters(log_path: Path) -> dict[str, float]:
     return parameters
 
 
-def build_analysis_reference() -> dict[str, Any]:
+def _candidate_fit_dirs(repo_root: Path) -> list[Path]:
+    fits_dir = repo_root / "run" / "fits"
+    if not fits_dir.exists():
+        return []
+
+    candidates = []
+    for path in sorted(fits_dir.iterdir(), key=lambda item: item.name):
+        if not path.is_dir():
+            continue
+        if re.search(r"run_135_1000_(six|seven)Par$", path.name):
+            candidates.append(path)
+
+    ordered_names = ["run_135_1000_sevenPar", "run_135_1000_sixPar"]
+    ordered_candidates = []
+    for name in ordered_names:
+        matching = [path for path in candidates if path.name == name]
+        if matching:
+            ordered_candidates.extend(matching)
+    return ordered_candidates
+
+
+def build_analysis_reference(repo_root: Optional[Path] = None) -> dict[str, Any]:
     """Create an analysis-output reference payload from real outputs when present."""
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = repo_root or Path(__file__).resolve().parents[1]
     candidate_files = [
         repo_root / "tests" / "references" / "analysis_reference.json",
         repo_root / "run" / "fits" / "analysis_reference.json",
@@ -60,12 +81,17 @@ def build_analysis_reference() -> dict[str, Any]:
         if payload is not None:
             return payload
 
-    fit_dir = repo_root / "run" / "fits" / "run_135_1000_sevenPar"
-    if fit_dir.exists():
+    for fit_dir in _candidate_fit_dirs(repo_root):
         bh_results_path = fit_dir / "BHresults.json"
-        fit_log_path = fit_dir / "quickFitLog_anaFit_sevenPar_bkgOnly.log"
-        fit_parameters = _extract_fit_parameters(fit_log_path)
+        log_candidates = [
+            fit_dir / "quickFitLog_anaFit_sevenPar_bkgOnly.log",
+            fit_dir / "quickFitLog_anaFit_sixPar_bkgOnly.log",
+        ]
+        fit_log_path = next((path for path in log_candidates if path.exists()), None)
+        if fit_log_path is None:
+            continue
 
+        fit_parameters = _extract_fit_parameters(fit_log_path)
         if bh_results_path.exists():
             try:
                 bh_results = json.loads(bh_results_path.read_text(encoding="utf-8"))

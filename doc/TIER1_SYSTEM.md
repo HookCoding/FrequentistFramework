@@ -25,6 +25,7 @@ Purpose:
 
 What it does:
 - reads the fit log and BH results from the fit output directory,
+- supports both six-parameter and seven-parameter fit runs by looking for the corresponding log files,
 - extracts fit parameter values such as `nbkg`, `p2`, `p3`, `p4`, `p5`, `p6`, and `p7`,
 - reads `BHresults.json` for the bump-hunter probability value,
 - writes or reads a JSON payload used by the regression test.
@@ -122,9 +123,11 @@ Why it matters:
 The Tier 1 workflow is built around the following flow:
 
 1. Run a fit with the repository’s fit launcher.
-2. Gather the relevant output files, especially:
+2. Gather the relevant output files, especially any of:
    - `run/fits/run_135_1000_sevenPar/quickFitLog_anaFit_sevenPar_bkgOnly.log`
    - `run/fits/run_135_1000_sevenPar/BHresults.json`
+   - `run/fits/run_135_1000_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`
+   - `run/fits/run_135_1000_sixPar/BHresults.json`
 3. Use [python/analysis_reference.py](../python/analysis_reference.py) to build a JSON payload from those outputs.
 4. Compare that payload to the frozen reference in [tests/references/analysis_reference.json](../tests/references/analysis_reference.json).
 5. Use the snapshot test to ensure the repository structure remains consistent.
@@ -185,7 +188,7 @@ Commit and push fit outputs from lxplus:
 
 ```bash
 cd /afs/cern.ch/user/h/hhook/FrequentistFramework
-git add -f run/fits/run_135_1000_sevenPar
+git add -f run/fits/run_135_1000_sevenPar run/fits/run_135_1000_sixPar
 git commit -m "Add fit outputs from lxplus run"
 git push origin HEAD
 ```

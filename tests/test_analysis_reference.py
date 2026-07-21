@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -28,3 +29,23 @@ def test_analysis_reference_matches_frozen_output(tmp_path: Path) -> None:
     assert written_output["p_chi2"] is None
     assert written_output["p_bh"] == pytest.approx(0.2368)
     assert written_output["cls_limit_points"] == []
+
+
+def test_six_parameter_fit_dir_is_used_when_present(tmp_path: Path) -> None:
+    fit_dir = tmp_path / "run" / "fits" / "run_135_1000_sixPar"
+    fit_dir.mkdir(parents=True)
+    (fit_dir / "BHresults.json").write_text(json.dumps({"global_Pval": 0.42}), encoding="utf-8")
+    (fit_dir / "quickFitLog_anaFit_sixPar_bkgOnly.log").write_text(
+        "nbkg = 1000\np2 = -2\np3 = 3\np4 = 4\np5 = 5\np6 = 6\n",
+        encoding="utf-8",
+    )
+
+    output = build_analysis_reference(repo_root=tmp_path)
+
+    assert output["fit_parameters"]["nbkg"] == pytest.approx(1000.0)
+    assert output["fit_parameters"]["p2"] == pytest.approx(-2.0)
+    assert output["fit_parameters"]["p3"] == pytest.approx(3.0)
+    assert output["fit_parameters"]["p4"] == pytest.approx(4.0)
+    assert output["fit_parameters"]["p5"] == pytest.approx(5.0)
+    assert output["fit_parameters"]["p6"] == pytest.approx(6.0)
+    assert output["p_bh"] == pytest.approx(0.42)
