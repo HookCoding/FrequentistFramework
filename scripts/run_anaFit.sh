@@ -1,8 +1,9 @@
 #!/bin/bash
 
-out_dir=/eos/home-t/tofitsch/tlafits
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+out_dir="$repo_dir/run/fits"
 
-mkdir -p $out_dir
+mkdir -p "$out_dir"
 
 {
     . scripts/setup_buildAndFit.sh
