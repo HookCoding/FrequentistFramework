@@ -3,12 +3,21 @@ workspace/*
 test/*
 *.pdf
 *~
-run/
 *.txt
 *.pyc
 *.png
 
 log
+
+# Keep the run output tree local unless explicitly force-added
+run/*
+run/**
+
+# Python tooling caches
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
 
 Input/model/dijetTLAnlo/
 !Input/model/dijetTLAnlo/HistFactoryInput/
