@@ -1,7 +1,7 @@
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 def _fallback_analysis_reference() -> dict[str, Any]:
@@ -22,7 +22,7 @@ def _fallback_analysis_reference() -> dict[str, Any]:
     }
 
 
-def _read_json_payload(path: Path) -> dict[str, Any] | None:
+def _read_json_payload(path: Path) -> Optional[dict[str, Any]]:
     if not path.exists():
         return None
     try:
