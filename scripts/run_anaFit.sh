@@ -9,8 +9,9 @@ cd "$repo_dir"
 {
     . "$repo_dir/scripts/setup_buildAndFit.sh"
 
-    # for pars in five six seven
-    for pars in seven #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
+    # Set FIT_PARS to a space-separated list such as "six" or "six seven".
+    pars_list="${FIT_PARS:-seven}"
+    for pars in $pars_list
     do
           
         for rangelow in 135 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
