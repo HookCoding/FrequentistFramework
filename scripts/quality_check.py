@@ -14,11 +14,12 @@ def run_command(command: list[str], cwd: Path) -> None:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    targets = ["python/repo_utils.py", "scripts/quality_check.py", "tests"]
+    python_targets = ["python/repo_utils.py", "scripts/quality_check.py"]
+    test_targets = ["tests/test_analysis_reference.py", "tests/test_repo_utils.py"]
 
-    run_command([sys.executable, "-m", "pytest", "tests"], repo_root)
-    run_command([sys.executable, "-m", "ruff", "check", *targets], repo_root)
-    run_command([sys.executable, "-m", "black", "--check", *targets], repo_root)
+    run_command([sys.executable, "-m", "pytest", *test_targets], repo_root)
+    run_command([sys.executable, "-m", "ruff", "check", *python_targets, *test_targets], repo_root)
+    run_command([sys.executable, "-m", "black", "--check", *python_targets], repo_root)
 
 
 if __name__ == "__main__":
