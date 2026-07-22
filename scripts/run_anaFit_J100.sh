@@ -16,10 +16,10 @@ cd "$repo_dir"
 
         # J100 six-parameter background-only fit.
         region=J100
-        datafile=Input/data/dijetTLA/fullRun2TLAJ100mjj.root
-        datahist=mjj
-        rangelow=531
-        rangehigh=2997
+        datafile=Input/data/dijetTLA/mjj_spectra_J100_dataAll.root
+        datahist=hists_yStar06_massCut/afterSelection/nominal/h_mjj
+        rangelow=481
+        rangehigh=3000
             for sigmean in 400 #350 300 250 225 200 180 160 150
             do
                 #rangelow=80 # using systematics !!!
@@ -133,8 +133,8 @@ cd "$repo_dir"
             if (( $doprefit )); then flags="$flags --doprefit"; fi
 
             "$repo_dir/python/run_anaFit.py" \
-                --datafile $datafile \
-                --datahist $datahist \
+                --datafile "$datafile" \
+                --datahist "$datahist" \
                 --backgroundfile $backgroundfile \
                 --signalfile $signalfile \
                 --categoryfile $categoryfile \
