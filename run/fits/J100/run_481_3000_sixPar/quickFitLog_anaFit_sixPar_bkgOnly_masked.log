@@ -3,31 +3,31 @@
                 Copyright (C) 2000-2013 NIKHEF, University of California & Stanford University
                 All rights reserved, please read http://roofit.sourceforge.net/license.txt
 
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Including external constraints:
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Preparing parameters of interest: 
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Preparing list parameters for running MINOS over them: 
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Summary of POI setup in the likelihood model
-  1) 0x4e03f30 RooRealVar:: nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06)  "nsig_mean400_width8.0"
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Performing sanity checks on model...
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Sanity checks on the model: OK
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Starting fit...
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Building NLL...
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 Building chi2 with splitrange and Poisson error...
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 chi2 SBLo_Run3TLA,SBHi_Run3TLA: 1.34e+05
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 chi2: 134275.33180984348
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 half_chi2: 67137.66590492174
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 constraint_sum: 0
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 constrained_chi2: 67137.66590492174
-RooFormulaVar::constrained_chi2[ actualVars=(half_chi2,constraint_sum) formula="x[0]+x[1]" ] = 67137.7
-[2026-07-22 13:43:26] [thread 1080642] [info] 	 NLL built in 0.0004999999999999986 min (cpu), 0.0007165352503458659 min (real)
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Including external constraints:
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Preparing parameters of interest: 
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Preparing list parameters for running MINOS over them: 
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Summary of POI setup in the likelihood model
+  1) 0x4387ea0 RooRealVar:: nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06)  "nsig_mean400_width8.0"
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Performing sanity checks on model...
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Sanity checks on the model: OK
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Starting fit...
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Building NLL...
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Building chi2 with splitrange and Poisson error...
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 chi2 SBLo_Run3TLA,SBHi_Run3TLA: 1.36e+05
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 chi2: 135599.75394183752
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 half_chi2: 67799.87697091876
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 constraint_sum: 0
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 constrained_chi2: 67799.87697091876
+RooFormulaVar::constrained_chi2[ actualVars=(half_chi2,constraint_sum) formula="x[0]+x[1]" ] = 67799.9
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 NLL built in 0.00033333333333333365 min (cpu), 0.000390779972076416 min (real)
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        67137.6659 Edm =       201284.7594 NCalls =     51
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.005876
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       67799.87697 Edm =        204675.575 NCalls =     51
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00586827
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 67137.6659
-  Edm           : 64580.52527
+  Minimum value : 67799.87697
+  Edm           : 65248.99402
   Internal parameters:
                 0
    0.000749164489
@@ -36,870 +36,862 @@ Info in <Minuit2>: MnSeedGenerator run Hesse - new state:
   -0.002877135236
   0.0006309882414
   Internal gradient  :
-      8353036.608
-      -1239211032
-      -1014433722
-       1181695643
-     -521554433.1
-      199473116.4
+      8462267.124
+      -1245595850
+      -1025303920
+       1196222013
+     -528686272.1
+      202445026.3
   Internal covariance matrix:
-  1.4526004e-09  8.7716924e-13 -1.7649514e-12  7.0792256e-13 -4.0458526e-12  -1.508644e-11
-  8.7716924e-13  2.2108812e-12 -3.5329108e-12  1.9641266e-12  5.1893443e-13 -1.4817116e-11
- -1.7649514e-12 -3.5329108e-12  1.4735507e-11  5.0663855e-12 -3.3688865e-12  1.4011806e-11
-  7.0792256e-13  1.9641266e-12  5.0663855e-12  1.5478751e-11  6.2235355e-12 -3.7488751e-11
- -4.0458526e-12  5.1893443e-13 -3.3688865e-12  6.2235355e-12  3.9992378e-11  5.3320522e-11
-  -1.508644e-11 -1.4817116e-11  1.4011806e-11 -3.7488751e-11  5.3320522e-11  3.4064635e-10
+  1.4444559e-09  6.5317202e-13 -1.7187479e-12   5.466516e-13 -3.9063152e-12 -1.5419165e-11
+  6.5317202e-13  2.2016355e-12 -3.5275391e-12  1.9409359e-12  5.2566745e-13 -1.4709649e-11
+ -1.7187479e-12 -3.5275391e-12  1.4710034e-11  5.0254914e-12 -3.3797641e-12  1.4120117e-11
+   5.466516e-13  1.9409359e-12  5.0254914e-12  1.5352063e-11  6.1953134e-12 -3.7164121e-11
+ -3.9063152e-12  5.2566745e-13 -3.3797641e-12  6.1953134e-12  3.9783435e-11  5.2941578e-11
+ -1.5419165e-11 -1.4709649e-11  1.4120117e-11 -3.7164121e-11  5.2941578e-11  3.3881982e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        67137.6659 Edm =       64580.52527 NCalls =     91
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1326.919119 Edm =       83.38203717 NCalls =    104
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1231.018277 Edm =      0.6790169794 NCalls =    118
-Info in <Minuit2>: VariableMetricBuilder    3 - FCN =       1229.808902 Edm =      0.3496400978 NCalls =    132
-Info in <Minuit2>: VariableMetricBuilder    4 - FCN =       1227.737029 Edm =    0.002158316437 NCalls =    147
-Info in <Minuit2>: VariableMetricBuilder    5 - FCN =       1227.734572 Edm =   0.0002852950722 NCalls =    161
-Info in <Minuit2>: VariableMetricBuilder    6 - FCN =       1227.204333 Edm =   0.0002486915833 NCalls =    180
-Info in <Minuit2>: VariableMetricBuilder    7 - FCN =       1225.714631 Edm =   3.134959364e-06 NCalls =    193
-Info in <Minuit2>: VariableMetricBuilder    8 - FCN =       1225.714628 Edm =   3.762296407e-09 NCalls =    206
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0049001
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       67799.87697 Edm =       65248.99402 NCalls =     91
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1321.805169 Edm =       82.68813429 NCalls =    104
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1226.692176 Edm =      0.6716225913 NCalls =    118
+Info in <Minuit2>: VariableMetricBuilder    3 - FCN =       1225.524443 Edm =      0.3263287854 NCalls =    132
+Info in <Minuit2>: VariableMetricBuilder    4 - FCN =       1223.523002 Edm =    0.002121069443 NCalls =    147
+Info in <Minuit2>: VariableMetricBuilder    5 - FCN =       1223.520668 Edm =   0.0002004416093 NCalls =    161
+Info in <Minuit2>: VariableMetricBuilder    6 - FCN =       1223.147668 Edm =   0.0001872678806 NCalls =    180
+Info in <Minuit2>: VariableMetricBuilder    7 - FCN =       1222.077212 Edm =   1.505597948e-06 NCalls =    193
+Info in <Minuit2>: VariableMetricBuilder    8 - FCN =       1222.077211 Edm =    3.21741589e-10 NCalls =    206
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0049
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    9 - FCN =       1225.714628 Edm =   5.845180759e-09 NCalls =    246
+Info in <Minuit2>: VariableMetricBuilder    9 - FCN =       1222.077211 Edm =   4.742684997e-10 NCalls =    246
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71462817271345
-Edm   = 5.84518075894832003e-09
+FVAL  = 1222.07721051689441
+Edm   = 4.74268499700118795e-10
 Nfcn  = 246
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.2937	 +/-  0.0174427	(limited)
-p3	  = 5.2306	 +/-  0.00237503	(limited)
-p4	  = -0.103149	 +/-  0.000408038	(limited)
-p5	  = -0.0232921	 +/-  8.80395e-05	(limited)
-p6	  = 0.00171509	 +/-  1.99831e-05	(limited)
-Real time 0:00:00, CP time 0.520
-Real time 0:00:00, CP time 0.520
-[2026-07-22 13:43:27] [thread 1080642] [info] 	 Starting fit with HESSE...
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173836	(limited)
+p3	  = 5.26057	 +/-  0.00236882	(limited)
+p4	  = -0.0992721	 +/-  0.00040626	(limited)
+p5	  = -0.0241006	 +/-  8.7606e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99007e-05	(limited)
+Real time 0:00:00, CP time 0.480
+Real time 0:00:00, CP time 0.480
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Starting fit with HESSE...
 Info in <Minuit2>: Minuit2Minimizer::Hesse Using max-calls 55000
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489871
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489724
 Info in <Minuit2>: Minuit2Minimizer::Hesse Hesse is valid - matrix is full but made positive defined
-Real time 0:00:00, CP time 0.080
-Real time 0:00:00, CP time 0.600, 2 slices
+Real time 0:00:00, CP time 0.070
+Real time 0:00:00, CP time 0.550, 2 slices
 
-  RooFitResult: minimized FCN value: 1225.71, estimated distance to minimum: 5.85606e-09
+  RooFitResult: minimized FCN value: 1222.08, estimated distance to minimum: 4.93428e-10
                 covariance matrix quality: Full matrix, but forced positive-definite
                 Status : MINIMIZE=1 HESSE=1 
 
     Floating Parameter    FinalValue +/-  Error   
   --------------------  --------------------------
-                  nbkg    1.3909e+09 +/-  5.34e+04
-                    p2    8.2937e+00 +/-  1.74e-02
-                    p3    5.2306e+00 +/-  2.38e-03
-                    p4   -1.0315e-01 +/-  4.08e-04
-                    p5   -2.3292e-02 +/-  8.81e-05
-                    p6    1.7151e-03 +/-  2.00e-05
+                  nbkg    1.3909e+09 +/-  5.32e+04
+                    p2    8.2284e+00 +/-  1.74e-02
+                    p3    5.2606e+00 +/-  2.37e-03
+                    p4   -9.9272e-02 +/-  4.06e-04
+                    p5   -2.4101e-02 +/-  8.76e-05
+                    p6    1.5384e-03 +/-  1.99e-05
 
 ....................INITIALIZING THE FIT UNTIL CONVERGENCE TEST..................................................................
-[2026-07-22 13:43:27] [thread 1080642] [info] 	 Minimization attempt 1 with strategy 2
+[2026-07-22 14:51:23] [thread 1371115] [info] 	 Minimization attempt 1 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.714628 Edm =   1.044509269e-10 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490024
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1222.077211 Edm =   5.368828986e-11 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0049
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.714628
-  Edm           : 5.839291765e-09
+  Minimum value : 1222.077211
+  Edm           : 4.704595708e-10
   Internal parameters:
-  -0.006478341084
-  0.0008293703664
-    0.01046138511
-  -0.001031490097
-   -0.00232921564
-   0.001715094353
+  -0.006475448192
+   0.000822836349
+    0.01052134366
+ -0.0009927211971
+   -0.00241005839
+   0.001538436949
   Internal gradient  :
-    0.02780839415
-     -26.55739367
-     -25.95089929
-      3.544438357
-     -20.55319799
-      2.159743023
+    0.03858726595
+     -24.28144458
+     -18.39027115
+      13.18481936
+     -10.84367606
+      2.455565776
   Internal covariance matrix:
-  1.4537117e-09    9.34057e-13 -2.2720158e-12  1.3711332e-12 -2.3127797e-13 -1.0150012e-11
-    9.34057e-13  3.0422926e-12 -5.8553353e-12   1.763045e-12  1.8272546e-12 -1.6990152e-11
- -2.2720158e-12 -5.8553353e-12  2.2562887e-11  5.7303899e-12  -1.015236e-11   1.780438e-11
-  1.3711332e-12   1.763045e-12  5.7303899e-12  1.6650506e-11  1.1528458e-11 -2.8375745e-11
- -2.3127797e-13  1.8272546e-12  -1.015236e-11  1.1528458e-11  7.7503886e-11  9.3995029e-11
- -1.0150012e-11 -1.6990152e-11   1.780438e-11 -2.8375745e-11  9.3995029e-11  3.9931016e-10
+  1.4453831e-09  6.5845193e-13 -2.1247341e-12  1.2081083e-12  2.7084818e-14 -9.9719745e-12
+  6.5845193e-13   3.021756e-12 -5.8183071e-12  1.7411338e-12  1.8249896e-12 -1.6826666e-11
+ -2.1247341e-12 -5.8183071e-12  2.2445908e-11  5.6825609e-12 -1.0096338e-11  1.7860453e-11
+  1.2081083e-12  1.7411338e-12  5.6825609e-12   1.650547e-11  1.1439019e-11 -2.8132269e-11
+  2.7084818e-14  1.8249896e-12 -1.0096338e-11  1.1439019e-11  7.6744491e-11  9.2836355e-11
+ -9.9719745e-12 -1.6826666e-11  1.7860453e-11 -2.8132269e-11  9.2836355e-11  3.9603659e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.714628 Edm =   5.839291765e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.714627 Edm =   3.142323338e-06 NCalls =     83
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.714616 Edm =    7.09964003e-06 NCalls =     98
-Info in <Minuit2>: VariableMetricBuilder    3 - FCN =        1225.71457 Edm =   6.927229389e-06 NCalls =    113
-Info in <Minuit2>: VariableMetricBuilder    4 - FCN =       1225.714067 Edm =   3.335214001e-06 NCalls =    130
-Info in <Minuit2>: VariableMetricBuilder    5 - FCN =       1225.714063 Edm =   1.065710544e-07 NCalls =    144
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490006
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1222.077211 Edm =   4.704595708e-10 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1222.077211 Edm =   4.124248346e-09 NCalls =     79
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490002
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    6 - FCN =       1225.714063 Edm =   1.065812102e-07 NCalls =    184
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1222.077211 Edm =    4.12564601e-09 NCalls =    119
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71406292750453
-Edm   = 1.06581210164048776e-07
-Nfcn  = 184
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.29435	 +/-  0.0174437	(limited)
-p3	  = 5.23414	 +/-  0.00237525	(limited)
-p4	  = -0.100991	 +/-  0.000408021	(limited)
-p5	  = -0.0227395	 +/-  8.80442e-05	(limited)
-p6	  = 0.00176814	 +/-  1.99826e-05	(limited)
-Real time 0:00:00, CP time 0.380
-Real time 0:00:01, CP time 0.980, 3 slices
-[2026-07-22 13:43:27] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:27] [thread 1080642] [info] 	 Trying MIGRAD again...
+FVAL  = 1222.07721050718828
+Edm   = 4.12564601009322607e-09
+Nfcn  = 119
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173836	(limited)
+p3	  = 5.26057	 +/-  0.00236882	(limited)
+p4	  = -0.099272	 +/-  0.00040626	(limited)
+p5	  = -0.0241005	 +/-  8.76059e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99008e-05	(limited)
+Real time 0:00:00, CP time 0.230
+Real time 0:00:00, CP time 0.780, 3 slices
+[2026-07-22 14:51:24] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:24] [thread 1371115] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.714063 Edm =   7.420834548e-09 NCalls =     23
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1222.077211 Edm =   9.982808895e-09 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490009
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.077211
+  Edm           : 4.128711095e-09
+  Internal parameters:
+  -0.006475448717
+  0.0008228363827
+    0.01052134399
+ -0.0009927202803
+   -0.00241005605
+   0.001538439389
+  Internal gradient  :
+     -0.536800767
+      336.7724288
+      235.8966286
+     -269.3756357
+      108.4089296
+      -41.2142615
+  Internal covariance matrix:
+   1.445383e-09  6.5844768e-13 -2.1247387e-12  1.2080748e-12  2.6979032e-14  -9.972102e-12
+  6.5844768e-13  3.0217209e-12 -5.8182308e-12  1.7410681e-12  1.8247593e-12 -1.6826708e-11
+ -2.1247387e-12 -5.8182308e-12  2.2445648e-11  5.6826209e-12 -1.0095659e-11   1.786102e-11
+  1.2080748e-12  1.7410681e-12  5.6826209e-12  1.6505292e-11  1.1438918e-11  -2.813158e-11
+  2.6979032e-14  1.8247593e-12 -1.0095659e-11  1.1438918e-11  7.6744007e-11  9.2837714e-11
+  -9.972102e-12 -1.6826708e-11   1.786102e-11  -2.813158e-11  9.2837714e-11  3.9603868e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1222.077211 Edm =   4.128711095e-09 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1222.077211 Edm =   5.368169769e-10 NCalls =     86
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490001
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1222.077211 Edm =   5.364865741e-10 NCalls =    126
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07721050239661
+Edm   = 5.3648657410267749e-10
+Nfcn  = 126
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173836	(limited)
+p3	  = 5.26057	 +/-  0.00236883	(limited)
+p4	  = -0.099272	 +/-  0.000406257	(limited)
+p5	  = -0.0241005	 +/-  8.76062e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99006e-05	(limited)
+Real time 0:00:00, CP time 0.230
+Real time 0:00:01, CP time 1.010, 4 slices
+[2026-07-22 14:51:24] [thread 1371115] [info] 	 Minimization attempt 2 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1222.077211 Edm =   2.928258788e-10 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490013
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.077211
+  Edm           : 5.36269009e-10
+  Internal parameters:
+   -0.00647544815
+  0.0008228363434
+      0.010521344
+ -0.0009927202097
+  -0.002410055842
+   0.001538439464
+  Internal gradient  :
+    0.08867002287
+     -54.23864983
+     -41.60084856
+      39.89398834
+     -22.53527049
+      6.895488269
+  Internal covariance matrix:
+   1.445383e-09  6.5842119e-13 -2.1246775e-12  1.2080634e-12  2.7059991e-14 -9.9716762e-12
+  6.5842119e-13  3.0216724e-12 -5.8181118e-12  1.7410611e-12  1.8248787e-12 -1.6826049e-11
+ -2.1246775e-12 -5.8181118e-12  2.2445304e-11  5.6826138e-12 -1.0095656e-11  1.7860058e-11
+  1.2080634e-12  1.7410611e-12  5.6826138e-12  1.6505311e-11   1.143927e-11  -2.813085e-11
+  2.7059991e-14  1.8248787e-12 -1.0095656e-11   1.143927e-11  7.6743136e-11  9.2834105e-11
+ -9.9716762e-12 -1.6826049e-11  1.7860058e-11  -2.813085e-11  9.2834105e-11   3.960241e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1222.077211 Edm =    5.36269009e-10 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   1.757286087e-09 NCalls =     79
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490013
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   1.758518396e-09 NCalls =    119
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07721049906468
+Edm   = 1.75851839620997274e-09
+Nfcn  = 119
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173831	(limited)
+p3	  = 5.26057	 +/-  0.00236875	(limited)
+p4	  = -0.099272	 +/-  0.00040626	(limited)
+p5	  = -0.0241005	 +/-  8.76037e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99e-05	(limited)
+Real time 0:00:00, CP time 0.220
+Real time 0:00:01, CP time 1.230, 5 slices
+[2026-07-22 14:51:24] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:24] [thread 1371115] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =    4.61906093e-09 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490004
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.07721
+  Edm           : 1.760797459e-09
+  Internal parameters:
+  -0.006475448549
+  0.0008228363671
+     0.0105213441
+ -0.0009927198997
+  -0.002410055062
+   0.001538440251
+  Internal gradient  :
+    -0.3520385152
+      214.6944009
+      159.6006681
+     -188.2618462
+      75.67452243
+     -29.78105067
+  Internal covariance matrix:
+  1.4453831e-09  6.5843001e-13 -2.1247031e-12  1.2080509e-12  2.6991908e-14 -9.9718555e-12
+  6.5843001e-13  3.0216886e-12 -5.8181425e-12  1.7410706e-12  1.8248523e-12 -1.6826231e-11
+ -2.1247031e-12 -5.8181425e-12  2.2445351e-11  5.6825832e-12 -1.0095626e-11  1.7860369e-11
+  1.2080509e-12  1.7410706e-12  5.6825832e-12  1.6505301e-11   1.143923e-11 -2.8130993e-11
+  2.6991908e-14  1.8248523e-12 -1.0095626e-11   1.143923e-11  7.6743307e-11  9.2834771e-11
+ -9.9718555e-12 -1.6826231e-11  1.7860369e-11 -2.8130993e-11  9.2834771e-11  3.9602715e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   1.760797459e-09 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   5.604478462e-10 NCalls =     83
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489996
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   5.620702055e-10 NCalls =    123
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07721049679776
+Edm   = 5.62070205531428685e-10
+Nfcn  = 123
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173837	(limited)
+p3	  = 5.26058	 +/-  0.00236884	(limited)
+p4	  = -0.099272	 +/-  0.00040626	(limited)
+p5	  = -0.0241005	 +/-  8.76065e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99009e-05	(limited)
+Real time 0:00:00, CP time 0.280
+Real time 0:00:01, CP time 1.510, 6 slices
+[2026-07-22 14:51:24] [thread 1371115] [info] 	 Minimization attempt 3 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   4.169146393e-10 NCalls =     23
 Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490007
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.714063
-  Edm           : 1.065695397e-07
+  Minimum value : 1222.07721
+  Edm           : 5.621630946e-10
   Internal parameters:
-  -0.006478369523
-  0.0008294346068
-    0.01046846257
-  -0.001009912393
-  -0.002273956641
-   0.001768143019
+  -0.006475448136
+  0.0008228363467
+    0.01052134412
+ -0.0009927198193
+  -0.002410054847
+   0.001538440402
   Internal gradient  :
-       0.24580977
-     -135.8595945
-     -261.0678025
-      169.6496168
-     -85.29539038
-      54.82271816
+     0.1031992565
+     -62.65079582
+     -49.41884643
+        49.229754
+     -26.77279498
+      8.547165973
   Internal covariance matrix:
-  1.4537118e-09  9.3423269e-13  -2.272344e-12  1.3713253e-12 -2.3042774e-13  -1.014956e-11
-  9.3423269e-13  3.0426954e-12  -5.856788e-12  1.7627092e-12  1.8283018e-12 -1.6990326e-11
-  -2.272344e-12  -5.856788e-12  2.2567603e-11   5.730491e-12 -1.0156791e-11  1.7807225e-11
-  1.3713253e-12  1.7627092e-12   5.730491e-12  1.6649285e-11   1.152867e-11 -2.8369493e-11
- -2.3042774e-13  1.8283018e-12 -1.0156791e-11   1.152867e-11  7.7513513e-11     9.4003e-11
-  -1.014956e-11 -1.6990326e-11  1.7807225e-11 -2.8369493e-11     9.4003e-11  3.9930761e-10
+  1.4453831e-09  6.5845714e-13 -2.1247438e-12  1.2081015e-12  2.6992439e-14 -9.9721927e-12
+  6.5845714e-13  3.0217487e-12 -5.8182673e-12  1.7411542e-12   1.824892e-12 -1.6826884e-11
+ -2.1247438e-12 -5.8182673e-12  2.2445641e-11  5.6823482e-12 -1.0096219e-11  1.7860909e-11
+  1.2081015e-12  1.7411542e-12  5.6823482e-12  1.6505295e-11  1.1439082e-11 -2.8132024e-11
+  2.6992439e-14   1.824892e-12 -1.0096219e-11  1.1439082e-11  7.6745718e-11  9.2839189e-11
+ -9.9721927e-12 -1.6826884e-11  1.7860909e-11 -2.8132024e-11  9.2839189e-11   3.960435e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.714063 Edm =   1.065695397e-07 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1225.71406 Edm =   1.567861369e-06 NCalls =     84
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.714023 Edm =   3.081426486e-05 NCalls =     99
-Info in <Minuit2>: VariableMetricBuilder    3 - FCN =       1225.713548 Edm =   4.938773007e-06 NCalls =    114
-Info in <Minuit2>: VariableMetricBuilder    4 - FCN =       1225.713517 Edm =   8.963736137e-06 NCalls =    129
-Info in <Minuit2>: VariableMetricBuilder    5 - FCN =       1225.713503 Edm =   6.057451756e-09 NCalls =    143
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490011
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   5.621630946e-10 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   2.133331758e-09 NCalls =     79
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489993
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    6 - FCN =       1225.713503 Edm =   6.037742884e-09 NCalls =    183
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   2.135934682e-09 NCalls =    119
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350288966914
-Edm   = 6.03774288358867458e-09
-Nfcn  = 183
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174426	(limited)
-p3	  = 5.2372	 +/-  0.00237504	(limited)
-p4	  = -0.100589	 +/-  0.000408036	(limited)
-p5	  = -0.02282	 +/-  8.80389e-05	(limited)
-p6	  = 0.00175023	 +/-  1.99825e-05	(limited)
-Real time 0:00:00, CP time 0.360
-Real time 0:00:01, CP time 1.340, 4 slices
-[2026-07-22 13:43:28] [thread 1080642] [info] 	 Minimization attempt 2 with strategy 2
+FVAL  = 1222.07721049366137
+Edm   = 2.13593468170428555e-09
+Nfcn  = 119
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173836	(limited)
+p3	  = 5.26058	 +/-  0.00236883	(limited)
+p4	  = -0.0992719	 +/-  0.00040626	(limited)
+p5	  = -0.0241005	 +/-  8.76055e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99006e-05	(limited)
+Real time 0:00:00, CP time 0.290
+Real time 0:00:01, CP time 1.800, 7 slices
+[2026-07-22 14:51:25] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:25] [thread 1371115] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713503 Edm =    1.15080088e-09 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490026
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   6.599957845e-09 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490001
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713503
-  Edm           : 6.034637682e-09
+  Minimum value : 1222.07721
+  Edm           : 2.133418606e-09
   Internal parameters:
-  -0.006478338272
-  0.0008287618146
-    0.01047458165
-  -0.001005892058
-  -0.002282000811
-   0.001750231801
+  -0.006475448602
+  0.0008228363684
+    0.01052134423
+ -0.0009927195095
+  -0.002410054063
+   0.001538441189
   Internal gradient  :
-    -0.1317489655
-      107.6353136
-       73.9043243
-     -109.3146452
-      28.17391805
-     -15.97100137
+    -0.4097298976
+      248.5293375
+      190.6794119
+     -225.5426444
+      92.57748503
+     -36.39498917
   Internal covariance matrix:
-  1.4537116e-09  9.3402449e-13 -2.2719382e-12   1.371123e-12 -2.3118599e-13 -1.0149517e-11
-  9.3402449e-13  3.0422297e-12 -5.8552029e-12  1.7629871e-12  1.8273313e-12 -1.6989321e-11
- -2.2719382e-12 -5.8552029e-12  2.2562565e-11   5.730503e-12 -1.0152191e-11  1.7803318e-11
-   1.371123e-12  1.7629871e-12   5.730503e-12  1.6650448e-11  1.1528678e-11 -2.8374611e-11
- -2.3118599e-13  1.8273313e-12 -1.0152191e-11  1.1528678e-11  7.7502176e-11  9.3990616e-11
- -1.0149517e-11 -1.6989321e-11  1.7803318e-11 -2.8374611e-11  9.3990616e-11  3.9929167e-10
+  1.4453831e-09  6.5843783e-13 -2.1247325e-12  1.2080432e-12  2.7013474e-14 -9.9718539e-12
+  6.5843783e-13  3.0217063e-12 -5.8182182e-12  1.7410388e-12  1.8248813e-12 -1.6826242e-11
+ -2.1247325e-12 -5.8182182e-12  2.2445669e-11  5.6826766e-12 -1.0095876e-11  1.7860311e-11
+  1.2080432e-12  1.7410388e-12  5.6826766e-12  1.6505271e-11  1.1439087e-11 -2.8130914e-11
+  2.7013474e-14  1.8248813e-12 -1.0095876e-11  1.1439087e-11  7.6743711e-11  9.2835588e-11
+ -9.9718539e-12 -1.6826242e-11  1.7860311e-11 -2.8130914e-11  9.2835588e-11  3.9602845e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713503 Edm =   6.034637682e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713503 Edm =   6.751301293e-08 NCalls =     80
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490012
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   2.133418606e-09 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   4.941426969e-10 NCalls =     80
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489981
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713503 Edm =    6.75148838e-08 NCalls =    120
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   4.930991149e-10 NCalls =    120
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350278083423
-Edm   = 6.75148838039423746e-08
+FVAL  = 1222.07721049110205
+Edm   = 4.93099114851519085e-10
 Nfcn  = 120
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174428	(limited)
-p3	  = 5.2372	 +/-  0.00237505	(limited)
-p4	  = -0.100589	 +/-  0.000408041	(limited)
-p5	  = -0.0228199	 +/-  8.80372e-05	(limited)
-p6	  = 0.00175024	 +/-  1.99828e-05	(limited)
-Real time 0:00:00, CP time 0.230
-Real time 0:00:01, CP time 1.570, 5 slices
-[2026-07-22 13:43:28] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:28] [thread 1080642] [info] 	 Trying MIGRAD again...
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713503 Edm =   2.197912549e-07 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490023
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713503
-  Edm           : 6.750275907e-08
-  Internal parameters:
-  -0.006478336373
-  0.0008287616293
-    0.01047458285
-   -0.00100588884
-  -0.002281992325
-   0.001750240342
-  Internal gradient  :
-      1.830567777
-     -1488.548859
-     -1113.342423
-      1235.179426
-     -550.1808805
-      199.9262308
-  Internal covariance matrix:
-  1.4537117e-09  9.3406293e-13 -2.2720004e-12  1.3711742e-12 -2.3127781e-13  -1.015014e-11
-  9.3406293e-13  3.0423108e-12 -5.8553566e-12   1.763071e-12  1.8271834e-12 -1.6990484e-11
- -2.2720004e-12 -5.8553566e-12  2.2563023e-11  5.7304969e-12 -1.0152303e-11   1.780444e-11
-  1.3711742e-12   1.763071e-12  5.7304969e-12  1.6650648e-11  1.1528036e-11 -2.8376983e-11
- -2.3127781e-13  1.8271834e-12 -1.0152303e-11  1.1528036e-11  7.7502863e-11  9.3994741e-11
-  -1.015014e-11 -1.6990484e-11   1.780444e-11 -2.8376983e-11  9.3994741e-11  3.9931502e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713503 Edm =   6.750275907e-08 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713503 Edm =   6.265132694e-09 NCalls =     77
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0049
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713503 Edm =   6.280977426e-09 NCalls =    117
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350270621838
-Edm   = 6.28097742566910471e-09
-Nfcn  = 117
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.017443	(limited)
-p3	  = 5.2372	 +/-  0.0023751	(limited)
-p4	  = -0.100589	 +/-  0.000408039	(limited)
-p5	  = -0.0228199	 +/-  8.80406e-05	(limited)
-p6	  = 0.00175024	 +/-  1.99832e-05	(limited)
-Real time 0:00:00, CP time 0.210
-Real time 0:00:01, CP time 1.780, 6 slices
-[2026-07-22 13:43:28] [thread 1080642] [info] 	 Minimization attempt 3 with strategy 2
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713503 Edm =   2.421679327e-09 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490021
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713503
-  Edm           : 6.260771613e-09
-  Internal parameters:
-  -0.006478338359
-  0.0008287617578
-    0.01047458295
-   -0.00100588859
-  -0.002281991757
-   0.001750241161
-  Internal gradient  :
-    -0.1805032791
-      145.1503458
-      111.1175016
-      -153.627651
-      47.83255263
-     -23.43087994
-  Internal covariance matrix:
-  1.4537118e-09  9.3407745e-13 -2.2720308e-12  1.3712002e-12 -2.3123352e-13 -1.0150241e-11
-  9.3407745e-13  3.0423407e-12 -5.8554367e-12   1.763113e-12  1.8273628e-12 -1.6990487e-11
- -2.2720308e-12 -5.8554367e-12  2.2563222e-11  5.7303514e-12 -1.0152837e-11  1.7804418e-11
-  1.3712002e-12   1.763113e-12  5.7303514e-12  1.6650675e-11  1.1528294e-11 -2.8376947e-11
- -2.3123352e-13  1.8273628e-12 -1.0152837e-11  1.1528294e-11  7.7504168e-11  9.3995019e-11
- -1.0150241e-11 -1.6990487e-11  1.7804418e-11 -2.8376947e-11  9.3995019e-11  3.9931541e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713503 Edm =   6.260771613e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713503 Edm =   1.135771458e-07 NCalls =     81
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490015
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713503 Edm =   1.135699827e-07 NCalls =    121
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350264299895
-Edm   = 1.1356998265047979e-07
-Nfcn  = 121
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174428	(limited)
-p3	  = 5.2372	 +/-  0.00237506	(limited)
-p4	  = -0.100589	 +/-  0.000408039	(limited)
-p5	  = -0.0228198	 +/-  8.80402e-05	(limited)
-p6	  = 0.00175025	 +/-  1.9983e-05	(limited)
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173839	(limited)
+p3	  = 5.26058	 +/-  0.00236887	(limited)
+p4	  = -0.0992719	 +/-  0.000406264	(limited)
+p5	  = -0.0241005	 +/-  8.76077e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99013e-05	(limited)
 Real time 0:00:00, CP time 0.220
-Real time 0:00:02, CP time 2.000, 7 slices
-[2026-07-22 13:43:28] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:28] [thread 1080642] [info] 	 Trying MIGRAD again...
+Real time 0:00:02, CP time 2.020, 8 slices
+[2026-07-22 14:51:25] [thread 1371115] [info] 	 Minimization attempt 4 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713503 Edm =   4.685515217e-07 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490022
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   1.807499394e-10 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0049001
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713503
-  Edm           : 1.135720515e-07
+  Minimum value : 1222.07721
+  Edm           : 4.93563271e-10
   Internal parameters:
-  -0.006478335636
-   0.000828761717
-    0.01047458389
-  -0.001005885221
-  -0.002281983289
-   0.001750248562
+   -0.00647544817
+  0.0008228363509
+    0.01052134425
+ -0.0009927194372
+  -0.002410053874
+   0.001538441333
   Internal gradient  :
-      2.507610109
-     -2027.795681
-     -1617.593942
-      1841.682013
-     -825.1025649
-      307.5222764
+    0.06495515548
+     -39.46350777
+      -32.7963541
+      30.66217498
+     -18.85517665
+      5.624414191
   Internal covariance matrix:
-  1.4537117e-09  9.3406566e-13 -2.2720296e-12  1.3711459e-12 -2.3129382e-13 -1.0150145e-11
-  9.3406566e-13  3.0423165e-12 -5.8553909e-12    1.76306e-12  1.8272553e-12  -1.699037e-11
- -2.2720296e-12 -5.8553909e-12  2.2563109e-11  5.7304257e-12 -1.0152582e-11  1.7804358e-11
-  1.3711459e-12    1.76306e-12  5.7304257e-12  1.6650564e-11  1.1528254e-11 -2.8376349e-11
- -2.3129382e-13  1.8272553e-12 -1.0152582e-11  1.1528254e-11  7.7504125e-11  9.3995777e-11
- -1.0150145e-11  -1.699037e-11  1.7804358e-11 -2.8376349e-11  9.3995777e-11  3.9931427e-10
+   1.445383e-09  6.5844214e-13 -2.1246972e-12   1.208106e-12  2.6992099e-14 -9.9720759e-12
+  6.5844214e-13  3.0217141e-12 -5.8181629e-12  1.7411231e-12  1.8247548e-12 -1.6826741e-11
+ -2.1246972e-12 -5.8181629e-12  2.2445377e-11  5.6826196e-12 -1.0095305e-11  1.7860997e-11
+   1.208106e-12  1.7411231e-12  5.6826196e-12  1.6505514e-11  1.1439021e-11  -2.813229e-11
+  2.6992099e-14  1.8247548e-12 -1.0095305e-11  1.1439021e-11  7.6742431e-11   9.283475e-11
+ -9.9720759e-12 -1.6826741e-11  1.7860997e-11  -2.813229e-11   9.283475e-11   3.960348e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713503 Edm =   1.135720515e-07 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713503 Edm =   6.029096156e-09 NCalls =     77
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490019
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =    4.93563271e-10 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   7.184224894e-09 NCalls =     81
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489991
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713503 Edm =   6.025579835e-09 NCalls =    117
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   7.185831138e-09 NCalls =    121
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350252275442
-Edm   = 6.02557983480775907e-09
-Nfcn  = 117
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174427	(limited)
-p3	  = 5.2372	 +/-  0.00237505	(limited)
-p4	  = -0.100588	 +/-  0.000408038	(limited)
-p5	  = -0.0228198	 +/-  8.80393e-05	(limited)
-p6	  = 0.00175025	 +/-  1.99826e-05	(limited)
+FVAL  = 1222.07721048524468
+Edm   = 7.18583113764721865e-09
+Nfcn  = 121
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173835	(limited)
+p3	  = 5.26058	 +/-  0.0023688	(limited)
+p4	  = -0.0992718	 +/-  0.000406259	(limited)
+p5	  = -0.0241005	 +/-  8.76044e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99006e-05	(limited)
+Real time 0:00:00, CP time 0.260
+Real time 0:00:02, CP time 2.280, 9 slices
+[2026-07-22 14:51:25] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:25] [thread 1371115] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =    2.90100278e-08 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489994
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.07721
+  Edm           : 7.185218132e-09
+  Internal parameters:
+  -0.006475448984
+  0.0008228363789
+    0.01052134453
+ -0.0009927185907
+  -0.002410051702
+   0.001538443455
+  Internal gradient  :
+    -0.8250634443
+      501.9029074
+      400.2677322
+      -470.283957
+      200.8027003
+     -77.84222348
+  Internal covariance matrix:
+  1.4453832e-09   6.584404e-13 -2.1247295e-12  1.2080433e-12   2.694104e-14 -9.9720129e-12
+   6.584404e-13  3.0217216e-12 -5.8182544e-12  1.7410326e-12  1.8248061e-12 -1.6826493e-11
+ -2.1247295e-12 -5.8182544e-12  2.2445798e-11  5.6827228e-12  -1.009581e-11   1.786064e-11
+  1.2080433e-12  1.7410326e-12  5.6827228e-12  1.6505274e-11   1.143891e-11 -2.8131199e-11
+   2.694104e-14  1.8248061e-12  -1.009581e-11   1.143891e-11  7.6743842e-11  9.2836843e-11
+ -9.9720129e-12 -1.6826493e-11   1.786064e-11 -2.8131199e-11  9.2836843e-11  3.9603355e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   7.185218132e-09 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   4.529940244e-10 NCalls =     81
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0048998
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   4.521061686e-10 NCalls =    123
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07721047756945
+Edm   = 4.52106168557125699e-10
+Nfcn  = 123
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173837	(limited)
+p3	  = 5.26058	 +/-  0.00236884	(limited)
+p4	  = -0.0992718	 +/-  0.000406259	(limited)
+p5	  = -0.0241005	 +/-  8.7606e-05	(limited)
+p6	  = 0.00153844	 +/-  1.99009e-05	(limited)
+Real time 0:00:00, CP time 0.310
+Real time 0:00:02, CP time 2.590, 10 slices
+[2026-07-22 14:51:26] [thread 1371115] [info] 	 Minimization attempt 5 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   2.347966854e-12 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490004
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.07721
+  Edm           : 4.559457352e-10
+  Internal parameters:
+  -0.006475448234
+  0.0008228363565
+    0.01052134455
+ -0.0009927185267
+  -0.002410051542
+   0.001538443577
+  Internal gradient  :
+  -0.005089697821
+       2.16644464
+     -0.812327813
+     -5.939120569
+     -2.997649865
+    -0.3432648784
+  Internal covariance matrix:
+  1.4453831e-09  6.5843301e-13 -2.1246981e-12  1.2080521e-12  2.6899617e-14 -9.9720604e-12
+  6.5843301e-13  3.0216956e-12 -5.8181664e-12  1.7410307e-12  1.8246701e-12  -1.682655e-11
+ -2.1246981e-12 -5.8181664e-12  2.2445486e-11  5.6827703e-12 -1.0095164e-11  1.7861007e-11
+  1.2080521e-12  1.7410307e-12  5.6827703e-12  1.6505336e-11  1.1438901e-11 -2.8131359e-11
+  2.6899617e-14  1.8246701e-12 -1.0095164e-11  1.1438901e-11  7.6742388e-11   9.283554e-11
+ -9.9720604e-12  -1.682655e-11  1.7861007e-11 -2.8131359e-11   9.283554e-11   3.960326e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   4.559457352e-10 NCalls =     65
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   3.724684485e-07 NCalls =     86
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490001
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   3.724829018e-07 NCalls =    126
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07721029688128
+Edm   = 3.7248290184496878e-07
+Nfcn  = 126
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173844	(limited)
+p3	  = 5.26058	 +/-  0.0023689	(limited)
+p4	  = -0.0992679	 +/-  0.000406257	(limited)
+p5	  = -0.0240995	 +/-  8.76049e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99007e-05	(limited)
+Real time 0:00:00, CP time 0.280
+Real time 0:00:02, CP time 2.870, 11 slices
+[2026-07-22 14:51:26] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:26] [thread 1371115] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   5.459481423e-08 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489998
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.07721
+  Edm           : 3.724749132e-07
+  Internal parameters:
+    -0.0064754457
+  0.0008228359669
+     0.0105213573
+ -0.0009926795744
+  -0.002409951348
+   0.001538537581
+  Internal gradient  :
+      3.181709293
+     -1322.636327
+     -333.9347605
+      137.3756497
+      30.02146326
+     -46.92737343
+  Internal covariance matrix:
+  1.4453832e-09  6.5845198e-13 -2.1247514e-12  1.2080723e-12  2.7065184e-14  -9.971901e-12
+  6.5845198e-13  3.0217531e-12 -5.8183559e-12  1.7410407e-12  1.8249195e-12 -1.6826563e-11
+ -2.1247514e-12 -5.8183559e-12  2.2446042e-11  5.6825955e-12 -1.0096121e-11  1.7861195e-11
+  1.2080723e-12  1.7410407e-12  5.6825955e-12   1.650516e-11  1.1439077e-11 -2.8130683e-11
+  2.7065184e-14  1.8249195e-12 -1.0096121e-11  1.1439077e-11  7.6744499e-11  9.2836704e-11
+  -9.971901e-12 -1.6826563e-11  1.7861195e-11 -2.8130683e-11  9.2836704e-11  3.9603252e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   3.724749132e-07 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   1.195186144e-09 NCalls =     76
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490002
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   1.191336842e-09 NCalls =    116
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07720990742928
+Edm   = 1.1913368424756905e-09
+Nfcn  = 116
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173835	(limited)
+p3	  = 5.26058	 +/-  0.00236882	(limited)
+p4	  = -0.0992679	 +/-  0.000406263	(limited)
+p5	  = -0.0240995	 +/-  8.76052e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99007e-05	(limited)
 Real time 0:00:00, CP time 0.240
-Real time 0:00:02, CP time 2.240, 8 slices
-[2026-07-22 13:43:28] [thread 1080642] [info] 	 Minimization attempt 4 with strategy 2
+Real time 0:00:03, CP time 3.110, 12 slices
+[2026-07-22 14:51:26] [thread 1371115] [info] 	 Minimization attempt 6 with strategy 2
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713503 Edm =   1.550193746e-09 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490026
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   8.347822583e-11 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490004
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713503
-  Edm           : 6.032023396e-09
+  Minimum value : 1222.07721
+  Edm           : 1.19081958e-09
   Internal parameters:
-  -0.006478338292
-  0.0008287618127
-    0.01047458401
-  -0.001005885001
-   -0.00228198271
-   0.001750249298
+  -0.006475448236
+   0.000822836451
+    0.01052135739
+ -0.0009926794415
+  -0.002409951586
+   0.001538539282
   Internal gradient  :
-     -0.128098889
-      108.7392936
-      86.29425594
-     -127.2720422
-      37.39710121
-     -19.93753216
+    0.01713581401
+     -46.86980832
+     -5.526849805
+     -12.28338858
+      4.459166743
+     -4.765044103
   Internal covariance matrix:
-  1.4537117e-09  9.3405282e-13 -2.2720013e-12  1.3711421e-12 -2.3123335e-13 -1.0149898e-11
-  9.3405282e-13  3.0422813e-12 -5.8553314e-12   1.763018e-12  1.8273499e-12 -1.6989789e-11
- -2.2720013e-12 -5.8553314e-12  2.2562999e-11  5.7305196e-12 -1.0152536e-11   1.780373e-11
-  1.3711421e-12   1.763018e-12  5.7305196e-12  1.6650526e-11  1.1528379e-11 -2.8375583e-11
- -2.3123335e-13  1.8273499e-12 -1.0152536e-11  1.1528379e-11  7.7502728e-11  9.3992197e-11
- -1.0149898e-11 -1.6989789e-11   1.780373e-11 -2.8375583e-11  9.3992197e-11  3.9930077e-10
+  1.4453831e-09  6.5844648e-13  -2.124728e-12  1.2080824e-12  2.7015193e-14 -9.9720057e-12
+  6.5844648e-13  3.0217242e-12 -5.8182199e-12  1.7410973e-12  1.8248032e-12 -1.6826691e-11
+  -2.124728e-12 -5.8182199e-12  2.2445627e-11  5.6826802e-12 -1.0095502e-11  1.7861042e-11
+  1.2080824e-12  1.7410973e-12  5.6826802e-12  1.6505481e-11   1.143898e-11 -2.8132053e-11
+  2.7015193e-14  1.8248032e-12 -1.0095502e-11   1.143898e-11  7.6742557e-11  9.2834623e-11
+ -9.9720057e-12 -1.6826691e-11  1.7861042e-11 -2.8132053e-11  9.2834623e-11  3.9603362e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713503 Edm =   6.032023396e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.880455502e-08 NCalls =     80
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490028
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =    1.19081958e-09 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   6.450476511e-10 NCalls =     80
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489991
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.880240704e-08 NCalls =    120
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   6.460077306e-10 NCalls =    122
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350241457912
-Edm   = 6.8802407040187945e-08
-Nfcn  = 120
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174425	(limited)
-p3	  = 5.2372	 +/-  0.00237502	(limited)
-p4	  = -0.100588	 +/-  0.000408039	(limited)
-p5	  = -0.0228197	 +/-  8.80372e-05	(limited)
-p6	  = 0.00175026	 +/-  1.99823e-05	(limited)
-Real time 0:00:00, CP time 0.230
-Real time 0:00:02, CP time 2.470, 9 slices
-[2026-07-22 13:43:29] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:29] [thread 1080642] [info] 	 Trying MIGRAD again...
+FVAL  = 1222.0772099054102
+Edm   = 6.46007730628517106e-10
+Nfcn  = 122
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173836	(limited)
+p3	  = 5.26058	 +/-  0.00236883	(limited)
+p4	  = -0.0992679	 +/-  0.000406255	(limited)
+p5	  = -0.0240995	 +/-  8.76067e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99007e-05	(limited)
+Real time 0:00:00, CP time 0.250
+Real time 0:00:03, CP time 3.360, 13 slices
+[2026-07-22 14:51:26] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:26] [thread 1371115] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =    2.98125842e-07 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490034
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   2.385448312e-11 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489993
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 6.879253259e-08
+  Minimum value : 1222.07721
+  Edm           : 6.465741161e-10
   Internal parameters:
-  -0.006478336331
-  0.0008287617519
-    0.01047458516
-  -0.001005881729
-  -0.002281974308
-   0.001750257881
+  -0.006475448266
+  0.0008228364848
+    0.01052135743
+ -0.0009926793377
+  -0.002409951372
+    0.00153853963
   Internal gradient  :
-       1.77904053
-     -1516.085185
-     -1283.848175
-      1481.674443
-     -677.7484879
-       255.348096
+  -0.009910595779
+      24.35678083
+     0.5739856705
+     -2.389227063
+     -6.620149299
+      1.832727368
   Internal covariance matrix:
-  1.4537116e-09  9.3403487e-13 -2.2719456e-12  1.3711499e-12 -2.3124505e-13 -1.0149805e-11
-  9.3403487e-13   3.042255e-12 -5.8552264e-12  1.7630469e-12  1.8272513e-12 -1.6989847e-11
- -2.2719456e-12 -5.8552264e-12  2.2562583e-11  5.7304583e-12 -1.0152042e-11   1.780392e-11
-  1.3711499e-12  1.7630469e-12  5.7304583e-12  1.6650587e-11  1.1528463e-11 -2.8375854e-11
- -2.3124505e-13  1.8272513e-12 -1.0152042e-11  1.1528463e-11  7.7501926e-11  9.3991504e-11
- -1.0149805e-11 -1.6989847e-11   1.780392e-11 -2.8375854e-11  9.3991504e-11  3.9930117e-10
+  1.4453832e-09  6.5844633e-13 -2.1247469e-12   1.208065e-12   2.708362e-14 -9.9718209e-12
+  6.5844633e-13  3.0217541e-12 -5.8183478e-12  1.7410595e-12  1.8249659e-12 -1.6826507e-11
+ -2.1247469e-12 -5.8183478e-12  2.2446094e-11  5.6826593e-12 -1.0096328e-11  1.7860588e-11
+   1.208065e-12  1.7410595e-12  5.6826593e-12   1.650531e-11  1.1439004e-11 -2.8131317e-11
+   2.708362e-14  1.8249659e-12 -1.0096328e-11  1.1439004e-11  7.6744447e-11  9.2836235e-11
+ -9.9718209e-12 -1.6826507e-11  1.7860588e-11 -2.8131317e-11  9.2836235e-11  3.9603231e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   6.879253259e-08 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.228104342e-09 NCalls =     77
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   6.465741161e-10 NCalls =     65
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   7.112433616e-10 NCalls =     81
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489995
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   7.113979404e-10 NCalls =    121
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07720990351595
+Edm   = 7.11397940362739243e-10
+Nfcn  = 121
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173841	(limited)
+p3	  = 5.26058	 +/-  0.00236894	(limited)
+p4	  = -0.0992679	 +/-  0.00040626	(limited)
+p5	  = -0.0240995	 +/-  8.7606e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99008e-05	(limited)
+Real time 0:00:00, CP time 0.230
+Real time 0:00:03, CP time 3.590, 14 slices
+[2026-07-22 14:51:27] [thread 1371115] [info] 	 Minimization attempt 7 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   3.109314954e-11 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489999
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.07721
+  Edm           : 7.078270612e-10
+  Internal parameters:
+  -0.006475448243
+  0.0008228364587
+    0.01052135747
+ -0.0009926792014
+  -0.002409951004
+   0.001538539879
+  Internal gradient  :
+    0.01222210532
+     -27.96957984
+     -3.937636855
+     -9.581532199
+      1.471809031
+     -2.983476862
+  Internal covariance matrix:
+  1.4453832e-09  6.5845524e-13 -2.1247412e-12  1.2081194e-12  2.7116456e-14 -9.9719733e-12
+  6.5845524e-13  3.0217496e-12 -5.8183068e-12  1.7411003e-12  1.8249275e-12 -1.6826668e-11
+ -2.1247412e-12 -5.8183068e-12  2.2446031e-11  5.6827354e-12 -1.0096233e-11  1.7860318e-11
+  1.2081194e-12  1.7411003e-12  5.6827354e-12  1.6505534e-11  1.1438814e-11 -2.8132502e-11
+  2.7116456e-14  1.8249275e-12 -1.0096233e-11  1.1438814e-11  7.6743913e-11  9.2836209e-11
+ -9.9719733e-12 -1.6826668e-11  1.7860318e-11 -2.8132502e-11  9.2836209e-11  3.9603689e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   7.078270612e-10 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   1.006459479e-09 NCalls =     79
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490009
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   1.008290798e-09 NCalls =    123
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07720990155849
+Edm   = 1.00829079822335096e-09
+Nfcn  = 123
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173833	(limited)
+p3	  = 5.26058	 +/-  0.00236879	(limited)
+p4	  = -0.0992679	 +/-  0.000406257	(limited)
+p5	  = -0.0240995	 +/-  8.76052e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99004e-05	(limited)
+Real time 0:00:00, CP time 0.220
+Real time 0:00:03, CP time 3.810, 15 slices
+[2026-07-22 14:51:27] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:27] [thread 1371115] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   6.317959362e-11 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0049001
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.07721
+  Edm           : 1.007568606e-09
+  Internal parameters:
+  -0.006475448276
+  0.0008228364913
+    0.01052135754
+  -0.000992679036
+  -0.002409950637
+   0.001538540362
+  Internal gradient  :
+   -0.01904280993
+      40.89134147
+      2.076998738
+    -0.1856700776
+     -9.130883965
+      3.342780527
+  Internal covariance matrix:
+   1.445383e-09  6.5843321e-13 -2.1247026e-12  1.2080562e-12  2.6960917e-14 -9.9719454e-12
+  6.5843321e-13  3.0216927e-12 -5.8181488e-12  1.7410796e-12  1.8248307e-12 -1.6826347e-11
+ -2.1247026e-12 -5.8181488e-12  2.2445418e-11  5.6825671e-12 -1.0095931e-11  1.7859966e-11
+  1.2080562e-12  1.7410796e-12  5.6825671e-12  1.6505282e-11  1.1439054e-11 -2.8131368e-11
+  2.6960917e-14  1.8248307e-12 -1.0095931e-11  1.1439054e-11  7.6744673e-11  9.2837702e-11
+ -9.9719454e-12 -1.6826347e-11  1.7859966e-11 -2.8131368e-11  9.2837702e-11  3.9603427e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   1.007568606e-09 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =    7.13088925e-10 NCalls =     80
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489999
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   7.133301401e-10 NCalls =    120
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 1222.07720989970448
+Edm   = 7.133301400954018e-10
+Nfcn  = 120
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173835	(limited)
+p3	  = 5.26058	 +/-  0.00236883	(limited)
+p4	  = -0.0992679	 +/-  0.000406261	(limited)
+p5	  = -0.0240995	 +/-  8.76054e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99006e-05	(limited)
+Real time 0:00:00, CP time 0.230
+Real time 0:00:04, CP time 4.040, 16 slices
+[2026-07-22 14:51:27] [thread 1371115] [info] 	 Minimization attempt 8 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   3.120128354e-11 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490013
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 1222.07721
+  Edm           : 7.113939768e-10
+  Internal parameters:
+  -0.006475448242
+  0.0008228364576
+    0.01052135757
+ -0.0009926789313
+  -0.002409950338
+   0.001538540512
+  Internal gradient  :
+    0.01435149571
+     -28.05694914
+     -3.956671479
+     -9.576335259
+      1.459167483
+     -2.986120574
+  Internal covariance matrix:
+   1.445383e-09  6.5843103e-13 -2.1247087e-12  1.2080498e-12  2.7004522e-14 -9.9718382e-12
+  6.5843103e-13  3.0216888e-12 -5.8181431e-12  1.7410704e-12  1.8248428e-12 -1.6826256e-11
+ -2.1247087e-12 -5.8181431e-12  2.2445335e-11  5.6825748e-12 -1.0095579e-11   1.786046e-11
+  1.2080498e-12  1.7410704e-12  5.6825748e-12  1.6505299e-11  1.1439237e-11 -2.8131007e-11
+  2.7004522e-14  1.8248428e-12 -1.0095579e-11  1.1439237e-11  7.6743242e-11  9.2834749e-11
+ -9.9718382e-12 -1.6826256e-11   1.786046e-11 -2.8131007e-11  9.2834749e-11  3.9602748e-10
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   7.113939768e-10 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   1.901854711e-09 NCalls =     82
 Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00489994
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.214796184e-09 NCalls =    117
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =    1.90493605e-09 NCalls =    122
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350233936982
-Edm   = 6.21479618425307943e-09
-Nfcn  = 117
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174429	(limited)
-p3	  = 5.2372	 +/-  0.0023751	(limited)
-p4	  = -0.100588	 +/-  0.000408038	(limited)
-p5	  = -0.0228197	 +/-  8.80405e-05	(limited)
-p6	  = 0.00175026	 +/-  1.99831e-05	(limited)
-Real time 0:00:00, CP time 0.280
-Real time 0:00:02, CP time 2.750, 10 slices
-[2026-07-22 13:43:29] [thread 1080642] [info] 	 Minimization attempt 5 with strategy 2
+FVAL  = 1222.07720989781069
+Edm   = 1.90493605005024483e-09
+Nfcn  = 122
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173836	(limited)
+p3	  = 5.26058	 +/-  0.00236882	(limited)
+p4	  = -0.0992679	 +/-  0.000406262	(limited)
+p5	  = -0.0240995	 +/-  8.76055e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99009e-05	(limited)
+Real time 0:00:00, CP time 0.250
+Real time 0:00:04, CP time 4.290, 17 slices
+[2026-07-22 14:51:27] [thread 1371115] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-22 14:51:27] [thread 1371115] [info] 	 Trying MIGRAD again...
 Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
 Minuit2Minimizer::Minuit  - Changing default options
              StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =   2.511270228e-09 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490021
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =        1222.07721 Edm =   1.605505575e-10 NCalls =     23
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490002
 Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 6.229758831e-09
+  Minimum value : 1222.07721
+  Edm           : 1.903210513e-09
   Internal parameters:
-  -0.006478338343
-  0.0008287617836
-    0.01047458526
-  -0.001005881502
-  -0.002281973663
-   0.001750258374
+  -0.006475448292
+  0.0008228365022
+    0.01052135766
+ -0.0009926787061
+  -0.002409949837
+   0.001538541171
   Internal gradient  :
-    -0.1510123412
-        137.12527
-      112.3208319
-     -157.8194869
-      50.79734577
-     -24.97473577
+   -0.03558060653
+      65.84296574
+      4.307589011
+      3.103009027
+     -12.92358319
+      5.625984723
   Internal covariance matrix:
-  1.4537117e-09  9.3405776e-13 -2.2720145e-12  1.3711472e-12 -2.3122027e-13 -1.0149931e-11
-  9.3405776e-13  3.0423077e-12 -5.8553823e-12  1.7630498e-12  1.8273411e-12 -1.6990096e-11
- -2.2720145e-12 -5.8553823e-12  2.2563115e-11  5.7304685e-12 -1.0152634e-11  1.7804051e-11
-  1.3711472e-12  1.7630498e-12  5.7304685e-12   1.665058e-11  1.1528299e-11 -2.8376173e-11
- -2.3122027e-13  1.8273411e-12 -1.0152634e-11  1.1528299e-11  7.7503252e-11   9.399349e-11
- -1.0149931e-11 -1.6990096e-11  1.7804051e-11 -2.8376173e-11   9.399349e-11  3.9930738e-10
+  1.4453831e-09  6.5844433e-13 -2.1247242e-12  1.2080687e-12  2.6932296e-14 -9.9721352e-12
+  6.5844433e-13  3.0217102e-12 -5.8181627e-12  1.7410903e-12  1.8246718e-12 -1.6826789e-11
+ -2.1247242e-12 -5.8181627e-12  2.2445306e-11  5.6825438e-12 -1.0095179e-11  1.7861417e-11
+  1.2080687e-12  1.7410903e-12  5.6825438e-12  1.6505293e-11  1.1439057e-11 -2.8131475e-11
+  2.6932296e-14  1.8246718e-12 -1.0095179e-11  1.1439057e-11  7.6743169e-11  9.2836593e-11
+ -9.9721352e-12 -1.6826789e-11  1.7861417e-11 -2.8131475e-11  9.2836593e-11  3.9603665e-10
 Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   6.229758831e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   1.080377508e-07 NCalls =     81
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490006
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   1.080301626e-07 NCalls =    121
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350227021912
-Edm   = 1.08030162600524999e-07
-Nfcn  = 121
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174429	(limited)
-p3	  = 5.2372	 +/-  0.00237507	(limited)
-p4	  = -0.100588	 +/-  0.000408042	(limited)
-p5	  = -0.0228196	 +/-  8.80389e-05	(limited)
-p6	  = 0.00175027	 +/-  1.9983e-05	(limited)
-Real time 0:00:00, CP time 0.230
-Real time 0:00:03, CP time 2.980, 11 slices
-[2026-07-22 13:43:29] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:29] [thread 1080642] [info] 	 Trying MIGRAD again...
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =   4.861021295e-07 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490015
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 1.080248719e-07
-  Internal parameters:
-  -0.006478335933
-  0.0008287617966
-    0.01047458625
-   -0.00100587814
-  -0.002281965266
-   0.001750266235
-  Internal gradient  :
-      2.096840496
-     -1920.656076
-     -1638.164276
-      1901.071154
-     -865.2742411
-       327.862622
-  Internal covariance matrix:
-  1.4537118e-09  9.3407024e-13 -2.2720198e-12  1.3711948e-12 -2.3118164e-13 -1.0150064e-11
-  9.3407024e-13  3.0423351e-12  -5.855429e-12  1.7630877e-12  1.8273144e-12 -1.6990458e-11
- -2.2720198e-12  -5.855429e-12   2.256327e-11  5.7305136e-12 -1.0152549e-11    1.78045e-11
-  1.3711948e-12  1.7630877e-12  5.7305136e-12  1.6650715e-11  1.1527991e-11 -2.8377307e-11
- -2.3118164e-13  1.8273144e-12 -1.0152549e-11  1.1527991e-11  7.7502018e-11  9.3992355e-11
- -1.0150064e-11 -1.6990458e-11    1.78045e-11 -2.8377307e-11  9.3992355e-11  3.9931117e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   1.080248719e-07 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.010722752e-09 NCalls =     77
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =        1222.07721 Edm =   1.903210513e-09 NCalls =     63
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =        1222.07721 Edm =   6.205295199e-10 NCalls =     80
 Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490008
 Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.017294582e-09 NCalls =    117
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =        1222.07721 Edm =   6.192592504e-10 NCalls =    120
 Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
 Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350215609027
-Edm   = 6.01729458151117641e-09
-Nfcn  = 117
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174427	(limited)
-p3	  = 5.2372	 +/-  0.00237506	(limited)
-p4	  = -0.100588	 +/-  0.000408036	(limited)
-p5	  = -0.0228196	 +/-  8.80391e-05	(limited)
-p6	  = 0.00175027	 +/-  1.99824e-05	(limited)
-Real time 0:00:00, CP time 0.230
-Real time 0:00:03, CP time 3.210, 12 slices
-[2026-07-22 13:43:29] [thread 1080642] [info] 	 Minimization attempt 6 with strategy 2
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =   1.511824316e-09 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490033
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 6.008027588e-09
-  Internal parameters:
-  -0.006478338286
-  0.0008287618225
-    0.01047458636
-  -0.001005877931
-  -0.002281964628
-   0.001750266717
-  Internal gradient  :
-     -0.102448072
-      105.7843704
-      85.22462849
-      -126.332187
-      37.07611204
-     -19.82025395
-  Internal covariance matrix:
-  1.4537115e-09  9.3402175e-13  -2.271906e-12  1.3711637e-12  -2.311615e-13 -1.0149547e-11
-  9.3402175e-13  3.0422177e-12 -5.8551297e-12   1.763031e-12  1.8272672e-12  -1.698945e-11
-  -2.271906e-12 -5.8551297e-12  2.2562355e-11  5.7305271e-12 -1.0152038e-11  1.7802963e-11
-  1.3711637e-12   1.763031e-12  5.7305271e-12  1.6650612e-11  1.1528483e-11 -2.8375696e-11
-  -2.311615e-13  1.8272672e-12 -1.0152038e-11  1.1528483e-11  7.7501473e-11  9.3990321e-11
- -1.0149547e-11  -1.698945e-11  1.7802963e-11 -2.8375696e-11  9.3990321e-11  3.9929472e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   6.008027588e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.655684257e-08 NCalls =     80
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490006
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.654695777e-08 NCalls =    120
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350204580199
-Edm   = 6.6546957769684542e-08
+FVAL  = 1222.07720989525183
+Edm   = 6.19259250443295146e-10
 Nfcn  = 120
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174428	(limited)
-p3	  = 5.2372	 +/-  0.00237508	(limited)
-p4	  = -0.100587	 +/-  0.000408039	(limited)
-p5	  = -0.0228195	 +/-  8.80403e-05	(limited)
-p6	  = 0.00175027	 +/-  1.99829e-05	(limited)
-Real time 0:00:00, CP time 0.260
-Real time 0:00:03, CP time 3.470, 13 slices
-[2026-07-22 13:43:30] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:30] [thread 1080642] [info] 	 Trying MIGRAD again...
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =   2.905812833e-07 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0049003
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 6.655292699e-08
-  Internal parameters:
-  -0.006478336604
-   0.000828761789
-    0.01047458748
-  -0.001005874639
-  -0.002281956245
-   0.001750275143
-  Internal gradient  :
-      1.421828538
-      -1477.35117
-     -1266.984221
-      1466.629472
-      -672.921856
-      254.1322783
-  Internal covariance matrix:
-  1.4537116e-09  9.3403119e-13 -2.2719652e-12  1.3711125e-12 -2.3122012e-13 -1.0149641e-11
-  9.3403119e-13   3.042248e-12  -5.855237e-12  1.7630135e-12  1.8273165e-12 -1.6989576e-11
- -2.2719652e-12  -5.855237e-12  2.2562716e-11  5.7305317e-12 -1.0152352e-11  1.7803285e-11
-  1.3711125e-12  1.7630135e-12  5.7305317e-12  1.6650544e-11  1.1528438e-11 -2.8375498e-11
- -2.3122012e-13  1.8273165e-12 -1.0152352e-11  1.1528438e-11  7.7502311e-11  9.3991488e-11
- -1.0149641e-11 -1.6989576e-11  1.7803285e-11 -2.8375498e-11  9.3991488e-11  3.9929747e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   6.655292699e-08 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.230535502e-09 NCalls =     77
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490006
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.232635267e-09 NCalls =    117
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350197291713
-Edm   = 6.23263526660955161e-09
-Nfcn  = 117
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174429	(limited)
-p3	  = 5.2372	 +/-  0.00237508	(limited)
-p4	  = -0.100587	 +/-  0.000408039	(limited)
-p5	  = -0.0228195	 +/-  8.80398e-05	(limited)
-p6	  = 0.00175027	 +/-  1.99829e-05	(limited)
-Real time 0:00:00, CP time 0.220
-Real time 0:00:03, CP time 3.690, 14 slices
-[2026-07-22 13:43:30] [thread 1080642] [info] 	 Minimization attempt 7 with strategy 2
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =   2.572017866e-09 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490021
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 6.232328875e-09
-  Internal parameters:
-  -0.006478338329
-  0.0008287618088
-    0.01047458758
-  -0.001005874414
-   -0.00228195559
-   0.001750275615
-  Internal gradient  :
-    -0.1231838703
-      138.0797526
-      113.6010042
-       -159.62979
-      51.74167854
-     -25.38492537
-  Internal covariance matrix:
-  1.4537117e-09  9.3405171e-13  -2.271981e-12  1.3711663e-12 -2.3122089e-13 -1.0149913e-11
-  9.3405171e-13  3.0422849e-12 -5.8553267e-12  1.7630491e-12  1.8273822e-12 -1.6989843e-11
-  -2.271981e-12 -5.8553267e-12  2.2563062e-11  5.7305241e-12  -1.015292e-11  1.7803049e-11
-  1.3711663e-12  1.7630491e-12  5.7305241e-12  1.6650622e-11  1.1528229e-11 -2.8376326e-11
- -2.3122089e-13  1.8273822e-12  -1.015292e-11  1.1528229e-11  7.7503825e-11  9.3994203e-11
- -1.0149913e-11 -1.6989843e-11  1.7803049e-11 -2.8376326e-11  9.3994203e-11  3.9930662e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   6.232328875e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   1.097506902e-07 NCalls =     81
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490011
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   1.097460043e-07 NCalls =    121
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350190561407
-Edm   = 1.09746004325206346e-07
-Nfcn  = 121
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174428	(limited)
-p3	  = 5.2372	 +/-  0.00237507	(limited)
-p4	  = -0.100587	 +/-  0.000408037	(limited)
-p5	  = -0.0228195	 +/-  8.80402e-05	(limited)
-p6	  = 0.00175028	 +/-  1.99827e-05	(limited)
+nbkg	  = 1.39093e+09	 +/-  53224.4	(limited)
+p2	  = 8.22836	 +/-  0.0173834	(limited)
+p3	  = 5.26058	 +/-  0.0023688	(limited)
+p4	  = -0.0992678	 +/-  0.00040626	(limited)
+p5	  = -0.0240995	 +/-  8.76056e-05	(limited)
+p6	  = 0.00153854	 +/-  1.99006e-05	(limited)
 Real time 0:00:00, CP time 0.230
-Real time 0:00:04, CP time 3.920, 15 slices
-[2026-07-22 13:43:30] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:30] [thread 1080642] [info] 	 Trying MIGRAD again...
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =    4.98083232e-07 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490028
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 1.097341963e-07
-  Internal parameters:
-  -0.006478336219
-  0.0008287618148
-    0.01047458861
-  -0.001005871063
-  -0.002281947212
-   0.001750283607
-  Internal gradient  :
-      1.709245994
-     -1933.330725
-     -1658.101697
-      1927.408383
-     -878.1492046
-       333.244898
-  Internal covariance matrix:
-  1.4537116e-09   9.340369e-13 -2.2719661e-12   1.371132e-12 -2.3120199e-13 -1.0149678e-11
-   9.340369e-13  3.0422645e-12 -5.8552837e-12   1.763022e-12  1.8273833e-12 -1.6989587e-11
- -2.2719661e-12 -5.8552837e-12   2.256285e-11  5.7305303e-12 -1.0152439e-11  1.7803457e-11
-   1.371132e-12   1.763022e-12  5.7305303e-12  1.6650573e-11  1.1528446e-11   -2.83756e-11
- -2.3120199e-13  1.8273833e-12 -1.0152439e-11  1.1528446e-11  7.7501726e-11  9.3989878e-11
- -1.0149678e-11 -1.6989587e-11  1.7803457e-11   -2.83756e-11  9.3989878e-11  3.9929467e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   1.097341963e-07 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.001869986e-09 NCalls =     77
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490005
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.006905143e-09 NCalls =    117
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.71350178967714
-Edm   = 6.00690514260540733e-09
-Nfcn  = 117
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174428	(limited)
-p3	  = 5.2372	 +/-  0.00237507	(limited)
-p4	  = -0.100587	 +/-  0.000408036	(limited)
-p5	  = -0.0228194	 +/-  8.80403e-05	(limited)
-p6	  = 0.00175028	 +/-  1.99826e-05	(limited)
-Real time 0:00:00, CP time 0.220
-Real time 0:00:04, CP time 4.140, 16 slices
-[2026-07-22 13:43:30] [thread 1080642] [info] 	 Minimization attempt 8 with strategy 2
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =   1.500344436e-09 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490024
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 6.001420771e-09
-  Internal parameters:
-  -0.006478338282
-  0.0008287618358
-    0.01047458872
-  -0.001005870854
-   -0.00228194657
-   0.001750284059
-  Internal gradient  :
-   -0.08101224238
-      105.2594573
-      84.98251816
-      -126.075582
-      36.93799556
-     -19.74485169
-  Internal covariance matrix:
-  1.4537117e-09  9.3403486e-13 -2.2719748e-12  1.3711184e-12 -2.3116114e-13 -1.0149545e-11
-  9.3403486e-13  3.0422694e-12 -5.8553168e-12   1.763003e-12  1.8274506e-12 -1.6989436e-11
- -2.2719748e-12 -5.8553168e-12  2.2562965e-11  5.7305206e-12 -1.0152645e-11  1.7803356e-11
-  1.3711184e-12   1.763003e-12  5.7305206e-12  1.6650506e-11  1.1528575e-11 -2.8375038e-11
- -2.3116114e-13  1.8274506e-12 -1.0152645e-11  1.1528575e-11  7.7502186e-11  9.3989692e-11
- -1.0149545e-11 -1.6989436e-11  1.7803356e-11 -2.8375038e-11  9.3989692e-11  3.9929127e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   6.001420771e-09 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.570787076e-08 NCalls =     80
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490017
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.571098939e-08 NCalls =    120
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.7135016786201
-Edm   = 6.57109893852247462e-08
-Nfcn  = 120
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174425	(limited)
-p3	  = 5.2372	 +/-  0.00237502	(limited)
-p4	  = -0.100587	 +/-  0.000408035	(limited)
-p5	  = -0.0228194	 +/-  8.80377e-05	(limited)
-p6	  = 0.00175029	 +/-  1.99822e-05	(limited)
-Real time 0:00:00, CP time 0.220
-Real time 0:00:04, CP time 4.360, 17 slices
-[2026-07-22 13:43:31] [thread 1080642] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
-[2026-07-22 13:43:31] [thread 1080642] [info] 	 Trying MIGRAD again...
-Minuit2Minimizer: Minimize with max-calls 55000 convergence for edm < 0.001 strategy 2
-Minuit2Minimizer::Minuit  - Changing default options
-             StorageLevel :               0
-Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       1225.713502 Edm =   2.883378376e-07 NCalls =     23
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490026
-Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
-  Minimum value : 1225.713502
-  Edm           : 6.571101381e-08
-  Internal parameters:
-  -0.006478336831
-  0.0008287618115
-    0.01047458982
-  -0.001005867549
-  -0.002281938193
-   0.001750292378
-  Internal gradient  :
-      1.123278769
-        -1470.907
-     -1262.709695
-      1461.844683
-      -670.884888
-      253.3758601
-  Internal covariance matrix:
-  1.4537117e-09  9.3403858e-13 -2.2719686e-12  1.3711268e-12 -2.3123866e-13 -1.0149746e-11
-  9.3403858e-13   3.042241e-12 -5.8552054e-12  1.7629923e-12   1.827178e-12 -1.6989696e-11
- -2.2719686e-12 -5.8552054e-12  2.2562521e-11  5.7305724e-12 -1.0151576e-11  1.7804276e-11
-  1.3711268e-12  1.7629923e-12  5.7305724e-12  1.6650501e-11  1.1528423e-11 -2.8375204e-11
- -2.3123866e-13   1.827178e-12 -1.0151576e-11  1.1528423e-11  7.7500029e-11  9.3988691e-11
- -1.0149746e-11 -1.6989696e-11  1.7804276e-11 -2.8375204e-11  9.3988691e-11   3.992927e-10
-Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 55000
-Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       1225.713502 Edm =   6.571101381e-08 NCalls =     63
-Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       1225.713502 Edm =   6.219529458e-09 NCalls =     77
-Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00490018
-Info in <Minuit2>: VariableMetricBuilder After Hessian
-Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       1225.713502 Edm =   6.212170874e-09 NCalls =    117
-Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
-Minuit2Minimizer : Valid minimum - status = 1
-FVAL  = 1225.7135016066768
-Edm   = 6.21217087419880851e-09
-Nfcn  = 117
-nbkg	  = 1.39093e+09	 +/-  53377.5	(limited)
-p2	  = 8.28762	 +/-  0.0174427	(limited)
-p3	  = 5.2372	 +/-  0.00237505	(limited)
-p4	  = -0.100587	 +/-  0.000408038	(limited)
-p5	  = -0.0228194	 +/-  8.80397e-05	(limited)
-p6	  = 0.00175029	 +/-  1.99827e-05	(limited)
-Real time 0:00:00, CP time 0.210
-Real time 0:00:04, CP time 4.570, 18 slices
+Real time 0:00:04, CP time 4.520, 18 slices
 .........................................I'M DONE HOPE THIS WORKED BYE..............................................
-[2026-07-22 13:43:31] [thread 1080642] [info] 	 minimized nll value 1225.7135016066768:
-[2026-07-22 13:43:31] [thread 1080642] [info] 	 Saving results to /afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/J100/run_481_3000_sixPar/FitResult_anaFit_sixPar_bkgOnly_masked.root
-[2026-07-22 13:43:31] [thread 1080642] [info] 	 All fits done in 0.07883333333333334 min (cpu), 0.08268990119298299 min (real)
-[2026-07-22 13:43:31] [thread 1080642] [info] 	   Fit Summary of POIs ([92m STATUS OK [0m)
-[2026-07-22 13:43:31] [thread 1080642] [info] 	 ------------------------------------------------
+[2026-07-22 14:51:28] [thread 1371115] [info] 	 minimized nll value 1222.0772098952518:
+[2026-07-22 14:51:28] [thread 1371115] [info] 	 Saving results to /afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/J100/run_481_3000_sixPar/FitResult_anaFit_sixPar_bkgOnly_masked.root
+[2026-07-22 14:51:28] [thread 1371115] [info] 	 All fits done in 0.0785 min (cpu), 0.08510790268580119 min (real)
+[2026-07-22 14:51:28] [thread 1371115] [info] 	   Fit Summary of POIs ([92m STATUS OK [0m)
+[2026-07-22 14:51:28] [thread 1371115] [info] 	 ------------------------------------------------
 RooRealVar::nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06) 

@@ -30,7 +30,7 @@ def replaceinfile(f, old_new_list):
     with open(f, 'w') as file:
         file.write(filedata)
 
-def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, poi=None, maskrange=None):
+def build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, fitresultfile, poi=None, maskrange=None):
     rtv=execute('xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
     if rtv != 0:
         print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
@@ -78,7 +78,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
 
     print(binningFileName)
     if not os.path.exists(binningFileName):
-        execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
+        execute(f"python3 python/createBinning.py -s {rangelow} -e {rangehigh} -o {binningFileName}")
 
     print("EXECUTE: pfe = PostfitExtractor(")
     print("datafile=", datafile)
@@ -321,6 +321,7 @@ def run_anaFit(datafile,
                                                                 datafile=datafile, 
                                                                 datahist=datahist, 
                                                                 rangelow=rangelow, 
+                                                                rangehigh=rangehigh,
                                                                 wsfile=wsfile, 
                                                                 fitresultfile=outputfile, 
                                                                 poi=poi,
@@ -380,6 +381,7 @@ def run_anaFit(datafile,
                                             datafile=datafile, 
                                             datahist=datahist, 
                                             rangelow=rangelow, 
+                                            rangehigh=rangehigh,
                                             wsfile=wsfilemasked, 
                                             fitresultfile=outfilemasked, 
                                             poi=poi, 
