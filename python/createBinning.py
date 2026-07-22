@@ -13,7 +13,7 @@ bin_edge = args.start
 bin_edges = [args.start]
 while(bin_edge < args.end):
     resolution = reso_fit.Eval(bin_edge)
-    up_edge = round(bin_edge+bin_edge*resolution)
+    up_edge = min(round(bin_edge + bin_edge * resolution), args.end)
     bin_edges.append(up_edge)
     bin_edge = up_edge
 
