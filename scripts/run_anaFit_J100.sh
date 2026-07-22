@@ -17,7 +17,7 @@ cd "$repo_dir"
         # J100 six-parameter background-only fit.
         region=J100
         datafile=Input/data/dijetTLA/mjj_spectra_J100_dataAll.root
-        datahist=hists_yStar06_massCut/afterSelection/nominal/h_mjj
+        datahist=hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj
         rangelow=481
         rangehigh=3000
             for sigmean in 400 #350 300 250 225 200 180 160 150
