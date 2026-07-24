@@ -1,4 +1,5 @@
 # Install
+This program runs on unix systems.
 ```
 setupATLAS
 lsetup git
@@ -42,8 +43,8 @@ https://gitlab.cern.ch/tla-atlas-run3/tla-ntuple-analysis/-/tree/full-unblinding
 Run the lightweight safety-net checks locally with:
 
 ```bash
-py -3 -m pip install pytest ruff black
-py -3 scripts/quality_check.py
+python3 -m pip install pytest ruff black
+python3 scripts/quality_check.py
 ```
 
 The checks currently cover:
