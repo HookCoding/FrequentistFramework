@@ -72,7 +72,6 @@ def build_analysis_reference(repo_root: Optional[Path] = None) -> dict[str, Any]
     """Create an analysis-output reference payload from real outputs when present."""
     repo_root = repo_root or Path(__file__).resolve().parents[1]
     candidate_files = [
-        repo_root / "tests" / "references" / "analysis_reference.json",
         repo_root / "run" / "fits" / "analysis_reference.json",
     ]
 

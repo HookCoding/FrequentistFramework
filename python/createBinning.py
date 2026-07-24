@@ -8,7 +8,11 @@ parser.add_argument("-o", "--output", type=str, required=True, help="output file
 args = parser.parse_args()
 
 tfile = ROOT.TFile.Open("Input/data/dijetisrTLA/resolutionFits.root", "READ")
-reso_fit = tfile.Get("gsc_mjj_reso_fit")
+ if not tfile or tfile.IsZombie():
+     raise OSError("Could not open Input/data/dijetisrTLA/resolutionFits.root")
+ reso_fit = tfile.Get("gsc_mjj_reso_fit")
+ if not reso_fit:
+     raise KeyError("ROOT object gsc_mjj_reso_fit not found in resolutionFits.root")
 bin_edge = args.start
 bin_edges = [args.start]
 while(bin_edge < args.end):
