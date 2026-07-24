@@ -8,7 +8,10 @@ import math
 import sys
 from dataclasses import dataclass
 
-import ROOT
+try:
+     import ROOT  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+     ROOT = None  # type: ignore
 
 @dataclass
 class Difference:
