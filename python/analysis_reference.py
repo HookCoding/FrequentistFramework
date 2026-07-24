@@ -4,31 +4,13 @@ from pathlib import Path
 from typing import Any, Optional
 
 
-def _fallback_analysis_reference() -> dict[str, Any]:
-    """Return deterministic placeholder values when no real output exists."""
-    return {
-        "fit_parameters": {
-            "nbkg": 1.77642e7,
-            "p2": -23.6002,
-            "p3": 28.4426,
-            "p4": 7.96101,
-            "p5": 1.27154,
-            "p6": 0.102273,
-            "p7": 0.00290281,
-        },
-        "p_chi2": None,
-        "p_bh": 0.2368,
-        "cls_limit_points": [],
-    }
-
-
 def _read_json_payload(path: Path) -> Optional[dict[str, Any]]:
     if not path.exists():
         return None
     try:
         return read_analysis_reference(path)
-    except (json.JSONDecodeError, OSError):
-        return None
+    except (json.JSONDecodeError, OSError) as error:
+        raise ValueError(f"Could not read analysis reference: {path}") from error
 
 
 def _extract_fit_parameters(log_path: Path) -> dict[str, float]:
@@ -69,16 +51,13 @@ def _candidate_fit_dirs(repo_root: Path) -> list[Path]:
 
 
 def build_analysis_reference(repo_root: Optional[Path] = None) -> dict[str, Any]:
-    """Create an analysis-output reference payload from real outputs when present."""
+    """Create an analysis reference from real outputs or fail clearly."""
     repo_root = repo_root or Path(__file__).resolve().parents[1]
-    candidate_files = [
-        repo_root / "run" / "fits" / "analysis_reference.json",
-    ]
 
-    for candidate in candidate_files:
-        payload = _read_json_payload(candidate)
-        if payload is not None:
-            return payload
+    generated_reference = repo_root / "run" / "fits" / "analysis_reference.json"
+    payload = _read_json_payload(generated_reference)
+    if payload is not None:
+        return payload
 
     for fit_dir in _candidate_fit_dirs(repo_root):
         bh_results_path = fit_dir / "BHresults.json"
@@ -91,20 +70,48 @@ def build_analysis_reference(repo_root: Optional[Path] = None) -> dict[str, Any]
             continue
 
         fit_parameters = _extract_fit_parameters(fit_log_path)
-        if bh_results_path.exists():
-            try:
-                bh_results = json.loads(bh_results_path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                bh_results = {}
-            return {
-                "fit_parameters": fit_parameters
-                or _fallback_analysis_reference()["fit_parameters"],
-                "p_chi2": None,
-                "p_bh": float(bh_results.get("global_Pval", 0.0)),
-                "cls_limit_points": [],
-            }
+        if not fit_parameters:
+            raise ValueError(
+                f"No fit parameters could be extracted from {fit_log_path}"
+            )
 
-    return _fallback_analysis_reference()
+        if not bh_results_path.exists():
+            continue
+
+        try:
+            bh_results = json.loads(bh_results_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as error:
+            raise ValueError(
+                f"Could not read BumpHunter results: {bh_results_path}"
+            ) from error
+
+        pybh_result = bh_results.get("pyBHresult")
+
+        if not isinstance(pybh_result, dict):
+            raise KeyError(
+                f"BumpHunter results do not contain a valid 'pyBHresult': "
+                f"{bh_results_path}"
+            )
+
+        if "global_Pval" not in pybh_result:
+            raise KeyError(
+                f"BumpHunter results do not contain "
+                f"'pyBHresult.global_Pval': {bh_results_path}"
+            )
+
+        return {
+            "fit_parameters": fit_parameters,
+            "p_chi2": None,
+            "p_bh": float(pybh_result["global_Pval"]),
+            "cls_limit_points": [],
+        }
+
+    raise FileNotFoundError(
+        "No analysis reference or complete fit output was found. "
+        "Provide run/fits/analysis_reference.json, or run the expected fit "
+        "and provide both its quickFit log and BHresults.json before running "
+        "the regression tests."
+    )
 
 
 def write_analysis_reference(path: Path, payload: dict[str, Any]) -> None:

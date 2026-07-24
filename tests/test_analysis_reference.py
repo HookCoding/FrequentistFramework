@@ -34,7 +34,7 @@ def test_analysis_reference_matches_frozen_output(tmp_path: Path) -> None:
 def test_six_parameter_fit_dir_is_used_when_present(tmp_path: Path) -> None:
     fit_dir = tmp_path / "run" / "fits" / "run_135_1000_sixPar"
     fit_dir.mkdir(parents=True)
-    (fit_dir / "BHresults.json").write_text(json.dumps({"global_Pval": 0.42}), encoding="utf-8")
+    (fit_dir / "BHresults.json").write_text(json.dumps({"pyBHresult": {"global_Pval": 0.42}}), encoding="utf-8")
     (fit_dir / "quickFitLog_anaFit_sixPar_bkgOnly.log").write_text(
         "nbkg = 1000\np2 = -2\np3 = 3\np4 = 4\np5 = 5\np6 = 6\n",
         encoding="utf-8",
