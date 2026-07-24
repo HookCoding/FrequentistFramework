@@ -56,7 +56,11 @@ def calculate_relative_difference(
     return absolute_difference / abs(reference)
 
 def open_root_file(path: str):
-    """Open a ROOT file and fail clearly if it cannot be read."""
+    """Open a ROOT file and fail cleanly if it cannot be read."""
+    if ROOT is None:
+        raise RuntimeError(
+             "PyROOT is required to open ROOT files; install CERN ROOT/PyROOT and retry."
+        )
     root_file = ROOT.TFile.Open(path, "READ")
 
     if not root_file or root_file.IsZombie():
