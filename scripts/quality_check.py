@@ -6,7 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REQUIRED_BASELINE_PATHS = [
     "scripts/run_anaFit_J100.sh",
     "scripts/run_anaFit_J50.sh",
@@ -97,7 +96,9 @@ def _run_full_checks(repo_root: Path, python_targets: list[str], test_targets: l
     _run_fast_checks(repo_root, test_targets)
     _ensure_python_tools_available(["ruff", "black"])
     run_command([sys.executable, "-m", "ruff", "check", *python_targets, *test_targets], repo_root)
-    run_command([sys.executable, "-m", "black", "--check", *python_targets, *test_targets], repo_root)
+    run_command(
+        [sys.executable, "-m", "black", "--check", *python_targets, *test_targets], repo_root
+    )
 
 
 def main() -> None:

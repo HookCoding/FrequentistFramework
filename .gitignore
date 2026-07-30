@@ -35,3 +35,7 @@ pyBumpHunter
 
 !doc/*
 .aider*
+
+# Version-controlled Python development dependencies
+!requirements-dev.txt
+!requirements-dev-lock.txt

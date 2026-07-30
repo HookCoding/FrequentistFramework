@@ -9,9 +9,10 @@ import sys
 from dataclasses import dataclass
 
 try:
-     import ROOT  # type: ignore
+    import ROOT  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
-     ROOT = None  # type: ignore
+    ROOT = None  # type: ignore
+
 
 @dataclass
 class Difference:
@@ -39,9 +40,8 @@ def close_enough(
     if math.isinf(reference) or math.isinf(candidate):
         return reference == candidate
 
-    return abs(candidate - reference) <= (
-        absolute_tolerance + relative_tolerance * abs(reference)
-    )
+    return abs(candidate - reference) <= (absolute_tolerance + relative_tolerance * abs(reference))
+
 
 def calculate_relative_difference(
     reference: float,
@@ -55,11 +55,12 @@ def calculate_relative_difference(
 
     return absolute_difference / abs(reference)
 
+
 def open_root_file(path: str):
     """Open a ROOT file and fail cleanly if it cannot be read."""
     if ROOT is None:
         raise RuntimeError(
-             "PyROOT is required to open ROOT files; install CERN ROOT/PyROOT and retry."
+            "PyROOT is required to open ROOT files; install CERN ROOT/PyROOT and retry."
         )
     root_file = ROOT.TFile.Open(path, "READ")
 
@@ -67,6 +68,7 @@ def open_root_file(path: str):
         raise OSError(f"Could not open ROOT file: {path}")
 
     return root_file
+
 
 def get_histogram(root_file, object_path: str):
     """Retrieve a histogram and validate that it exists."""
@@ -77,8 +79,7 @@ def get_histogram(root_file, object_path: str):
 
     if not histogram.InheritsFrom("TH1"):
         raise TypeError(
-            f"{object_path} has class {histogram.ClassName()}, "
-            "but a TH1 histogram was expected"
+            f"{object_path} has class {histogram.ClassName()}, " "but a TH1 histogram was expected"
         )
 
     return histogram
@@ -101,9 +102,7 @@ def compare_component(
 
     differences = []
 
-    for bin_index, (reference, candidate) in enumerate(
-        zip(reference_values, candidate_values)
-    ):
+    for bin_index, (reference, candidate) in enumerate(zip(reference_values, candidate_values)):
         if not close_enough(
             reference,
             candidate,
@@ -134,12 +133,10 @@ def extract_histogram_components(histogram) -> dict[str, list[float]]:
 
     return {
         "contents": [
-            float(histogram.GetBinContent(bin_index))
-            for bin_index in range(number_of_bins + 2)
+            float(histogram.GetBinContent(bin_index)) for bin_index in range(number_of_bins + 2)
         ],
         "errors": [
-            float(histogram.GetBinError(bin_index))
-            for bin_index in range(number_of_bins + 2)
+            float(histogram.GetBinError(bin_index)) for bin_index in range(number_of_bins + 2)
         ],
         "bin_edges": [
             float(histogram.GetXaxis().GetBinLowEdge(bin_index))
@@ -172,22 +169,15 @@ def compare_histograms(
             f"{candidate_histogram.ClassName()}"
         )
 
-    if (
-        reference_histogram.GetNbinsX()
-        != candidate_histogram.GetNbinsX()
-    ):
+    if reference_histogram.GetNbinsX() != candidate_histogram.GetNbinsX():
         raise ValueError(
             f"{object_path}: numbers of bins differ: "
             f"{reference_histogram.GetNbinsX()} != "
             f"{candidate_histogram.GetNbinsX()}"
         )
 
-    reference_components = extract_histogram_components(
-        reference_histogram
-    )
-    candidate_components = extract_histogram_components(
-        candidate_histogram
-    )
+    reference_components = extract_histogram_components(reference_histogram)
+    candidate_components = extract_histogram_components(candidate_histogram)
 
     differences = []
 
@@ -205,12 +195,11 @@ def compare_histograms(
 
     return differences
 
+
 def parse_arguments():
     """Read command-line arguments."""
     parser = argparse.ArgumentParser(
-        description=(
-            "Compare selected histograms in two ROOT output files."
-        )
+        description=("Compare selected histograms in two ROOT output files.")
     )
 
     parser.add_argument(
@@ -227,8 +216,7 @@ def parse_arguments():
         action="append",
         required=True,
         help=(
-            "Complete ROOT histogram path. "
-            "Repeat this option to compare multiple histograms."
+            "Complete ROOT histogram path. " "Repeat this option to compare multiple histograms."
         ),
     )
     parser.add_argument(
@@ -287,10 +275,7 @@ def main():
             all_differences.extend(differences)
 
             if differences:
-                print(
-                    f"FAIL {object_path}: "
-                    f"{len(differences)} differences"
-                )
+                print(f"FAIL {object_path}: " f"{len(differences)} differences")
             else:
                 print(f"PASS {object_path}")
 
@@ -303,17 +288,12 @@ def main():
         return 0
 
     print()
-    print(
-        f"Found {len(all_differences)} numerical differences "
-        "outside tolerance."
-    )
+    print(f"Found {len(all_differences)} numerical differences " "outside tolerance.")
 
     for difference in all_differences[: arguments.max_differences]:
         print_difference(difference)
 
-    omitted = (
-        len(all_differences) - arguments.max_differences
-    )
+    omitted = len(all_differences) - arguments.max_differences
 
     if omitted > 0:
         print(f"... {omitted} additional differences omitted")

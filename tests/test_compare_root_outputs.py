@@ -69,6 +69,4 @@ def test_relative_difference_with_two_zero_values():
 
 
 def test_relative_difference_with_zero_reference():
-    assert math.isinf(
-        calculate_relative_difference(0.0, 1.0)
-    )
+    assert math.isinf(calculate_relative_difference(0.0, 1.0))

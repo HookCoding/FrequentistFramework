@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-
 WORKFLOW_FIT_DIRS: tuple[tuple[str, str], ...] = (
     ("J100", "run_481_3000_sixPar"),
     ("J50", "run_344_2079_sixPar"),
@@ -72,7 +71,9 @@ def _choose_background_only_log(fit_dir: Path) -> Path:
             return log_path
 
     searched = ", ".join(str(path.name) for path in candidates)
-    raise FileNotFoundError(f"No supported background-only log found in {fit_dir} (searched: {searched})")
+    raise FileNotFoundError(
+        f"No supported background-only log found in {fit_dir} (searched: {searched})"
+    )
 
 
 def _build_workflow_payload(fit_dir: Path) -> dict[str, Any]:
@@ -102,7 +103,9 @@ def _validate_workflow_payload(workflow_name: str, payload: dict[str, Any]) -> d
     fit_parameters: dict[str, float] = {}
     for name, value in fit_parameters_raw.items():
         if name not in _FIT_PARAMETER_NAMES:
-            raise ValueError(f"Workflow {workflow_name} contains unsupported fit parameter '{name}'")
+            raise ValueError(
+                f"Workflow {workflow_name} contains unsupported fit parameter '{name}'"
+            )
         if not isinstance(value, (int, float)):
             raise ValueError(f"Workflow {workflow_name} parameter '{name}' must be numeric")
         fit_parameters[name] = float(value)
@@ -158,7 +161,9 @@ def build_analysis_reference(repo_root: Optional[Path] = None) -> dict[str, Any]
     for workflow_name, fit_dir_name in WORKFLOW_FIT_DIRS:
         fit_dir = repo_root / "run" / "fits" / workflow_name / fit_dir_name
         if not fit_dir.exists():
-            raise FileNotFoundError(f"Expected fit directory for {workflow_name} not found: {fit_dir}")
+            raise FileNotFoundError(
+                f"Expected fit directory for {workflow_name} not found: {fit_dir}"
+            )
         payload[workflow_name] = _build_workflow_payload(fit_dir)
 
     return _validate_analysis_reference(payload)
@@ -178,4 +183,6 @@ def read_analysis_reference(path: Path) -> dict[str, Any]:
 def write_analysis_reference(path: Path, payload: dict[str, Any]) -> None:
     validated_payload = _validate_analysis_reference(payload)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(validated_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(validated_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )

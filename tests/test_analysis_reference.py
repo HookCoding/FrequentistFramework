@@ -74,9 +74,15 @@ def test_optional_bh_pvalue_is_parsed_when_available(tmp_path: Path) -> None:
     j100_dir.mkdir(parents=True)
     j50_dir.mkdir(parents=True)
 
-    (j100_dir / "quickFitLog_anaFit_sixPar_bkgOnly.log").write_text("nbkg = 100\np2 = 2\n", encoding="utf-8")
-    (j50_dir / "quickFitLog_anaFit_sixPar_bkgOnly.log").write_text("nbkg = 200\np2 = 3\n", encoding="utf-8")
-    (j100_dir / "BHresults.json").write_text(json.dumps({"pyBHresult": {"global_Pval": 0.42}}), encoding="utf-8")
+    (j100_dir / "quickFitLog_anaFit_sixPar_bkgOnly.log").write_text(
+        "nbkg = 100\np2 = 2\n", encoding="utf-8"
+    )
+    (j50_dir / "quickFitLog_anaFit_sixPar_bkgOnly.log").write_text(
+        "nbkg = 200\np2 = 3\n", encoding="utf-8"
+    )
+    (j100_dir / "BHresults.json").write_text(
+        json.dumps({"pyBHresult": {"global_Pval": 0.42}}), encoding="utf-8"
+    )
 
     output = build_analysis_reference(repo_root=tmp_path)
 
