@@ -1,0 +1,40 @@
+name: Tier 1 ROOT comparison
+
+on:
+  pull_request:
+    branches:
+      - harry
+  push:
+    branches:
+      - harry
+      - tier1-root-comparison
+
+permissions:
+  contents: read
+
+jobs:
+  comparator-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Compile Tier 1 files
+        run: |
+          python -m py_compile scripts/compare_root_outputs.py
+          python -m py_compile tests/test_compare_root_outputs.py
+
+      - name: Run focused Tier 1 tests
+        run: |
+          python -m pytest tests/test_compare_root_outputs.py -v

@@ -1,0 +1,2336 @@
+
+[1mRooFit v3.60 -- Developed by Wouter Verkerke and David Kirkby[0m 
+                Copyright (C) 2000-2013 NIKHEF, University of California & Stanford University
+                All rights reserved, please read http://roofit.sourceforge.net/license.txt
+
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Including external constraints:
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Preparing parameters of interest: 
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Preparing list parameters for running MINOS over them: 
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Summary of POI setup in the likelihood model
+  1) 0x434af90 RooRealVar:: nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06)  "nsig_mean400_width8.0"
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Performing sanity checks on model...
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Sanity checks on the model: OK
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Starting fit...
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Building NLL...
+[2026-07-21 17:14:17] [thread 143468] [info] 	 Building chi2 with splitrange and Poisson error...
+[2026-07-21 17:14:17] [thread 143468] [info] 	 chi2 SBLo_Run3TLA,SBHi_Run3TLA: 1.21e+06
+[2026-07-21 17:14:18] [thread 143468] [info] 	 chi2: 1212294.37520952
+[2026-07-21 17:14:18] [thread 143468] [info] 	 half_chi2: 606147.18760476
+[2026-07-21 17:14:18] [thread 143468] [info] 	 constraint_sum: 0
+[2026-07-21 17:14:18] [thread 143468] [info] 	 constrained_chi2: 606147.18760476
+RooFormulaVar::constrained_chi2[ actualVars=(half_chi2,constraint_sum) formula="x[0]+x[1]" ] = 606147
+[2026-07-21 17:14:18] [thread 143468] [info] 	 NLL built in 0.000833333333333334 min (cpu), 0.0008312821388244629 min (real)
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       606147.1876 Edm =        6685511.89 NCalls =     53
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.351055
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 606147.1876
+  Edm           : 60783878.05
+  Internal parameters:
+                0
+    0.01273186688
+     0.1496303341
+     0.6516022123
+     0.1654489574
+      0.228283222
+    0.01221337569
+  Internal gradient  :
+      1779761.354
+      20417504.42
+        113118671
+     -74752188.41
+      575374555.7
+     -307635660.7
+       1634964167
+  Internal covariance matrix:
+  2.6396556e-06 -2.3977812e-06 -2.0154856e-08  -3.626024e-08  4.1170285e-09 -2.8381202e-08  4.8552778e-09
+ -2.3977812e-06  2.2888806e-06  1.7147567e-08  3.6379771e-08 -4.1238244e-09  2.7123518e-08 -4.6331581e-09
+ -2.0154856e-08  1.7147567e-08  9.0951578e-10  4.7446987e-10 -5.3862839e-11  2.6441513e-10 -4.5001632e-11
+  -3.626024e-08  3.6379771e-08  4.7446987e-10  2.0651072e-09 -3.0701511e-11  3.4925934e-10 -5.9932666e-11
+  4.1170285e-09 -4.1238244e-09 -5.3862839e-11 -3.0701511e-11  2.9738563e-11 -3.9331002e-11  6.6944545e-12
+ -2.8381202e-08  2.7123518e-08  2.6441513e-10  3.4925934e-10 -3.9331002e-11  3.9997043e-10 -5.1697275e-11
+  4.8552778e-09 -4.6331581e-09 -4.5001632e-11 -5.9932666e-11  6.6944545e-12 -5.1697275e-11  1.1853476e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       606147.1876 Edm =       60783878.05 NCalls =    103
+Warning in <Minuit2>: DavidonErrorUpdator delgam < 0 : first derivatives increasing along search line
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       536931.8884 Edm =       63033120.95 NCalls =    121
+Warning in <Minuit2>: VariableMetricBuilder Matrix not pos.def, gdel = 217318 > 0
+Warning in <Minuit2>: MnPosDef non-positive diagonal element in covariance matrix[ 1 ] = -2.93771e-08
+Warning in <Minuit2>: MnPosDef Added to diagonal of Error matrix a value 0.500001
+Warning in <Minuit2>: VariableMetricBuilder gdel = -1.52359e+18
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Eval -- RooAddPdf::updateCoefCache(_modelSB_Run3TLA) sum of coefficients is zero.
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+[#0] ERROR:Integration -- RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: could not integrate function
+Warning in <Minuit2>: VariableMetricBuilder No improvement in line search
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       536931.8884 Edm =       63033120.95 NCalls =    132
+Warning in <Minuit2>: VariableMetricBuilder Iterations finish without convergence; Edm 4.10677e+09 Requested 2e-06
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0841033
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    3 - FCN =       536931.8884 Edm =       20476733.95 NCalls =    182
+Info in <Minuit2>: VariableMetricBuilder Tolerance not sufficient, continue minimization; Edm 2.04767e+07 Required 2e-06
+Info in <Minuit2>: VariableMetricBuilder    4 - FCN =       493231.1687 Edm =       20399762.29 NCalls =    200
+Info in <Minuit2>: VariableMetricBuilder    5 - FCN =       464859.3924 Edm =        14999627.7 NCalls =    218
+Info in <Minuit2>: VariableMetricBuilder    6 - FCN =       399730.2282 Edm =       543709.5315 NCalls =    240
+Info in <Minuit2>: VariableMetricBuilder    7 - FCN =       237929.6857 Edm =       159119.3026 NCalls =    268
+Info in <Minuit2>: VariableMetricBuilder    8 - FCN =       19593.82367 Edm =        26500.1372 NCalls =    286
+Info in <Minuit2>: VariableMetricBuilder    9 - FCN =       924.5598297 Edm =       307.3689826 NCalls =    306
+Info in <Minuit2>: VariableMetricBuilder   10 - FCN =       562.6843553 Edm =       6.020295718 NCalls =    322
+Info in <Minuit2>: VariableMetricBuilder   11 - FCN =       459.0986557 Edm =       27.07511684 NCalls =    340
+Info in <Minuit2>: VariableMetricBuilder   12 - FCN =       423.0298409 Edm =     0.02607096224 NCalls =    356
+Info in <Minuit2>: VariableMetricBuilder   13 - FCN =       422.9947832 Edm =   8.369869205e-05 NCalls =    372
+Info in <Minuit2>: VariableMetricBuilder   14 - FCN =       422.9946988 Edm =   1.368934862e-07 NCalls =    387
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00589971
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder   15 - FCN =       422.9946988 Edm =    9.96422221e-07 NCalls =    437
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 422.994698797699129
+Edm   = 9.96422221026960352e-07
+Nfcn  = 437
+nbkg	  = 1.77609e+07	 +/-  6275.79	(limited)
+p2	  = 16.4417	 +/-  0.229852	(limited)
+p3	  = 14.5618	 +/-  0.0110013	(limited)
+p4	  = 6.10552	 +/-  0.00141597	(limited)
+p5	  = 1.64348	 +/-  0.000235958	(limited)
+p6	  = 0.226694	 +/-  4.28882e-05	(limited)
+p7	  = 0.0122094	 +/-  7.59041e-06	(limited)
+Real time 0:00:01, CP time 1.520
+Real time 0:00:01, CP time 1.520
+[2026-07-21 17:14:19] [thread 143468] [info] 	 Starting fit with HESSE...
+Info in <Minuit2>: Minuit2Minimizer::Hesse Using max-calls 60000
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00590008
+Info in <Minuit2>: Minuit2Minimizer::Hesse Hesse is valid - matrix is full but made positive defined
+Real time 0:00:00, CP time 0.090
+Real time 0:00:01, CP time 1.610, 2 slices
+
+  RooFitResult: minimized FCN value: 422.995, estimated distance to minimum: 9.96251e-07
+                covariance matrix quality: Full matrix, but forced positive-definite
+                Status : MINIMIZE=1 HESSE=1 
+
+    Floating Parameter    FinalValue +/-  Error   
+  --------------------  --------------------------
+                  nbkg    1.7761e+07 +/-  6.28e+03
+                    p2    1.6442e+01 +/-  2.30e-01
+                    p3    1.4562e+01 +/-  1.10e-02
+                    p4    6.1055e+00 +/-  1.42e-03
+                    p5    1.6435e+00 +/-  2.36e-04
+                    p6    2.2669e-01 +/-  4.29e-05
+                    p7    1.2209e-02 +/-  7.59e-06
+
+....................INITIALIZING THE FIT UNTIL CONVERGENCE TEST..................................................................
+[2026-07-21 17:14:19] [thread 143468] [info] 	 Minimization attempt 1 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       422.9946988 Edm =   8.767585539e-09 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00589927
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 422.9946988
+  Edm           : 9.965411316e-07
+  Internal parameters:
+   -0.01328445406
+    0.01644246474
+     0.1461372891
+     0.6567569683
+     0.1650971657
+     0.2286821391
+    0.01220972002
+  Internal gradient  :
+  -0.007624782153
+     0.4652255532
+       1.12103549
+     -7.795575351
+       23.4217489
+      15.63741075
+       155.931416
+  Internal covariance matrix:
+  1.2158184e-07   2.041785e-09  4.1474421e-10 -2.6919271e-10 -2.5217699e-11  1.7227103e-10 -5.4643508e-11
+   2.041785e-09  5.2854412e-08 -1.6531134e-08  1.2410464e-08 -1.7849208e-10 -1.9893788e-09  7.2554644e-10
+  4.1474421e-10 -1.6531134e-08  1.2365864e-08  5.3932836e-09 -5.8048659e-10  7.3534072e-10 -6.6497563e-11
+ -2.6919271e-10  1.2410464e-08  5.3932836e-09  3.1966909e-08  1.0192348e-09 -1.7022782e-09  2.5272572e-10
+ -2.5217699e-11 -1.7849208e-10 -5.8048659e-10  1.0192348e-09  5.7225126e-10  2.9104083e-10  -5.761177e-11
+  1.7227103e-10 -1.9893788e-09  7.3534072e-10 -1.7022782e-09  2.9104083e-10  1.9391278e-09  1.5654305e-10
+ -5.4643508e-11  7.2554644e-10 -6.6497563e-11  2.5272572e-10  -5.761177e-11  1.5654305e-10  5.7628539e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       422.9946988 Edm =   9.965411316e-07 NCalls =     77
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       422.9941383 Edm =   0.0002277820875 NCalls =     98
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       422.9896578 Edm =    0.002657641858 NCalls =    115
+Info in <Minuit2>: VariableMetricBuilder    3 - FCN =       422.9791558 Edm =    0.001879592525 NCalls =    132
+Info in <Minuit2>: VariableMetricBuilder    4 - FCN =        422.975425 Edm =    0.001529857075 NCalls =    148
+Info in <Minuit2>: VariableMetricBuilder    5 - FCN =       422.9702927 Edm =    0.002343169429 NCalls =    165
+Info in <Minuit2>: VariableMetricBuilder    6 - FCN =       422.9689329 Edm =   0.0001100749858 NCalls =    181
+Info in <Minuit2>: VariableMetricBuilder    7 - FCN =       422.9687561 Edm =   5.787654927e-05 NCalls =    197
+Info in <Minuit2>: VariableMetricBuilder    8 - FCN =        422.968619 Edm =     1.4349888e-05 NCalls =    213
+Info in <Minuit2>: VariableMetricBuilder    9 - FCN =        422.968572 Edm =   3.253367874e-05 NCalls =    230
+Info in <Minuit2>: VariableMetricBuilder   10 - FCN =       422.9669853 Edm =    0.001628863307 NCalls =    253
+Info in <Minuit2>: VariableMetricBuilder   11 - FCN =       422.9666902 Edm =   0.0002748478975 NCalls =    271
+Info in <Minuit2>: VariableMetricBuilder   12 - FCN =       422.9533666 Edm =     0.01779663299 NCalls =    296
+Info in <Minuit2>: VariableMetricBuilder   13 - FCN =       422.9533567 Edm =   0.0004260380816 NCalls =    312
+Info in <Minuit2>: VariableMetricBuilder   14 - FCN =       422.9532119 Edm =    5.96509827e-05 NCalls =    328
+Info in <Minuit2>: VariableMetricBuilder   15 - FCN =       422.9481233 Edm =    0.005490332407 NCalls =    349
+Info in <Minuit2>: VariableMetricBuilder   16 - FCN =       422.9479779 Edm =   0.0002758862314 NCalls =    366
+Info in <Minuit2>: VariableMetricBuilder   17 - FCN =       422.9420865 Edm =    0.005071974517 NCalls =    386
+Info in <Minuit2>: VariableMetricBuilder   18 - FCN =       422.9225293 Edm =     0.01087510238 NCalls =    408
+Info in <Minuit2>: VariableMetricBuilder   19 - FCN =       422.9181409 Edm =     0.01709928388 NCalls =    424
+Info in <Minuit2>: VariableMetricBuilder   20 - FCN =       422.8917538 Edm =     0.01882000041 NCalls =    442
+Info in <Minuit2>: VariableMetricBuilder   21 - FCN =       422.8657725 Edm =     0.03668298338 NCalls =    459
+Info in <Minuit2>: VariableMetricBuilder   22 - FCN =       422.8133062 Edm =     0.02483577133 NCalls =    476
+Info in <Minuit2>: VariableMetricBuilder   23 - FCN =        422.799214 Edm =     0.03744510479 NCalls =    492
+Info in <Minuit2>: VariableMetricBuilder   24 - FCN =       422.7492085 Edm =      0.0108379168 NCalls =    513
+Info in <Minuit2>: VariableMetricBuilder   25 - FCN =       422.7189468 Edm =    0.005704300708 NCalls =    531
+Info in <Minuit2>: VariableMetricBuilder   26 - FCN =       422.7152702 Edm =     0.00726054247 NCalls =    547
+Info in <Minuit2>: VariableMetricBuilder   27 - FCN =       422.7127181 Edm =   0.0001390552794 NCalls =    563
+Info in <Minuit2>: VariableMetricBuilder   28 - FCN =       422.7124692 Edm =   8.277474056e-06 NCalls =    579
+Info in <Minuit2>: VariableMetricBuilder   29 - FCN =       422.7124487 Edm =   1.554646672e-05 NCalls =    595
+Info in <Minuit2>: VariableMetricBuilder   30 - FCN =       422.7115334 Edm =   0.0005602297583 NCalls =    616
+Info in <Minuit2>: VariableMetricBuilder   31 - FCN =       422.6899713 Edm =     0.02697974014 NCalls =    636
+Info in <Minuit2>: VariableMetricBuilder   32 - FCN =       422.6879728 Edm =    0.004623675926 NCalls =    653
+Info in <Minuit2>: VariableMetricBuilder   33 - FCN =       422.6359384 Edm =     0.01666651857 NCalls =    672
+Info in <Minuit2>: VariableMetricBuilder   34 - FCN =       422.6144162 Edm =     0.04028380786 NCalls =    688
+Info in <Minuit2>: VariableMetricBuilder   35 - FCN =       422.6015139 Edm =    0.003628772652 NCalls =    703
+Info in <Minuit2>: VariableMetricBuilder   36 - FCN =       422.5865018 Edm =      0.0186115128 NCalls =    719
+Info in <Minuit2>: VariableMetricBuilder   37 - FCN =       422.5794788 Edm =    0.006507245865 NCalls =    736
+Info in <Minuit2>: VariableMetricBuilder   38 - FCN =       422.5356815 Edm =     0.01033858213 NCalls =    755
+Info in <Minuit2>: VariableMetricBuilder   39 - FCN =       422.5121245 Edm =     0.04060390355 NCalls =    772
+Info in <Minuit2>: VariableMetricBuilder   40 - FCN =       422.4633104 Edm =      0.0348756136 NCalls =    790
+Info in <Minuit2>: VariableMetricBuilder   41 - FCN =        422.446367 Edm =     0.04447163829 NCalls =    806
+Info in <Minuit2>: VariableMetricBuilder   42 - FCN =       422.4042559 Edm =     0.01173626896 NCalls =    825
+Info in <Minuit2>: VariableMetricBuilder   43 - FCN =       422.3827378 Edm =     0.03322474374 NCalls =    842
+Info in <Minuit2>: VariableMetricBuilder   44 - FCN =       422.3449444 Edm =     0.07069945848 NCalls =    858
+Info in <Minuit2>: VariableMetricBuilder   45 - FCN =       422.3243888 Edm =     0.01203841069 NCalls =    875
+Info in <Minuit2>: VariableMetricBuilder   46 - FCN =       422.2720802 Edm =     0.01387099686 NCalls =    895
+Info in <Minuit2>: VariableMetricBuilder   47 - FCN =       422.2319234 Edm =     0.07326712642 NCalls =    912
+Info in <Minuit2>: VariableMetricBuilder   48 - FCN =       422.1069733 Edm =      0.0161323454 NCalls =    933
+Info in <Minuit2>: VariableMetricBuilder   49 - FCN =       422.0923801 Edm =      0.1168664286 NCalls =    949
+Info in <Minuit2>: VariableMetricBuilder   50 - FCN =        422.053322 Edm =      0.0148566833 NCalls =    968
+Info in <Minuit2>: VariableMetricBuilder   51 - FCN =       422.0406566 Edm =     0.02288299595 NCalls =    985
+Info in <Minuit2>: VariableMetricBuilder   52 - FCN =       421.9924902 Edm =     0.05119960948 NCalls =   1002
+Info in <Minuit2>: VariableMetricBuilder   53 - FCN =       421.9756036 Edm =     0.01478017836 NCalls =   1019
+Info in <Minuit2>: VariableMetricBuilder   54 - FCN =       421.9237984 Edm =      0.0215638056 NCalls =   1038
+Info in <Minuit2>: VariableMetricBuilder   55 - FCN =       421.8974882 Edm =     0.04705498736 NCalls =   1055
+Info in <Minuit2>: VariableMetricBuilder   56 - FCN =        421.840178 Edm =     0.02256794784 NCalls =   1073
+Info in <Minuit2>: VariableMetricBuilder   57 - FCN =       421.7602142 Edm =     0.02495905045 NCalls =   1090
+Info in <Minuit2>: VariableMetricBuilder   58 - FCN =       421.7400762 Edm =      0.1840030876 NCalls =   1106
+Info in <Minuit2>: VariableMetricBuilder   59 - FCN =       421.6963254 Edm =     0.02184193577 NCalls =   1122
+Info in <Minuit2>: VariableMetricBuilder   60 - FCN =       421.6804424 Edm =     0.08745585242 NCalls =   1138
+Info in <Minuit2>: VariableMetricBuilder   61 - FCN =       421.6685113 Edm =    0.001773273851 NCalls =   1154
+Info in <Minuit2>: VariableMetricBuilder   62 - FCN =       421.6651145 Edm =    0.001265158323 NCalls =   1170
+Info in <Minuit2>: VariableMetricBuilder   63 - FCN =       421.5744493 Edm =     0.05188744233 NCalls =   1191
+Info in <Minuit2>: VariableMetricBuilder   64 - FCN =       421.5486028 Edm =     0.04543335186 NCalls =   1207
+Info in <Minuit2>: VariableMetricBuilder   65 - FCN =       421.4991458 Edm =     0.02091490523 NCalls =   1227
+Info in <Minuit2>: VariableMetricBuilder   66 - FCN =       421.4797902 Edm =     0.04189812515 NCalls =   1244
+Info in <Minuit2>: VariableMetricBuilder   67 - FCN =       421.4421422 Edm =     0.02193531424 NCalls =   1260
+Info in <Minuit2>: VariableMetricBuilder   68 - FCN =       421.3933693 Edm =     0.03055545493 NCalls =   1280
+Info in <Minuit2>: VariableMetricBuilder   69 - FCN =        421.346358 Edm =     0.04986591881 NCalls =   1296
+Info in <Minuit2>: VariableMetricBuilder   70 - FCN =       421.3245518 Edm =     0.02875135488 NCalls =   1312
+Info in <Minuit2>: VariableMetricBuilder   71 - FCN =       421.2499835 Edm =     0.02014846465 NCalls =   1331
+Info in <Minuit2>: VariableMetricBuilder   72 - FCN =       421.1729165 Edm =     0.09533988962 NCalls =   1348
+Info in <Minuit2>: VariableMetricBuilder   73 - FCN =       421.1079532 Edm =      0.2378149372 NCalls =   1368
+Info in <Minuit2>: VariableMetricBuilder   74 - FCN =       421.0231129 Edm =     0.02235143767 NCalls =   1388
+Info in <Minuit2>: VariableMetricBuilder   75 - FCN =       421.0017559 Edm =      0.0368367968 NCalls =   1405
+Info in <Minuit2>: VariableMetricBuilder   76 - FCN =       420.9864746 Edm =     0.01094105379 NCalls =   1421
+Info in <Minuit2>: VariableMetricBuilder   77 - FCN =       420.9270477 Edm =     0.03917346575 NCalls =   1440
+Info in <Minuit2>: VariableMetricBuilder   78 - FCN =       420.8227866 Edm =      0.1129291874 NCalls =   1460
+Info in <Minuit2>: VariableMetricBuilder   79 - FCN =       420.8131031 Edm =     0.06073972604 NCalls =   1476
+Info in <Minuit2>: VariableMetricBuilder   80 - FCN =       420.7526561 Edm =     0.02986199784 NCalls =   1492
+Info in <Minuit2>: VariableMetricBuilder   81 - FCN =       420.7245691 Edm =     0.01410195423 NCalls =   1508
+Info in <Minuit2>: VariableMetricBuilder   82 - FCN =       420.6889362 Edm =      0.0250733289 NCalls =   1525
+Info in <Minuit2>: VariableMetricBuilder   83 - FCN =       420.6553608 Edm =     0.08126968199 NCalls =   1541
+Info in <Minuit2>: VariableMetricBuilder   84 - FCN =       420.6273949 Edm =     0.01657220077 NCalls =   1558
+Info in <Minuit2>: VariableMetricBuilder   85 - FCN =       420.5390928 Edm =      0.1002077823 NCalls =   1574
+Info in <Minuit2>: VariableMetricBuilder   86 - FCN =       420.5018976 Edm =     0.02828563429 NCalls =   1590
+Info in <Minuit2>: VariableMetricBuilder   87 - FCN =       420.4261614 Edm =     0.02321506166 NCalls =   1612
+Info in <Minuit2>: VariableMetricBuilder   88 - FCN =       420.3678715 Edm =      0.1288822501 NCalls =   1629
+Info in <Minuit2>: VariableMetricBuilder   89 - FCN =       420.3003328 Edm =     0.05315933873 NCalls =   1646
+Info in <Minuit2>: VariableMetricBuilder   90 - FCN =       420.2315514 Edm =      0.0205205776 NCalls =   1668
+Info in <Minuit2>: VariableMetricBuilder   91 - FCN =       420.2057506 Edm =      0.0522292239 NCalls =   1684
+Info in <Minuit2>: VariableMetricBuilder   92 - FCN =       420.1489215 Edm =     0.03397727396 NCalls =   1702
+Info in <Minuit2>: VariableMetricBuilder   93 - FCN =         420.10986 Edm =     0.04511772287 NCalls =   1720
+Info in <Minuit2>: VariableMetricBuilder   94 - FCN =       420.0432874 Edm =     0.02240245121 NCalls =   1737
+Info in <Minuit2>: VariableMetricBuilder   95 - FCN =       419.9862367 Edm =     0.08464507578 NCalls =   1754
+Info in <Minuit2>: VariableMetricBuilder   96 - FCN =       419.9525632 Edm =     0.03674600447 NCalls =   1770
+Info in <Minuit2>: VariableMetricBuilder   97 - FCN =       419.8963321 Edm =     0.02689756242 NCalls =   1787
+Info in <Minuit2>: VariableMetricBuilder   98 - FCN =       419.8811871 Edm =     0.02634149544 NCalls =   1804
+Info in <Minuit2>: VariableMetricBuilder   99 - FCN =       419.8294244 Edm =      0.0242841651 NCalls =   1821
+Info in <Minuit2>: VariableMetricBuilder  100 - FCN =         419.76688 Edm =     0.04119027783 NCalls =   1840
+Info in <Minuit2>: VariableMetricBuilder  101 - FCN =       419.7026115 Edm =     0.03962405612 NCalls =   1858
+Info in <Minuit2>: VariableMetricBuilder  102 - FCN =       419.6635161 Edm =     0.09074398013 NCalls =   1875
+Info in <Minuit2>: VariableMetricBuilder  103 - FCN =       419.6015704 Edm =     0.02390528819 NCalls =   1892
+Info in <Minuit2>: VariableMetricBuilder  104 - FCN =       419.5380867 Edm =     0.07132885087 NCalls =   1909
+Info in <Minuit2>: VariableMetricBuilder  105 - FCN =       419.4796039 Edm =     0.03152951879 NCalls =   1926
+Info in <Minuit2>: VariableMetricBuilder  106 - FCN =       419.4157775 Edm =      0.1004325555 NCalls =   1943
+Info in <Minuit2>: VariableMetricBuilder  107 - FCN =       419.3587807 Edm =     0.03828515907 NCalls =   1960
+Info in <Minuit2>: VariableMetricBuilder  108 - FCN =        419.311468 Edm =     0.05383802746 NCalls =   1979
+Info in <Minuit2>: VariableMetricBuilder  109 - FCN =       419.2622965 Edm =     0.05105834058 NCalls =   1996
+Info in <Minuit2>: VariableMetricBuilder  110 - FCN =        419.226073 Edm =     0.03429339007 NCalls =   2012
+Info in <Minuit2>: VariableMetricBuilder  111 - FCN =       419.1375453 Edm =     0.03771909594 NCalls =   2032
+Info in <Minuit2>: VariableMetricBuilder  112 - FCN =       419.0547726 Edm =      0.1147291972 NCalls =   2049
+Info in <Minuit2>: VariableMetricBuilder  113 - FCN =        419.005957 Edm =     0.06392291435 NCalls =   2065
+Info in <Minuit2>: VariableMetricBuilder  114 - FCN =       418.9120831 Edm =     0.07713786468 NCalls =   2081
+Info in <Minuit2>: VariableMetricBuilder  115 - FCN =       418.8355779 Edm =     0.04752414841 NCalls =   2098
+Info in <Minuit2>: VariableMetricBuilder  116 - FCN =       418.7365849 Edm =      0.1425353089 NCalls =   2116
+Info in <Minuit2>: VariableMetricBuilder  117 - FCN =        418.707356 Edm =      0.1022212722 NCalls =   2133
+Info in <Minuit2>: VariableMetricBuilder  118 - FCN =       418.6580944 Edm =     0.01506107136 NCalls =   2149
+Info in <Minuit2>: VariableMetricBuilder  119 - FCN =       418.6433832 Edm =     0.00403861473 NCalls =   2164
+Info in <Minuit2>: VariableMetricBuilder  120 - FCN =       418.6395619 Edm =    0.003888424662 NCalls =   2180
+Info in <Minuit2>: VariableMetricBuilder  121 - FCN =       418.6215419 Edm =    0.007874971569 NCalls =   2198
+Info in <Minuit2>: VariableMetricBuilder  122 - FCN =       418.5807667 Edm =     0.08771944965 NCalls =   2214
+Info in <Minuit2>: VariableMetricBuilder  123 - FCN =       418.5672968 Edm =      0.0163123758 NCalls =   2231
+Info in <Minuit2>: VariableMetricBuilder  124 - FCN =       418.5364596 Edm =     0.01299036563 NCalls =   2247
+Info in <Minuit2>: VariableMetricBuilder  125 - FCN =       418.5186245 Edm =    0.005463753092 NCalls =   2264
+Info in <Minuit2>: VariableMetricBuilder  126 - FCN =       418.5116421 Edm =    0.004981097405 NCalls =   2280
+Info in <Minuit2>: VariableMetricBuilder  127 - FCN =       418.5034394 Edm =    0.009588805854 NCalls =   2299
+Info in <Minuit2>: VariableMetricBuilder  128 - FCN =        418.490205 Edm =     0.01943326743 NCalls =   2317
+Info in <Minuit2>: VariableMetricBuilder  129 - FCN =       418.4741305 Edm =    0.005919500119 NCalls =   2334
+Info in <Minuit2>: VariableMetricBuilder  130 - FCN =       418.4635613 Edm =    0.007282044541 NCalls =   2353
+Info in <Minuit2>: VariableMetricBuilder  131 - FCN =       418.4520734 Edm =    0.008292701362 NCalls =   2369
+Info in <Minuit2>: VariableMetricBuilder  132 - FCN =       418.4443601 Edm =    0.007152510495 NCalls =   2390
+Info in <Minuit2>: VariableMetricBuilder  133 - FCN =       418.4339026 Edm =    0.008934051397 NCalls =   2408
+Info in <Minuit2>: VariableMetricBuilder  134 - FCN =       418.4301116 Edm =    0.004035064656 NCalls =   2424
+Info in <Minuit2>: VariableMetricBuilder  135 - FCN =       418.4186208 Edm =    0.003265204716 NCalls =   2444
+Info in <Minuit2>: VariableMetricBuilder  136 - FCN =       418.4073552 Edm =    0.007422575222 NCalls =   2462
+Info in <Minuit2>: VariableMetricBuilder  137 - FCN =       418.4052986 Edm =    0.008196776741 NCalls =   2478
+Info in <Minuit2>: VariableMetricBuilder  138 - FCN =       418.3972072 Edm =    0.001653032887 NCalls =   2495
+Info in <Minuit2>: VariableMetricBuilder  139 - FCN =       418.3941922 Edm =    0.004195908739 NCalls =   2512
+Info in <Minuit2>: VariableMetricBuilder  140 - FCN =       418.3864776 Edm =    0.005048331986 NCalls =   2531
+Info in <Minuit2>: VariableMetricBuilder  141 - FCN =       418.3843583 Edm =    0.003117200471 NCalls =   2547
+Info in <Minuit2>: VariableMetricBuilder  142 - FCN =       418.3800184 Edm =   0.0008967253145 NCalls =   2564
+Info in <Minuit2>: VariableMetricBuilder  143 - FCN =       418.3786423 Edm =    0.002417063208 NCalls =   2581
+Info in <Minuit2>: VariableMetricBuilder  144 - FCN =       418.3711271 Edm =     0.00204771702 NCalls =   2602
+Info in <Minuit2>: VariableMetricBuilder  145 - FCN =       418.3705973 Edm =    0.002383476317 NCalls =   2618
+Info in <Minuit2>: VariableMetricBuilder  146 - FCN =       418.3688323 Edm =   0.0004338227364 NCalls =   2635
+Info in <Minuit2>: VariableMetricBuilder  147 - FCN =       418.3678269 Edm =     0.00121721349 NCalls =   2654
+Info in <Minuit2>: VariableMetricBuilder  148 - FCN =       418.3663117 Edm =    0.001080020148 NCalls =   2672
+Info in <Minuit2>: VariableMetricBuilder  149 - FCN =       418.3656399 Edm =   0.0004134839993 NCalls =   2688
+Info in <Minuit2>: VariableMetricBuilder  150 - FCN =       418.3653368 Edm =   0.0001826075868 NCalls =   2704
+Info in <Minuit2>: VariableMetricBuilder  151 - FCN =       418.3649311 Edm =    0.000275376152 NCalls =   2720
+Info in <Minuit2>: VariableMetricBuilder  152 - FCN =        418.364549 Edm =   0.0003295059529 NCalls =   2736
+Info in <Minuit2>: VariableMetricBuilder  153 - FCN =        418.363841 Edm =   0.0001509888996 NCalls =   2755
+Info in <Minuit2>: VariableMetricBuilder  154 - FCN =       418.3634863 Edm =   0.0006135059653 NCalls =   2772
+Info in <Minuit2>: VariableMetricBuilder  155 - FCN =       418.3631434 Edm =   0.0001720992828 NCalls =   2788
+Info in <Minuit2>: VariableMetricBuilder  156 - FCN =       418.3628863 Edm =   4.694786155e-05 NCalls =   2804
+Info in <Minuit2>: VariableMetricBuilder  157 - FCN =       418.3628232 Edm =   8.362289172e-05 NCalls =   2820
+Info in <Minuit2>: VariableMetricBuilder  158 - FCN =       418.3626844 Edm =   6.297367526e-05 NCalls =   2838
+Info in <Minuit2>: VariableMetricBuilder  159 - FCN =       418.3626176 Edm =   3.085982555e-05 NCalls =   2853
+Info in <Minuit2>: VariableMetricBuilder  160 - FCN =       418.3625985 Edm =   8.214517905e-06 NCalls =   2869
+Info in <Minuit2>: VariableMetricBuilder  161 - FCN =       418.3625765 Edm =   4.221746571e-06 NCalls =   2886
+Info in <Minuit2>: VariableMetricBuilder  162 - FCN =       418.3625707 Edm =   6.455418704e-07 NCalls =   2903
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587078
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder  163 - FCN =       418.3625707 Edm =   7.913948355e-08 NCalls =   2953
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570738813133
+Edm   = 7.91394835522623415e-08
+Nfcn  = 2953
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.8367	 +/-  0.229647	(limited)
+p3	  = 29.8074	 +/-  0.0109971	(limited)
+p4	  = 6.78227	 +/-  0.00142196	(limited)
+p5	  = 0.64902	 +/-  0.000235752	(limited)
+p6	  = -0.0106428	 +/-  4.30259e-05	(limited)
+p7	  = -0.00427746	 +/-  7.59882e-06	(limited)
+Real time 0:00:04, CP time 4.680
+Real time 0:00:06, CP time 6.290, 3 slices
+[2026-07-21 17:14:24] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:24] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625707 Edm =   2.095300024e-07 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587101
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625707
+  Edm           : 7.913943336e-08
+  Internal parameters:
+   -0.01337204897
+   -0.03584440434
+     0.3026742801
+     0.7453478617
+    0.06494761169
+   -0.01064295675
+  -0.004277477303
+  Internal gradient  :
+       -1.0211317
+      9.390107456
+      35.25162045
+     -20.57242295
+      161.5334374
+     -81.58742817
+      395.0451194
+  Internal covariance matrix:
+  1.2159433e-07  2.0298884e-09  4.3153115e-10 -3.0068695e-10 -2.6177241e-11  1.6824399e-10  -5.443935e-11
+  2.0298884e-09   5.280429e-08 -1.7072447e-08  1.3477036e-08 -1.7357367e-10 -1.9400579e-09  7.2528507e-10
+  4.3153115e-10 -1.7072447e-08  1.3272523e-08  6.0931057e-09 -5.8791804e-10  7.4721947e-10 -6.7632814e-11
+ -3.0068695e-10  1.3477036e-08  6.0931057e-09  3.7442031e-08  1.0948062e-09 -1.7847321e-09  2.7709027e-10
+ -2.6177241e-11 -1.7357367e-10 -5.8791804e-10  1.0948062e-09  5.5812944e-10  2.8249449e-10  -5.625029e-11
+  1.6824399e-10 -1.9400579e-09  7.4721947e-10 -1.7847321e-09  2.8249449e-10  1.8515923e-09  1.5373283e-10
+  -5.443935e-11  7.2528507e-10 -6.7632814e-11  2.7709027e-10  -5.625029e-11  1.5373283e-10  5.7742299e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625707 Edm =   7.913943336e-08 NCalls =     77
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625707 Edm =   2.481733689e-10 NCalls =     92
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587076
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625707 Edm =   2.307793868e-10 NCalls =    154
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570658670506
+Edm   = 2.30779386821090286e-10
+Nfcn  = 154
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.8367	 +/-  0.229645	(limited)
+p3	  = 29.8074	 +/-  0.010997	(limited)
+p4	  = 6.78227	 +/-  0.00142198	(limited)
+p5	  = 0.64902	 +/-  0.000235748	(limited)
+p6	  = -0.0106428	 +/-  4.30254e-05	(limited)
+p7	  = -0.00427746	 +/-  7.59869e-06	(limited)
+Real time 0:00:00, CP time 0.220
+Real time 0:00:06, CP time 6.510, 4 slices
+[2026-07-21 17:14:24] [thread 143468] [info] 	 Minimization attempt 2 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625707 Edm =    5.77568309e-12 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.005871
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625707
+  Edm           : 2.345080528e-10
+  Internal parameters:
+   -0.01337198738
+   -0.03584442006
+     0.3026742805
+     0.7453478601
+    0.06494761167
+   -0.01064295673
+  -0.004277477284
+  Internal gradient  :
+  -0.005987321248
+    0.09441585263
+   -0.04936360413
+    0.06733060547
+    0.05188864434
+   -0.02303642465
+    -0.3644929924
+  Internal covariance matrix:
+  1.2159433e-07  2.0299238e-09  4.3150837e-10 -3.0069405e-10 -2.6176691e-11  1.6824256e-10 -5.4439001e-11
+  2.0299238e-09  5.2803276e-08 -1.7071921e-08  1.3477073e-08 -1.7358471e-10 -1.9401166e-09  7.2525613e-10
+  4.3150837e-10 -1.7071921e-08  1.3272197e-08   6.093417e-09  -5.878233e-10  7.4727725e-10 -6.7626762e-11
+ -3.0069405e-10  1.3477073e-08   6.093417e-09  3.7443089e-08  1.0948929e-09 -1.7846232e-09  2.7710401e-10
+ -2.6176691e-11 -1.7358471e-10  -5.878233e-10  1.0948929e-09  5.5810931e-10  2.8249809e-10  -5.624493e-11
+  1.6824256e-10 -1.9401166e-09  7.4727725e-10 -1.7846232e-09  2.8249809e-10   1.851572e-09   1.537291e-10
+ -5.4439001e-11  7.2525613e-10 -6.7626762e-11  2.7710401e-10  -5.624493e-11   1.537291e-10  5.7740195e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625707 Edm =   2.345080528e-10 NCalls =     91
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625707 Edm =   3.554689543e-10 NCalls =    108
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00586893
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625707 Edm =   3.476911503e-10 NCalls =    160
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570657667959
+Edm   = 3.4769115027761326e-10
+Nfcn  = 160
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.8368	 +/-  0.22966	(limited)
+p3	  = 29.8074	 +/-  0.0109984	(limited)
+p4	  = 6.78227	 +/-  0.00142218	(limited)
+p5	  = 0.64902	 +/-  0.000235759	(limited)
+p6	  = -0.0106428	 +/-  4.30088e-05	(limited)
+p7	  = -0.00427746	 +/-  7.59971e-06	(limited)
+Real time 0:00:00, CP time 0.220
+Real time 0:00:06, CP time 6.730, 5 slices
+[2026-07-21 17:14:24] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:24] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625707 Edm =   6.562197932e-11 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587098
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625707
+  Edm           : 3.472360143e-10
+  Internal parameters:
+   -0.01337198598
+    -0.0358444363
+     0.3026742852
+     0.7453478513
+    0.06494761135
+   -0.01064295567
+  -0.004277477443
+  Internal gradient  :
+    0.02383246373
+     -0.280104509
+    -0.3437976965
+     0.1007959872
+     0.6996854258
+    -0.7422038268
+      4.665089975
+  Internal covariance matrix:
+  1.2159433e-07  2.0299219e-09   4.315129e-10 -3.0069029e-10 -2.6177606e-11  1.6824184e-10 -5.4438938e-11
+  2.0299219e-09  5.2803394e-08 -1.7072014e-08  1.3477035e-08 -1.7357309e-10 -1.9401015e-09  7.2525814e-10
+   4.315129e-10 -1.7072014e-08  1.3272274e-08  6.0933931e-09 -5.8784002e-10  7.4727601e-10 -6.7626042e-11
+ -3.0069029e-10  1.3477035e-08  6.0933931e-09  3.7442987e-08   1.094896e-09 -1.7846103e-09  2.7710315e-10
+ -2.6177606e-11 -1.7357309e-10 -5.8784002e-10   1.094896e-09  5.5811433e-10  2.8249892e-10 -5.6245444e-11
+  1.6824184e-10 -1.9401015e-09  7.4727601e-10 -1.7846103e-09  2.8249892e-10  1.8515792e-09  1.5373066e-10
+ -5.4438938e-11  7.2525814e-10 -6.7626042e-11  2.7710315e-10 -5.6245444e-11  1.5373066e-10  5.7740571e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625707 Edm =   3.472360143e-10 NCalls =     79
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625707 Edm =   5.496873169e-11 NCalls =     94
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587082
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625707 Edm =   5.052303315e-11 NCalls =    158
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570657317974
+Edm   = 5.05230331456840673e-11
+Nfcn  = 158
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.8368	 +/-  0.229644	(limited)
+p3	  = 29.8074	 +/-  0.010997	(limited)
+p4	  = 6.78227	 +/-  0.00142198	(limited)
+p5	  = 0.64902	 +/-  0.000235749	(limited)
+p6	  = -0.0106428	 +/-  4.30256e-05	(limited)
+p7	  = -0.00427746	 +/-  7.59863e-06	(limited)
+Real time 0:00:00, CP time 0.220
+Real time 0:00:07, CP time 6.950, 6 slices
+[2026-07-21 17:14:25] [thread 143468] [info] 	 Minimization attempt 3 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625707 Edm =   4.073353624e-13 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587111
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625707
+  Edm           : 5.17185953e-11
+  Internal parameters:
+   -0.01337198685
+   -0.03584443489
+     0.3026742854
+     0.7453478507
+    0.06494761121
+   -0.01064295549
+  -0.004277477424
+  Internal gradient  :
+  8.627487429e-05
+  -0.008380742523
+   -0.02252447022
+    0.02714783865
+     0.4093916788
+    -0.1391757618
+    -0.3941381319
+  Internal covariance matrix:
+  1.2159432e-07  2.0299246e-09  4.3150575e-10 -3.0069617e-10 -2.6175973e-11  1.6824475e-10  -5.443875e-11
+  2.0299246e-09   5.280289e-08 -1.7071693e-08  1.3477122e-08 -1.7359619e-10 -1.9401282e-09   7.252496e-10
+  4.3150575e-10 -1.7071693e-08   1.327204e-08  6.0933465e-09 -5.8781964e-10  7.4726931e-10 -6.7624866e-11
+ -3.0069617e-10  1.3477122e-08  6.0933465e-09  3.7442953e-08  1.0948764e-09   -1.78466e-09  2.7710118e-10
+ -2.6175973e-11 -1.7359619e-10 -5.8781964e-10  1.0948764e-09  5.5810818e-10  2.8250194e-10 -5.6244598e-11
+  1.6824475e-10 -1.9401282e-09  7.4726931e-10   -1.78466e-09  2.8250194e-10  1.8515891e-09  1.5373013e-10
+  -5.443875e-11   7.252496e-10 -6.7624866e-11  2.7710118e-10 -5.6244598e-11  1.5373013e-10  5.7740106e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625707 Edm =    5.17185953e-11 NCalls =     91
+Warning in <Minuit2>: DavidonErrorUpdator delgam < 0 : first derivatives increasing along search line
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625707 Edm =    5.49273208e-11 NCalls =    106
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00586961
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625707 Edm =   5.016914028e-11 NCalls =    166
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570657174274
+Edm   = 5.01691402757043526e-11
+Nfcn  = 166
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.8368	 +/-  0.229705	(limited)
+p3	  = 29.8074	 +/-  0.010999	(limited)
+p4	  = 6.78227	 +/-  0.00142216	(limited)
+p5	  = 0.64902	 +/-  0.000235753	(limited)
+p6	  = -0.0106428	 +/-  4.30203e-05	(limited)
+p7	  = -0.00427746	 +/-  7.60058e-06	(limited)
+Real time 0:00:00, CP time 0.200
+Real time 0:00:07, CP time 7.150, 7 slices
+[2026-07-21 17:14:25] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:25] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625707 Edm =   3.308827846e-13 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587098
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625707
+  Edm           : 5.039548372e-11
+  Internal parameters:
+   -0.01337198683
+     -0.035844435
+     0.3026742856
+       0.74534785
+    0.06494761108
+   -0.01064295537
+  -0.004277477392
+  Internal gradient  :
+  2.037666553e-07
+  0.0006910295867
+   -0.01764068929
+    0.02834577264
+     0.3599900922
+    -0.1000840284
+    -0.6571400072
+  Internal covariance matrix:
+  1.2159433e-07  2.0299324e-09  4.3151254e-10 -3.0068615e-10  -2.617904e-11  1.6824248e-10 -5.4438224e-11
+  2.0299324e-09  5.2803279e-08 -1.7072032e-08  1.3476953e-08 -1.7355004e-10 -1.9400948e-09  7.2525027e-10
+  4.3151254e-10 -1.7072032e-08  1.3272275e-08  6.0933712e-09 -5.8784034e-10   7.472783e-10 -6.7626248e-11
+ -3.0068615e-10  1.3476953e-08  6.0933712e-09  3.7442797e-08  1.0948856e-09 -1.7846212e-09  2.7709916e-10
+  -2.617904e-11 -1.7355004e-10 -5.8784034e-10  1.0948856e-09  5.5810689e-10  2.8249873e-10 -5.6243515e-11
+  1.6824248e-10 -1.9400948e-09   7.472783e-10 -1.7846212e-09  2.8249873e-10  1.8515956e-09   1.537332e-10
+ -5.4438224e-11  7.2525027e-10 -6.7626248e-11  2.7709916e-10 -5.6243515e-11   1.537332e-10  5.7740307e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625707 Edm =   5.039548372e-11 NCalls =     91
+Warning in <Minuit2>: DavidonErrorUpdator delgam < 0 : first derivatives increasing along search line
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625707 Edm =   5.598027123e-11 NCalls =    106
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00586999
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625707 Edm =   4.987405714e-11 NCalls =    162
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570657072752
+Edm   = 4.98740571403124896e-11
+Nfcn  = 162
+nbkg	  = 1.77593e+07	 +/-  6276.12	(limited)
+p2	  = -35.8368	 +/-  0.229724	(limited)
+p3	  = 29.8074	 +/-  0.0109992	(limited)
+p4	  = 6.78227	 +/-  0.0014221	(limited)
+p5	  = 0.64902	 +/-  0.00023576	(limited)
+p6	  = -0.0106428	 +/-  4.30175e-05	(limited)
+p7	  = -0.00427746	 +/-  7.59912e-06	(limited)
+Real time 0:00:00, CP time 0.230
+Real time 0:00:07, CP time 7.380, 8 slices
+[2026-07-21 17:14:25] [thread 143468] [info] 	 Minimization attempt 4 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625707 Edm =   3.304828646e-13 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587102
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625707
+  Edm           : 4.870325552e-11
+  Internal parameters:
+   -0.01337198683
+   -0.03584443519
+     0.3026742857
+     0.7453478493
+    0.06494761095
+   -0.01064295524
+   -0.00427747736
+  Internal gradient  :
+  1.630132623e-06
+   0.001025295062
+    -0.0181211903
+    0.02841934405
+     0.3575764542
+   -0.08653051216
+    -0.6583692462
+  Internal covariance matrix:
+  1.2159433e-07  2.0299229e-09  4.3151373e-10 -3.0069461e-10 -2.6177869e-11  1.6824699e-10 -5.4438096e-11
+  2.0299229e-09  5.2803219e-08  -1.707194e-08  1.3477083e-08 -1.7356847e-10 -1.9401412e-09    7.25248e-10
+  4.3151373e-10  -1.707194e-08  1.3272208e-08   6.093344e-09 -5.8783412e-10  7.4728503e-10 -6.7625021e-11
+ -3.0069461e-10  1.3477083e-08   6.093344e-09  3.7442997e-08  1.0948975e-09  -1.784648e-09  2.7709847e-10
+ -2.6177869e-11 -1.7356847e-10 -5.8783412e-10  1.0948975e-09  5.5811078e-10   2.824983e-10 -5.6244677e-11
+  1.6824699e-10 -1.9401412e-09  7.4728503e-10  -1.784648e-09   2.824983e-10  1.8515793e-09  1.5372914e-10
+ -5.4438096e-11    7.25248e-10 -6.7625021e-11  2.7709847e-10 -5.6244677e-11  1.5372914e-10  5.7739852e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625707 Edm =   4.870325552e-11 NCalls =     93
+Warning in <Minuit2>: DavidonErrorUpdator delgam < 0 : first derivatives increasing along search line
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625707 Edm =   5.592825299e-11 NCalls =    108
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0058702
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625707 Edm =   5.268346425e-11 NCalls =    172
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570657009996
+Edm   = 5.26834642469834022e-11
+Nfcn  = 172
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.8368	 +/-  0.229698	(limited)
+p3	  = 29.8074	 +/-  0.0109985	(limited)
+p4	  = 6.78227	 +/-  0.00142207	(limited)
+p5	  = 0.64902	 +/-  0.000235758	(limited)
+p6	  = -0.0106428	 +/-  4.30196e-05	(limited)
+p7	  = -0.00427746	 +/-  7.59897e-06	(limited)
+Real time 0:00:00, CP time 0.250
+Real time 0:00:07, CP time 7.630, 9 slices
+[2026-07-21 17:14:25] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:25] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625707 Edm =   3.291595165e-13 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587108
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625707
+  Edm           : 5.104730818e-11
+  Internal parameters:
+   -0.01337198683
+   -0.03584443537
+     0.3026742859
+     0.7453478487
+    0.06494761083
+   -0.01064295513
+  -0.004277477329
+  Internal gradient  :
+  3.260266178e-06
+   0.001139395295
+   -0.01803651184
+    0.02838015932
+     0.3641933125
+    -0.1072371046
+      -0.62687161
+  Internal covariance matrix:
+  1.2159432e-07  2.0299172e-09  4.3150893e-10  -3.006969e-10 -2.6176141e-11  1.6824278e-10 -5.4439233e-11
+  2.0299172e-09  5.2803035e-08 -1.7071777e-08  1.3477018e-08 -1.7360482e-10 -1.9400984e-09  7.2525796e-10
+  4.3150893e-10 -1.7071777e-08  1.3272082e-08  6.0932634e-09 -5.8783332e-10  7.4727511e-10 -6.7624149e-11
+  -3.006969e-10  1.3477018e-08  6.0932634e-09  3.7442645e-08  1.0948807e-09  -1.784638e-09  2.7709776e-10
+ -2.6176141e-11 -1.7360482e-10 -5.8783332e-10  1.0948807e-09  5.5811636e-10  2.8250079e-10 -5.6246529e-11
+  1.6824278e-10 -1.9400984e-09  7.4727511e-10  -1.784638e-09  2.8250079e-10  1.8516062e-09  1.5373404e-10
+ -5.4439233e-11  7.2525796e-10 -6.7624149e-11  2.7709776e-10 -5.6246529e-11  1.5373404e-10  5.7741262e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625707 Edm =   5.104730818e-11 NCalls =     93
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   2.141117028e-09 NCalls =    114
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00586996
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =   2.099805065e-09 NCalls =    164
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.36257057306176
+Edm   = 2.09980506510132575e-09
+Nfcn  = 164
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229699	(limited)
+p3	  = 29.8074	 +/-  0.0109986	(limited)
+p4	  = 6.78227	 +/-  0.00142209	(limited)
+p5	  = 0.649018	 +/-  0.000235758	(limited)
+p6	  = -0.0106426	 +/-  4.30174e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59903e-06	(limited)
+Real time 0:00:00, CP time 0.260
+Real time 0:00:08, CP time 7.890, 10 slices
+[2026-07-21 17:14:26] [thread 143468] [info] 	 Minimization attempt 5 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   3.636896987e-10 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587103
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 2.098086661e-09
+  Internal parameters:
+    -0.0133719833
+   -0.03584465575
+     0.3026744548
+     0.7453471564
+    0.06494748597
+   -0.01064282593
+    -0.0042774457
+  Internal gradient  :
+  -0.001835937193
+     0.1600941895
+     -1.334807865
+      1.002099406
+     -8.366205682
+      4.636730241
+     -23.93154816
+  Internal covariance matrix:
+  1.2159433e-07  2.0299336e-09  4.3149961e-10 -3.0069354e-10 -2.6175733e-11  1.6824062e-10 -5.4439229e-11
+  2.0299336e-09  5.2802719e-08 -1.7071626e-08  1.3476989e-08 -1.7360104e-10 -1.9401016e-09  7.2524868e-10
+  4.3149961e-10 -1.7071626e-08  1.3271987e-08  6.0934653e-09 -5.8777928e-10  7.4731204e-10 -6.7622902e-11
+ -3.0069354e-10  1.3476989e-08  6.0934653e-09  3.7443093e-08  1.0949125e-09 -1.7845576e-09  2.7710881e-10
+ -2.6175733e-11 -1.7360104e-10 -5.8777928e-10  1.0949125e-09  5.5809839e-10  2.8249889e-10 -5.6242769e-11
+  1.6824062e-10 -1.9401016e-09  7.4731204e-10 -1.7845576e-09  2.8249889e-10  1.8516021e-09  1.5373489e-10
+ -5.4439229e-11  7.2524868e-10 -6.7622902e-11  2.7710881e-10 -5.6242769e-11  1.5373489e-10  5.7740593e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =   2.098086661e-09 NCalls =     77
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   1.227938241e-09 NCalls =     96
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587076
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =    1.20836259e-09 NCalls =    146
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570568625586
+Edm   = 1.20836258992706305e-09
+Nfcn  = 146
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229644	(limited)
+p3	  = 29.8074	 +/-  0.010997	(limited)
+p4	  = 6.78227	 +/-  0.00142198	(limited)
+p5	  = 0.649018	 +/-  0.000235748	(limited)
+p6	  = -0.0106426	 +/-  4.3026e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59864e-06	(limited)
+Real time 0:00:00, CP time 0.200
+Real time 0:00:08, CP time 8.090, 11 slices
+[2026-07-21 17:14:26] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:26] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   3.887979857e-10 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587095
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 1.208628165e-09
+  Internal parameters:
+   -0.01337198489
+   -0.03584467634
+     0.3026744593
+     0.7453471487
+    0.06494748614
+   -0.01064282536
+  -0.004277445997
+  Internal gradient  :
+   0.002149536172
+   -0.04840131925
+     0.9198978112
+    -0.7491326301
+       8.52287039
+     -5.445449813
+      31.82310647
+  Internal covariance matrix:
+  1.2159433e-07   2.029946e-09  4.3150386e-10 -3.0068479e-10  -2.617799e-11  1.6824279e-10 -5.4438072e-11
+   2.029946e-09  5.2803074e-08 -1.7071923e-08  1.3476908e-08 -1.7356823e-10 -1.9401406e-09  7.2524139e-10
+  4.3150386e-10 -1.7071923e-08  1.3272216e-08  6.0934878e-09 -5.8781348e-10   7.472959e-10 -6.7624569e-11
+ -3.0068479e-10  1.3476908e-08  6.0934878e-09  3.7443116e-08  1.0949213e-09 -1.7845802e-09  2.7710169e-10
+  -2.617799e-11 -1.7356823e-10 -5.8781348e-10  1.0949213e-09   5.581088e-10  2.8250735e-10 -5.6242569e-11
+  1.6824279e-10 -1.9401406e-09   7.472959e-10 -1.7845802e-09  2.8250735e-10  1.8515902e-09  1.5373015e-10
+ -5.4438072e-11  7.2524139e-10 -6.7624569e-11  2.7710169e-10 -5.6242569e-11  1.5373015e-10  5.7739491e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =   1.208628165e-09 NCalls =     77
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   3.782857507e-10 NCalls =     96
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0058707
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =   3.679065889e-10 NCalls =    148
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570566800741
+Edm   = 3.67906588915220438e-10
+Nfcn  = 148
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229645	(limited)
+p3	  = 29.8074	 +/-  0.010997	(limited)
+p4	  = 6.78227	 +/-  0.00142199	(limited)
+p5	  = 0.649018	 +/-  0.000235747	(limited)
+p6	  = -0.0106426	 +/-  4.30253e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59863e-06	(limited)
+Real time 0:00:00, CP time 0.210
+Real time 0:00:08, CP time 8.300, 12 slices
+[2026-07-21 17:14:26] [thread 143468] [info] 	 Minimization attempt 6 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   7.874879805e-11 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587099
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 3.680610049e-10
+  Internal parameters:
+   -0.01337198337
+   -0.03584467912
+     0.3026744613
+     0.7453471452
+    0.06494748608
+   -0.01064282488
+  -0.004277446154
+  Internal gradient  :
+  -0.001124629799
+    0.03891139278
+    -0.6510111627
+      0.490102759
+      -3.74457044
+      2.107259337
+     -11.33360598
+  Internal covariance matrix:
+  1.2159433e-07  2.0299378e-09  4.3150378e-10 -3.0068844e-10 -2.6176763e-11  1.6824346e-10 -5.4438426e-11
+  2.0299378e-09  5.2802983e-08 -1.7071826e-08  1.3476988e-08 -1.7357612e-10 -1.9401294e-09  7.2524448e-10
+  4.3150378e-10 -1.7071826e-08  1.3272139e-08  6.0934717e-09 -5.8780203e-10  7.4730276e-10 -6.7624043e-11
+ -3.0068844e-10  1.3476988e-08  6.0934717e-09  3.7443093e-08  1.0948999e-09 -1.7846019e-09  2.7710427e-10
+ -2.6176763e-11 -1.7357612e-10 -5.8780203e-10  1.0948999e-09  5.5809915e-10  2.8249606e-10 -5.6242895e-11
+  1.6824346e-10 -1.9401294e-09  7.4730276e-10 -1.7846019e-09  2.8249606e-10  1.8515821e-09  1.5373109e-10
+ -5.4438426e-11  7.2524448e-10 -6.7624043e-11  2.7710427e-10 -5.6242895e-11  1.5373109e-10   5.773983e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =   3.680610049e-10 NCalls =     79
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   1.825163631e-10 NCalls =     97
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587082
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =    1.69567913e-10 NCalls =    147
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570566090369
+Edm   = 1.69567912975678738e-10
+Nfcn  = 147
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229691	(limited)
+p3	  = 29.8074	 +/-  0.010998	(limited)
+p4	  = 6.78227	 +/-  0.00142201	(limited)
+p5	  = 0.649018	 +/-  0.000235747	(limited)
+p6	  = -0.0106426	 +/-  4.30261e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59895e-06	(limited)
+Real time 0:00:00, CP time 0.200
+Real time 0:00:08, CP time 8.500, 13 slices
+[2026-07-21 17:14:26] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:26] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   3.141924127e-11 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587105
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 1.697034055e-10
+  Internal parameters:
+   -0.01337198385
+   -0.03584468585
+     0.3026744627
+     0.7453471419
+    0.06494748604
+    -0.0106428246
+  -0.004277446228
+  Internal gradient  :
+  0.0007949348248
+    0.01481053169
+      0.259373514
+    -0.1851812549
+       2.59150599
+     -1.604267974
+       8.95240229
+  Internal covariance matrix:
+  1.2159432e-07  2.0299329e-09  4.3150479e-10 -3.0069772e-10 -2.6177213e-11  1.6824643e-10 -5.4438094e-11
+  2.0299329e-09  5.2802812e-08 -1.7071723e-08  1.3477048e-08 -1.7358394e-10 -1.9401619e-09   7.252388e-10
+  4.3150479e-10 -1.7071723e-08  1.3272055e-08  6.0933849e-09 -5.8780372e-10  7.4730131e-10 -6.7623083e-11
+ -3.0069772e-10  1.3477048e-08  6.0933849e-09  3.7443039e-08  1.0949037e-09 -1.7846314e-09  2.7710005e-10
+ -2.6177213e-11 -1.7358394e-10 -5.8780372e-10  1.0949037e-09  5.5810381e-10  2.8250254e-10 -5.6242936e-11
+  1.6824643e-10 -1.9401619e-09  7.4730131e-10 -1.7846314e-09  2.8250254e-10  1.8515945e-09  1.5373039e-10
+ -5.4438094e-11   7.252388e-10 -6.7623083e-11  2.7710005e-10 -5.6242936e-11  1.5373039e-10  5.7739531e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =   1.697034055e-10 NCalls =     79
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   2.946389493e-10 NCalls =     96
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587073
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =   2.876767238e-10 NCalls =    148
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.36257056565023
+Edm   = 2.87676723779816028e-10
+Nfcn  = 148
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229692	(limited)
+p3	  = 29.8074	 +/-  0.0109981	(limited)
+p4	  = 6.78227	 +/-  0.00142202	(limited)
+p5	  = 0.649018	 +/-  0.000235749	(limited)
+p6	  = -0.0106426	 +/-  4.30262e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59893e-06	(limited)
+Real time 0:00:00, CP time 0.190
+Real time 0:00:08, CP time 8.690, 14 slices
+[2026-07-21 17:14:26] [thread 143468] [info] 	 Minimization attempt 7 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   1.945976308e-10 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587097
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 2.873549067e-10
+  Internal parameters:
+   -0.01337198292
+   -0.03584469114
+      0.302674465
+     0.7453471366
+    0.06494748581
+   -0.01064282396
+  -0.004277446344
+  Internal gradient  :
+  -0.002071125849
+  -0.005455919539
+     -0.905007391
+     0.6897497671
+     -5.848256176
+      3.516246796
+      -20.0780119
+  Internal covariance matrix:
+  1.2159433e-07  2.0299148e-09  4.3150709e-10  -3.006991e-10 -2.6176244e-11  1.6823763e-10 -5.4440144e-11
+  2.0299148e-09  5.2803414e-08 -1.7071949e-08  1.3477072e-08  -1.735975e-10 -1.9400908e-09  7.2526624e-10
+  4.3150709e-10 -1.7071949e-08  1.3272208e-08  6.0934536e-09 -5.8781318e-10  7.4728375e-10 -6.7627716e-11
+  -3.006991e-10  1.3477072e-08  6.0934536e-09  3.7443074e-08  1.0948901e-09 -1.7845746e-09  2.7711252e-10
+ -2.6176244e-11  -1.735975e-10 -5.8781318e-10  1.0948901e-09  5.5810823e-10  2.8250077e-10 -5.6244647e-11
+  1.6823763e-10 -1.9400908e-09  7.4728375e-10 -1.7845746e-09  2.8250077e-10  1.8515876e-09  1.5373247e-10
+ -5.4440144e-11  7.2526624e-10 -6.7627716e-11  2.7711252e-10 -5.6244647e-11  1.5373247e-10  5.7741067e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =   2.873549067e-10 NCalls =     79
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   4.529404705e-11 NCalls =    104
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587076
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =   3.801087827e-11 NCalls =    168
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570565287342
+Edm   = 3.80108782655718829e-11
+Nfcn  = 168
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229692	(limited)
+p3	  = 29.8074	 +/-  0.0109981	(limited)
+p4	  = 6.78227	 +/-  0.00142202	(limited)
+p5	  = 0.649018	 +/-  0.000235747	(limited)
+p6	  = -0.0106426	 +/-  4.30257e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59893e-06	(limited)
+Real time 0:00:00, CP time 0.240
+Real time 0:00:09, CP time 8.930, 15 slices
+[2026-07-21 17:14:27] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:27] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   3.118547054e-13 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587101
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 3.927995611e-11
+  Internal parameters:
+   -0.01337198341
+   -0.03584469318
+     0.3026744651
+     0.7453471356
+    0.06494748573
+   -0.01064282389
+  -0.004277446323
+  Internal gradient  :
+   5.07786711e-05
+    0.01224407997
+   -0.01448000797
+    0.03973178124
+     0.2198618081
+   -0.06060429357
+    -0.4817365594
+  Internal covariance matrix:
+  1.2159433e-07  2.0299381e-09  4.3150603e-10  -3.006884e-10 -2.6178075e-11  1.6824281e-10 -5.4438237e-11
+  2.0299381e-09  5.2802974e-08 -1.7071856e-08  1.3476983e-08 -1.7356263e-10 -1.9401274e-09  7.2524196e-10
+  4.3150603e-10 -1.7071856e-08  1.3272156e-08  6.0934406e-09 -5.8781052e-10  7.4729327e-10 -6.7625029e-11
+  -3.006884e-10  1.3476983e-08  6.0934406e-09  3.7443004e-08  1.0948943e-09  -1.784614e-09  2.7710231e-10
+ -2.6178075e-11 -1.7356263e-10 -5.8781052e-10  1.0948943e-09   5.580995e-10  2.8250015e-10 -5.6242059e-11
+  1.6824281e-10 -1.9401274e-09  7.4729327e-10  -1.784614e-09  2.8250015e-10  1.8515919e-09  1.5373162e-10
+ -5.4438237e-11  7.2524196e-10 -6.7625029e-11  2.7710231e-10 -5.6242059e-11  1.5373162e-10  5.7739644e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =   3.927995611e-11 NCalls =     93
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   8.462974129e-10 NCalls =    114
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.0058697
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =   8.617086854e-10 NCalls =    168
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570563886834
+Edm   = 8.61708685435937986e-10
+Nfcn  = 168
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229702	(limited)
+p3	  = 29.8074	 +/-  0.0109989	(limited)
+p4	  = 6.78227	 +/-  0.00142216	(limited)
+p5	  = 0.649018	 +/-  0.000235754	(limited)
+p6	  = -0.0106426	 +/-  4.30215e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59991e-06	(limited)
+Real time 0:00:00, CP time 0.260
+Real time 0:00:09, CP time 9.190, 16 slices
+[2026-07-21 17:14:27] [thread 143468] [info] 	 Minimization attempt 8 with strategy 2
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   9.381333363e-11 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587104
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 8.617785409e-10
+  Internal parameters:
+   -0.01337198393
+   -0.03584471927
+     0.3026744719
+     0.7453470956
+    0.06494748163
+   -0.01064281873
+  -0.004277445679
+  Internal gradient  :
+  -0.002068761283
+    -0.3835159709
+    -0.1424152962
+   -0.04952238445
+      1.995323354
+     -1.414244459
+      7.955389517
+  Internal covariance matrix:
+  1.2159433e-07  2.0299069e-09  4.3151198e-10  -3.007013e-10 -2.6175452e-11   1.682437e-10 -5.4439583e-11
+  2.0299069e-09  5.2803267e-08 -1.7071888e-08  1.3477087e-08 -1.7360085e-10 -1.9401125e-09  7.2526172e-10
+  4.3151198e-10 -1.7071888e-08  1.3272153e-08  6.0933092e-09 -5.8782581e-10  7.4728879e-10 -6.7625405e-11
+  -3.007013e-10  1.3477087e-08  6.0933092e-09  3.7442761e-08  1.0948708e-09 -1.7846404e-09  2.7710298e-10
+ -2.6175452e-11 -1.7360085e-10 -5.8782581e-10  1.0948708e-09  5.5810908e-10  2.8249371e-10  -5.624625e-11
+   1.682437e-10 -1.9401125e-09  7.4728879e-10 -1.7846404e-09  2.8249371e-10  1.8515909e-09  1.5373272e-10
+ -5.4439583e-11  7.2526172e-10 -6.7625405e-11  2.7710298e-10  -5.624625e-11  1.5373272e-10  5.7741177e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =   8.617785409e-10 NCalls =     81
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =     2.1762726e-10 NCalls =    100
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587084
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =   2.233887727e-10 NCalls =    154
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570562758776
+Edm   = 2.23388772719629432e-10
+Nfcn  = 154
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229644	(limited)
+p3	  = 29.8074	 +/-  0.0109969	(limited)
+p4	  = 6.78227	 +/-  0.00142197	(limited)
+p5	  = 0.649018	 +/-  0.00023575	(limited)
+p6	  = -0.0106426	 +/-  4.30258e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59868e-06	(limited)
+Real time 0:00:00, CP time 0.280
+Real time 0:00:09, CP time 9.470, 17 slices
+[2026-07-21 17:14:27] [thread 143468] [warning] 	 Migrad did not converge (status 1). Retrying with higher strategy.
+[2026-07-21 17:14:27] [thread 143468] [info] 	 Trying MIGRAD again...
+Minuit2Minimizer: Minimize with max-calls 60000 convergence for edm < 0.001 strategy 2
+Minuit2Minimizer::Minuit  - Changing default options
+             StorageLevel :               0
+Info in <Minuit2>: MnSeedGenerator Initial state: FCN =       418.3625706 Edm =   1.306307577e-11 NCalls =     27
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587107
+Info in <Minuit2>: MnSeedGenerator run Hesse - new state: 
+  Minimum value : 418.3625706
+  Edm           : 2.24284868e-10
+  Internal parameters:
+   -0.01337198265
+   -0.03584471192
+     0.3026744708
+     0.7453470963
+    0.06494748137
+   -0.01064281865
+  -0.004277445571
+  Internal gradient  :
+  0.0007495766511
+     0.1181082047
+     0.1872062358
+  -0.008826974972
+    -0.0955270574
+     0.5365695173
+     -5.602656709
+  Internal covariance matrix:
+  1.2159432e-07  2.0299102e-09  4.3150997e-10 -3.0070415e-10 -2.6175002e-11  1.6824767e-10 -5.4438998e-11
+  2.0299102e-09  5.2803113e-08 -1.7071786e-08  1.3477128e-08 -1.7361437e-10 -1.9401581e-09  7.2525451e-10
+  4.3150997e-10 -1.7071786e-08  1.3272093e-08  6.0933138e-09 -5.8781983e-10  7.4729582e-10  -6.762328e-11
+ -3.0070415e-10  1.3477128e-08  6.0933138e-09  3.7442921e-08  1.0948855e-09 -1.7846565e-09  2.7710061e-10
+ -2.6175002e-11 -1.7361437e-10 -5.8781983e-10  1.0948855e-09  5.5811323e-10  2.8249715e-10 -5.6246677e-11
+  1.6824767e-10 -1.9401581e-09  7.4729582e-10 -1.7846565e-09  2.8249715e-10  1.8515834e-09   1.537294e-10
+ -5.4438998e-11  7.2525451e-10  -6.762328e-11  2.7710061e-10 -5.6246677e-11   1.537294e-10  5.7740528e-11
+Info in <Minuit2>: VariableMetricBuilder Start iterating until Edm is < 2e-06 with call limit = 60000
+Info in <Minuit2>: VariableMetricBuilder    0 - FCN =       418.3625706 Edm =    2.24284868e-10 NCalls =     81
+Info in <Minuit2>: VariableMetricBuilder    1 - FCN =       418.3625706 Edm =   9.838871914e-11 NCalls =     99
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00587072
+Info in <Minuit2>: VariableMetricBuilder After Hessian
+Info in <Minuit2>: VariableMetricBuilder    2 - FCN =       418.3625706 Edm =   1.020483768e-10 NCalls =    161
+Warning in <Minuit2>: Minuit2Minimizer::Minimize Covar was made pos def
+Minuit2Minimizer : Valid minimum - status = 1
+FVAL  = 418.362570562347116
+Edm   = 1.02048376781564748e-10
+Nfcn  = 161
+nbkg	  = 1.77593e+07	 +/-  6276.11	(limited)
+p2	  = -35.837	 +/-  0.229645	(limited)
+p3	  = 29.8074	 +/-  0.010997	(limited)
+p4	  = 6.78227	 +/-  0.00142197	(limited)
+p5	  = 0.649018	 +/-  0.000235748	(limited)
+p6	  = -0.0106426	 +/-  4.30264e-05	(limited)
+p7	  = -0.00427743	 +/-  7.59868e-06	(limited)
+Real time 0:00:00, CP time 0.270
+Real time 0:00:09, CP time 9.740, 18 slices
+.........................................I'M DONE HOPE THIS WORKED BYE..............................................
+[2026-07-21 17:14:27] [thread 143468] [info] 	 minimized nll value 418.3625705623471:
+[2026-07-21 17:14:27] [thread 143468] [info] 	 Saving results to /afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/run_135_1000_sevenPar/FitResult_anaFit_sevenPar_bkgOnly_masked.root
+[2026-07-21 17:14:28] [thread 143468] [info] 	 All fits done in 0.16683333333333333 min (cpu), 0.17293298641840618 min (real)
+[2026-07-21 17:14:28] [thread 143468] [info] 	   Fit Summary of POIs ([92m STATUS OK [0m)
+[2026-07-21 17:14:28] [thread 143468] [info] 	 ------------------------------------------------
+RooRealVar::nsig_mean400_width8.0 = 0 C  L(-1e+06 - 1e+06) 
