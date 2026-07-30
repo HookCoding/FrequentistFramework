@@ -273,3 +273,110 @@ the complete pytest, Ruff, and Black quality-gate workflow.
 
 - Verify that the development environment can be recreated from requirements-dev-lock.txt.
 - Continue recording substantial Tier-2 changes as new dated sections.
+
+### 2026-07-30 — Tier-2 completion status and remaining work
+
+#### Objective
+
+Consolidate the Tier-2 environment, dependency, formatting, verification, and Git-integration work completed to date, and define the remaining acceptance criteria required before Tier 2 can be marked complete.
+
+#### Significant work completed
+
+- Established a repository-local virtual environment using Python 3.12.13, satisfying the declared Python 3.11-or-newer project requirement.
+- Installed the quality-tooling stack into the same active environment:
+  - pytest 9.1.1
+  - Ruff 0.16.0
+  - Black 26.5.1
+- Added version-controlled development dependency records:
+  - `requirements-dev.txt`
+  - `requirements-dev-lock.txt`
+- Added `.gitignore` exceptions for the dependency records because the repository otherwise ignores files matching `*.txt`.
+- Applied Ruff's safe fixes for import ordering and missing final newlines.
+- Applied Black formatting to the explicit Tier-1 source and test targets.
+- Resolved all previously reported Ruff diagnostics without an intended behavioural change.
+- Verified that all 13 targeted Tier-1 regression tests pass.
+- Verified that Ruff and Black checks pass over the configured targets.
+- Verified that the complete quality gate exits with code 0 on LXPlus.
+- Preserved unrelated working-tree content by using explicit Git paths.
+- Kept generated `post_fit.pdf` outputs outside the current Tier-2 scope.
+
+#### Verified environment
+
+- Python: `Python 3.12.13`
+- Python executable: `/afs/cern.ch/user/h/hhook/FrequentistFramework/.venv/bin/python`
+- pytest: `pytest 9.1.1`
+- Ruff: `ruff 0.16.0`
+- Black: `python -m black, 26.5.1 (compiled: yes)`
+
+#### Verification evidence
+
+The complete quality gate was run with:
+
+```bash
+python scripts/quality_check.py --mode full
+```
+
+Results:
+
+- Targeted tests: **13 passed**
+- Ruff: **passed**
+- Black check: **passed**
+- Full quality-gate exit code: **0**
+
+#### Remaining work required to complete Tier 2
+
+1. **Update environment provenance**
+   - Update `doc/TIER1_ENVIRONMENT_PROVENANCE.md` with the verified Python 3.12.13 project environment.
+   - Record pytest 9.1.1, Ruff 0.16.0, and Black 26.5.1.
+   - Preserve the previous Python 3.9.25 snapshot as historical evidence rather than describing it as the active project environment.
+
+2. **Verify clean dependency-lock reproduction**
+   - Create a fresh Python 3.12 virtual environment.
+   - Install dependencies from `requirements-dev-lock.txt`.
+   - Verify the installed Python, pytest, Ruff, and Black versions.
+   - Run the complete quality gate in the clean environment.
+   - Require a full-gate exit code of 0.
+
+3. **Configure branch upstream tracking**
+   - Fetch the remote branch list.
+   - Determine whether `origin/tier-2-m365` exists.
+   - If it exists, configure it as the upstream branch.
+   - If it does not exist, publish the local branch with `git push -u origin tier-2-m365`.
+
+4. **Synchronise the branch**
+   - Pull remote changes using an explicit strategy such as `git pull --rebase`.
+   - Confirm that all Tier-2 commits remain present after synchronisation.
+
+5. **Perform final verification**
+   - Activate the intended project virtual environment.
+   - Run the complete quality gate again.
+   - Record the final command output and exit code.
+
+6. **Record final completion evidence**
+   - Append a new dated activity-log section containing the clean-environment reproduction result, provenance update, branch status, and final gate result.
+   - Mark Tier 2 complete only after both the clean reproduction environment and final project environment return full-gate exit code 0.
+
+#### Deferred generated-output decision
+
+The following generated files are not required for the current Tier-2 work:
+
+- `run/fits/J100/run_481_3000_sixPar/post_fit.pdf`
+- `run/fits/J50/run_344_2079_sixPar/post_fit.pdf`
+
+Whether these files should remain tracked, be removed from tracking, or be ignored will be handled separately. Until then, avoid repository-wide staging commands such as `git add .` and `git commit -a`.
+
+#### Tier-2 completion criteria
+
+Tier 2 will be complete when:
+
+- Python 3.11 or newer is active and documented;
+- pytest, Ruff, and Black are reproducibly pinned;
+- `requirements-dev-lock.txt` recreates a working clean environment;
+- all 13 targeted tests pass;
+- Ruff passes;
+- Black check passes;
+- the complete quality gate exits with code 0;
+- `doc/TIER1_ENVIRONMENT_PROVENANCE.md` reflects the verified environment;
+- `tier-2-m365` tracks the intended remote branch;
+- final verification evidence is recorded in this activity log;
+- unrelated generated outputs remain outside the Tier-2 change history.
