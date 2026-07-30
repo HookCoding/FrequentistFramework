@@ -1,0 +1,19 @@
+<!DOCTYPE Channel SYSTEM 'AnaWSBuilder.dtd'>
+<Channel Name="Run3TLA" Type="shape" Lumi="1">
+  <Data InputFile="Input/data/dijetTLA/mjj_spectra_J100_dataAll.root" FileType="histogram" HistName="hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj" Observable="obs_x_channel[481,3000]" Binning="2519" InjectGhost="1"/>
+
+  <Sample Name="background" InputFile="/afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/J100/run_481_3000_sixPar/background_dijetTLA_fromTemplate.xml" MultiplyLumi="0" ImportSyst=":self:">
+    <NormFactor Name="nbkg[7.7E+08, 0, 1.5E+09]"/>
+  </Sample>
+
+  <Sample Name="signal_mean400_width8.0" InputFile="/afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/J100/run_481_3000_sixPar/signal_dijetTLA_fromTemplate.xml" MultiplyLumi="0" >
+    <NormFactor Name="nsig_mean400_width8.0[0,-1E6,1E6]"/>
+    <!-- <Systematic Name="ATLAS_theo_unc" Constr="gaus" CentralValue="1" Mag="0.05" WhereTo="yield"/> -->
+  </Sample>
+
+
+  <!-- <Sample Name="spurious_mean400_width8.0" InputFile="/afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/J100/run_481_3000_sixPar/signal_dijetTLA_fromTemplate.xml" MultiplyLumi="0" ImportSyst=":self:" SharePdf="CommonSig">
+    <Systematic Name="ATLAS_spurious_mean400_width8.0_gq0p1" Constr="gaus" CentralValue="0" Mag="555" WhereTo="yield"/>
+  </Sample> -->
+
+</Channel>

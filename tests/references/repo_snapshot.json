@@ -1,0 +1,27 @@
+{
+  "python_dir_exists": true,
+  "readme_exists": true,
+  "repo_root": ".",
+  "tests_dir_exists": true,
+  "top_level_entries": [
+    ".gitignore",
+    ".gitmodules",
+    ".pre-commit-config.yaml",
+    "README.md",
+    "atlasstyle-00-04-02",
+    "background_dijetTLA_fromTemplate.xml",
+    "config",
+    "data",
+    "doc",
+    "install.sh",
+    "plot_edm.py",
+    "plot_postfit.cpp",
+    "python",
+    "run",
+    "scripts",
+    "setup.sh",
+    "submission",
+    "test.cpp",
+    "tests"
+  ]
+}
