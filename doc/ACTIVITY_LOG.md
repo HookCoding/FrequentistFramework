@@ -231,3 +231,45 @@ Implement the planned expansion of `doc/TIER1_SYSTEM.md` so Tier-1 users have a 
 - Tier-1 system documentation expansion is complete and verified against current code/reference behavior.
 - Remaining environment gap is unchanged: active runtime still lacks `ruff`/`black` and is below declared Python baseline (`>=3.11`) for full-mode parity.
 - CLs integration remains intentionally deferred per background-only-first scope.
+
+## 2026-07-30 — Tier-2 Python quality tooling and formatting baseline
+
+### Objective
+
+Establish a supported, reproducible project-local Python environment and enable
+the complete pytest, Ruff, and Black quality-gate workflow.
+
+### Substantial changes completed
+
+- Recreated the repository-local virtual environment using Python 3.12.13.
+- Installed pytest, Ruff, and Black into the same active interpreter environment.
+- Added explicit development dependency records:
+  - `requirements-dev.txt`
+  - `requirements-dev-lock.txt`
+- Added Git ignore exceptions so the development dependency records are
+  intentionally version-controlled despite the repository-wide `*.txt` rule.
+- Applied Ruff's safe automatic fixes to the explicit Tier-1 source and test targets.
+- Applied Black formatting to the explicit Tier-1 source and test targets.
+- Preserved unrelated working-tree content outside the Tier-2 staged changes.
+
+### Environment evidence
+
+- Python: `Python 3.12.13`
+- Python executable: `/afs/cern.ch/user/h/hhook/FrequentistFramework/.venv/bin/python`
+- pytest: `pytest 9.1.1`
+- Ruff: `ruff 0.16.0`
+- Black: `python -m black, 26.5.1 (compiled: yes)`
+
+### Verification performed
+
+- Command:
+  `python scripts/quality_check.py --mode full`
+- Full quality-gate status: **success**
+- Full quality-gate exit code: **0**
+- Complete command output captured temporarily at:
+  `/tmp/frequentist_framework_tier2_full_gate.log`
+
+### Current status / remaining items
+
+- Verify that the development environment can be recreated from requirements-dev-lock.txt.
+- Continue recording substantial Tier-2 changes as new dated sections.
