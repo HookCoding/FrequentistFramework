@@ -1,7 +1,0 @@
-<!DOCTYPE Combination  SYSTEM 'AnaWSBuilder.dtd'>
-<Combination WorkspaceName="combWS" ModelConfigName="ModelConfig" DataName="combData" OutputFile="/afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/run_135_1000_sevenPar/dijetisrTLA_combWS_sevenPar_masked.root" Blind="true">
-  <Input>/afs/cern.ch/user/h/hhook/FrequentistFramework/run/fits/run_135_1000_sevenPar/category_dijetTLA_fromTemplate_masked.xml</Input>
-  <POI> nbkg,nsig_mean400_width8.0</POI>
-  <Asimov Name="POISnap"  Setup=""  Action="savesnapshot" SnapshotPOI="nominalPOI"/>
-  <Asimov Name="NPSnap" Setup= "nsig_mean400_width8.0=0" Action="fixsyst:fit:float:savesnapshot:nominalPOI" SnapshotNuis="nominalNuis" SnapshotGlob="nominalGlobs"/>
-</Combination>
