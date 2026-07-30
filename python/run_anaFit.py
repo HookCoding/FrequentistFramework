@@ -30,7 +30,7 @@ def replaceinfile(f, old_new_list):
     with open(f, 'w') as file:
         file.write(filedata)
 
-def build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, fitresultfile, poi=None, maskrange=None):
+def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, poi=None, maskrange=None):
     rtv=execute('xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
     if rtv != 0:
         print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
@@ -78,7 +78,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, 
 
     print(binningFileName)
     if not os.path.exists(binningFileName):
-        execute(f"python3 python/createBinning.py -s {rangelow} -e {rangehigh} -o {binningFileName}")
+        execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
 
     print("EXECUTE: pfe = PostfitExtractor(")
     print("datafile=", datafile)
@@ -165,14 +165,6 @@ def run_anaFit(datafile,
       tmptopfile="{}/dijetTLA_fromTemplate.xml".format(folder)  
     tmpsignalfile="{}/signal_dijetTLA_fromTemplate.xml".format(folder)
     tmpbackgroundfile="{}/background_dijetTLA_fromTemplate.xml".format(folder)
-
-    # XMLReader resolves relative paths from the current working directory.
-    # Keep full paths for Python file operations, but write portable paths
-    # relative to the repository working directory into generated XML files.
-    xml_categoryfile = os.path.relpath(tmpcategoryfile, os.getcwd())
-    xml_signalfile = os.path.relpath(tmpsignalfile, os.getcwd())
-    xml_backgroundfile = os.path.relpath(tmpbackgroundfile, os.getcwd())
-    xml_wsfile = os.path.relpath(wsfile, os.getcwd())
     
     print("--------------------------------------> tmpcategoryfile: "+tmpcategoryfile)
     print("--------------------------------------> tmptopfile: "+tmptopfile)
@@ -183,15 +175,15 @@ def run_anaFit(datafile,
         shutil.copy2(signalfile, tmpsignalfile) 
     
     replaceinfile(tmptopfile, 
-                  [("CATEGORYFILE", xml_categoryfile),
-                   ("OUTPUTFILE", xml_wsfile),
+                  [("CATEGORYFILE", tmpcategoryfile),
+                   ("OUTPUTFILE", wsfile),
                    ("SIGNAME", signame),
                ])
 
     if backgroundfile:
         shutil.copy2(backgroundfile, tmpbackgroundfile) 
         replaceinfile(tmpcategoryfile, 
-                      [("BACKGROUNDFILE", xml_backgroundfile)])
+                      [("BACKGROUNDFILE", tmpbackgroundfile)])
         
         if doprefit:
             nPars = 5
@@ -267,7 +259,7 @@ def run_anaFit(datafile,
         ("NBKG", nbkg),
 	("NSIG", nsig),
 	("SIGNAME", signame),
-	("SIGNALFILE", xml_signalfile)
+	("SIGNALFILE", tmpsignalfile)
     ])    
 
     if signalfile:
@@ -329,7 +321,6 @@ def run_anaFit(datafile,
                                                                 datafile=datafile, 
                                                                 datahist=datahist, 
                                                                 rangelow=rangelow, 
-                                                                rangehigh=rangehigh,
                                                                 wsfile=wsfile, 
                                                                 fitresultfile=outputfile, 
                                                                 poi=poi,
@@ -374,16 +365,14 @@ def run_anaFit(datafile,
         tmptopfilemasked=tmptopfile.replace(".xml","_masked.xml")
         wsfilemasked=wsfile.replace(".root","_masked.root")
         outfilemasked=outputfile.replace(".root","_masked.root")
-        xml_categoryfilemasked = os.path.relpath(tmpcategoryfilemasked, os.getcwd())
-        xml_wsfilemasked = os.path.relpath(wsfilemasked, os.getcwd())
 
         shutil.copy2(tmptopfile, tmptopfilemasked) 
         shutil.copy2(tmpcategoryfile, tmpcategoryfilemasked) 
 
         replaceinfile(tmptopfilemasked, 
-                      [(xml_categoryfile,xml_categoryfilemasked),
+                      [(tmpcategoryfile,tmpcategoryfilemasked),
                        (r'(OutputFile="[A-Za-z0-9_/.-]*")',r'\1 Blind="true"'),
-                       (xml_wsfile, xml_wsfilemasked),])
+                       (wsfile, wsfilemasked),])
         replaceinfile(tmpcategoryfilemasked, 
                       [(r'(Binning="\d+")', r'\1 BlindRange="%s"' % BHresults["BlindRange"])])
 
@@ -391,7 +380,6 @@ def run_anaFit(datafile,
                                             datafile=datafile, 
                                             datahist=datahist, 
                                             rangelow=rangelow, 
-                                            rangehigh=rangehigh,
                                             wsfile=wsfilemasked, 
                                             fitresultfile=outfilemasked, 
                                             poi=poi, 

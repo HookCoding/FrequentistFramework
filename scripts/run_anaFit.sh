@@ -1,17 +1,14 @@
 #!/bin/bash
 
-repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-out_dir="$repo_dir/run/fits"
+out_dir=/eos/home-t/tofitsch/tlafits
 
-mkdir -p "$out_dir"
-cd "$repo_dir"
+mkdir -p $out_dir
 
 {
-    . "$repo_dir/scripts/setup_buildAndFit.sh"
+    . scripts/setup_buildAndFit.sh
 
-    # Set FIT_PARS to a space-separated list such as "six" or "six seven".
-    pars_list="${FIT_PARS:-seven}"
-    for pars in $pars_list
+    # for pars in five six seven
+    for pars in seven #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
     do
           
         for rangelow in 135 # 90 95 100 #110 #87 #120 #88 89 90 #120 130 140 150
@@ -131,7 +128,7 @@ cd "$repo_dir"
 	        if (( $dolimit )); then flags="$flags --dolimit"; fi
 	        if (( $doprefit )); then flags="$flags --doprefit"; fi
 
-	        "$repo_dir/python/run_anaFit.py" \
+	        ./python/run_anaFit.py \
     		    --datafile $datafile \
     		    --datahist $datahist \
     		    --backgroundfile $backgroundfile \
@@ -156,7 +153,7 @@ cd "$repo_dir"
 
 		    toys=100
 
-		    python "$repo_dir/python/plotPostFit.py" -i  ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root -o ${folder}/postFit.pdf 
+		    python python/plotPostFit.py -i  ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root -o ${folder}/postFit.pdf 
 
         root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\")"
 
@@ -173,8 +170,6 @@ cd "$repo_dir"
 
             done
         done
-        if command -v alert >/dev/null 2>&1; then
-            alert
-        fi
+        alert
     done
 }

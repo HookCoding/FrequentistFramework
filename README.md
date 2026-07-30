@@ -1,5 +1,4 @@
 # Install
-This program runs on unix systems.
 ```
 setupATLAS
 lsetup git
@@ -37,19 +36,3 @@ the 100% unblinding file
 ```
 https://gitlab.cern.ch/tla-atlas-run3/tla-ntuple-analysis/-/tree/full-unblinding/outputs/FINAL_100pc_unblinding_histograms?ref_type=heads
 ```
-
-# Quality checks
-
-Run the lightweight safety-net checks locally with:
-
-```bash
-python3 -m pip install pytest ruff black
-python3 scripts/quality_check.py
-```
-
-The checks currently cover:
-- a small repo-root regression test under tests/
-- linting with ruff
-- formatting validation with black
-
-For the Tier 1 regression workflow and the frozen-reference documentation, see [doc/TIER1_SYSTEM.md](doc/TIER1_SYSTEM.md).
