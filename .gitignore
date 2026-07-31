@@ -34,3 +34,4 @@ workspaceCombiner
 pyBumpHunter
 
 !doc/*
+.aider*
