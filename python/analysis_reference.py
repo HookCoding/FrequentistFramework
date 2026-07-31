@@ -7,6 +7,7 @@ WORKFLOW_FIT_DIRS: tuple[tuple[str, str], ...] = (
     ("J100", "run_481_3000_sixPar"),
     ("J50", "run_344_2079_sixPar"),
 )
+
 _FIT_PARAMETER_NAMES = {"nbkg", "p2", "p3", "p4", "p5", "p6", "p7"}
 _FLOAT_RE = r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)"
 _FIT_PARAMETER_PATTERN = re.compile(rf"^\s*([A-Za-z0-9_]+)\s*=\s*{_FLOAT_RE}")
@@ -44,8 +45,11 @@ def _extract_optional_bh_pvalue(fit_dir: Path) -> Optional[float]:
 
     try:
         bh_results = json.loads(bh_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as error:
-        raise ValueError(f"Invalid JSON in {bh_path}") from error
+    except (json.JSONDecodeError, OSError) as error:
+        raise ValueError(f"Could not read valid JSON from {bh_path}") from error
+
+    if not isinstance(bh_results, dict):
+        raise ValueError(f"BH results payload in {bh_path} must be a JSON object")
 
     pybh_result = bh_results.get("pyBHresult")
     if pybh_result is None:
@@ -58,6 +62,7 @@ def _extract_optional_bh_pvalue(fit_dir: Path) -> Optional[float]:
         return None
     if not isinstance(global_pval, (int, float)):
         raise ValueError(f"Non-numeric global_Pval in {bh_path}")
+
     return float(global_pval)
 
 
@@ -92,9 +97,14 @@ def _build_workflow_payload(fit_dir: Path) -> dict[str, Any]:
 
 def _validate_workflow_payload(workflow_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     required_keys = {"fit_parameters", "p_chi2", "p_bh", "cls_limit_points"}
-    missing = required_keys - set(payload.keys())
-    if missing:
-        raise ValueError(f"Workflow {workflow_name} is missing required keys: {sorted(missing)}")
+    payload_keys = set(payload)
+    missing = required_keys - payload_keys
+    unexpected = payload_keys - required_keys
+    if missing or unexpected:
+        raise ValueError(
+            f"Workflow {workflow_name} has invalid keys "
+            f"(missing={sorted(missing)}, unexpected={sorted(unexpected)})"
+        )
 
     fit_parameters_raw = payload["fit_parameters"]
     if not isinstance(fit_parameters_raw, dict):
@@ -139,9 +149,14 @@ def _validate_analysis_reference(payload: dict[str, Any]) -> dict[str, Any]:
 
     validated: dict[str, Any] = {}
     required_workflows = [name for name, _ in WORKFLOW_FIT_DIRS]
-    missing_workflows = [name for name in required_workflows if name not in payload]
-    if missing_workflows:
-        raise ValueError(f"Analysis reference is missing workflows: {missing_workflows}")
+    payload_workflows = set(payload)
+    missing_workflows = sorted(set(required_workflows) - payload_workflows)
+    unexpected_workflows = sorted(payload_workflows - set(required_workflows))
+    if missing_workflows or unexpected_workflows:
+        raise ValueError(
+            "Analysis reference has invalid workflows "
+            f"(missing={missing_workflows}, unexpected={unexpected_workflows})"
+        )
 
     for workflow_name in required_workflows:
         workflow_payload = payload[workflow_name]
@@ -177,6 +192,7 @@ def read_analysis_reference(path: Path) -> dict[str, Any]:
 
     if not isinstance(payload, dict):
         raise ValueError(f"Could not read analysis reference: {path}")
+
     return _validate_analysis_reference(payload)
 
 

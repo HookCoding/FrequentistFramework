@@ -579,3 +579,46 @@ The following work remains before the modular checker can be marked complete:
 #### Scope boundary
 
 The checker did not launch the complete J100 or J50 fit workflows. Verification remained limited to recorded paths, input and output contracts, existing background-only outputs, deterministic reference regeneration, regression tests, development tooling, and the established quality gate.
+
+### 2026-07-31 — Tier-1 review feedback: strict reference validation
+
+#### Objective
+
+Resolve merge-review feedback for the Tier-1 analysis-reference validator and add regression coverage for the new failure modes.
+
+#### Substantial changes completed
+
+- Updated `python/analysis_reference.py` to reject unexpected top-level workflows in addition to missing required workflows.
+- Updated workflow-payload validation to reject unexpected keys rather than silently discarding them.
+- Updated optional `BHresults.json` handling to:
+  - convert JSON decoding and file-read failures into clear `ValueError` exceptions;
+  - reject valid JSON whose top-level payload is not an object;
+  - preserve the existing validation of `pyBHresult` and `global_Pval`.
+- Added five focused regression tests to `tests/test_analysis_reference.py` covering:
+  - unexpected workflows;
+  - unexpected workflow payload keys;
+  - malformed BH JSON;
+  - non-object BH JSON;
+  - `OSError` while reading `BHresults.json`.
+- Removed the accidentally added `test.md` file before merge.
+
+#### Verification performed
+
+- Black passed for the changed implementation and test files.
+- Ruff passed for the changed implementation and test files.
+- The complete targeted Tier-1 test set was run with:
+
+  `python -m pytest tests/test_analysis_reference.py tests/test_compare_root_outputs.py tests/test_repo_utils.py -q`
+
+- Result: **18 tests passed in 0.42 seconds**.
+- The reviewed changes were committed as:
+  - `74ef39bda848b558bf3eb74a5f4bd0c077f78a65`
+  - `Address Tier-1 analysis reference review feedback`
+- Pull request #4 was merged into `upstream/harry` at merge commit:
+  - `cb691d7`
+
+#### Scope
+
+The changes are limited to Tier-1 reference validation, its regression tests, activity-log documentation, and removal of the accidental `test.md` file.
+
+The authoritative J100/J50 background-only workflow lock remains unchanged. CLs integration remains deferred.
