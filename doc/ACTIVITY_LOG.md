@@ -231,3 +231,38 @@ Implement the planned expansion of `doc/TIER1_SYSTEM.md` so Tier-1 users have a 
 - Tier-1 system documentation expansion is complete and verified against current code/reference behavior.
 - Remaining environment gap is unchanged: active runtime still lacks `ruff`/`black` and is below declared Python baseline (`>=3.11`) for full-mode parity.
 - CLs integration remains intentionally deferred per background-only-first scope.
+
+### 2026-07-31 — Tier-1 review feedback: strict reference validation
+
+#### Objective
+
+Resolve merge-review feedback for the Tier-1 analysis-reference validator and add regression coverage for the new failure modes.
+
+#### Substantial changes completed
+
+- Updated `python/analysis_reference.py` to reject unexpected top-level workflows in addition to missing required workflows.
+- Updated workflow-payload validation to reject unexpected keys rather than silently discarding them.
+- Updated optional `BHresults.json` handling to:
+  - convert JSON decoding and file-read failures into clear `ValueError` exceptions;
+  - reject valid JSON whose top-level payload is not an object;
+  - preserve the existing validation of `pyBHresult` and `global_Pval`.
+- Added five focused regression tests to `tests/test_analysis_reference.py` covering:
+  - unexpected workflows;
+  - unexpected workflow payload keys;
+  - malformed BH JSON;
+  - non-object BH JSON;
+  - `OSError` while reading `BHresults.json`.
+
+#### Verification performed
+
+- Black passed for the changed implementation and test files.
+- Ruff passed for the changed implementation and test files.
+- The complete targeted Tier-1 test set passed:
+  - `tests/test_analysis_reference.py`
+  - `tests/test_compare_root_outputs.py`
+  - `tests/test_repo_utils.py`
+- Result: 18 tests passed in 0.42 seconds.
+
+#### Scope
+
+The changes are limited to Tier-1 reference validation and its regression tests. The J100/J50 background-only workflow lock remains unchanged, and CLs integration remains deferred.
