@@ -380,3 +380,144 @@ Tier 2 will be complete when:
 - `tier-2-m365` tracks the intended remote branch;
 - final verification evidence is recorded in this activity log;
 - unrelated generated outputs remain outside the Tier-2 change history.
+
+
+### 2026-07-31 — Tier-2 completion: reproducible Python quality environment
+2
+ 
+3
+#### Objective
+4
+ 
+5
+Complete Tier 2 by proving clean dependency-lock reproduction, updating
+6
+environment provenance, configuring branch tracking, and verifying the
+7
+complete quality gate in both the clean reproduction environment and the
+8
+intended project environment.
+9
+ 
+10
+#### Substantial changes completed
+11
+ 
+12
+- Recreated a fresh Python 3.12 virtual environment outside the repository.
+13
+- Installed the development dependencies from `requirements-dev-lock.txt`.
+14
+- Verified that the locked dependencies reproduce the intended pytest,
+15
+Ruff, and Black toolchain.
+16
+- Configured `tier-2-m365` to track `origin/tier-2-m365`.
+17
+- Added a branch-specific `origin` fetch refspec for `tier-2-m365`.
+18
+- Verified that the local and remote branch tips were identical.
+19
+- Updated `doc/TIER1_ENVIRONMENT_PROVENANCE.md` with the current supported
+20
+environment and clean-reproduction evidence.
+21
+- Preserved the Python 3.9.25 environment as a historical pre-Tier-2
+22
+snapshot.
+23
+- Kept unrelated generated outputs outside the Tier-2 change set.
+24
+ 
+25
+#### Clean-environment verification
+26
+ 
+27
+- Verification timestamp: 2026-07-30T16:07:19+02:00
+28
+- Python executable:
+29
+`/tmp/hhook/tmp.2Vv9EivLbA/tier2-clean-venv/bin/python`
+30
+- Python: 3.12.13
+31
+- pytest: 9.1.1
+32
+- Ruff: 0.16.0
+33
+- Black: 26.5.1
+34
+- Dependency source: `requirements-dev-lock.txt`
+35
+- Targeted tests: 13 passed in 0.21 seconds
+36
+- Ruff check: passed
+37
+- Black check: passed
+38
+- Full quality-gate exit code: 0
+39
+ 
+40
+#### Branch verification
+41
+ 
+42
+- Local branch: `tier-2-m365`
+43
+- Upstream branch: `origin/tier-2-m365`
+44
+- Local commit at synchronization:
+45
+`a7e8db56408a2413122af0e4a6880b3580012f07`
+46
+- Upstream commit at synchronization:
+47
+`a7e8db56408a2413122af0e4a6880b3580012f07`
+48
+- Branch divergence: none
+49
+ 
+50
+#### Final project-environment verification
+51
+ 
+52
+- Python: 3.12.13
+53
+- pytest: 9.1.1
+54
+- Ruff: 0.16.0
+55
+- Black: 26.5.1
+56
+- Targeted tests: 13 passed
+57
+- Ruff check: passed
+58
+- Black check: passed
+59
+- Full quality-gate exit code: 0
+60
+- Gate output:
+61
+`/tmp/frequentist_framework_tier2_final_gate.log`
+62
+ 
+63
+#### Completion status
+64
+ 
+65
+Tier 2 is complete. The project now has a supported Python environment,
+66
+a reproducibly pinned development toolchain, a passing complete quality
+67
+gate, updated environment provenance, and a synchronized tracked branch.
+68
+ 
+69
+CLs integration, broader structural refactoring, orchestration, and the
+70
+generated-output policy remain outside Tier 2.
