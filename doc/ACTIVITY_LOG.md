@@ -383,141 +383,199 @@ Tier 2 will be complete when:
 
 
 ### 2026-07-31 — Tier-2 completion: reproducible Python quality environment
-2
- 
-3
+
 #### Objective
-4
- 
-5
+
 Complete Tier 2 by proving clean dependency-lock reproduction, updating
-6
 environment provenance, configuring branch tracking, and verifying the
-7
 complete quality gate in both the clean reproduction environment and the
-8
 intended project environment.
-9
- 
-10
+
 #### Substantial changes completed
-11
- 
-12
+
 - Recreated a fresh Python 3.12 virtual environment outside the repository.
-13
 - Installed the development dependencies from `requirements-dev-lock.txt`.
-14
 - Verified that the locked dependencies reproduce the intended pytest,
-15
 Ruff, and Black toolchain.
-16
 - Configured `tier-2-m365` to track `origin/tier-2-m365`.
-17
 - Added a branch-specific `origin` fetch refspec for `tier-2-m365`.
-18
 - Verified that the local and remote branch tips were identical.
-19
 - Updated `doc/TIER1_ENVIRONMENT_PROVENANCE.md` with the current supported
-20
 environment and clean-reproduction evidence.
-21
 - Preserved the Python 3.9.25 environment as a historical pre-Tier-2
-22
 snapshot.
-23
 - Kept unrelated generated outputs outside the Tier-2 change set.
-24
- 
-25
+
 #### Clean-environment verification
-26
- 
-27
+
 - Verification timestamp: 2026-07-30T16:07:19+02:00
-28
 - Python executable:
-29
 `/tmp/hhook/tmp.2Vv9EivLbA/tier2-clean-venv/bin/python`
-30
 - Python: 3.12.13
-31
 - pytest: 9.1.1
-32
 - Ruff: 0.16.0
-33
 - Black: 26.5.1
-34
 - Dependency source: `requirements-dev-lock.txt`
-35
 - Targeted tests: 13 passed in 0.21 seconds
-36
 - Ruff check: passed
-37
 - Black check: passed
-38
 - Full quality-gate exit code: 0
-39
- 
-40
+
 #### Branch verification
-41
- 
-42
+
 - Local branch: `tier-2-m365`
-43
 - Upstream branch: `origin/tier-2-m365`
-44
 - Local commit at synchronization:
-45
 `a7e8db56408a2413122af0e4a6880b3580012f07`
-46
 - Upstream commit at synchronization:
-47
 `a7e8db56408a2413122af0e4a6880b3580012f07`
-48
 - Branch divergence: none
-49
- 
-50
+
 #### Final project-environment verification
-51
- 
-52
+
 - Python: 3.12.13
-53
 - pytest: 9.1.1
-54
 - Ruff: 0.16.0
-55
 - Black: 26.5.1
-56
 - Targeted tests: 13 passed
-57
 - Ruff check: passed
-58
 - Black check: passed
-59
 - Full quality-gate exit code: 0
-60
 - Gate output:
-61
 `/tmp/frequentist_framework_tier2_final_gate.log`
-62
- 
-63
+
 #### Completion status
-64
- 
-65
+
 Tier 2 is complete. The project now has a supported Python environment,
-66
 a reproducibly pinned development toolchain, a passing complete quality
-67
 gate, updated environment provenance, and a synchronized tracked branch.
-68
- 
-69
+
 CLs integration, broader structural refactoring, orchestration, and the
-70
 generated-output policy remain outside Tier 2.
+
+### 2026-07-31 — Modular Tier-1 and Tier-2 checker LXPlus verification and scope correction
+
+#### Objective
+
+Verify the newly added modular Tier-1 and Tier-2 check framework on LXPlus using the supported project environment, identify checker-specific failures, and preserve the established Tier-2 quality scope.
+
+#### Substantial changes and verification completed
+
+- Copied the modular `tier_checks/` framework into the LXPlus repository checkout.
+- Confirmed that the framework contains 26 Python files under `tier_checks/`.
+- Confirmed that the separate framework test file, `tests/test_tier_checks.py`, was not copied and remains to be restored before the framework is marked complete.
+- Activated the supported repository-local Python environment.
+- Verified the active toolchain:
+  - Python 3.12.13
+  - pytest 9.1.1
+  - Ruff 0.16.0
+  - Black 26.5.1
+- Confirmed that automatic discovery finds all 12 modular checks:
+  - six Tier-1 checks;
+  - six Tier-2 checks.
+- Ran the complete fast check mode.
+- Fast-mode result:
+  - PASS: 7
+  - FAIL: 0
+  - WARN: 0
+  - SKIP: 5
+- The five skipped checks were the expected in-depth-only checks.
+
+#### In-depth verification results
+
+The complete in-depth suite was run on LXPlus.
+
+The following Tier-1 checks passed:
+
+- program locations;
+- deterministic reference regeneration;
+- frozen-reference schema;
+- targeted regression tests;
+- J100/J50 workflow input contracts;
+- J100/J50 recorded workflow outputs.
+
+The targeted Tier-1 regression suite passed with 13 tests.
+
+The following recorded background-only output logs were found and were non-empty:
+
+- `run/fits/J100/run_481_3000_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`
+- `run/fits/J50/run_344_2079_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`
+
+The following Tier-2 checks passed:
+
+- development dependency files;
+- supported Python environment;
+- pinned pytest, Ruff, and Black versions;
+- the existing complete quality gate.
+
+The authoritative complete quality gate passed with:
+
+- 13 targeted tests passed;
+- Ruff passed;
+- Black passed;
+- exit code 0.
+
+The initial modular in-depth result was:
+
+- PASS: 10
+- FAIL: 2
+- WARN: 0
+- SKIP: 0
+- exit code: 1
+
+#### Diagnosed modular-check failures
+
+The two failures were confined to the newly added standalone Ruff and Black wrapper checks.
+
+The Black wrapper invoked:
+
+```text
+python -m black --check .
+```
+
+This incorrectly expanded the check to the complete repository. It attempted to process unrelated legacy Python files, Markdown files, ROOT binary files, and other files outside the established Tier-2 scope.
+
+The Ruff wrapper invoked:
+
+```text
+python -m ruff check .
+```
+
+This also inspected the complete repository and reported findings in files outside the established Tier-2 target set.
+
+These failures do not indicate a failure of the established Tier-2 quality gate. The existing `scripts/quality_check.py` continued to pass because it uses the intended explicit list of seven Tier-1 source and test targets.
+
+#### Partial correction performed
+
+- Began correcting the modular Ruff and Black checks so that they use an explicit quality-target list rather than the repository root.
+- Ran Black on the new `tier_checks/` directory.
+- Black reformatted 16 new checker Python files.
+- Black then exited with code 123 because `tier_checks/README.md` was also passed to Black and was incorrectly parsed as Python.
+- No repository-wide formatting was applied.
+- No unrelated legacy source files, ROOT files, or generated analysis outputs were modified by Black.
+- The correction is not yet complete.
+
+#### Current status and remaining work
+
+The modular framework is operational, all Tier-1 checks pass on LXPlus, and the authoritative Tier-2 quality gate remains fully passing.
+
+The following work remains before the modular checker can be marked complete:
+
+- Update the Ruff wrapper to receive only the authoritative Tier-2 Python targets and explicit `*.py` files under `tier_checks/`.
+- Update the Black wrapper to receive only the authoritative Tier-2 Python targets and explicit `*.py` files under `tier_checks/`.
+- Ensure that neither wrapper receives `.` or the complete `tier_checks/` directory as a formatting target.
+- Run Black against the explicit checker Python-file list.
+- Run Ruff against the explicit checker Python-file list.
+- Recompile the checker package.
+- Confirm that all 12 checks remain discoverable.
+- Rerun the Tier-2 in-depth suite.
+- Rerun the complete Tier-1 and Tier-2 in-depth suite.
+- Require a final result of 12 passed, 0 failed, 0 warnings, and 0 skipped.
+- Restore `tests/test_tier_checks.py`.
+- Run the framework-specific tests and require two tests to pass.
+- Review all changes before staging.
+- Keep temporary reports, copied archives, unrelated generated files, and `post_fit.pdf` outputs outside the commit.
+
+#### Scope boundary
+
+The checker did not launch the complete J100 or J50 fit workflows. Verification remained limited to recorded paths, input and output contracts, existing background-only outputs, deterministic reference regeneration, regression tests, development tooling, and the established quality gate.
