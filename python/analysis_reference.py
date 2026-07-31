@@ -91,10 +91,10 @@ def _build_workflow_payload(fit_dir: Path) -> dict[str, Any]:
 
 def _validate_workflow_payload(workflow_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     required_keys = {"fit_parameters", "p_chi2", "p_bh", "cls_limit_points"}
-    missing = required_keys - set(payload.keys())
-    if missing:
-        raise ValueError(f"Workflow {workflow_name} is missing required keys: {sorted(missing)}")
-
+    missing = required_keys - set(payload)
+    extra = set(payload) - required_keys
+    if missing or extra:
+        raise ValueError(f"Workflow {workflow_name} has invalid keys (missing={sorted(missing)}, unexpected={sorted(extra)})")
     fit_parameters_raw = payload["fit_parameters"]
     if not isinstance(fit_parameters_raw, dict):
         raise ValueError(f"Workflow {workflow_name} fit_parameters must be a dictionary")
