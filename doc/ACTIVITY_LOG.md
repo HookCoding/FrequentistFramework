@@ -1773,3 +1773,59 @@ Verification:
 - no `UPDATED_*` files remain under `doc/`;
 - documentation-specific `git diff --check` passed;
 - complete repository `git diff --check` passed.
+
+### 2026-08-21: Hosted CI policy-test hardening and Node.js 24 action update
+
+#### Objective
+
+Correct the hosted lightweight quality-gate failure caused by brittle exact-text assertions against human-readable Tier-2 documentation, and update the GitHub Actions dependencies to Node.js 24-compatible releases.
+
+#### Substantial changes completed
+
+- Removed exact prose assertions against `doc/TIER2_SYSTEM.md` from `tests/test_repo_utils.py`.
+- Replaced the documentation-wording test with a machine-verifiable policy test confirming that pre-commit is absent from both development dependency manifests.
+- Preserved the policy that pre-commit is optional and outside the authoritative Tier-2 acceptance environment.
+- Updated the CI policy test so supported GitHub Action versions can be upgraded without requiring obsolete exact versions.
+- Updated the hosted workflow:
+  - `actions/checkout@v4` to `actions/checkout@v6`;
+  - `actions/setup-python@v5` to `actions/setup-python@v6`.
+- Kept the hosted workflow limited to the locked lightweight quality gate.
+- Made no changes to scientific analysis code, frozen references, provenance records, or J100/J50 workflow contracts.
+
+#### Verification performed
+
+Focused policy tests:
+
+- `test_ci_runs_locked_lightweight_full_gate`: passed
+- `test_precommit_is_not_a_locked_development_dependency`: passed
+- Result: **2 passed**
+
+Formatting and linting:
+
+- Ruff: **passed**
+- Black: **passed**
+
+Complete lightweight quality gate:
+
+- tests collected: **105**
+- tests passed: **101**
+- prepared-dependency tests deselected: **2**
+- strict expected installation-policy failures: **2**
+- unexpected failures: **0**
+- Ruff: **passed**
+- Black: **passed**
+
+#### Current status
+
+The local lightweight gate passes after removing the brittle Markdown prose assertions and updating the GitHub Actions versions.
+
+The two strict expected failures continue to represent:
+
+- missing Git submodule gitlinks;
+- destructive `rm -rf` operations in `install.sh`.
+
+The updated workflow must be committed and pushed so the corrected hosted GitHub Actions result can be verified.
+
+#### Scope boundary
+
+This change affects only lightweight repository-policy testing and hosted CI dependencies. It does not change the background-only scientific analysis, the authoritative J100/J50 workflows, numerical references, scientific provenance, or the accepted no-signal scope.

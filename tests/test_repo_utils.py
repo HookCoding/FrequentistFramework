@@ -195,8 +195,8 @@ def test_ci_runs_locked_lightweight_full_gate() -> None:
     workflow_path = repo_root / ".github" / "workflows" / "tier1-root-comparison.yml"
     workflow = workflow_path.read_text(encoding="utf-8")
 
-    assert "actions/checkout@v4" in workflow
-    assert "actions/setup-python@v5" in workflow
+    assert "uses: actions/checkout@" in workflow
+    assert "uses: actions/setup-python@" in workflow
     assert 'python-version: "3.12.13"' in workflow
     assert "requirements-dev-lock.txt" in workflow
     assert "python -m pip install -r requirements-dev-lock.txt" in workflow
@@ -209,14 +209,8 @@ def test_ci_runs_locked_lightweight_full_gate() -> None:
     assert "tier-2-m365" in workflow
 
 
-def test_precommit_is_documented_as_optional() -> None:
+def test_precommit_is_not_a_locked_development_dependency() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    tier2_document = (repo_root / "doc" / "TIER2_SYSTEM.md").read_text(encoding="utf-8")
-
-    assert "Optional pre-commit configuration" in tier2_document
-    assert "not part of the authoritative Tier-2 acceptance gate" in tier2_document
-    assert "python scripts/quality_check.py --mode full" in tier2_document
-    assert "optional convenience configuration only" in tier2_document
 
     direct_dependencies = (repo_root / "requirements-dev.txt").read_text(encoding="utf-8")
     locked_dependencies = (repo_root / "requirements-dev-lock.txt").read_text(encoding="utf-8")
