@@ -35,7 +35,7 @@ Tier 2 covers:
 - CI policy;
 - separation of lightweight, dependency, and scientific gates.
 
-It does not cover physics changes, CLs, repository-wide formatting, CERN-only hosted execution, Tier-3 refactoring, Tier-4 orchestration, or installer repair.
+It does not cover physics changes, CLs, repository-wide formatting, CERN-only scientific execution, Tier-3 refactoring, or Tier-4 orchestration.
 
 ## Authoritative files
 
@@ -152,9 +152,16 @@ The declared external dependencies have matching Git index gitlinks at their ver
 
 The destructive `rm -rf` operations have been removed from `install.sh`, and the former strict expected-failure test now passes normally.
 
-The lightweight gate currently has no expected installation-policy failures.
+The installer now provides:
 
-The installer provides a verified read-only `--check` mode. A complete non-destructive C++ dependency build mode remains follow-up work and is not yet part of Tier-2 acceptance.
+- a verified read-only `--check` mode;
+- a verified non-destructive `--build` mode;
+- strict dependency, gitlink, nested RooFitExtensions, environment, output, and pyBumpHunter validation;
+- configurable positive-integer parallelism through `INSTALL_JOBS`.
+
+The prepared-checkout C++ rebuild completed successfully, reproduced all 12 protected build-artifact SHA-256 hashes, preserved tracked source cleanliness, passed runtime readiness, and passed the authoritative J100/J50 scientific gate.
+
+The lightweight gate currently has no expected installation-policy failures. Clean-clone acquisition and building in a separate fresh checkout remain outside the completed acceptance evidence.
 
 ## CI policy
 
@@ -167,9 +174,9 @@ The installer provides a verified read-only `--check` mode. A complete non-destr
 - covers `harry` and `tier-2-m365`;
 - excludes CERN-only scientific execution.
 
-The policy is tested locally. Hosted execution remains pending commit and push.
+The hosted lightweight quality gate has been exercised successfully on GitHub Actions. CERN-only runtime readiness and scientific characterization remain separate LXPlus gates.
 
-## Optional pre-commit
+## Optional pre-commit configuration
 
 `.pre-commit-config.yaml` is an optional convenience only.
 
@@ -214,4 +221,4 @@ Stage explicit paths only. Append every substantial change to `doc/ACTIVITY_LOG.
 
 ## Completion definition
 
-Tier 2 is healthy when the locked environment reproduces, selected tests pass, expected installation-policy failures remain expected, Ruff and Black pass, the full gate exits 0, CI policy remains aligned, and documentation is current.
+Tier 2 is healthy when the locked environment reproduces, selected tests pass with no unexpected failures, Ruff and Black pass, the full gate exits 0, hosted CI policy remains aligned, and documentation is current.

@@ -192,6 +192,8 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -k authoritative_setup_provides_scientific_runtime -v
 ```
 
+Latest result: 1 passed, 2 deselected, 16.39 seconds, exit code 0.
+
 ### Executable characterization gate
 
 ```bash
@@ -199,7 +201,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest result: 1 passed, 2 deselected, 116.02 seconds, exit code 0.
+Latest result: 1 passed, 2 deselected, 152.86 seconds, exit code 0.
 
 ## Runtime split
 
@@ -225,18 +227,21 @@ Scientific environment after `scripts/setup_buildAndFit.sh`:
 
 The Git submodule declarations have matching `160000` Git index gitlinks at the verified pinned dependency revisions.
 
-The destructive installer behavior has been removed. `install.sh` now provides a verified read-only `--check` mode that validates:
+The destructive installer behavior has been removed. `install.sh` now provides:
 
-- parent dependency gitlinks and checked-out revisions;
-- absence of tracked dependency source modifications;
-- the pinned nested RooFitExtensions revisions;
-- required setup and installation files.
+- a read-only `--check` mode that validates gitlinks, checked-out revisions, tracked source cleanliness, pinned nested RooFitExtensions revisions, and required setup files;
+- a non-destructive `--build` mode that runs the validation contract first, establishes the authoritative LCG 102a environment, reuses existing build directories, rebuilds RooFitExtensions and the three C++ dependencies, validates required outputs, and validates the pyBumpHunter environment;
+- configurable parallelism through `INSTALL_JOBS`, with a default of four jobs and strict positive-integer validation.
+
+The build mode never deletes dependency repositories or build directories. Failed build directories are preserved for inspection. It does not run `cmake --install` for RooFitExtensions or write to `/usr/local`. Instead, it copies the four required generated RooFitExtensions products into each parent dependency's local `lib/` and `cmake/` directories.
 
 The dedicated pyBumpHunter installer is non-destructive, reuses the authoritative LCG 102a scientific packages, preserves a valid existing environment, and refuses to overwrite an invalid environment.
 
+The complete prepared-checkout build succeeded with `INSTALL_JOBS=2`. All 12 protected C++ build artifacts were regenerated with SHA-256 hashes identical to the pre-build baseline. No tracked source modifications were introduced. Runtime readiness and the authoritative J100/J50 scientific characterization gate both passed after rebuilding.
+
 No expected installation-policy failures remain in the lightweight gate.
 
-A complete non-destructive C++ dependency build mode has not yet been enabled. Clean-clone scientific acquisition and building still require end-to-end verification before the installer can be described as fully operational.
+Clean-clone submodule acquisition and building have not yet been verified end to end in a separate fresh checkout.
 
 ## Operating commands
 
@@ -254,4 +259,4 @@ FIT_PARS="six" ./scripts/run_anaFit_J50.sh
 
 ## Scope boundary
 
-CLs, Tier-3 refactoring, and Tier-4 orchestration remain out of scope. Tier 3 should not begin until this change set is reviewed and committed and the remaining installation risks are accepted or repaired.
+CLs remains outside the project scope because the analysis is intentionally no-signal and background-only. Tier-4 orchestration remains out of scope. Tier-3 refactoring may proceed after this installer build-mode change set is reviewed, committed, pushed, and its hosted lightweight gate is confirmed passing.

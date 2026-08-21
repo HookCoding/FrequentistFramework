@@ -1945,3 +1945,65 @@ A complete non-destructive C++ dependency build mode is not yet enabled. Clean-c
 #### Scope boundary
 
 This checkpoint changes dependency validation and installation safety only. It does not modify the J100 or J50 scientific workflows, scientific results, frozen references, provenance, or the background-only analysis scope.
+
+### 2026-08-21: Non-destructive dependency build mode completed
+
+#### Objective
+
+Complete and verify the non-destructive dependency build mode for the prepared scientific environment.
+
+#### Changes completed
+
+- Added `install.sh --build`.
+- The build runs the read-only dependency contract before compilation.
+- Added strict positive-integer validation for `INSTALL_JOBS`.
+- Reused existing build directories without deleting them.
+- Rebuilt the three pinned RooFitExtensions checkouts.
+- Rebuilt xmlAnaWSBuilder, quickFit, and workspaceCombiner.
+- Validated XMLReader, quickFit, workspaceCombiner manager, and their required libraries.
+- Copied only the required RooFitExtensions products into each parent dependency.
+- Avoided `cmake --install` for RooFitExtensions and avoided writes to `/usr/local`.
+- Preserved failed build directories for inspection.
+- Validated the existing pyBumpHunter environment through the safe installer.
+- Updated installer policy tests and removed obsolete build-pending assertions.
+- Updated the Tier-1, Tier-2, and environment-provenance documentation.
+
+#### Isolated build verification
+
+- RooFitExtensions and xmlAnaWSBuilder: passed.
+- RooFitExtensions and quickFit: passed.
+- RooFitExtensions and workspaceCombiner: passed.
+- All isolated build directories were removed after testing.
+- No tracked dependency source modifications were introduced.
+
+#### Prepared-checkout build verification
+
+- Command: `INSTALL_JOBS=2 bash install.sh --build`.
+- Build exit code: 0.
+- All three RooFitExtensions copies built successfully.
+- xmlAnaWSBuilder, quickFit, and workspaceCombiner built successfully.
+- The pyBumpHunter environment validated successfully.
+- All 12 protected C++ build artifacts remained present.
+- All 12 post-build SHA-256 hashes matched the pre-build baseline exactly.
+- Only generated artifact timestamps changed.
+- No tracked source modifications were introduced in any dependency.
+
+#### Post-build verification
+
+- Runtime readiness: 1 passed, 2 deselected in 16.39 seconds.
+- Authoritative J100/J50 scientific gate: 1 passed, 2 deselected in 152.86 seconds.
+- Lightweight gate: 103 passed, 2 deselected.
+- Expected failures: 0.
+- Ruff: passed.
+- Black: passed.
+- All relevant exit codes: 0.
+
+#### Current status
+
+The prepared-checkout non-destructive dependency build mode is operational and scientifically verified.
+
+Clean-clone submodule acquisition and building have not yet been verified end to end in a separate fresh checkout.
+
+#### Scope boundary
+
+This change affects installation and dependency build safety only. It does not change the J100 or J50 background-only scientific workflows, frozen references, numerical results, or schema-version-2 provenance.

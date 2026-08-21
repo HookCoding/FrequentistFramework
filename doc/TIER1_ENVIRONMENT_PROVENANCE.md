@@ -105,6 +105,8 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -k authoritative_setup_provides_scientific_runtime -v
 ```
 
+Latest runtime-readiness result: 1 passed, 2 deselected, 16.39 seconds, exit code 0.
+
 Scientific characterization:
 
 ```bash
@@ -112,11 +114,33 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest scientific result: 1 passed, 2 deselected, 116.02 seconds, exit code 0.
+Latest scientific result: 1 passed, 2 deselected, 152.86 seconds, exit code 0.
+
+## Non-destructive dependency build verification
+
+Command:
+
+```bash
+INSTALL_JOBS=2 bash install.sh --build
+```
+
+Verified result:
+
+- dependency and nested RooFitExtensions validation passed;
+- LCG 102a Python 3.9.12 and ROOT 6.26/08 were established;
+- all three RooFitExtensions copies built successfully;
+- xmlAnaWSBuilder, quickFit, and workspaceCombiner built successfully;
+- XMLReader, quickFit, and workspaceCombiner manager were executable;
+- the existing pyBumpHunter environment validated successfully;
+- all 12 protected C++ build artifacts were present after rebuilding;
+- all 12 post-build SHA-256 hashes matched the pre-build baseline exactly;
+- no tracked source modifications were introduced;
+- exit code 0.
+
+The rebuilt outputs subsequently passed runtime readiness and the authoritative J100/J50 scientific characterization gate.
 
 ## Known limitations
 
-- The installer currently provides a verified read-only dependency check, but the complete non-destructive C++ build mode is not yet enabled
-- Clean-clone scientific acquisition and building are not yet verified end to end
-- Numerical tolerances remain provisional
+- Clean-clone submodule acquisition and building have not yet been verified end to end in a separate fresh checkout
+- Numerical tolerances remain provisional pending scientific approval
 - Bootstrap pip is unpinned

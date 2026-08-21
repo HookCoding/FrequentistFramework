@@ -346,6 +346,39 @@ def test_install_script_is_non_destructive() -> None:
     assert "Installation contract check passed." in installer_text
     assert "No files were modified." in installer_text
 
-    assert "--build" not in installer_text
-    assert "cmake --build" not in installer_text
+    assert "--build" in installer_text
+    assert "run_build() {" in installer_text
+    assert "build_roofit_extensions() {" in installer_text
+    assert "build_cpp_dependency() {" in installer_text
+    assert "setup_scientific_environment() {" in installer_text
+
+    assert "run_check" in installer_text
+    assert "setup_scientific_environment" in installer_text
+    assert 'install_jobs_value="${INSTALL_JOBS:-4}"' in installer_text
+    assert "INSTALL_JOBS must be a positive integer" in installer_text
+
+    assert 'mkdir -p "$build_dir"' in installer_text
+    assert "cmake --build" in installer_text
+    assert "--parallel" in installer_text
+
     assert "cmake --install" not in installer_text
+    assert "CMAKE_INSTALL_PREFIX=/usr/local" not in installer_text
+
+    assert "libRooFitExtensions.so" in installer_text
+    assert "libRooFitExtensions_rdict.pcm" in installer_text
+    assert "libRooFitExtensions.rootmap" in installer_text
+    assert "RooFitExtensionsConfig.cmake" in installer_text
+
+    assert "bin/XMLReader" in installer_text
+    assert "libxmlAnaWSBuilder.so" in installer_text
+    assert 'verify_executable_file "$build_dir/quickFit"' in installer_text
+    assert "libquick.so" in installer_text
+    assert 'verify_executable_file "$build_dir/manager"' in installer_text
+    assert "libworkspaceCombiner.so" in installer_text
+
+    assert "scripts/install_pyBumpHunter.sh" in installer_text
+    assert "Non-destructive dependency build completed successfully." in installer_text
+
+    command_dispatch = installer_text.split('case "$1" in', maxsplit=1)[1]
+    assert "--build)" in command_dispatch
+    assert "run_build" in command_dispatch
