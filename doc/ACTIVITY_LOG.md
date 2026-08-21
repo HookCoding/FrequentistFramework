@@ -1903,3 +1903,45 @@ Clean-clone scientific dependency acquisition has not yet been verified end to e
 #### Scope boundary
 
 This change repairs dependency metadata and repository policy only. It does not modify the background-only scientific analysis, the authoritative J100/J50 workflows, numerical references, schema-version-2 provenance, or the accepted no-signal scope.
+
+### 2026-08-21: Non-destructive installer validation checkpoint
+
+#### Objective
+
+Replace the destructive installer with a verified read-only installation contract and harden the dedicated pyBumpHunter installer.
+
+#### Substantial changes completed
+
+- Removed destructive deletion, direct cloning, pulling, and checkout operations from `install.sh`.
+- Made `install.sh` executable and added a read-only `--check` mode.
+- Added checks for dependency gitlinks, checked-out revisions, tracked source changes, nested RooFitExtensions revisions, and required files.
+- Replaced the pyBumpHunter installer with a non-destructive LCG 102a implementation.
+- The pyBumpHunter installer preserves a valid environment and refuses to overwrite an invalid environment.
+- Removed unpinned package upgrades, the external virtualenv dependency, LCG 105, and deprecated setup.py installation.
+- Added machine-verifiable installer policy tests.
+- Removed the obsolete test requiring dependency revisions to be duplicated inside `install.sh`.
+- Updated the current Tier-1, Tier-2, and environment-provenance documentation.
+
+#### Verification performed
+
+- `bash install.sh --check`: passed and preserved the repository state.
+- pyBumpHunter isolated installation and import test: passed.
+- Existing pyBumpHunter environment preservation check: passed.
+- Repository utility suite: 13 passed.
+- Prepared-dependency gate: 2 passed and 11 deselected.
+- Full lightweight gate: 103 passed and 2 deselected.
+- Expected failures: 0.
+- Ruff: passed.
+- Black: passed.
+- Shell syntax checks: passed.
+- `git diff --check`: passed.
+
+#### Current status
+
+The destructive installer behavior is resolved. The repository now has a verified read-only installation check and a non-destructive pyBumpHunter installer.
+
+A complete non-destructive C++ dependency build mode is not yet enabled. Clean-clone acquisition and building remain to be verified end to end.
+
+#### Scope boundary
+
+This checkpoint changes dependency validation and installation safety only. It does not modify the J100 or J50 scientific workflows, scientific results, frozen references, provenance, or the background-only analysis scope.

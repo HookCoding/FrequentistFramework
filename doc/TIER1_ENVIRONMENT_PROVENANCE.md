@@ -19,9 +19,9 @@ Dependency records:
 Latest full lightweight gate:
 
 - 105 collected;
-- 102 passed;
+- 103 passed;
 - 2 dependency tests deselected;
-- 1 strict expected failure;
+- 0 expected failures;
 - Ruff and Black passed;
 - exit code 0.
 
@@ -116,7 +116,7 @@ Latest scientific result: 1 passed, 2 deselected, 116.02 seconds, exit code 0.
 
 ## Known limitations
 
-- Destructive `install.sh`
-- Clean-clone scientific acquisition not yet verified end to end
-- Numerical tolerances provisional
-- Bootstrap pip unpinned
+- The installer currently provides a verified read-only dependency check, but the complete non-destructive C++ build mode is not yet enabled
+- Clean-clone scientific acquisition and building are not yet verified end to end
+- Numerical tolerances remain provisional
+- Bootstrap pip is unpinned

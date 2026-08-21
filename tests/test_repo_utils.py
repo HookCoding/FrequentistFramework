@@ -234,15 +234,6 @@ def test_authoritative_analysis_launchers_are_executable() -> None:
         ), f"Authoritative launcher is not executable: {launcher}"
 
 
-def test_install_script_dependency_revisions_match_runtime_contract() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    install_script = (repo_root / "install.sh").read_text(encoding="utf-8")
-
-    for dependency, revision in DEPENDENCY_REVISIONS.items():
-        assert dependency in install_script
-        assert revision in install_script
-
-
 def test_gitmodules_declares_expected_analysis_dependencies() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     gitmodules = (repo_root / ".gitmodules").read_text(encoding="utf-8")
@@ -276,18 +267,85 @@ def test_declared_submodules_have_gitlink_entries() -> None:
     assert gitlinks == {dependency: "160000" for dependency in DEPENDENCY_REVISIONS}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=("install.sh currently removes existing dependency and build directories."),
-)
+def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    installer = repo_root / "scripts" / "install_pyBumpHunter.sh"
+
+    assert installer.is_file()
+    assert installer.stat().st_mode & 0o111
+
+    installer_text = installer.read_text(encoding="utf-8")
+    active_lines = [
+        line.strip()
+        for line in installer_text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    active_script = "\n".join(active_lines)
+
+    assert "rm -rf" not in active_script
+    assert "git pull" not in active_script
+    assert "git clone" not in active_script
+    assert "setup.py install" not in active_script
+    assert "pip install --upgrade" not in active_script
+    assert "virtualenv " not in active_script
+    assert "LCG_105" not in active_script
+
+    assert 'scientific_setup="$repo_root/scripts/setup_buildAndFit.sh"' in installer_text
+    assert "--system-site-packages" in installer_text
+    assert "--no-deps" in installer_text
+    assert "--no-build-isolation" in installer_text
+    assert '"$pybh_source"' in installer_text
+
+    assert 'if [[ -e "$pybh_environment" ]]; then' in installer_text
+    assert "Existing pyBH_env failed import validation" in installer_text
+    assert "Existing pyBumpHunter environment is valid" in installer_text
+
+    required_imports = {
+        "import matplotlib",
+        "import numpy",
+        "import pyBumpHunter",
+        "import scipy",
+        "import uproot",
+    }
+
+    for required_import in required_imports:
+        assert required_import in installer_text
+
+    assert '"$environment_python" "$find_bh_window" --help' in installer_text
+
+
 def test_install_script_is_non_destructive() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    install_script = (repo_root / "install.sh").read_text(encoding="utf-8")
+    installer = repo_root / "install.sh"
 
-    destructive_lines = [
+    assert installer.is_file()
+    assert installer.stat().st_mode & 0o111
+
+    installer_text = installer.read_text(encoding="utf-8")
+    active_lines = [
         line.strip()
-        for line in install_script.splitlines()
-        if "rm -rf" in line and not line.lstrip().startswith("#")
+        for line in installer_text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
     ]
+    active_script = "\n".join(active_lines)
 
-    assert destructive_lines == []
+    assert "rm -rf" not in active_script
+    assert "git clone" not in active_script
+    assert "git pull" not in active_script
+    assert "git checkout" not in active_script
+    assert "setup.py install" not in active_script
+    assert "pip install --upgrade" not in active_script
+
+    assert "--check" in installer_text
+    assert "run_check" in installer_text
+    assert "verify_parent_gitlink" in installer_text
+    assert "verify_no_tracked_changes" in installer_text
+    assert "verify_roofit_extensions" in installer_text
+    assert 'mode" != "160000"' in installer_text
+    assert "ba94bfcbfa4f4a4e3541ade09580399e409e8514" in installer_text
+    assert "Installation contract check passed." in installer_text
+    assert "No files were modified." in installer_text
+
+    assert "--build" not in installer_text
+    assert "cmake --build" not in installer_text
+    assert "cmake --install" not in installer_text

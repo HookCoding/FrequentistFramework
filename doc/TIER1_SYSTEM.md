@@ -170,9 +170,9 @@ python scripts/quality_check.py --mode full
 Latest verified result:
 
 - 105 collected;
-- 102 passed;
+- 103 passed;
 - 2 prepared-dependency tests deselected;
-- 1 strict expected installation-policy failure;
+- 0 expected failures;
 - Ruff and Black passed;
 - exit code 0.
 
@@ -221,15 +221,22 @@ Scientific environment after `scripts/setup_buildAndFit.sh`:
 
 `compare_root_outputs.py` compares explicitly selected nested TH1 paths. It checks object presence and type, histogram class, bin counts, contents, errors, and edges with tolerances. It does not automatically inventory every ROOT object.
 
-## Known installation limitations
+## Installation status and remaining limitations
 
-The Git submodule declarations now have matching `160000` Git index gitlinks at the verified pinned dependency revisions.
+The Git submodule declarations have matching `160000` Git index gitlinks at the verified pinned dependency revisions.
 
-One strict expected-failure test documents the remaining installation-policy problem:
+The destructive installer behavior has been removed. `install.sh` now provides a verified read-only `--check` mode that validates:
 
-1. `install.sh` contains destructive `rm -rf` operations.
+- parent dependency gitlinks and checked-out revisions;
+- absence of tracked dependency source modifications;
+- the pinned nested RooFitExtensions revisions;
+- required setup and installation files.
 
-The prepared LXPlus runtime is verified. Clean-clone scientific dependency acquisition still requires end-to-end verification, and the installer remains unsafe until its destructive behavior is repaired.
+The dedicated pyBumpHunter installer is non-destructive, reuses the authoritative LCG 102a scientific packages, preserves a valid existing environment, and refuses to overwrite an invalid environment.
+
+No expected installation-policy failures remain in the lightweight gate.
+
+A complete non-destructive C++ dependency build mode has not yet been enabled. Clean-clone scientific acquisition and building still require end-to-end verification before the installer can be described as fully operational.
 
 ## Operating commands
 

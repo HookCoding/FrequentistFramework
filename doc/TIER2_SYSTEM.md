@@ -14,9 +14,9 @@ Verified development baseline:
 Latest full lightweight gate:
 
 - 105 collected;
-- 102 passed;
+- 103 passed;
 - 2 prepared-dependency tests deselected;
-- 1 strict expected installation-policy failure;
+- 0 expected failures;
 - Ruff passed;
 - Black passed;
 - exit code 0.
@@ -146,15 +146,15 @@ The suite covers:
 - launcher permissions;
 - installation-contract checks.
 
-## Strict expected failures
+## Installation-policy status
 
-The declared external dependencies now have matching Git index gitlinks at their verified pinned revisions.
+The declared external dependencies have matching Git index gitlinks at their verified pinned revisions.
 
-One strict `xfail` test remains:
+The destructive `rm -rf` operations have been removed from `install.sh`, and the former strict expected-failure test now passes normally.
 
-1. Destructive `rm -rf` operations in `install.sh`.
+The lightweight gate currently has no expected installation-policy failures.
 
-An unexpected pass is treated as a failure so the policy must be reviewed deliberately after repair.
+The installer provides a verified read-only `--check` mode. A complete non-destructive C++ dependency build mode remains follow-up work and is not yet part of Tier-2 acceptance.
 
 ## CI policy
 
