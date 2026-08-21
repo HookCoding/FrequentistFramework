@@ -7,6 +7,11 @@ requires-python = ">=3.11"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "integration: slow tests that execute authoritative analysis workflows",
+    "requires_root: tests requiring the configured ROOT/RooFit analysis environment",
+    "requires_analysis_dependencies: tests requiring prepared external analysis checkouts",
+]
 
 [tool.ruff]
 line-length = 100

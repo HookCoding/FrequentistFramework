@@ -1,76 +1,125 @@
-# Tier-1 environment provenance and pinning (2026-07-29)
+# Tier-1 environment provenance and pinning
 
-This file records the **observed runtime/tooling state** used for Tier-1 verification,
-plus the intended pinning/constraint baseline for reproducible checks.
+This document records the verified split between the development quality environment and the scientific analysis environment.
 
----
+## Development quality environment
 
-## 1) Runtime provenance snapshot
+- Python executable: `.venv/bin/python`
+- Python: 3.12.13
+- Project requirement: Python 3.11 or newer
+- pytest: 9.1.1
+- Ruff: 0.16.0
+- Black: 26.5.1
 
-Captured from bounded local probes executed during Tier-1 completion work.
+Dependency records:
 
-- `python_executable`: `/usr/bin/python3`
-- `python_version`: `3.9.25`
-- `pyproject.toml` requirement: `requires-python = ">=3.11"`
+- `requirements-dev.txt`
+- `requirements-dev-lock.txt`
 
-### Python tooling availability
+Latest full lightweight gate:
 
-- `pytest`: available (`8.4.2`)
-- `ruff`: not available
-- `black`: not available
+- 105 collected;
+- 101 passed;
+- 2 dependency tests deselected;
+- 2 strict expected failures;
+- Ruff and Black passed;
+- exit code 0.
 
-### ROOT / RooFit provenance
+A clean Python 3.12 environment reproduced the locked tool versions and passed the full lightweight gate at its recorded checkpoint. Bootstrap pip is not pinned.
 
-- `root-config --version`: `6.40.02`
-- `ROOT` module discoverability (`importlib.util.find_spec("ROOT")`): `true`
-- Prior bounded PyROOT probe in this Tier-1 continuation reported:
-  - `root_import = ok`
-  - `root_version = 6.40.02`
-  - `roofit_available = true`
+## Scientific analysis environment
 
-Note: direct PyROOT import probes are slow in this environment and intermittently hit
-timeout bounds, so `root-config` + module discoverability were used as bounded checks.
+`scripts/setup_buildAndFit.sh` sources the XMLReader and quickFit setup scripts, both selecting:
 
-### Authoritative workflow path checks
+- LCG `LCG_102a`
+- platform `x86_64-centos9-gcc11-opt`
+- Python 3.9.12
+- ROOT/PyROOT 6.26/08
 
-- `xmlAnaWSBuilder/setup_lxplus.sh`: present
-- `quickFit/setup_lxplus.sh`: present
-- `run/fits/J100/run_481_3000_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`: present
-- `run/fits/J50/run_344_2079_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`: present
-- `run/fits/J100/run_481_3000_sixPar/BHresults.json`: absent (optional)
-- `run/fits/J50/run_344_2079_sixPar/BHresults.json`: absent (optional)
+Python executable:
 
----
+```text
+/cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-centos9-gcc11-opt/bin/python
+```
 
-## 2) Tier-1 pinning/constraint baseline
+ROOT 6.40.02 describes the shell before authoritative setup, not the runtime used by the successful J100/J50 fits.
 
-The Tier-1 gate and docs assume:
+## External revisions
 
-1. **Python**: `>=3.11` (authoritative project requirement from `pyproject.toml`)
-2. **Test runner**: `pytest` installed
-3. **Full mode tooling**: `ruff` and `black` installed
-4. **Fit runtime**: ROOT/PyROOT/RooFit stack available for analysis workflows
+- `xmlAnaWSBuilder`: `6b84050f3c0206a6f30eb40b103cc101e68505cc`
+- `quickFit`: `0408030b6c8d74a2e2c27a864a02756132d08f5a`
+- `workspaceCombiner`: `7d484ad3f89c4075d2c567aa4503fc56e1bb9468`
+- `pyBumpHunter`: `91f49a622bd77622edb02a1a2788fc12835e5b72`
 
-### Current mismatch to resolve
+No tracked source modifications were present in these prepared checkouts.
 
-- Active interpreter is `3.9.25`, which is below the declared `>=3.11` baseline.
-- `ruff` and `black` are not installed in the active interpreter environment.
+Setup-script hashes:
 
-Implications:
+- XMLReader setup: `34ca7d4db40cdd60ca998fc3ca62cd8ab625f87ed6c7dde66b2140bd6b1a5e27`
+- quickFit setup: `217a2a72104ab257e302fa588d44afc2beaaa6a333991acf7de8af8233b3d917`
 
-- `scripts/quality_check.py --mode fast` can still run targeted Tier-1 tests when `pytest` is available.
-- `scripts/quality_check.py --mode full` is expected to fail early with actionable
-  install guidance until `ruff` and `black` are installed.
+## Canonical input hashes
 
----
+- J100 data: `f6336bc2d0a966559072241be2d547ecd6b4b5bcae11e3c33751e25ce2a5d0e6`
+- J50 data: `4d2e0184ac95ee23bf1e74fef0a15cc86bf4a1f8342d90f703441fe90fbab3ee`
+- Top template: `4d6d73b0445ad0e9777fabb6c734ec49fed9317801ffc19aa86692a3cb911807`
+- Category template: `69b23311719bbe8f5e6e49f951fc479235e6b2cd889d8ba201e059b2674862d0`
+- Six-parameter background template: `7d3d322bbf79734b0c65f9d407ec7316cd84ee9cd471e97c1d73b773807dda10`
+- Signal template: `d7ae0ebc4aa3a234cae5c99d21dc5092278d10b22463c67f3048447ee41be314`
 
-## 3) Reproduction commands for this provenance
+## Schema-version-2 manifests
+
+Canonical manifests:
+
+- `run/fits/J100/run_481_3000_sixPar/analysis_results.json`
+- `run/fits/J50/run_344_2079_sixPar/analysis_results.json`
+
+They record runtime, dependency revisions, input and configuration hashes, invocation details, success state, masking state, and accepted chi-square p-value.
+
+Canonical results:
+
+- J100 `p_chi2`: `0.018448750724012808`
+- J50 `p_chi2`: `0.07853114301666252`
+- both unmasked
+
+## Verification commands
+
+Development gate:
 
 ```bash
-python3 -m pytest --version
-python3 - <<'PY'
-import importlib.util
-print('ROOT module discoverable:', importlib.util.find_spec('ROOT') is not None)
-PY
-root-config --version
+source .venv/bin/activate
+python scripts/quality_check.py --mode full
 ```
+
+Prepared dependency gate:
+
+```bash
+python -m pytest tests/test_repo_utils.py \
+  -m "requires_analysis_dependencies" -v
+```
+
+Runtime readiness:
+
+```bash
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -k authoritative_setup_provides_scientific_runtime -v
+```
+
+Scientific characterization:
+
+```bash
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+
+Latest scientific result: 1 passed, 2 deselected, 116.02 seconds, exit code 0.
+
+## Known limitations
+
+- Missing Git submodule gitlinks
+- Destructive `install.sh`
+- Clean-clone scientific acquisition incomplete
+- Hosted CI pending push
+- CLs intentionally deferred
+- Numerical tolerances provisional
+- Bootstrap pip unpinned

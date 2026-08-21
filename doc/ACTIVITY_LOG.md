@@ -622,3 +622,1154 @@ Resolve merge-review feedback for the Tier-1 analysis-reference validator and ad
 The changes are limited to Tier-1 reference validation, its regression tests, activity-log documentation, and removal of the accidental `test.md` file.
 
 The authoritative J100/J50 background-only workflow lock remains unchanged. CLs integration remains deferred.
+
+### 2026-08-20: Tier-1 executable characterization safety foundation
+
+#### Objective
+
+Prepare the authoritative J100 and J50 workflows for a trustworthy executable characterization gate.
+
+The intended final gate must rerun:
+
+- `scripts/run_anaFit_J100.sh`
+- `scripts/run_anaFit_J50.sh`
+
+in fresh isolated output directories, then extract and compare the newly generated scientific results against frozen references.
+
+This work focused on preventing false-positive test results before attempting the full analysis reruns.
+
+#### Substantial changes completed
+
+- **Added isolated output-directory support**
+  - Updated `scripts/run_anaFit_J100.sh`.
+  - Updated `scripts/run_anaFit_J50.sh`.
+  - Both launchers now use `ANAFIT_OUTPUT_DIR` when it is provided.
+  - The existing default output root, `run/fits`, remains unchanged for normal user execution.
+  - This allows future integration tests to write into fresh temporary directories instead of overwriting or reusing committed outputs.
+
+- **Corrected analysis return-status propagation**
+  - Updated `python/run_anaFit.py` so `main()` returns the result from `run_anaFit()`.
+  - Previously, the return value was discarded, allowing a failed analysis to appear as a successful process exit.
+  - Analysis failures can now propagate through Python to the shell launcher and eventually to pytest.
+
+- **Added mandatory external-command validation**
+  - Added `execute_required()` to `python/run_anaFit.py`.
+  - The helper rejects:
+    - commands that return a nonzero exit status;
+    - commands that return success without creating their required output files.
+  - This establishes a consistent contract for mandatory scientific commands and their artifacts.
+
+- **Hardened XMLReader workspace generation**
+  - XMLReader is now treated as mandatory.
+  - A nonzero XMLReader exit status terminates the analysis.
+  - A successful exit without the expected workspace file also terminates the analysis.
+  - The previous warning-and-continue behavior was removed from this path.
+
+- **Hardened quickFit execution**
+  - quickFit is now treated as mandatory.
+  - A nonzero quickFit exit status terminates the analysis.
+  - A successful exit without the expected fit-result file or quickFit log also terminates the analysis.
+  - This prevents later extraction from consuming missing, incomplete, or stale fit outputs.
+
+- **Added launcher-level failure propagation**
+  - Both authoritative shell launchers now inspect the exit status from `python/run_anaFit.py`.
+  - A failed Python analysis causes the launcher to print an error and exit with the same nonzero status.
+  - Later plotting commands are not allowed to hide an earlier analysis failure.
+
+- **Added focused regression tests**
+  - Added `tests/test_run_anaFit.py`.
+  - Added the new test file to the explicit test targets in `scripts/quality_check.py`.
+  - The tests use controlled dependency stubs and do not run ROOT, XMLReader, quickFit, BumpHunter, or the full J100/J50 workflows.
+  - Current coverage verifies:
+    - successful analysis-status propagation;
+    - failed analysis-status propagation;
+    - acceptance of a successful mandatory command with its required output;
+    - rejection of a nonzero mandatory-command status;
+    - rejection of a missing required output;
+    - termination after XMLReader failure, before quickFit starts;
+    - termination after quickFit failure, before ROOT-based extraction starts.
+
+#### Verification performed
+
+- Baseline branch:
+  - `tier-2-m365`
+- Pre-change baseline commit:
+  - `d50e925a1dad14ebb9254f50c90afe88a0415964`
+
+- Focused regression tests:
+  - Command: `python -m pytest tests/test_run_anaFit.py -q`
+  - Result: **7 passed**
+
+- Python syntax validation:
+  - Command: `python -m py_compile python/run_anaFit.py`
+  - Result: exit code **0**
+  - Six pre-existing invalid-regex-escape `SyntaxWarning` messages remain in the legacy analysis file.
+
+- Ruff validation:
+  - Checked `scripts/quality_check.py` and `tests/test_run_anaFit.py`.
+  - Result: **passed**
+
+- Black validation:
+  - Checked `scripts/quality_check.py` and `tests/test_run_anaFit.py`.
+  - Result: **passed**
+  - Both files were already correctly formatted.
+
+- Shell syntax validation:
+  - `bash -n scripts/run_anaFit_J100.sh`
+  - Result: exit code **0**
+  - `bash -n scripts/run_anaFit_J50.sh`
+  - Result: exit code **0**
+
+#### Current status
+
+The output-isolation and failure-propagation foundation is complete and covered by focused tests.
+
+The authoritative executable characterization gate is **not yet complete**. No real J100 or J50 analysis rerun was performed as part of this activity.
+
+The current tests prove that important failures can be detected and propagated, but they do not yet prove that the complete scientific workflows reproduce the frozen results.
+
+#### Remaining Tier-1 work
+
+Before the executable characterization gate can be accepted:
+
+- Add launcher-level tests proving that a simulated Python analysis failure:
+  - produces a nonzero launcher exit status;
+  - prevents later plotting commands from running.
+- Apply mandatory failure handling to generated binning and BumpHunter execution.
+- Decide whether plotting commands are optional diagnostics or required workflow stages.
+- Define the complete required-artifact set for fresh J100 and J50 runs.
+- Add slow integration tests that:
+  - use fresh temporary output directories;
+  - execute the actual authoritative J100 and J50 launchers;
+  - reject stale or missing outputs;
+  - extract results only from newly generated artifacts;
+  - compare those results with frozen references.
+- Demonstrate that a deliberately perturbed scientific result causes the characterization comparison to fail.
+- Run the complete Tier-1 and Tier-2 quality gates after integration.
+- Address or explicitly account for the six pre-existing Python `SyntaxWarning` messages if the final acceptance gate requires zero warnings.
+
+#### Scope boundary
+
+This activity did not perform Tier-3 structural refactoring, add orchestration, change the established J100/J50 scientific configuration, or extend the frozen reference to CLs.
+
+Tier 3 and Tier 4 remain blocked until the test system successfully reruns and validates the authoritative J100/J50 workflows.
+
+- Complete established Tier-1/Tier-2 quality gate:
+  - Command: `python scripts/quality_check.py --mode full`
+  - Targeted tests: **25 passed in 0.20 seconds**
+  - Ruff: **passed**
+  - Black: **passed**
+  - Warnings: **0**
+  - Skipped tests: **0**
+  - Full quality-gate exit code: **0**
+### 2026-08-20: Tier-1 BumpHunter execution and result-validation hardening
+
+#### Objective
+
+Harden the conditional BumpHunter masking path before running the authoritative J100 and J50 workflows as executable characterization tests.
+
+The goal was to prevent a failed BumpHunter invocation, stale output file, malformed JSON result, or invalid masking interval from reaching the masked-refit stage.
+
+#### Substantial changes completed
+
+- **Made BumpHunter execution mandatory**
+  - Updated `python/run_anaFit.py` so the BumpHunter masking-window command uses the established `execute_required()` contract.
+  - A nonzero BumpHunter process status now terminates the analysis.
+  - A successful process status without the expected `BHresults.json` output also terminates the analysis.
+
+- **Prevented stale BumpHunter output reuse**
+  - The analysis now removes a pre-existing `BHresults.json` before starting a new BumpHunter calculation.
+  - This prevents a failed invocation from silently reusing results from an earlier analysis run.
+  - The masking path requires a newly generated JSON output.
+
+- **Used the BumpHunter environment interpreter directly**
+  - Replaced the shell sequence that activated the environment, ran BumpHunter, and then deactivated it.
+  - The workflow now invokes `pyBumpHunter/pyBH_env/bin/python3` directly.
+  - This ensures the captured return status belongs to `python/FindBHWindow.py` and cannot be hidden by a later shell command.
+
+- **Added validated BumpHunter result loading**
+  - Added `load_bumphunter_results()` to `python/run_anaFit.py`.
+  - The loader rejects:
+    - unreadable result files;
+    - malformed JSON;
+    - JSON values that are not objects;
+    - missing `BlindRange`, `MaskMin`, or `MaskMax` fields;
+    - non-integer-compatible mask limits;
+    - mask ranges where `MaskMin` is equal to or greater than `MaskMax`;
+    - empty or non-string `BlindRange` values.
+  - Validated mask limits are converted to integers before the masked refit.
+  - Invalid results stop the workflow before masked XML files or masked fit outputs are produced.
+
+- **Confirmed canonical resolution-binning inputs**
+  - Verified that both canonical resolution-binning files exist and are tracked:
+    - `Input/data/dijetisrTLA/mjjResolutionBinning_481.root`
+    - `Input/data/dijetisrTLA/mjjResolutionBinning_344.root`
+  - These files are treated as required immutable inputs for the canonical J100 and J50 characterization runs.
+  - The canonical tests will not regenerate or modify these tracked inputs.
+
+- **Expanded focused regression coverage**
+  - Extended `tests/test_run_anaFit.py` with BumpHunter result-validation tests.
+  - Added coverage for:
+    - acceptance of a valid BumpHunter payload;
+    - rejection of malformed JSON;
+    - rejection of missing required fields;
+    - rejection of nonnumeric mask limits;
+    - rejection of reversed mask limits;
+    - rejection of zero-width mask ranges.
+
+#### Verification performed
+
+- Python syntax validation:
+  - Command: `python -m py_compile python/run_anaFit.py`
+  - Result: exit code **0**
+
+- Existing safety regression suite after BumpHunter execution hardening:
+  - Result: **9 passed**
+
+- Formatting of the expanded test file:
+  - Command: `python -m black tests/test_run_anaFit.py`
+  - Result: **1 file reformatted successfully**
+
+- Ruff validation:
+  - Command: `python -m ruff check tests/test_run_anaFit.py`
+  - Result: **passed**
+
+- Expanded focused safety and BumpHunter validation suite:
+  - Command: `python -m pytest tests/test_run_anaFit.py -q`
+  - Result: **15 passed in 0.16 seconds**
+
+#### Current status
+
+The BumpHunter command and result-validation logic are now substantially safer and covered by focused tests.
+
+The current tests validate the standalone BumpHunter result loader, but they do not yet exercise the complete conditional BumpHunter branch inside `run_anaFit()`.
+
+No real J100 or J50 analysis rerun was performed as part of this activity.
+
+#### Remaining Tier-1 work
+
+Before attempting the authoritative analysis reruns:
+
+- Add execution-path tests proving that:
+  - a stale `BHresults.json` is removed before BumpHunter runs;
+  - a BumpHunter process failure terminates the analysis;
+  - a successful BumpHunter process without a fresh JSON output terminates the analysis;
+  - invalid fresh BumpHunter output prevents the masked refit.
+- Run the complete established Tier-1 and Tier-2 quality gate.
+- Define the required fresh-output artifacts for J100 and J50.
+- Execute both authoritative workflows in clean isolated output directories.
+- Extract scientific results only from the fresh outputs.
+- Compare the fresh results against the frozen references.
+- Demonstrate that a deliberate scientific-result perturbation causes the comparison to fail.
+
+#### Scope boundary
+
+This activity did not change the canonical J100/J50 scientific configuration, enable CLs, perform Tier-3 structural refactoring, or add Tier-4 orchestration.
+
+Tier 3 and Tier 4 remain blocked until the authoritative executable characterization gate passes.
+
+#### BumpHunter execution-path and complete quality-gate verification
+
+- Expanded focused executable-characterization safety suite:
+  - Command: `python -m pytest tests/test_run_anaFit.py -q`
+  - Result: **19 passed in 0.18 seconds**
+  - Ruff: **passed**
+  - Black: **passed**
+
+- Complete established Tier-1/Tier-2 quality gate:
+  - Command: `python scripts/quality_check.py --mode full`
+  - Targeted tests: **37 passed in 0.23 seconds**
+  - Ruff: **passed**
+  - Black: **passed**
+  - Warnings: **0**
+  - Skipped tests: **0**
+  - Full quality-gate exit code: **0**
+
+The BumpHunter execution path is now covered for stale-output removal, process failure, missing fresh output, valid output loading, and invalid fresh output rejection.
+
+This result verifies the executable-characterization safety foundation. It does not yet constitute the final Tier-1 executable characterization gate because the tests have not rerun and compared the real J100 and J50 analyses.
+
+### 2026-08-20: Authoritative J100/J50 executable characterization gate passes
+
+#### Objective
+
+Complete the highest-priority Tier-1 safety requirement by proving that the test system reruns the actual authoritative J100 and J50 analysis workflows, validates newly generated artifacts, and compares fresh scientific results against the frozen reference.
+
+#### Substantial changes completed
+
+- Added the explicitly marked slow integration test:
+  - `tests/test_analysis_workflows_integration.py`
+- Registered the pytest markers:
+  - `integration`
+  - `requires_root`
+- Kept the slow scientific gate separate from the established fast/full development-quality gate.
+- The integration test:
+  - executes `scripts/run_anaFit_J100.sh` through Bash;
+  - executes `scripts/run_anaFit_J50.sh` through Bash;
+  - redirects both workflows into a fresh pytest temporary output root;
+  - requires the expected workspace, fit result, fit parameters, post-fit result, quickFit log, generated configurations, and `analysis_results.json`;
+  - requires every scientific artifact to be fresh and nonempty;
+  - rejects unexpected masked-fit or BumpHunter outputs;
+  - builds the analysis payload exclusively from newly generated outputs;
+  - compares the complete fresh J100/J50 payload against the frozen reference.
+
+- Added machine-readable scientific result manifests:
+  - `run/fits/J100/run_481_3000_sixPar/analysis_results.json`
+  - `run/fits/J50/run_344_2079_sixPar/analysis_results.json`
+- Updated the frozen reference with the accepted post-fit chi-square p-values:
+  - J100: `0.018448750724012808`
+  - J50: `0.07853114301666252`
+- Preserved the current background-only scope:
+  - no BumpHunter masking was triggered;
+  - `p_bh` remains null;
+  - `cls_limit_points` remains empty.
+
+#### Executable characterization verification
+
+- Command:
+
+  `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+
+- Result:
+  - **1 passed**
+  - Runtime: **175.18 seconds**
+  - J100 authoritative workflow: **passed**
+  - J50 authoritative workflow: **passed**
+  - Fresh artifact validation: **passed**
+  - Manifest-backed scientific extraction: **passed**
+  - Frozen-reference comparison: **passed**
+
+#### Scientific results protected by the gate
+
+The executable characterization gate now protects:
+
+- J100 background-only fit parameters;
+- J50 background-only fit parameters;
+- J100 post-fit chi-square p-value;
+- J50 post-fit chi-square p-value;
+- expected absence of BumpHunter output for the canonical successful unmasked runs;
+- expected background-only reference schema;
+- expected empty CLs list under the current scope lock;
+- freshness and presence of the required scientific artifacts.
+
+#### Current status
+
+The test system now reruns the real authoritative J100 and J50 workflows instead of only rereading committed outputs.
+
+The primary executable-characterization requirement has passed.
+
+Before this Tier-1 slice is closed, remaining verification should prove that a deliberate scientific-result perturbation fails the comparison, rerun the complete established quality gate, and review repository hygiene and final diffs.
+
+#### Known non-blocking findings
+
+- The J100 and J50 launcher files are not executable in the current Git mode and are invoked through Bash by the integration test.
+- The post-fit plotting macro attempts to open masked artifacts even when masking was not triggered.
+- Those plotting messages do not affect the scientific fit result or executable characterization comparison.
+- CLs remains outside the current background-only scope.
+
+#### Scope boundary
+
+No Tier-3 structural refactoring or Tier-4 orchestration was performed.
+
+Tier 3 and Tier 4 remain blocked until final deliberate-drift verification and complete gate verification are recorded.
+
+#### Final executable-characterization acceptance verification
+
+The Tier-1 executable-characterization safety work received both scientific and development-gate verification.
+
+##### Deliberate scientific-drift detection
+
+A temporary copy of the frozen reference was modified by changing the protected J100 chi-square p-value:
+
+- Original J100 `p_chi2`: `0.018448750724012808`
+- Perturbed J100 `p_chi2`: `0.02844875072401281`
+
+The comparison correctly rejected the perturbed reference.
+
+Result:
+
+- Deliberate scientific perturbation: **detected**
+- Repository reference modified: **no**
+- False acceptance of changed scientific output: **no**
+
+##### Final established Tier-1/Tier-2 quality gate
+
+Command:
+
+`python scripts/quality_check.py --mode full`
+
+Result:
+
+- Targeted tests collected: **48**
+- Targeted tests passed: **48**
+- Failed: **0**
+- Warnings: **0**
+- Skipped: **0**
+- Ruff: **passed**
+- Black: **passed**
+- Full quality-gate exit code: **0**
+- Test runtime: **0.36 seconds**
+
+##### Slow executable scientific gate
+
+Command:
+
+`python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+
+Result:
+
+- Integration tests passed: **1**
+- Failed: **0**
+- Runtime: **175.18 seconds**
+- J100 authoritative workflow rerun: **passed**
+- J50 authoritative workflow rerun: **passed**
+- Fresh artifact validation: **passed**
+- Manifest-backed fit-parameter extraction: **passed**
+- Manifest-backed chi-square p-value extraction: **passed**
+- Frozen-reference comparison: **passed**
+
+##### Tier-1 acceptance status
+
+The highest-priority executable-characterization requirement is now satisfied.
+
+The test system reruns the actual authoritative J100 and J50 workflows in fresh isolated output directories. It no longer depends only on rereading committed analysis products.
+
+The accepted scientific baseline now protects:
+
+- J100 background-only fit parameters;
+- J50 background-only fit parameters;
+- J100 post-fit chi-square p-value;
+- J50 post-fit chi-square p-value;
+- expected unmasked workflow behavior;
+- expected absence of BumpHunter output for the canonical runs;
+- freshness and presence of required scientific artifacts;
+- the current background-only schema with CLs intentionally deferred.
+
+Tier 3 and Tier 4 may remain blocked until the complete change set is reviewed and committed, but the executable characterization gate itself is passing.
+
+#### Final completion status
+
+The previously listed remaining acceptance checks are now complete:
+
+- deliberate scientific-result perturbation was detected successfully;
+- the established full quality gate passed with 48 tests, 0 failures, 0 warnings, and 0 skipped;
+- Ruff and Black passed;
+- the full quality-gate exit code was 0;
+- the authoritative executable characterization test passed after rerunning both J100 and J50 from fresh isolated outputs.
+
+The Tier-1 executable characterization gate is complete and passing.
+
+Earlier statements in this activity log describing the gate as incomplete record intermediate project checkpoints and are superseded by this final completion status.
+
+Tier 3 and Tier 4 remain outside this change set. Any decision to begin Tier 3 should follow review and commit of this completed Tier-1 safety work.
+### 2026-08-20: Tier-1 and Tier-2 explicit coverage audit and gate expansion
+
+#### Objective
+
+Audit the original Tier-1 and Tier-2 requirements bullet by bullet and require explicit automated evidence for each completed claim.
+
+This activity expanded the test system beyond basic workflow characterization to cover:
+
+- canonical scientific launcher arguments;
+- observable-specific numerical tolerances;
+- selected ROOT histogram comparison behavior;
+- external dependency revisions;
+- scientific runtime readiness;
+- generated-output ownership;
+- plotting independence;
+- launcher permissions;
+- clean development-environment reproduction;
+- CI quality-gate policy;
+- optional pre-commit policy;
+- known installation and bootstrap deficiencies;
+- initial building blocks for expanded machine-readable provenance.
+
+#### Canonical scientific workflow coverage
+
+The launcher tests now explicitly protect the canonical J100 and J50 analysis contracts.
+
+For J100, the tests verify:
+
+- input file:
+  `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root`;
+- histogram:
+  `hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj`;
+- fit range:
+  `481` to `3000`;
+- six-parameter background model;
+- prefit enabled;
+- mask threshold `0.01`;
+- signal fitting disabled;
+- limit setting disabled.
+
+For J50, the tests verify:
+
+- input file:
+  `Input/data/dijetTLA/mjj_spectra_J50_dataAll.root`;
+- histogram:
+  `hists_yStar06_massCut/HLT_j0_perf_ds1_L1J50/h_mjj`;
+- fit range:
+  `344` to `2079`;
+- six-parameter background model;
+- prefit enabled;
+- mask threshold `0.01`;
+- signal fitting disabled;
+- limit setting disabled.
+
+Verification result:
+
+- canonical launcher contract tests: **2 passed**;
+- selected launcher tests deselected: **20**;
+- Ruff: **passed**;
+- Black: **passed**.
+
+CLs remains intentionally deferred. The schema continues to require `cls_limit_points`, and both canonical background-only references continue to require an empty list.
+
+#### Observable-specific scientific comparison policy
+
+Added an explicit tolerance-aware comparison policy for analysis references.
+
+Current provisional tolerances:
+
+- fit-parameter relative tolerance: `1e-6`;
+- fit-parameter absolute tolerance: `1e-8`;
+- p-value relative tolerance: `1e-5`;
+- p-value absolute tolerance: `1e-8`.
+
+The comparison keeps exact structural checks for:
+
+- workflow names;
+- workflow payload keys;
+- fit-parameter names;
+- presence versus absence of BumpHunter p-values;
+- CLs list structure and contents.
+
+Focused tests prove that:
+
+- identical payloads pass;
+- small fit-parameter drift within tolerance passes;
+- small p-value drift within tolerance passes;
+- excessive fit-parameter drift fails;
+- excessive p-value drift fails;
+- changed parameter names fail;
+- absent versus present BumpHunter results fail;
+- changed CLs structure fails.
+
+Verification result:
+
+- explicit tolerance tests: **8 passed**;
+- selected tests deselected: **16**.
+
+The authoritative J100/J50 executable characterization test was updated to use the same tolerance-aware comparison policy.
+
+Verification result:
+
+- executable scientific gate: **1 passed**;
+- runtime: **185.64 seconds**.
+
+The tolerance values are technically explicit and tested but remain provisional until approved scientifically.
+
+#### ROOT histogram-comparison coverage
+
+Expanded `tests/test_compare_root_outputs.py` from low-level numerical helper coverage to explicit selected-histogram behavior.
+
+The test suite now covers:
+
+- exact numerical equality;
+- exact numerical mismatch;
+- absolute tolerance;
+- relative tolerance;
+- NaN handling;
+- zero-reference relative differences;
+- missing ROOT objects;
+- rejection of non-histogram ROOT objects;
+- nested ROOT object paths;
+- histogram-class mismatches;
+- differing bin counts;
+- changed bin contents;
+- changed bin errors;
+- changed bin edges;
+- accepted content drift within tolerance.
+
+Verification result:
+
+- ROOT comparator tests: **17 passed**;
+- Ruff: **passed**;
+- Black: **passed**.
+
+The accurate capability boundary is that the comparator checks explicitly selected TH1 histogram paths, including nested paths. It does not automatically discover and recursively compare every object in a ROOT file.
+
+#### Plotting separated from scientific acceptance
+
+Added `ANAFIT_SKIP_PLOTS=1` support to both authoritative launchers.
+
+Normal user execution continues to produce plots by default. The scientific integration gate now disables plots explicitly so scientific acceptance depends only on:
+
+- generated configurations;
+- workspace output;
+- fit result;
+- fit-parameter output;
+- post-fit ROOT output;
+- quickFit log;
+- analysis result manifest;
+- numerical comparison with the frozen reference.
+
+The required-artifact contract explicitly excludes PDF and other visual outputs.
+
+Verification results:
+
+- successful J100 launcher with plots disabled: **passed**;
+- successful J50 launcher with plots disabled: **passed**;
+- scientific artifact contract excludes plots: **passed**;
+- real no-plot J100/J50 characterization gate: **1 passed**;
+- scientific-gate runtime: **163.31 seconds**.
+
+Plotting warnings and missing diagnostic plots can no longer determine scientific acceptance.
+
+#### Authoritative launcher permissions
+
+The documented direct launcher commands previously failed because both scripts were tracked with mode `100644`.
+
+Restored executable permissions for:
+
+- `scripts/run_anaFit_J100.sh`;
+- `scripts/run_anaFit_J50.sh`.
+
+The integration test now invokes the launchers directly rather than through an explicit Bash command.
+
+Added an automated test requiring both authoritative launchers to have an executable permission bit.
+
+Verification result:
+
+- launcher permission test: **passed**;
+- direct-execution J100/J50 integration gate: **1 passed**;
+- selected non-integration test: **1 deselected**;
+- runtime: **182.97 seconds**.
+
+The executable behavior now matches the commands documented in `doc/TIER1_SYSTEM.md`.
+
+#### Generated-output ownership
+
+Added explicit repository-policy tests to verify that routine generated outputs remain ignored.
+
+The policy tests cover synthetic:
+
+- ROOT files;
+- PDF files;
+- XML files;
+- log files.
+
+The tests also verify that only the two canonical result manifests are re-included:
+
+- `run/fits/J100/run_481_3000_sixPar/analysis_results.json`;
+- `run/fits/J50/run_344_2079_sixPar/analysis_results.json`.
+
+Existing generated ROOT, PDF, XML, and log products under the canonical directories were confirmed to be tracked legacy fixtures rather than newly exposed files.
+
+Verification results:
+
+- narrow ignore-policy test: **passed**;
+- no unexpected untracked generated products test: **passed**.
+
+#### External dependency revision contract
+
+Added explicit prepared-environment tests for:
+
+- `xmlAnaWSBuilder`;
+- `quickFit`;
+- `workspaceCombiner`;
+- `pyBumpHunter`.
+
+Pinned revisions:
+
+- `xmlAnaWSBuilder`:
+  `6b84050f3c0206a6f30eb40b103cc101e68505cc`;
+- `quickFit`:
+  `0408030b6c8d74a2e2c27a864a02756132d08f5a`;
+- `workspaceCombiner`:
+  `7d484ad3f89c4075d2c567aa4503fc56e1bb9468`;
+- `pyBumpHunter`:
+  `91f49a622bd77622edb02a1a2788fc12835e5b72`.
+
+The tests verify:
+
+- every required checkout exists;
+- every checkout is readable by Git;
+- every checkout matches the pinned revision;
+- no checkout contains tracked source modifications.
+
+Untracked build and environment directories such as `cmake/`, `RooFitExtensions/`, and `pyBH_env/` are tolerated.
+
+Verification result:
+
+- prepared dependency tests: **2 passed**.
+
+#### Installation and bootstrap deficiencies
+
+Added explicit tests for the installation contract.
+
+Passing checks:
+
+- `install.sh` records every expected dependency revision;
+- `.gitmodules` declares all four expected dependency paths.
+
+Known deficiencies are represented by strict expected-failure tests:
+
+- `.gitmodules` declares dependencies, but the top-level Git index has no corresponding `160000` gitlink entries;
+- `install.sh` contains active destructive `rm -rf` operations.
+
+Verification result:
+
+- installation-policy tests passed: **2**;
+- strict expected failures: **2**;
+- deselected unrelated tests: **9**.
+
+These expected failures keep the known installation deficiencies visible without falsely marking fresh-clone reproducibility as complete.
+
+Fresh-clone dependency acquisition and non-destructive bootstrap behavior remain high-priority Tier-1 work.
+
+#### Scientific runtime readiness
+
+Verified the separation between the development-quality environment and the scientific analysis environment.
+
+Development-quality environment:
+
+- Python `3.12.13`;
+- pytest `9.1.1`;
+- Ruff `0.16.0`;
+- Black `26.5.1`.
+
+Scientific environment selected by `scripts/setup_buildAndFit.sh`:
+
+- LCG release `LCG_102a`;
+- platform `x86_64-centos9-gcc11-opt`;
+- Python `3.9.12`;
+- ROOT/PyROOT `6.26/08`.
+
+Both `xmlAnaWSBuilder/setup_lxplus.sh` and `quickFit/setup_lxplus.sh` explicitly select the same LCG release.
+
+Added an explicit runtime-readiness test covering:
+
+- successful setup;
+- scientific Python version;
+- ROOT and PyROOT versions;
+- executable XMLReader;
+- executable quickFit;
+- executable BumpHunter Python environment;
+- both canonical J100/J50 data inputs;
+- both canonical resolution-binning inputs.
+
+Verification result:
+
+- authoritative scientific-runtime readiness test: **1 passed**.
+
+The earlier ROOT `6.40.02` observation describes the shell before authoritative setup. The actual J100/J50 analyses use ROOT `6.26/08`.
+
+#### Test-gate separation
+
+Registered the pytest marker:
+
+- `requires_analysis_dependencies`.
+
+Applied it only to the two external-checkout tests.
+
+The ordinary fast and full gates now exclude those prepared-environment checks while retaining:
+
+- repository-root checks;
+- frozen snapshot checks;
+- generated-output ownership checks;
+- analysis-reference tests;
+- ROOT comparator tests;
+- launcher and BumpHunter safety tests.
+
+Verification results:
+
+- lightweight repository tests: **4 passed**, **2 deselected**;
+- prepared dependency tests: **2 passed**, **4 deselected**;
+- fast quality gate: **58 passed**, **2 deselected**, exit code **0**.
+
+The authoritative gate commands are now separated as follows:
+
+- lightweight development gate:
+  `python scripts/quality_check.py --mode full`;
+- prepared dependency gate:
+  `python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`;
+- scientific executable characterization gate:
+  `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`.
+
+#### CI policy
+
+Expanded `.github/workflows/tier1-root-comparison.yml` into the Tier-1 and Tier-2 lightweight quality workflow.
+
+The workflow now:
+
+- uses `actions/checkout@v4`;
+- uses `actions/setup-python@v5`;
+- selects Python `3.12.13`;
+- installs `requirements-dev-lock.txt`;
+- runs `python scripts/quality_check.py --mode full`;
+- covers `harry` and `tier-2-m365`;
+- does not launch the CERN-only integration test;
+- does not require prepared external dependency checkouts.
+
+Added an explicit CI policy test.
+
+Verification result:
+
+- CI policy test: **1 passed**.
+
+Local complete lightweight verification after the CI update:
+
+- tests passed: **59**;
+- prepared dependency tests deselected: **2**;
+- Ruff: **passed**;
+- Black: **passed**;
+- exit code: **0**.
+
+An actual hosted CI run remains pending until the workflow is committed and pushed.
+
+#### Optional pre-commit policy
+
+Documented pre-commit as optional and outside the authoritative Tier-2 acceptance gate.
+
+Current policy:
+
+- `pre-commit` is not installed or pinned;
+- contributors are not required to install Git hooks;
+- the authoritative quality command is:
+  `python scripts/quality_check.py --mode full`;
+- the current Ruff hook version does not match the pinned Tier-2 Ruff version;
+- pre-commit remains follow-up work.
+
+Added an explicit policy test.
+
+Verification result:
+
+- optional pre-commit policy test: **1 passed**.
+
+#### Clean dependency-lock reproduction
+
+Created a new temporary Python 3.12 virtual environment outside the repository.
+
+Installed only from `requirements-dev-lock.txt`.
+
+Reproduced versions:
+
+- Python `3.12.13`;
+- pytest `9.1.1`;
+- Ruff `0.16.0`;
+- Black `26.5.1`.
+
+Clean full-gate result:
+
+- tests collected: **62**;
+- tests passed: **60**;
+- prepared dependency tests deselected: **2**;
+- Ruff: **passed**;
+- Black: **passed**;
+- exit code: **0**.
+
+Clean-environment evidence:
+
+- temporary root:
+  `/tmp/frequentist-tier2-clean.p2RO1b`;
+- full-gate log:
+  `/tmp/frequentist-tier2-clean.p2RO1b/full-gate.log`.
+
+The bootstrap upgraded pip to `26.2.1`. Pip itself is not pinned and remains a minor reproducibility follow-up.
+
+#### Initial machine-readable provenance helpers
+
+Added and tested foundational provenance helpers in `python/run_anaFit.py`.
+
+Current helpers cover:
+
+- repository-root discovery from `__file__`;
+- deterministic SHA-256 file hashing;
+- clear failure for missing files;
+- Git revision lookup;
+- validation of full 40-character Git revisions;
+- clear failure for non-repositories;
+- scientific Python version collection;
+- scientific Python executable collection;
+- active ROOT version collection;
+- clear failure when the active ROOT version is unavailable.
+
+Focused verification results:
+
+- repository-root tests: **2 passed**;
+- file SHA-256 tests: **2 passed**;
+- Git revision tests: **2 passed**;
+- scientific runtime collection tests: **2 passed**.
+
+The canonical data and template hashes were also recorded during the audit.
+
+J100 input SHA-256:
+
+`f6336bc2d0a966559072241be2d547ecd6b4b5bcae11e3c33751e25ce2a5d0e6`
+
+J50 input SHA-256:
+
+`4d2e0184ac95ee23bf1e74fef0a15cc86bf4a1f8342d90f703441fe90fbab3ee`
+
+Shared template SHA-256 values:
+
+- top-level template:
+  `4d6d73b0445ad0e9777fabb6c734ec49fed9317801ffc19aa86692a3cb911807`;
+- category template:
+  `69b23311719bbe8f5e6e49f951fc479235e6b2cd889d8ba201e059b2674862d0`;
+- six-parameter background template:
+  `7d3d322bbf79734b0c65f9d407ec7316cd84ee9cd471e97c1d73b773807dda10`;
+- signal template:
+  `d7ae0ebc4aa3a234cae5c99d21dc5092278d10b22463c67f3048447ee41be314`.
+
+The provenance helpers are tested, but the canonical manifests remain at schema version 1 and do not yet embed full runtime, revision, hash, and invocation provenance.
+
+#### Latest combined gate checkpoint
+
+Latest lightweight full-gate result:
+
+- tests collected: **84**;
+- selected tests: **82**;
+- tests passed: **80**;
+- prepared dependency tests deselected: **2**;
+- strict installation-policy expected failures: **2**;
+- Ruff: **passed**;
+- Black: **passed**;
+- exit code: **0**.
+
+Latest prepared-dependency gate result:
+
+- tests passed: **2**;
+- tests deselected: **11**;
+- exit code: **0**.
+
+#### Current status
+
+The Tier-1 scientific characterization system is complete and passing for the current background-only J100/J50 scope.
+
+The Tier-2 development-quality environment remains reproducible and passing.
+
+The following items remain incomplete:
+
+- functional Git submodule gitlinks or an equivalent checked-in dependency acquisition manifest;
+- non-destructive separation of dependency bootstrap and build operations;
+- complete provenance embedded in `analysis_results.json`;
+- final provenance-backed regeneration of the J100/J50 manifests;
+- actual hosted CI execution after push;
+- actual CLs characterization, intentionally deferred;
+- scientific approval of the provisional numerical tolerances.
+
+Tier 3 and Tier 4 remain outside this change set. Tier 3 should not begin until the completed Tier-1/Tier-2 work is reviewed and committed, and the remaining installation-reproducibility risks are explicitly accepted or repaired.
+
+### 2026-08-21: Schema-version-2 scientific provenance completed
+
+#### Objective
+
+Complete machine-readable provenance for the authoritative J100 and J50 background-only executable characterization workflows.
+
+#### Substantial changes completed
+
+- Upgraded `analysis_results.json` from schema version 1 to schema version 2.
+- Preserved schema-version-1 reader compatibility for legacy manifests.
+- Added strict schema-version-2 provenance validation.
+- Added provenance records for:
+  - repository commit;
+  - active scientific Python version and executable;
+  - active ROOT version;
+  - `xmlAnaWSBuilder` revision;
+  - `quickFit` revision;
+  - `workspaceCombiner` revision;
+  - `pyBumpHunter` revision;
+  - input data path and SHA-256;
+  - top-level configuration path and SHA-256;
+  - category configuration path and SHA-256;
+  - background configuration path and SHA-256;
+  - signal configuration path and SHA-256;
+  - data histogram;
+  - fit-range bounds;
+  - signal-enabled state;
+  - limit-enabled state;
+  - prefit-enabled state;
+  - mask threshold.
+- Added repository-aware path resolution for relative and absolute scientific inputs.
+- Added deterministic file SHA-256 helpers.
+- Added Git revision lookup and validation.
+- Added scientific runtime collection.
+- Connected provenance generation to the successful `run_anaFit()` path.
+- Preserved atomic manifest writing.
+- Failed analyses still cannot create a misleading success manifest.
+- Promoted validated schema-version-2 manifests for both canonical workflows.
+
+#### Canonical scientific manifests
+
+J100:
+
+- schema version: `2`
+- status: `success`
+- masked: `false`
+- `p_chi2`: `0.018448750724012808`
+
+J50:
+
+- schema version: `2`
+- status: `success`
+- masked: `false`
+- `p_chi2`: `0.07853114301666252`
+
+Both canonical manifests pass the production provenance validator and reproduce the frozen scientific reference.
+
+#### Focused verification
+
+- Repository-root helper tests: **2 passed**
+- Analysis-path resolution tests: **3 passed**
+- File SHA-256 tests: **2 passed**
+- File-provenance tests: **3 passed**
+- Git revision tests: **2 passed**
+- Scientific runtime tests: **2 passed**
+- Complete provenance-payload test: **1 passed**
+- Provenance-validator tests: **10 passed**
+- Schema-version-1 and schema-version-2 manifest tests: **passed**
+- Schema-version-2 writer tests: **3 passed**
+- Successful unmasked provenance-wiring test: **1 passed**
+- Complete `tests/test_run_anaFit.py` suite: **39 passed** before the final wiring test was added
+- Ruff: **passed**
+- Black: **passed**
+
+#### Final scientific executable gate
+
+Command:
+
+`python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+
+Result:
+
+- authoritative J100 rerun: **passed**
+- authoritative J50 rerun: **passed**
+- fresh schema-version-2 manifest generation: **passed**
+- strict provenance validation: **passed**
+- fresh artifact validation: **passed**
+- tolerance-aware frozen-reference comparison: **passed**
+- selected integration tests passed: **1**
+- deselected non-integration tests: **2**
+- runtime: **116.02 seconds**
+- exit code: **0**
+
+#### Current completion status
+
+Machine-readable provenance is complete for the canonical background-only J100 and J50 executable characterization scope.
+
+The executable characterization gate now protects both scientific results and the runtime, dependency, input, configuration, and invocation identity associated with those results.
+
+Remaining known limitations are:
+
+- functional Git submodule gitlinks are still absent;
+- `install.sh` remains destructive;
+- hosted CI execution remains pending a commit and push;
+- CLs characterization remains intentionally deferred;
+- numerical tolerances remain provisional pending scientific approval.
+
+Tier 3 and Tier 4 remain outside this change set.
+
+#### Final schema-version-2 verification checkpoint
+
+The complete verification sequence was rerun after promoting the canonical schema-version-2 J100 and J50 manifests.
+
+##### Lightweight full gate
+
+Command:
+
+`python scripts/quality_check.py --mode full`
+
+Result:
+
+- tests collected: **105**;
+- tests passed: **101**;
+- prepared-dependency tests deselected: **2**;
+- strict expected installation-policy failures: **2**;
+- unexpected failures: **0**;
+- Ruff: **passed**;
+- Black: **passed**;
+- exit code: **0**.
+
+The two strict expected failures continue to document:
+
+- missing Git index gitlinks for the declared external dependencies;
+- destructive `rm -rf` operations in `install.sh`.
+
+##### Prepared-dependency gate
+
+Command:
+
+`python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`
+
+Result:
+
+- tests passed: **2**;
+- tests deselected: **11**;
+- failures: **0**;
+- exit code: **0**.
+
+The prepared `xmlAnaWSBuilder`, `quickFit`, `workspaceCombiner`, and `pyBumpHunter` checkouts remain at their pinned revisions and contain no tracked source modifications.
+
+##### Scientific executable gate
+
+Command:
+
+`python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+
+Result:
+
+- tests passed: **1**;
+- tests deselected: **2**;
+- failures: **0**;
+- runtime: **116.02 seconds**;
+- exit code: **0**.
+
+The scientific gate successfully:
+
+- reran J100 and J50 from fresh isolated outputs;
+- generated fresh schema-version-2 manifests;
+- validated complete runtime, dependency, input, configuration, and invocation provenance;
+- validated required fresh scientific artifacts;
+- reproduced the frozen fit parameters and chi-square p-values within the approved provisional comparison policy;
+- remained on the expected unmasked background-only path;
+- excluded diagnostic plotting from scientific acceptance.
+
+##### Final status
+
+Machine-readable provenance is complete and passing for the canonical J100 and J50 background-only executable characterization scope.
+
+The remaining known Tier-1 limitations are dependency acquisition and installer safety. These are represented by strict expected-failure tests and must not be described as complete.
+
+Hosted CI execution remains pending commit and push. CLs characterization remains intentionally deferred. Numerical tolerances remain provisional pending scientific approval.
+
+#### Tier-1 and Tier-2 operating documentation synchronized
+
+Updated the user-facing system documentation to match the final verified implementation:
+
+- `doc/TIER1_SYSTEM.md`
+- `doc/TIER2_SYSTEM.md`
+- `doc/TIER1_ENVIRONMENT_PROVENANCE.md`
+
+The documents now record:
+
+- schema-version-2 J100 and J50 manifests;
+- complete machine-readable scientific provenance;
+- canonical numerical chi-square p-values;
+- explicit fit-parameter and p-value tolerances;
+- the current lightweight, prepared-dependency, runtime-readiness, and scientific gates;
+- the Python 3.12.13 development environment;
+- the Python 3.9.12 and ROOT 6.26/08 scientific environment;
+- plotting independence and executable launcher permissions;
+- CI and optional pre-commit policies;
+- missing Git submodule gitlinks and destructive installer behavior as known limitations.
+
+Obsolete descriptions of null canonical chi-square p-values, the historical 18-test baseline, unavailable Ruff and Black tooling, and Python 3.9.25 as the active quality environment were removed.
+
+Verification:
+
+- all three documents retain their established repository names;
+- no `UPDATED_*` files remain under `doc/`;
+- documentation-specific `git diff --check` passed;
+- complete repository `git diff --check` passed.

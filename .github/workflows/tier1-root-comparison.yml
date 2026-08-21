@@ -1,19 +1,20 @@
-name: Tier 1 ROOT comparison
+name: Tier 1 and Tier 2 quality gate
 
 on:
   pull_request:
     branches:
       - harry
+      - tier-2-m365
   push:
     branches:
       - harry
-      - tier1-root-comparison
+      - tier-2-m365
 
 permissions:
   contents: read
 
 jobs:
-  comparator-tests:
+  lightweight-quality-gate:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,18 +24,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12.13"
+          cache: pip
+          cache-dependency-path: requirements-dev-lock.txt
 
-      - name: Install test dependencies
+      - name: Install locked development dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest
+          python -m pip install -r requirements-dev-lock.txt
 
-      - name: Compile Tier 1 files
+      - name: Run complete lightweight quality gate
         run: |
-          python -m py_compile scripts/compare_root_outputs.py
-          python -m py_compile tests/test_compare_root_outputs.py
-
-      - name: Run focused Tier 1 tests
-        run: |
-          python -m pytest tests/test_compare_root_outputs.py -v
+          python scripts/quality_check.py --mode full

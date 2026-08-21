@@ -1,314 +1,249 @@
-# Tier-1 system (J100/J50 Run-2 baseline)
+# Tier-1 system: authoritative J100/J50 safety net
 
-This document is the user-facing operating guide for the Tier-1 safety net in this repository.
-It is intentionally scoped to the **authoritative Run-2 analysis entrypoints**:
-
-- `scripts/run_anaFit_J100.sh`
-- `scripts/run_anaFit_J50.sh`
-
-Tier 1 exists to keep the project workable and reproducible before deeper refactor/orchestration work.
-
----
-
-## 1) Purpose, audience, and status
-
-### Purpose
-
-Tier 1 provides fast, deterministic checks that fail clearly when baseline files, references, or tooling are missing.
-
-### Intended audience
-
-- Users running or validating the J100/J50 Run-2 baseline
-- Developers changing Tier-1 Python/tests/docs
-- Reviewers who need reproducible evidence for baseline health
-
-### Current delivery status (scope lock)
-
-- **In scope now:** J100/J50 background-only reference extraction and verification.
-- **Out of scope now:** CLs extraction/validation in Tier 1.
-- `cls_limit_points` is currently expected to be an empty list (`[]`) for both workflows.
-
----
-
-## 2) Tier-1 goals and success criteria
-
-Tier 1 is considered healthy when the following hold:
-
-1. Required baseline files/inputs exist.
-2. Deterministic targeted tests pass against frozen references.
-3. Fast/full quality-gate behavior matches implementation.
-4. Missing dependencies fail with actionable install guidance.
-
----
-
-## 3) Authoritative workflow and data surface
-
-### Authoritative entrypoint scripts
+This guide describes the current Tier-1 safety system for the authoritative Run-2 background-only workflows:
 
 - `scripts/run_anaFit_J100.sh`
 - `scripts/run_anaFit_J50.sh`
 
-### Authoritative Run-2 inputs
+Tier 1 must remain passing before Tier-3 refactoring or Tier-4 orchestration begins.
 
-- `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root`
-- `Input/data/dijetTLA/mjj_spectra_J50_dataAll.root`
+## Current status
 
-### Authoritative fit output directories used by Tier 1
+The executable characterization gate is complete and passing for canonical J100 and J50 background-only six-parameter fits.
 
-- `run/fits/J100/run_481_3000_sixPar/`
-- `run/fits/J50/run_344_2079_sixPar/`
+It now:
 
-### Background-only logs expected by Tier-1 extraction
+- reruns both real launchers in fresh isolated output directories;
+- requires fresh, non-empty scientific artifacts;
+- extracts results only from fresh outputs;
+- validates schema-version-2 manifests and provenance;
+- compares fit parameters and chi-square p-values using explicit tolerances;
+- rejects deliberate scientific drift;
+- excludes diagnostic plots from scientific acceptance.
 
-`python/analysis_reference.py` searches each fit directory for:
+CLs remains intentionally deferred. `cls_limit_points` must remain `[]` for both canonical workflows.
 
-1. `quickFitLog_anaFit_sixPar_bkgOnly.log`
-2. `quickFitLog_anaFit_sevenPar_bkgOnly.log`
+## Canonical workflow contracts
 
-If neither exists, reference extraction fails with `FileNotFoundError`.
+### J100
 
----
+- Input: `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root`
+- Histogram: `hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj`
+- Fit range: 481 to 3000 GeV
+- Model: six-parameter background-only
+- Prefit: enabled
+- Mask threshold: `0.01`
+- Signal and limit flags: disabled
+- Output: `run/fits/J100/run_481_3000_sixPar/`
 
-## 4) Repository map (Tier-1 relevant files)
+### J50
 
-### Quality gate and checks
+- Input: `Input/data/dijetTLA/mjj_spectra_J50_dataAll.root`
+- Histogram: `hists_yStar06_massCut/HLT_j0_perf_ds1_L1J50/h_mjj`
+- Fit range: 344 to 2079 GeV
+- Model: six-parameter background-only
+- Prefit: enabled
+- Mask threshold: `0.01`
+- Signal and limit flags: disabled
+- Output: `run/fits/J50/run_344_2079_sixPar/`
 
-- `scripts/quality_check.py`
+These contracts are protected by launcher regression tests.
 
-### Reference extraction and validation
+## Authoritative files
 
+- `python/run_anaFit.py`
 - `python/analysis_reference.py`
-
-### Tier-1 regression tests
-
-- `tests/test_analysis_reference.py`
-- `tests/test_compare_root_outputs.py`
-- `tests/test_repo_utils.py`
-
-### Frozen references
-
-- `tests/references/analysis_reference.json`
-- `tests/references/repo_snapshot.json`
-
-### Provenance and change tracking
-
-- `doc/TIER1_ENVIRONMENT_PROVENANCE.md`
-- `doc/ACTIVITY_LOG.md`
-
----
-
-## 5) Quality gate behavior (`scripts/quality_check.py`)
-
-Tier 1 uses a single explicit gate with `--mode fast|full`.
-
-### Required baseline paths (hard failure)
-
-The gate requires:
-
 - `scripts/run_anaFit_J100.sh`
 - `scripts/run_anaFit_J50.sh`
 - `scripts/setup_buildAndFit.sh`
-- `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root`
-- `Input/data/dijetTLA/mjj_spectra_J50_dataAll.root`
+- `scripts/compare_root_outputs.py`
+- `scripts/quality_check.py`
 - `tests/references/analysis_reference.json`
 - `tests/references/repo_snapshot.json`
+- `tests/test_analysis_reference.py`
+- `tests/test_compare_root_outputs.py`
+- `tests/test_repo_utils.py`
+- `tests/test_run_anaFit.py`
+- `tests/test_analysis_workflows_integration.py`
 
-If any are missing, the script exits early and prints all missing paths.
+Both launchers are executable and support the documented direct invocation.
 
-### Optional workflow hints (non-fatal)
+## Output isolation and plot policy
 
-The gate warns (without failing) if these fit-runtime helper paths are absent:
-
-- `xmlAnaWSBuilder/setup_lxplus.sh`
-- `quickFit/setup_lxplus.sh`
-
-### Fast mode (`--mode fast`, default)
-
-Runs:
-
-1. required baseline path checks,
-2. optional workflow hints,
-3. Python module availability check for `pytest`,
-4. targeted Tier-1 tests:
+Use an isolated output root with:
 
 ```bash
-python3 -m pytest tests/test_analysis_reference.py tests/test_compare_root_outputs.py tests/test_repo_utils.py
+ANAFIT_OUTPUT_DIR=/tmp/anafit-output ./scripts/run_anaFit_J100.sh
 ```
 
-### Full mode (`--mode full`)
+If unset, the default remains `run/fits`.
 
-Runs everything in fast mode, then:
-
-1. Python module availability checks for `ruff` and `black`,
-2. lint check:
+The scientific gate sets:
 
 ```bash
-python3 -m ruff check python/analysis_reference.py python/repo_utils.py scripts/compare_root_outputs.py scripts/quality_check.py tests/test_analysis_reference.py tests/test_compare_root_outputs.py tests/test_repo_utils.py
+ANAFIT_SKIP_PLOTS=1
 ```
 
-3. format check:
+Normal user runs still create plots by default. PDFs and other images are not required scientific artifacts.
+
+## Required fresh artifacts
+
+Each canonical integration run must create fresh, non-empty copies of:
+
+- `background_dijetTLA_fromTemplate.xml`
+- `category_dijetTLA_fromTemplate.xml`
+- `dijetTLA_fromTemplate.xml`
+- `signal_dijetTLA_fromTemplate.xml`
+- `dijetisrTLA_combWS_sixPar.root`
+- `FitResult_anaFit_sixPar_bkgOnly.root`
+- `FitParameters_anaFit_sixPar_bkgOnly.root`
+- `PostFit_anaFit_sixPar_bkgOnly.root`
+- `quickFitLog_anaFit_sixPar_bkgOnly.log`
+- `analysis_results.json`
+
+The canonical unmasked gate rejects unexpected `BHresults.json`, `*_masked.root`, or `*_masked.xml` files.
+
+## Failure and stale-output protection
+
+The implementation and tests enforce:
+
+- Python and launcher exit-status propagation;
+- mandatory XMLReader and quickFit success;
+- required fresh workspace, fit-result, and log artifacts;
+- stale BumpHunter JSON removal;
+- mandatory fresh BumpHunter results when masking is triggered;
+- malformed or incomplete BumpHunter result rejection;
+- invalid mask-bound rejection;
+- no successful manifest after a failed analysis.
+
+## Schema-version-2 manifests
+
+Canonical manifests:
+
+- `run/fits/J100/run_481_3000_sixPar/analysis_results.json`
+- `run/fits/J50/run_344_2079_sixPar/analysis_results.json`
+
+Each records:
+
+- success and masking state;
+- accepted chi-square p-value;
+- repository commit;
+- scientific Python executable and version;
+- ROOT version;
+- four external dependency revisions;
+- input and configuration paths and SHA-256 values;
+- histogram, fit range, mode flags, prefit state, and mask threshold.
+
+Schema-version-1 reading remains supported for legacy manifests. Fresh canonical runs must produce schema version 2.
+
+Canonical p-values:
+
+- J100: `0.018448750724012808`
+- J50: `0.07853114301666252`
+
+## Frozen reference and tolerances
+
+Each workflow payload contains exactly:
+
+- `fit_parameters`
+- `p_chi2`
+- `p_bh`
+- `cls_limit_points`
+
+Current canonical values use numerical `p_chi2`, `p_bh: null`, and `cls_limit_points: []`.
+
+Provisional tolerances:
+
+- fit parameter `rtol=1e-6`, `atol=1e-8`;
+- p-value `rtol=1e-5`, `atol=1e-8`.
+
+Workflow names, payload keys, fit parameter names, BumpHunter presence, and CLs contents remain exact.
+
+## Gate commands
+
+### Lightweight full gate
 
 ```bash
-python3 -m black --check python/analysis_reference.py python/repo_utils.py scripts/compare_root_outputs.py scripts/quality_check.py tests/test_analysis_reference.py tests/test_compare_root_outputs.py tests/test_repo_utils.py
+python scripts/quality_check.py --mode full
 ```
 
-### Exit semantics
+Latest verified result:
 
-- Exit `1`: required baseline path failure.
-- Exit `2`: required Python tooling modules missing.
-- Otherwise: propagates non-zero return codes from subprocess checks (pytest/ruff/black).
+- 105 collected;
+- 101 passed;
+- 2 prepared-dependency tests deselected;
+- 2 strict expected installation-policy failures;
+- Ruff and Black passed;
+- exit code 0.
 
-### Tool installation guidance
-
-If tools are missing in your active interpreter environment:
+### Prepared dependency gate
 
 ```bash
-python3 -m pip install pytest ruff black
+python -m pytest tests/test_repo_utils.py \
+  -m "requires_analysis_dependencies" -v
 ```
 
----
+Latest result: 2 passed, 11 deselected, exit code 0.
 
-## 6) Analysis reference contract (`python/analysis_reference.py`)
-
-Tier-1 reference generation is deterministic and workflow-locked to:
-
-- `("J100", "run_481_3000_sixPar")`
-- `("J50", "run_344_2079_sixPar")`
-
-Each workflow payload must contain exactly these required keys:
-
-- `fit_parameters` (dict of supported numeric parameter names)
-- `p_chi2` (numeric or `null`)
-- `p_bh` (numeric or `null` from optional `BHresults.json`)
-- `cls_limit_points` (list; currently expected `[]`)
-
-Supported fit-parameter names are constrained to:
-
-- `nbkg`, `p2`, `p3`, `p4`, `p5`, `p6`, `p7`
-
-### Frozen reference expectations
-
-Current `tests/references/analysis_reference.json` stores:
-
-- top-level workflows: `J100`, `J50`
-- `cls_limit_points: []` for both workflows
-- `p_bh: null` and `p_chi2: null` in the current baseline snapshot
-
----
-
-## 7) Operating procedures
-
-### A) Run the Tier-1 gate
-
-Fast mode:
+### Scientific runtime readiness
 
 ```bash
-python3 scripts/quality_check.py --mode fast
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -k authoritative_setup_provides_scientific_runtime -v
 ```
 
-Full mode:
+### Executable characterization gate
 
 ```bash
-python3 scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
 ```
 
-### B) Run authoritative fit workflows
+Latest result: 1 passed, 2 deselected, 116.02 seconds, exit code 0.
 
-From repository root:
+## Runtime split
+
+Development quality environment:
+
+- Python 3.12.13
+- pytest 9.1.1
+- Ruff 0.16.0
+- Black 26.5.1
+
+Scientific environment after `scripts/setup_buildAndFit.sh`:
+
+- LCG `LCG_102a`
+- `x86_64-centos9-gcc11-opt`
+- Python 3.9.12
+- ROOT/PyROOT 6.26/08
+
+## ROOT comparison boundary
+
+`compare_root_outputs.py` compares explicitly selected nested TH1 paths. It checks object presence and type, histogram class, bin counts, contents, errors, and edges with tolerances. It does not automatically inventory every ROOT object.
+
+## Known installation limitations
+
+Two strict expected-failure tests document:
+
+1. `.gitmodules` declarations have no matching `160000` Git index gitlinks.
+2. `install.sh` contains destructive `rm -rf` operations.
+
+The prepared LXPlus runtime is verified, but clean-clone scientific dependency acquisition is not complete.
+
+## Operating commands
 
 ```bash
 ./scripts/run_anaFit_J100.sh
 ./scripts/run_anaFit_J50.sh
 ```
 
-Optional fit-parameter selection:
+Optional selection:
 
 ```bash
 FIT_PARS="six seven" ./scripts/run_anaFit_J100.sh
 FIT_PARS="six" ./scripts/run_anaFit_J50.sh
 ```
 
-### C) Run only Tier-1 tests
+## Scope boundary
 
-```bash
-python3 -m pytest tests/test_analysis_reference.py tests/test_compare_root_outputs.py tests/test_repo_utils.py -q
-```
-
-### D) Regenerate frozen analysis reference (when intended)
-
-Only do this when the baseline is intentionally changed and reviewed:
-
-```bash
-python3 - <<'PY'
-from pathlib import Path
-from python.analysis_reference import build_analysis_reference, write_analysis_reference
-
-repo = Path('.').resolve()
-payload = build_analysis_reference(repo)
-write_analysis_reference(repo / 'tests/references/analysis_reference.json', payload)
-print('analysis reference updated')
-PY
-```
-
-Then rerun targeted tests and include the change rationale in `doc/ACTIVITY_LOG.md`.
-
----
-
-## 8) Troubleshooting
-
-### Missing required baseline paths
-
-- Symptom: gate exits immediately with missing path list.
-- Action: restore missing files/inputs before rerunning checks.
-
-### Missing `pytest`, `ruff`, or `black`
-
-- Symptom: gate prints required modules and install command.
-- Action: install into the active interpreter environment.
-
-### Fast succeeds, full fails
-
-- This is expected when `ruff`/`black` are not installed.
-- See `doc/TIER1_ENVIRONMENT_PROVENANCE.md` for current environment evidence and mismatch notes.
-
-### Fit-runtime dependency warnings
-
-- Missing optional hint paths (`xmlAnaWSBuilder/setup_lxplus.sh`, `quickFit/setup_lxplus.sh`) do not block tests.
-- They can still block fit execution; install/restore fit runtime dependencies before running workflows.
-
-### Reference extraction failures
-
-- If no supported background-only log exists in a fit directory, extraction fails by design.
-- Ensure at least one of:
-  - `quickFitLog_anaFit_sixPar_bkgOnly.log`
-  - `quickFitLog_anaFit_sevenPar_bkgOnly.log`
-
-### CLs confusion
-
-- Tier-1 currently does **not** populate CLs in the frozen reference.
-- `cls_limit_points` remains an empty list until the planned extension is implemented.
-
----
-
-## 9) Reproducibility, provenance, and change tracking
-
-- Keep runtime/tooling evidence current in `doc/TIER1_ENVIRONMENT_PROVENANCE.md`.
-- Record every substantial Tier-1 documentation or behavior change in `doc/ACTIVITY_LOG.md` as a new dated section.
-- For reviews, capture:
-
-```bash
-git status -sb
-git diff -- doc/TIER1_SYSTEM.md doc/ACTIVITY_LOG.md
-```
-
----
-
-## 10) Scope boundaries and non-goals
-
-- Tier 1 is intentionally conservative and lightweight.
-- It prioritizes operability, deterministic checks, and clear failures.
-- It does not introduce orchestration frameworks (Tier 4).
-- It does not perform broad structural refactors (Tier 3).
-- Background-only-first remains the current scope lock for J100/J50.
-
-Keeping Tier 1 healthy reduces risk for later-tier implementation.
+CLs, Tier-3 refactoring, and Tier-4 orchestration remain out of scope. Tier 3 should not begin until this change set is reviewed and committed and the remaining installation risks are accepted or repaired.

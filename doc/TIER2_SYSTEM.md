@@ -1,350 +1,216 @@
-## Tier-2 system: reproducible Python quality environment
+# Tier-2 system: reproducible Python quality environment
 
-This document is the user-facing operating guide for the Tier-2 quality system in this repository. Tier 2 builds on the Tier-1 J100/J50 safety net by providing a supported Python environment, pinned development tooling, formatting and lint checks, and a reproducible full quality gate.
+Tier 2 provides the reproducible development environment and lightweight quality gate supporting the Tier-1 J100/J50 safety net.
 
-### 1) Purpose, audience, and status
+## Current status
 
-#### Purpose
+Verified development baseline:
 
-Tier 2 provides a consistent development and verification environment for the Tier-1 Python source and regression tests. It is intended to make cleanup and future refactoring safer without changing the authoritative physics workflow.
+- Python 3.12.13
+- pytest 9.1.1
+- Ruff 0.16.0
+- Black 26.5.1
 
-#### Intended audience
+Latest full lightweight gate:
 
-- Developers changing the Tier-1 Python source, tests, or quality-gate scripts.
-- Reviewers checking that changes pass pytest, Ruff, and Black.
-- Users recreating the supported development environment from the dependency lock.
+- 105 collected;
+- 101 passed;
+- 2 prepared-dependency tests deselected;
+- 2 strict expected installation-policy failures;
+- Ruff passed;
+- Black passed;
+- exit code 0.
 
-#### Current status
+## Scope
 
-The established Tier-2 quality system is complete and passing.
+Tier 2 covers:
 
-Current verified baseline:
+- `.venv` development environment;
+- `requirements-dev.txt` and `requirements-dev-lock.txt`;
+- explicit pytest targets;
+- explicit Ruff and Black targets;
+- fast and full quality commands;
+- clean-lock reproduction;
+- generated-output ownership checks;
+- CI policy;
+- separation of lightweight, dependency, and scientific gates.
 
-- Python: 3.12.13
-- Project requirement: Python 3.11 or newer
-- pytest: 9.1.1
-- Ruff: 0.16.0
-- Black: 26.5.1
-- Targeted tests: 18 passed
-- Ruff: passed
-- Black: passed
-- Full quality-gate exit code: 0
+It does not cover physics changes, CLs, repository-wide formatting, CERN-only hosted execution, Tier-3 refactoring, Tier-4 orchestration, or installer repair.
 
-The separate modular `tier_checks/` framework is operational but is not yet part of the completed Tier-2 acceptance baseline. Its final in-depth verification remains outstanding.
+## Authoritative files
 
-### 2) Scope and non-goals
-
-#### In scope
-
-- A repository-local Python virtual environment.
-- Direct and locked development dependency records.
-- The explicit Tier-1 pytest target set.
-- Ruff lint verification for the approved Python targets.
-- Black format verification for the approved Python targets.
-- Fast and full modes in `scripts/quality_check.py`.
-- Reproducible recreation of the development environment from `requirements-dev-lock.txt`.
-
-#### Out of scope
-
-- Changes to the J100/J50 physics workflows.
-- CLs extraction or validation.
-- Broad formatting or linting of unrelated legacy source files.
-- Repository-wide Ruff or Black commands against `.`.
-- Tier-3 structural refactoring.
-- Tier-4 workflow orchestration.
-- A policy decision for generated `post_fit.pdf` files.
-
-### 3) Authoritative files
-
-#### Environment and dependencies
+Environment:
 
 - `pyproject.toml`
 - `requirements-dev.txt`
 - `requirements-dev-lock.txt`
-- `.venv/` as the local environment location; the directory is not version-controlled.
 
-#### Quality gate
+Quality gate:
 
 - `scripts/quality_check.py`
 
-#### Approved source targets
+Approved source targets:
 
 - `python/analysis_reference.py`
 - `python/repo_utils.py`
 - `scripts/compare_root_outputs.py`
 - `scripts/quality_check.py`
 
-#### Approved test targets
+Approved lightweight tests:
 
 - `tests/test_analysis_reference.py`
 - `tests/test_compare_root_outputs.py`
 - `tests/test_repo_utils.py`
+- `tests/test_run_anaFit.py`
 
-#### Documentation and provenance
+Separate scientific integration tests:
 
-- `doc/TIER1_SYSTEM.md`
-- `doc/TIER1_ENVIRONMENT_PROVENANCE.md`
-- `doc/TIER2_SYSTEM.md`
-- `doc/ACTIVITY_LOG.md`
+- `tests/test_analysis_workflows_integration.py`
 
-### 4) Supported environment
-
-Activate the repository-local environment from the repository root:
+## Recreate the environment
 
 ```bash
-source .venv/bin/activate
+CLEAN_ROOT="$(mktemp -d /tmp/frequentist-tier2-clean.XXXXXX)"
+python3.12 -m venv "$CLEAN_ROOT/venv"
+"$CLEAN_ROOT/venv/bin/python" -m pip install --upgrade pip
+"$CLEAN_ROOT/venv/bin/python" -m pip install \
+  -r requirements-dev-lock.txt
+"$CLEAN_ROOT/venv/bin/python" \
+  scripts/quality_check.py --mode full
 ```
 
-Verify the active toolchain:
+The clean-lock checkpoint reproduced Python 3.12.13, pytest 9.1.1, Ruff 0.16.0, and Black 26.5.1. Pip itself is not pinned.
 
-```bash
-command -v python
-python --version
-python -m pytest --version
-python -m ruff --version
-python -m black --version
-```
+## Gate operation
 
-Expected baseline:
-
-```text
-Python 3.12.13
-pytest 9.1.1
-ruff 0.16.0
-black 26.5.1
-```
-
-The supported project interpreter must satisfy the Python requirement declared in `pyproject.toml`.
-
-### 5) Dependency records and clean reproduction
-
-`requirements-dev.txt` records the direct development dependencies. `requirements-dev-lock.txt` records the exact reproducible dependency set.
-
-Create a clean Python 3.12 environment outside the repository:
-
-```bash
-CLEAN_VENV="$(mktemp -d)/tier2-clean-venv"
-python3.12 -m venv "$CLEAN_VENV"
-source "$CLEAN_VENV/bin/activate"
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev-lock.txt
-```
-
-Verify the recreated environment:
-
-```bash
-python --version
-python -m pytest --version
-python -m ruff --version
-python -m black --version
-python scripts/quality_check.py --mode full
-```
-
-Acceptance requires the full quality gate to exit with code 0.
-
-### 6) Quality-gate operation
-
-#### Fast mode
+Fast gate:
 
 ```bash
 python scripts/quality_check.py --mode fast
 ```
 
-Fast mode performs the Tier-1 baseline path checks, optional workflow hints, pytest availability check, and targeted regression tests.
-
-#### Full mode
+Full gate:
 
 ```bash
 python scripts/quality_check.py --mode full
 ```
 
-Full mode performs all fast-mode checks and then runs Ruff and Black against the explicit approved targets.
+The ordinary gate excludes tests marked `requires_analysis_dependencies` and does not include the integration test file.
 
-Current verified result:
-
-```text
-18 tests passed
-Ruff passed
-Black passed
-Full quality-gate exit code: 0
-```
-
-#### Run the targeted tests directly
+Prepared dependency gate:
 
 ```bash
-python -m pytest \
-  tests/test_analysis_reference.py \
-  tests/test_compare_root_outputs.py \
-  tests/test_repo_utils.py \
-  -q
+python -m pytest tests/test_repo_utils.py \
+  -m "requires_analysis_dependencies" -v
 ```
 
-#### Check only the analysis-reference implementation and tests
+Scientific gate:
 
 ```bash
-python -m ruff check \
-  python/analysis_reference.py \
-  tests/test_analysis_reference.py
-
-python -m black --check \
-  python/analysis_reference.py \
-  tests/test_analysis_reference.py
-
-python -m pytest tests/test_analysis_reference.py -q
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
 ```
 
-The analysis-reference test file currently contains eight tests, including five regression tests for strict workflow/schema validation and robust optional `BHresults.json` handling.
+## Pytest markers
 
-### 7) Target policy
+- `integration`: executes authoritative workflows
+- `requires_root`: needs the configured ROOT/RooFit runtime
+- `requires_analysis_dependencies`: needs prepared external checkouts
 
-Ruff and Black must receive an explicit list of approved Python files. Do not run the Tier-2 acceptance checks using:
+## Explicit target policy
+
+Do not use repository-wide acceptance commands:
 
 ```bash
 python -m ruff check .
 python -m black --check .
 ```
 
-Repository-wide commands can inspect unrelated legacy Python files, Markdown, binary ROOT files, generated outputs, and other content outside the established Tier-2 scope.
+Ruff and Black must receive explicit approved Python files. Policy tests protect this separation.
 
-When new Tier-2 Python files are intentionally added, update the explicit target list in the quality gate and its tests as part of the same reviewed change.
+## Current lightweight coverage
 
-### 8) Tier-1 validation carried by Tier 2
+The suite covers:
 
-Tier 2 preserves and verifies the Tier-1 analysis-reference contract:
+- strict workflow and payload schemas;
+- schema-version-1 and schema-version-2 manifests;
+- scientific provenance validation;
+- fit and p-value tolerances;
+- launcher configuration and failure propagation;
+- BumpHunter safeguards;
+- plot-independent acceptance;
+- selected TH1 comparison behavior;
+- generated-output ownership;
+- CI policy;
+- optional pre-commit policy;
+- launcher permissions;
+- installation-contract checks.
 
-- Only the `J100` and `J50` top-level workflows are accepted.
-- Missing or unexpected top-level workflows are rejected.
-- Each workflow payload must contain exactly `fit_parameters`, `p_chi2`, `p_bh`, and `cls_limit_points`.
-- Missing or unexpected workflow payload keys are rejected.
-- Optional `BHresults.json` files may be absent.
-- Malformed, unreadable, or non-object BH JSON produces a clear `ValueError`.
-- `cls_limit_points` remains an empty list until CLs integration is implemented.
+## Strict expected failures
 
-### 9) Modular `tier_checks/` framework
+Two strict `xfail` tests document:
 
-The modular checker framework is separate from the established Tier-2 quality-gate baseline.
+1. Missing Git index gitlinks for declared external dependencies.
+2. Destructive `rm -rf` operations in `install.sh`.
 
-Previously demonstrated capabilities include:
+An unexpected pass is treated as a failure so the policy must be reviewed deliberately after repair.
 
-- discovery of 12 checks;
-- six Tier-1 checks and six Tier-2 checks;
-- fast-mode operation with in-depth-only checks skipped;
-- successful Tier-1 checks;
-- successful environment, dependency, tool-version, and established quality-gate checks.
+## CI policy
 
-The framework must not be marked complete until all of the following are verified:
+`.github/workflows/tier1-root-comparison.yml` now:
 
-- Ruff and Black wrappers use only explicit Python targets.
-- Neither wrapper receives `.` or a complete directory containing non-Python files.
-- All checker Python files compile.
-- All 12 checks remain discoverable.
-- The Tier-2 in-depth suite passes.
-- The complete Tier-1 and Tier-2 in-depth suite reports 12 passed, 0 failed, 0 warnings, and 0 skipped.
-- `tests/test_tier_checks.py` is present and its framework-specific tests pass.
-- Temporary reports, copied archives, and generated outputs remain outside the commit.
+- checks out the repository;
+- selects Python 3.12.13;
+- installs `requirements-dev-lock.txt`;
+- runs `python scripts/quality_check.py --mode full`;
+- covers `harry` and `tier-2-m365`;
+- excludes CERN-only scientific execution.
 
-Until those criteria are met, `scripts/quality_check.py --mode full` remains the authoritative Tier-2 acceptance gate.
+The policy is tested locally. Hosted execution remains pending commit and push.
 
-### 10) Troubleshooting
+## Optional pre-commit
 
-#### The active Python is too old
+`.pre-commit-config.yaml` is an optional convenience only.
 
-Symptom:
+- The runner is not installed or pinned.
+- Contributors are not required to install hooks.
+- The authoritative command is `python scripts/quality_check.py --mode full`.
+- The Ruff hook version differs from the pinned Tier-2 Ruff version.
+- Hook behavior is not yet aligned with the read-only acceptance gate.
 
-```text
-Python 3.9.x
-```
+## Modular tier_checks framework
 
-Action:
+The separate `tier_checks/` framework is not part of Tier-2 acceptance. It remains incomplete until its explicit Ruff and Black targets, 12-check in-depth result, and `tests/test_tier_checks.py` are verified.
+
+## Troubleshooting
+
+Activate the development environment before running Tier-2 checks:
 
 ```bash
 source .venv/bin/activate
 python --version
 ```
 
-The project requires Python 3.11 or newer, and the verified environment uses Python 3.12.13.
-
-#### `python` is not found
-
-Activate the repository-local environment:
-
-```bash
-source .venv/bin/activate
-```
-
-If activation is unavailable, use the environment executable explicitly:
-
-```bash
-.venv/bin/python --version
-```
-
-#### CRLF or `^M` whitespace failures
-
-Files copied from Windows may contain CRLF line endings. Convert only the affected text files:
-
-```bash
-sed -i 's/\r$//' path/to/file.py
-```
-
-Then verify:
-
-```bash
-git diff --check
-```
-
-#### Fast mode passes but full mode fails
-
-Check that Ruff and Black are installed in the same active interpreter:
+If full mode fails, verify:
 
 ```bash
 python -m ruff --version
 python -m black --version
 ```
 
-If necessary, recreate the environment from `requirements-dev-lock.txt`.
+The scientific setup may switch Python to 3.9.12. Reactivate `.venv` before returning to Tier-2 work.
 
-#### Repository-wide Ruff or Black failures
-
-Confirm that the command uses the explicit approved file list rather than `.`. Findings outside the approved target set do not automatically indicate failure of the established Tier-2 gate.
-
-### 11) Branch and change-control procedure
-
-Before substantial work:
+## Change control
 
 ```bash
 git status -sb
-git branch -vv
-```
-
-Before staging:
-
-```bash
 git diff --check
 git status --short
 git diff --stat
 ```
 
-Stage explicit files only. Avoid broad commands such as `git add .` and `git commit -a` when unrelated generated outputs or experimental files exist in the working tree.
+Stage explicit paths only. Append every substantial change to `doc/ACTIVITY_LOG.md`.
 
-Every substantial Tier-2 repository or workflow change must be appended to `doc/ACTIVITY_LOG.md` as a new dated, titled section describing:
+## Completion definition
 
-- the objective;
-- the files and behaviour changed;
-- verification performed;
-- remaining work and scope boundaries.
-
-### 12) Completion definition
-
-The established Tier-2 system is healthy when:
-
-- a supported Python 3.11-or-newer environment is active;
-- the verified pinned tool versions are available;
-- `requirements-dev-lock.txt` recreates a working clean environment;
-- the targeted tests pass;
-- Ruff passes against the approved targets;
-- Black passes against the approved targets;
-- `python scripts/quality_check.py --mode full` exits with code 0;
-- environment provenance and the activity log are current;
-- unrelated generated files remain outside the change set.
-
-The latest verified project-environment result is 18 tests passed, Ruff passed, Black passed, and full quality-gate exit code 0.
+Tier 2 is healthy when the locked environment reproduces, selected tests pass, expected installation-policy failures remain expected, Ruff and Black pass, the full gate exits 0, CI policy remains aligned, and documentation is current.

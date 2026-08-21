@@ -3,6 +3,9 @@
 from __future__ import print_function
 import os,sys,re,argparse,subprocess,shutil
 import json
+import hashlib
+import platform
+from pathlib import Path
 from ExtractPostfitFromWS import PostfitExtractor
 from ExtractFitParameters import FitParameterExtractor
 from PreFit import PreFitter
@@ -14,6 +17,325 @@ def execute(cmd):
     sys.stdout.flush() # keeps print and subprocess output in sync
     rtv = subprocess.call(cmd, shell=True)
     return rtv
+
+
+def execute_required(cmd, description, expected_outputs=()):
+    rtv = execute(cmd)
+
+    if rtv != 0:
+        print(
+            "ERROR: {} failed with exit code {}.".format(
+                description,
+                rtv,
+            )
+        )
+        return False
+
+    missing_outputs = [
+        output_path
+        for output_path in expected_outputs
+        if not os.path.isfile(output_path)
+    ]
+    if missing_outputs:
+        print(
+            "ERROR: {} returned success but did not create required output files:".format(
+                description
+            )
+        )
+        for output_path in missing_outputs:
+            print("  - {}".format(output_path))
+        return False
+
+    return True
+
+
+def load_bumphunter_results(results_file):
+    try:
+        with open(results_file) as file:
+            results = json.load(file)
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(
+            "Could not read valid BumpHunter results from {}: {}".format(
+                results_file,
+                error,
+            )
+        ) from error
+
+    if not isinstance(results, dict):
+        raise ValueError(
+            "BumpHunter results in {} must be a JSON object".format(results_file)
+        )
+
+    required_keys = ("BlindRange", "MaskMin", "MaskMax")
+    missing_keys = [key for key in required_keys if key not in results]
+    if missing_keys:
+        raise ValueError(
+            "BumpHunter results in {} are missing required keys: {}".format(
+                results_file,
+                ", ".join(missing_keys),
+            )
+        )
+
+    try:
+        mask_min = int(results["MaskMin"])
+        mask_max = int(results["MaskMax"])
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "BumpHunter MaskMin and MaskMax must be integer-compatible values"
+        ) from error
+
+    if mask_min >= mask_max:
+        raise ValueError(
+            "BumpHunter MaskMin must be smaller than MaskMax"
+        )
+
+    blind_range = results["BlindRange"]
+    if not isinstance(blind_range, str) or not blind_range.strip():
+        raise ValueError(
+            "BumpHunter BlindRange must be a non-empty string"
+        )
+
+    return {
+        "BlindRange": blind_range,
+        "MaskMin": mask_min,
+        "MaskMax": mask_max,
+    }
+
+
+def run_bumphunter(postfitfile, folder):
+    bhresults_file = "{}/BHresults.json".format(folder)
+
+    if os.path.exists(bhresults_file):
+        os.remove(bhresults_file)
+
+    bumphunter_command = (
+        "pyBumpHunter/pyBH_env/bin/python3 "
+        "python/FindBHWindow.py "
+        "--inputfile %s "
+        "--bkghist %s "
+        "--datahist %s "
+        "--outputjson %s"
+    ) % (
+        postfitfile,
+        "Run3TLA_rebinned/postfit",
+        "Run3TLA_rebinned/data",
+        bhresults_file,
+    )
+
+    if not execute_required(
+        bumphunter_command,
+        "BumpHunter masking-window calculation",
+        expected_outputs=[bhresults_file],
+    ):
+        raise RuntimeError("BumpHunter masking-window calculation failed")
+
+    return load_bumphunter_results(bhresults_file)
+
+
+def get_repository_root():
+    repository_root = Path(__file__).resolve().parents[1]
+
+    if not (repository_root / ".git").exists():
+        raise RuntimeError(
+            "Could not locate the FrequentistFramework repository root "
+            "from {}".format(__file__)
+        )
+
+    return repository_root
+
+
+def resolve_analysis_path(path, repository_root=None):
+    candidate = Path(path)
+
+    if candidate.is_absolute():
+        resolved = candidate.resolve()
+    else:
+        if repository_root is None:
+            repository_root = get_repository_root()
+
+        resolved = (Path(repository_root) / candidate).resolve()
+
+    if not resolved.is_file():
+        raise FileNotFoundError(
+            "Required analysis file does not exist: {}".format(resolved)
+        )
+
+    return resolved
+
+
+def calculate_file_sha256(path):
+    digest = hashlib.sha256()
+
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+
+    return digest.hexdigest()
+
+
+def build_file_provenance(path, repository_root=None):
+    if repository_root is None:
+        repository_root = get_repository_root()
+
+    repository_root = Path(repository_root).resolve()
+    resolved_path = resolve_analysis_path(
+        path,
+        repository_root=repository_root,
+    )
+
+    try:
+        display_path = str(resolved_path.relative_to(repository_root))
+    except ValueError:
+        display_path = str(resolved_path)
+
+    return {
+        "path": display_path,
+        "sha256": calculate_file_sha256(resolved_path),
+    }
+
+
+def get_git_revision(repository_path):
+    completed = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository_path),
+            "rev-parse",
+            "HEAD",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "Could not determine Git revision for {}: {}".format(
+                repository_path,
+                completed.stderr.strip(),
+            )
+        )
+
+    revision = completed.stdout.strip()
+
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError(
+            "Invalid Git revision for {}: {!r}".format(
+                repository_path,
+                revision,
+            )
+        )
+
+    return revision
+
+
+def collect_scientific_runtime():
+    root_version = ROOT.gROOT.GetVersion()
+
+    if not isinstance(root_version, str) or not root_version:
+        raise RuntimeError("Could not determine the active ROOT version")
+
+    return {
+        "python_version": platform.python_version(),
+        "python_executable": sys.executable,
+        "root_version": root_version,
+    }
+
+
+def build_analysis_provenance(
+    datafile,
+    datahist,
+    topfile,
+    categoryfile,
+    backgroundfile,
+    signalfile,
+    rangelow,
+    rangehigh,
+    dosignal,
+    dolimit,
+    doprefit,
+    maskthreshold,
+):
+    repository_root = get_repository_root()
+
+    tool_repositories = {
+        "xmlAnaWSBuilder": repository_root / "xmlAnaWSBuilder",
+        "quickFit": repository_root / "quickFit",
+        "workspaceCombiner": repository_root / "workspaceCombiner",
+        "pyBumpHunter": repository_root / "pyBumpHunter",
+    }
+
+    configurations = {
+        "topfile": build_file_provenance(
+            topfile,
+            repository_root=repository_root,
+        ),
+        "categoryfile": build_file_provenance(
+            categoryfile,
+            repository_root=repository_root,
+        ),
+    }
+
+    if backgroundfile is not None:
+        configurations["backgroundfile"] = build_file_provenance(
+            backgroundfile,
+            repository_root=repository_root,
+        )
+
+    if signalfile is not None:
+        configurations["signalfile"] = build_file_provenance(
+            signalfile,
+            repository_root=repository_root,
+        )
+
+    return {
+        "repository_commit": get_git_revision(repository_root),
+        "runtime": collect_scientific_runtime(),
+        "tool_revisions": {
+            name: get_git_revision(repository_path)
+            for name, repository_path in tool_repositories.items()
+        },
+        "input": build_file_provenance(
+            datafile,
+            repository_root=repository_root,
+        ),
+        "configurations": configurations,
+        "invocation": {
+            "datahist": datahist,
+            "range_low": int(rangelow),
+            "range_high": int(rangehigh),
+            "signal_enabled": bool(dosignal),
+            "limit_enabled": bool(dolimit),
+            "prefit_enabled": bool(doprefit),
+            "mask_threshold": float(maskthreshold),
+        },
+    }
+
+
+def write_analysis_results(
+    folder,
+    p_chi2,
+    masked,
+    provenance,
+):
+    results_path = os.path.join(folder, "analysis_results.json")
+    temporary_path = results_path + ".tmp"
+
+    payload = {
+        "schema_version": 2,
+        "status": "success",
+        "masked": bool(masked),
+        "p_chi2": float(p_chi2),
+        "provenance": provenance,
+    }
+
+    with open(temporary_path, "w") as file:
+        json.dump(payload, file, indent=2, sort_keys=True)
+        file.write("\n")
+
+    os.replace(temporary_path, results_path)
+    return results_path
+
 
 def replaceinfile(f, old_new_list):
     with open(f, 'r') as file :
@@ -31,9 +353,16 @@ def replaceinfile(f, old_new_list):
         file.write(filedata)
 
 def build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, fitresultfile, poi=None, maskrange=None):
-    rtv=execute('xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
-    if rtv != 0:
-        print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
+    xmlreader_command = (
+        'xmlAnaWSBuilder/build/bin/XMLReader -x %s '
+        '-o "logy integral" --minimizerStrategy 0'
+    ) % topfile
+    if not execute_required(
+        xmlreader_command,
+        "XMLReader workspace generation",
+        expected_outputs=[wsfile],
+    ):
+        raise RuntimeError("XMLReader workspace generation failed")
     if poi:
         print("Now running s+b quickFit")
         _poi="-p %s" % poi
@@ -58,9 +387,19 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, 
     edmplot=fitresultfile.replace("FitResult","edm").replace(".root", ".pdf")
 
     #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
-    rtv=execute("quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s" % (wsfile, _poi, _range, fitresultfile, logfile))
-    if rtv != 0:
-        print("WARNING: Non-zero return code from quickFit. Check if tolerable")
+    quickfit_command = "quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s" % (
+        wsfile,
+        _poi,
+        _range,
+        fitresultfile,
+        logfile,
+    )
+    if not execute_required(
+        quickfit_command,
+        "quickFit background or signal fit",
+        expected_outputs=[fitresultfile, logfile],
+    ):
+        raise RuntimeError("quickFit failed")
 
     execute("python plot_edm.py %s %s" % (logfile, edmplot))
 
@@ -338,6 +677,9 @@ def run_anaFit(datafile,
 
     print ("Global fit p(chi2)=%.3f" % pval_global)
 
+    final_p_chi2 = pval_global
+    fit_was_masked = False
+
     if pval_global > maskthreshold : #or True:
         print("p(chi2) threshold passed. Exiting with succesful fit.")
     else:
@@ -350,7 +692,7 @@ def run_anaFit(datafile,
 
         # need to unset pythonpath in order to not use cvmfs numpy
         #execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "J100yStar06_rebinned/postfit", "J100yStar06_rebinned/data", "{}/BHresults.json".format(folder)))
-        execute("source pyBumpHunter/pyBH_env/bin/activate; python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "Run3TLA_rebinned/postfit", "Run3TLA_rebinned/data", "{}/BHresults.json".format(folder)))
+        BHresults = run_bumphunter(postfitfile, folder)
 
 
         #blind_min = 135
@@ -366,10 +708,6 @@ def run_anaFit(datafile,
         #]
         #
         #subprocess.run(cmd, check=True)
-
-        # pass results of pyBH via this json file
-        with open("{}/BHresults.json".format(folder)) as f:
-            BHresults=json.load(f)
 
         tmptopfilemasked=tmptopfile.replace(".xml","_masked.xml")
         wsfilemasked=wsfile.replace(".root","_masked.root")
@@ -403,6 +741,8 @@ def run_anaFit(datafile,
         if pval_masked > maskthreshold:
             print("p(chi2) threshold passed. Continuing with successful (window-excluded) fit.")
             wsfile=wsfilemasked
+            final_p_chi2 = pval_masked
+            fit_was_masked = True
         else:
             print("p(chi2) threshold still not passed.")
             print("Exiting with failed fit status.")
@@ -418,6 +758,28 @@ def run_anaFit(datafile,
         if rtv != 0:
             print("WARNING: Non-zero return code from quickLimit. Check if tolerable")
     
+    provenance = build_analysis_provenance(
+        datafile=datafile,
+        datahist=datahist,
+        topfile=topfile,
+        categoryfile=categoryfile,
+        backgroundfile=backgroundfile,
+        signalfile=signalfile,
+        rangelow=rangelow,
+        rangehigh=rangehigh,
+        dosignal=dosignal,
+        dolimit=dolimit,
+        doprefit=doprefit,
+        maskthreshold=maskthreshold,
+    )
+
+    write_analysis_results(
+        folder=folder,
+        p_chi2=final_p_chi2,
+        masked=fit_was_masked,
+        provenance=provenance,
+    )
+
     return 0
 
 def main(args):
@@ -470,7 +832,7 @@ def main(args):
     #        covariancedict = json.load(f)[str(args.sigmean)]
 
     print(args.nbkg,args.nsig,args.dosignal,args.dolimit,args.sigmean,args.sigwidth,args.signame,args.maskthreshold,args.doprefit)
-    run_anaFit(datafile=args.datafile,
+    return run_anaFit(datafile=args.datafile,
                datahist=args.datahist,
                topfile=args.topfile,
                categoryfile=args.categoryfile,

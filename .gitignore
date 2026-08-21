@@ -39,3 +39,11 @@ pyBumpHunter
 # Version-controlled Python development dependencies
 !requirements-dev.txt
 !requirements-dev-lock.txt
+# Canonical Tier-1 analysis-result manifests
+!run/fits/
+!run/fits/J100/
+!run/fits/J100/run_481_3000_sixPar/
+!run/fits/J100/run_481_3000_sixPar/analysis_results.json
+!run/fits/J50/
+!run/fits/J50/run_344_2079_sixPar/
+!run/fits/J50/run_344_2079_sixPar/analysis_results.json

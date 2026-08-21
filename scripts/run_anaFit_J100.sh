@@ -1,13 +1,15 @@
 #!/bin/bash
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-out_dir="$repo_dir/run/fits"
+out_dir="${ANAFIT_OUTPUT_DIR:-$repo_dir/run/fits}"
+setup_script="${ANAFIT_SETUP_SCRIPT:-$repo_dir/scripts/setup_buildAndFit.sh}"
+analysis_runner="${ANAFIT_RUNNER:-$repo_dir/python/run_anaFit.py}"
 
 mkdir -p "$out_dir"
 cd "$repo_dir"
 
 {
-    . "$repo_dir/scripts/setup_buildAndFit.sh"
+    . "$setup_script"
 
     # Set FIT_PARS to a space-separated list such as "six" or "six seven".
     pars_list="${FIT_PARS:-six}"
@@ -132,7 +134,7 @@ cd "$repo_dir"
             if (( $dolimit )); then flags="$flags --dolimit"; fi
             if (( $doprefit )); then flags="$flags --doprefit"; fi
 
-            "$repo_dir/python/run_anaFit.py" \
+            "$analysis_runner" \
                 --datafile "$datafile" \
                 --datahist "$datahist" \
                 --backgroundfile $backgroundfile \
@@ -150,6 +152,12 @@ cd "$repo_dir"
             --folder $folder \
             $flags
 
+            analysis_status=$?
+            if (( analysis_status != 0 )); then
+                echo "ERROR: run_anaFit.py failed with exit code $analysis_status" >&2
+                exit "$analysis_status"
+            fi
+
             #--sysfile $sysfile \
                     # using systematics!!!! comment sysfile if not the case
 
@@ -157,9 +165,13 @@ cd "$repo_dir"
 
             toys=100
 
-            python "$repo_dir/python/plotPostFit.py" -i  ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root -o ${folder}/postFit.pdf
+            if [[ "${ANAFIT_SKIP_PLOTS:-0}" != "1" ]]; then
+                python "$repo_dir/python/plotPostFit.py" \
+                    -i "${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root" \
+                    -o "${folder}/postFit.pdf"
 
-        root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\")"
+                root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\")"
+            fi
 
             # upscaling
             #scalefactor=$( bc <<< 'scale=2; 30/1.015' )

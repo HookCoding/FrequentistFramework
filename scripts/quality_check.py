@@ -89,7 +89,17 @@ def _parse_args() -> argparse.Namespace:
 
 def _run_fast_checks(repo_root: Path, test_targets: list[str]) -> None:
     _ensure_python_tools_available(["pytest"])
-    run_command([sys.executable, "-m", "pytest", *test_targets], repo_root)
+    run_command(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "not requires_analysis_dependencies",
+            *test_targets,
+        ],
+        repo_root,
+    )
 
 
 def _run_full_checks(repo_root: Path, python_targets: list[str], test_targets: list[str]) -> None:
@@ -118,6 +128,7 @@ def main() -> None:
         "tests/test_analysis_reference.py",
         "tests/test_compare_root_outputs.py",
         "tests/test_repo_utils.py",
+        "tests/test_run_anaFit.py",
     ]
 
     if args.mode == "fast":

@@ -81,11 +81,124 @@ def _choose_background_only_log(fit_dir: Path) -> Path:
     )
 
 
+def _validate_sha256(value: Any, description: str) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise ValueError(f"{description} must be a lowercase SHA-256 digest")
+
+    return value
+
+
+def _validate_git_revision(value: Any, description: str) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
+        raise ValueError(f"{description} must be a full Git revision")
+
+    return value
+
+
+def _validate_file_provenance(
+    payload: Any,
+    description: str,
+) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        raise ValueError(f"{description} must be a JSON object")
+
+    required_keys = {"path", "sha256"}
+    payload_keys = set(payload)
+
+    if payload_keys != required_keys:
+        raise ValueError(
+            f"{description} has invalid keys "
+            f"(missing={sorted(required_keys - payload_keys)}, "
+            f"unexpected={sorted(payload_keys - required_keys)})"
+        )
+
+    file_path = payload["path"]
+    if not isinstance(file_path, str) or not file_path:
+        raise ValueError(f"{description} path must be a non-empty string")
+
+    return {
+        "path": file_path,
+        "sha256": _validate_sha256(
+            payload["sha256"],
+            f"{description} sha256",
+        ),
+    }
+
+
+def _extract_analysis_results(fit_dir: Path) -> Optional[float]:
+    results_path = fit_dir / "analysis_results.json"
+    if not results_path.exists():
+        return None
+
+    try:
+        results = json.loads(results_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        raise ValueError(f"Could not read valid analysis results from {results_path}") from error
+
+    if not isinstance(results, dict):
+        raise ValueError(f"Analysis results payload in {results_path} must be a JSON object")
+
+    schema_version = results.get("schema_version")
+
+    if schema_version == 1:
+        required_keys = {
+            "schema_version",
+            "status",
+            "masked",
+            "p_chi2",
+        }
+    elif schema_version == 2:
+        required_keys = {
+            "schema_version",
+            "status",
+            "masked",
+            "p_chi2",
+            "provenance",
+        }
+    else:
+        raise ValueError(
+            f"Unsupported analysis-results schema version in {results_path}: " f"{schema_version}"
+        )
+
+    result_keys = set(results)
+    missing_keys = required_keys - result_keys
+    unexpected_keys = result_keys - required_keys
+
+    if missing_keys or unexpected_keys:
+        raise ValueError(
+            f"Analysis results in {results_path} have invalid keys "
+            f"(missing={sorted(missing_keys)}, "
+            f"unexpected={sorted(unexpected_keys)})"
+        )
+
+    if schema_version == 2:
+        _validate_analysis_provenance(results["provenance"])
+
+    if results["status"] != "success":
+        raise ValueError(f"Analysis results in {results_path} do not record a successful run")
+
+    if not isinstance(results["masked"], bool):
+        raise ValueError(f"Analysis results masked field in {results_path} must be boolean")
+
+    p_chi2 = results["p_chi2"]
+    if not isinstance(p_chi2, (int, float)) or isinstance(p_chi2, bool):
+        raise ValueError(f"Analysis results p_chi2 in {results_path} must be numeric")
+
+    p_chi2 = float(p_chi2)
+    if not 0.0 <= p_chi2 <= 1.0:
+        raise ValueError(f"Analysis results p_chi2 in {results_path} must be between 0 and 1")
+
+    return p_chi2
+
+
 def _build_workflow_payload(fit_dir: Path) -> dict[str, Any]:
     log_path = _choose_background_only_log(fit_dir)
-    fit_params, p_chi2 = _extract_log_observables(log_path)
+    fit_params, legacy_p_chi2 = _extract_log_observables(log_path)
     if not fit_params:
         raise ValueError(f"No fit parameters parsed from {log_path}")
+
+    manifest_p_chi2 = _extract_analysis_results(fit_dir)
+    p_chi2 = manifest_p_chi2 if manifest_p_chi2 is not None else legacy_p_chi2
 
     return {
         "fit_parameters": fit_params,
@@ -167,6 +280,94 @@ def _validate_analysis_reference(payload: dict[str, Any]) -> dict[str, Any]:
     return validated
 
 
+FIT_PARAMETER_RTOL = 1e-6
+FIT_PARAMETER_ATOL = 1e-8
+PVALUE_RTOL = 1e-5
+PVALUE_ATOL = 1e-8
+
+
+def _assert_numeric_close(
+    actual: float,
+    expected: float,
+    *,
+    relative_tolerance: float,
+    absolute_tolerance: float,
+    description: str,
+) -> None:
+    difference = abs(actual - expected)
+    allowed = absolute_tolerance + relative_tolerance * abs(expected)
+
+    if difference > allowed:
+        raise AssertionError(
+            f"{description} differs outside tolerance: "
+            f"actual={actual}, expected={expected}, "
+            f"difference={difference}, allowed={allowed}, "
+            f"rtol={relative_tolerance}, atol={absolute_tolerance}"
+        )
+
+
+def assert_analysis_reference_close(
+    actual: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    actual = _validate_analysis_reference(actual)
+    expected = _validate_analysis_reference(expected)
+
+    if set(actual) != set(expected):
+        raise AssertionError(
+            f"Workflow names differ: actual={sorted(actual)}, " f"expected={sorted(expected)}"
+        )
+
+    for workflow_name in expected:
+        actual_workflow = actual[workflow_name]
+        expected_workflow = expected[workflow_name]
+
+        actual_parameters = actual_workflow["fit_parameters"]
+        expected_parameters = expected_workflow["fit_parameters"]
+
+        if set(actual_parameters) != set(expected_parameters):
+            raise AssertionError(
+                f"{workflow_name} fit-parameter names differ: "
+                f"actual={sorted(actual_parameters)}, "
+                f"expected={sorted(expected_parameters)}"
+            )
+
+        for parameter_name, expected_value in expected_parameters.items():
+            _assert_numeric_close(
+                actual_parameters[parameter_name],
+                expected_value,
+                relative_tolerance=FIT_PARAMETER_RTOL,
+                absolute_tolerance=FIT_PARAMETER_ATOL,
+                description=f"{workflow_name} fit parameter {parameter_name}",
+            )
+
+        for pvalue_name in ("p_chi2", "p_bh"):
+            actual_pvalue = actual_workflow[pvalue_name]
+            expected_pvalue = expected_workflow[pvalue_name]
+
+            if actual_pvalue is None or expected_pvalue is None:
+                if actual_pvalue is not expected_pvalue:
+                    raise AssertionError(
+                        f"{workflow_name} {pvalue_name} presence differs: "
+                        f"actual={actual_pvalue}, expected={expected_pvalue}"
+                    )
+            else:
+                _assert_numeric_close(
+                    actual_pvalue,
+                    expected_pvalue,
+                    relative_tolerance=PVALUE_RTOL,
+                    absolute_tolerance=PVALUE_ATOL,
+                    description=f"{workflow_name} {pvalue_name}",
+                )
+
+        if actual_workflow["cls_limit_points"] != expected_workflow["cls_limit_points"]:
+            raise AssertionError(
+                f"{workflow_name} cls_limit_points differ: "
+                f"actual={actual_workflow['cls_limit_points']}, "
+                f"expected={expected_workflow['cls_limit_points']}"
+            )
+
+
 def build_analysis_reference(repo_root: Optional[Path] = None) -> dict[str, Any]:
     """Create a deterministic J100/J50 background-only reference payload."""
     if repo_root is None:
@@ -202,3 +403,206 @@ def write_analysis_reference(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(
         json.dumps(validated_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+
+
+def _validate_runtime_provenance(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        raise ValueError("Analysis provenance runtime must be a JSON object")
+
+    required_keys = {
+        "python_version",
+        "python_executable",
+        "root_version",
+    }
+    payload_keys = set(payload)
+
+    if payload_keys != required_keys:
+        raise ValueError(
+            "Analysis provenance runtime has invalid keys "
+            f"(missing={sorted(required_keys - payload_keys)}, "
+            f"unexpected={sorted(payload_keys - required_keys)})"
+        )
+
+    for key in required_keys:
+        value = payload[key]
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"Analysis provenance runtime {key} " "must be a non-empty string")
+
+    return {key: payload[key] for key in sorted(required_keys)}
+
+
+def _validate_tool_revisions(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        raise ValueError("Analysis provenance tool_revisions must be a JSON object")
+
+    required_tools = {
+        "xmlAnaWSBuilder",
+        "quickFit",
+        "workspaceCombiner",
+        "pyBumpHunter",
+    }
+    payload_keys = set(payload)
+
+    if payload_keys != required_tools:
+        raise ValueError(
+            "Analysis provenance tool_revisions has invalid keys "
+            f"(missing={sorted(required_tools - payload_keys)}, "
+            f"unexpected={sorted(payload_keys - required_tools)})"
+        )
+
+    return {
+        tool: _validate_git_revision(
+            payload[tool],
+            f"Analysis provenance {tool} revision",
+        )
+        for tool in sorted(required_tools)
+    }
+
+
+def _validate_configuration_provenance(
+    payload: Any,
+) -> dict[str, dict[str, str]]:
+    if not isinstance(payload, dict):
+        raise ValueError("Analysis provenance configurations must be a JSON object")
+
+    required_configurations = {
+        "topfile",
+        "categoryfile",
+        "backgroundfile",
+        "signalfile",
+    }
+    payload_keys = set(payload)
+
+    if payload_keys != required_configurations:
+        raise ValueError(
+            "Analysis provenance configurations has invalid keys "
+            f"(missing={sorted(required_configurations - payload_keys)}, "
+            f"unexpected={sorted(payload_keys - required_configurations)})"
+        )
+
+    return {
+        name: _validate_file_provenance(
+            payload[name],
+            f"Analysis provenance configuration {name}",
+        )
+        for name in sorted(required_configurations)
+    }
+
+
+def _validate_invocation_provenance(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("Analysis provenance invocation must be a JSON object")
+
+    required_keys = {
+        "datahist",
+        "range_low",
+        "range_high",
+        "signal_enabled",
+        "limit_enabled",
+        "prefit_enabled",
+        "mask_threshold",
+    }
+    payload_keys = set(payload)
+
+    if payload_keys != required_keys:
+        raise ValueError(
+            "Analysis provenance invocation has invalid keys "
+            f"(missing={sorted(required_keys - payload_keys)}, "
+            f"unexpected={sorted(payload_keys - required_keys)})"
+        )
+
+    datahist = payload["datahist"]
+    if not isinstance(datahist, str) or not datahist:
+        raise ValueError("Analysis provenance invocation datahist " "must be a non-empty string")
+
+    range_low = payload["range_low"]
+    range_high = payload["range_high"]
+
+    valid_range = (
+        isinstance(range_low, int)
+        and not isinstance(range_low, bool)
+        and isinstance(range_high, int)
+        and not isinstance(range_high, bool)
+        and range_low < range_high
+    )
+
+    if not valid_range:
+        raise ValueError(
+            "Analysis provenance invocation requires integer bounds "
+            "with range_low smaller than range_high"
+        )
+
+    for flag in (
+        "signal_enabled",
+        "limit_enabled",
+        "prefit_enabled",
+    ):
+        if not isinstance(payload[flag], bool):
+            raise ValueError(f"Analysis provenance invocation {flag} must be boolean")
+
+    mask_threshold = payload["mask_threshold"]
+    valid_threshold = (
+        isinstance(mask_threshold, (int, float))
+        and not isinstance(mask_threshold, bool)
+        and 0.0 <= float(mask_threshold) <= 1.0
+    )
+
+    if not valid_threshold:
+        raise ValueError(
+            "Analysis provenance invocation mask_threshold " "must be numeric and between 0 and 1"
+        )
+
+    return {
+        "datahist": datahist,
+        "range_low": range_low,
+        "range_high": range_high,
+        "signal_enabled": payload["signal_enabled"],
+        "limit_enabled": payload["limit_enabled"],
+        "prefit_enabled": payload["prefit_enabled"],
+        "mask_threshold": float(mask_threshold),
+    }
+
+
+def _validate_analysis_provenance(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("Analysis provenance must be a JSON object")
+
+    required_keys = {
+        "repository_commit",
+        "runtime",
+        "tool_revisions",
+        "input",
+        "configurations",
+        "invocation",
+    }
+    payload_keys = set(payload)
+
+    if payload_keys != required_keys:
+        raise ValueError(
+            "Analysis provenance has invalid keys "
+            f"(missing={sorted(required_keys - payload_keys)}, "
+            f"unexpected={sorted(payload_keys - required_keys)})"
+        )
+
+    return {
+        "repository_commit": _validate_git_revision(
+            payload["repository_commit"],
+            "Analysis provenance repository_commit",
+        ),
+        "runtime": _validate_runtime_provenance(
+            payload["runtime"],
+        ),
+        "tool_revisions": _validate_tool_revisions(
+            payload["tool_revisions"],
+        ),
+        "input": _validate_file_provenance(
+            payload["input"],
+            "Analysis provenance input",
+        ),
+        "configurations": _validate_configuration_provenance(
+            payload["configurations"],
+        ),
+        "invocation": _validate_invocation_provenance(
+            payload["invocation"],
+        ),
+    }

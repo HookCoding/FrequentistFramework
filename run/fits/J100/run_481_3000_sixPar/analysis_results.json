@@ -1,0 +1,51 @@
+{
+  "masked": false,
+  "p_chi2": 0.018448750724012808,
+  "provenance": {
+    "configurations": {
+      "backgroundfile": {
+        "path": "config/dijetisrTLA/background_dijetisrTLA_sixPar.template",
+        "sha256": "7d3d322bbf79734b0c65f9d407ec7316cd84ee9cd471e97c1d73b773807dda10"
+      },
+      "categoryfile": {
+        "path": "config/dijetisrTLA/category_dijetisrTLA.template",
+        "sha256": "69b23311719bbe8f5e6e49f951fc479235e6b2cd889d8ba201e059b2674862d0"
+      },
+      "signalfile": {
+        "path": "config/dijetisrTLA/signal/signal_dijetisrTLA.template",
+        "sha256": "d7ae0ebc4aa3a234cae5c99d21dc5092278d10b22463c67f3048447ee41be314"
+      },
+      "topfile": {
+        "path": "config/dijetisrTLA/dijetisrTLA.template",
+        "sha256": "4d6d73b0445ad0e9777fabb6c734ec49fed9317801ffc19aa86692a3cb911807"
+      }
+    },
+    "input": {
+      "path": "Input/data/dijetTLA/mjj_spectra_J100_dataAll.root",
+      "sha256": "f6336bc2d0a966559072241be2d547ecd6b4b5bcae11e3c33751e25ce2a5d0e6"
+    },
+    "invocation": {
+      "datahist": "hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj",
+      "limit_enabled": false,
+      "mask_threshold": 0.01,
+      "prefit_enabled": true,
+      "range_high": 3000,
+      "range_low": 481,
+      "signal_enabled": false
+    },
+    "repository_commit": "d50e925a1dad14ebb9254f50c90afe88a0415964",
+    "runtime": {
+      "python_executable": "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-centos9-gcc11-opt/bin/python",
+      "python_version": "3.9.12",
+      "root_version": "6.26/08"
+    },
+    "tool_revisions": {
+      "pyBumpHunter": "91f49a622bd77622edb02a1a2788fc12835e5b72",
+      "quickFit": "0408030b6c8d74a2e2c27a864a02756132d08f5a",
+      "workspaceCombiner": "7d484ad3f89c4075d2c567aa4503fc56e1bb9468",
+      "xmlAnaWSBuilder": "6b84050f3c0206a6f30eb40b103cc101e68505cc"
+    }
+  },
+  "schema_version": 2,
+  "status": "success"
+}
