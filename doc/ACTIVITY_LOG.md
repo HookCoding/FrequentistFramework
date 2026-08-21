@@ -1829,3 +1829,77 @@ The updated workflow must be committed and pushed so the corrected hosted GitHub
 #### Scope boundary
 
 This change affects only lightweight repository-policy testing and hosted CI dependencies. It does not change the background-only scientific analysis, the authoritative J100/J50 workflows, numerical references, scientific provenance, or the accepted no-signal scope.
+
+### 2026-08-21: External dependency Git gitlinks repaired
+
+#### Objective
+
+Repair the missing Git index gitlinks for the four declared scientific dependencies so that the parent repository records their verified pinned revisions.
+
+#### Substantial changes completed
+
+- Aligned the dependency URLs in `.gitmodules` with the repositories used by `install.sh` and the verified prepared checkouts:
+  - `xmlAnaWSBuilder`: `https://github.com/tofitsch/xmlAnaWSBuilder.git`
+  - `quickFit`: `https://github.com/tofitsch/quickFit.git`
+  - `workspaceCombiner`: `https://github.com/tofitsch/workspaceCombiner.git`
+  - `pyBumpHunter`: `https://github.com/scikit-hep/pyBumpHunter.git`
+- Added mode-`160000` Git index gitlinks for:
+  - `xmlAnaWSBuilder` at `6b84050f3c0206a6f30eb40b103cc101e68505cc`
+  - `quickFit` at `0408030b6c8d74a2e2c27a864a02756132d08f5a`
+  - `workspaceCombiner` at `7d484ad3f89c4075d2c567aa4503fc56e1bb9468`
+  - `pyBumpHunter` at `91f49a622bd77622edb02a1a2788fc12835e5b72`
+- Added `ignore = untracked` for `workspaceCombiner` so local build products do not make the parent repository appear dirty.
+- Removed the obsolete strict `xfail` marker from the gitlink policy test.
+- Preserved the gitlink test as a normal required passing test.
+- Updated the current Tier-1, Tier-2, and environment-provenance documentation.
+- Preserved historical activity-log statements describing the previously missing gitlinks.
+- Made no changes to dependency source files, scientific results, frozen references, or the authoritative J100/J50 workflow contracts.
+
+#### Verification performed
+
+Gitlink policy test:
+
+- `test_declared_submodules_have_gitlink_entries`: **passed**
+
+Complete repository utility suite:
+
+- tests passed: **12**
+- strict expected failures: **1**
+- unexpected failures: **0**
+
+Prepared-dependency gate:
+
+- tests passed: **2**
+- tests deselected: **11**
+- failures: **0**
+- exit code: **0**
+
+Complete lightweight quality gate:
+
+- tests collected: **105**
+- tests passed: **102**
+- prepared-dependency tests deselected: **2**
+- strict expected installation-policy failures: **1**
+- unexpected failures: **0**
+- Ruff: **passed**
+- Black: **passed**
+- exit code: **0**
+
+Repository validation:
+
+- all four dependency entries use Git index mode `160000`;
+- all four entries record the verified pinned revisions;
+- all prepared checkouts contain no tracked source modifications;
+- `git diff --check` passed.
+
+#### Current status
+
+The missing Git submodule gitlinks limitation is resolved.
+
+The remaining strict expected installation-policy failure documents the destructive `rm -rf` operations in `install.sh`.
+
+Clean-clone scientific dependency acquisition has not yet been verified end to end. The existing prepared LXPlus scientific environment remains verified and unchanged.
+
+#### Scope boundary
+
+This change repairs dependency metadata and repository policy only. It does not modify the background-only scientific analysis, the authoritative J100/J50 workflows, numerical references, schema-version-2 provenance, or the accepted no-signal scope.

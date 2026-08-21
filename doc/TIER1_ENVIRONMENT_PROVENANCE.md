@@ -19,9 +19,9 @@ Dependency records:
 Latest full lightweight gate:
 
 - 105 collected;
-- 101 passed;
+- 102 passed;
 - 2 dependency tests deselected;
-- 2 strict expected failures;
+- 1 strict expected failure;
 - Ruff and Black passed;
 - exit code 0.
 
@@ -116,10 +116,7 @@ Latest scientific result: 1 passed, 2 deselected, 116.02 seconds, exit code 0.
 
 ## Known limitations
 
-- Missing Git submodule gitlinks
 - Destructive `install.sh`
-- Clean-clone scientific acquisition incomplete
-- Hosted CI pending push
-- CLs intentionally deferred
+- Clean-clone scientific acquisition not yet verified end to end
 - Numerical tolerances provisional
 - Bootstrap pip unpinned

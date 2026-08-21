@@ -14,9 +14,9 @@ Verified development baseline:
 Latest full lightweight gate:
 
 - 105 collected;
-- 101 passed;
+- 102 passed;
 - 2 prepared-dependency tests deselected;
-- 2 strict expected installation-policy failures;
+- 1 strict expected installation-policy failure;
 - Ruff passed;
 - Black passed;
 - exit code 0.
@@ -148,10 +148,11 @@ The suite covers:
 
 ## Strict expected failures
 
-Two strict `xfail` tests document:
+The declared external dependencies now have matching Git index gitlinks at their verified pinned revisions.
 
-1. Missing Git index gitlinks for declared external dependencies.
-2. Destructive `rm -rf` operations in `install.sh`.
+One strict `xfail` test remains:
+
+1. Destructive `rm -rf` operations in `install.sh`.
 
 An unexpected pass is treated as a failure so the policy must be reviewed deliberately after repair.
 

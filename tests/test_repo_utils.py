@@ -251,13 +251,6 @@ def test_gitmodules_declares_expected_analysis_dependencies() -> None:
         assert f"path = {dependency}" in gitmodules
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "The repository declares submodules but currently has no Git index "
-        "gitlinks for the external dependencies."
-    ),
-)
 def test_declared_submodules_have_gitlink_entries() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 

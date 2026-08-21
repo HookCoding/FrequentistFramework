@@ -170,9 +170,9 @@ python scripts/quality_check.py --mode full
 Latest verified result:
 
 - 105 collected;
-- 101 passed;
+- 102 passed;
 - 2 prepared-dependency tests deselected;
-- 2 strict expected installation-policy failures;
+- 1 strict expected installation-policy failure;
 - Ruff and Black passed;
 - exit code 0.
 
@@ -223,12 +223,13 @@ Scientific environment after `scripts/setup_buildAndFit.sh`:
 
 ## Known installation limitations
 
-Two strict expected-failure tests document:
+The Git submodule declarations now have matching `160000` Git index gitlinks at the verified pinned dependency revisions.
 
-1. `.gitmodules` declarations have no matching `160000` Git index gitlinks.
-2. `install.sh` contains destructive `rm -rf` operations.
+One strict expected-failure test documents the remaining installation-policy problem:
 
-The prepared LXPlus runtime is verified, but clean-clone scientific dependency acquisition is not complete.
+1. `install.sh` contains destructive `rm -rf` operations.
+
+The prepared LXPlus runtime is verified. Clean-clone scientific dependency acquisition still requires end-to-end verification, and the installer remains unsafe until its destructive behavior is repaired.
 
 ## Operating commands
 
