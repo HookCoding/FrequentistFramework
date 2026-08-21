@@ -184,11 +184,33 @@ The hosted lightweight quality gate has been exercised successfully on GitHub Ac
 - Contributors are not required to install hooks.
 - The authoritative command is `python scripts/quality_check.py --mode full`.
 - The Ruff hook version differs from the pinned Tier-2 Ruff version.
-- Hook behavior is not yet aligned with the read-only acceptance gate.
+- Hook behavior is not yet aligned with the authoritative lightweight quality gate.
 
-## Modular tier_checks framework
+## Retired modular tier-check framework
 
-The separate `tier_checks/` framework is not part of Tier-2 acceptance. It remains incomplete until its explicit Ruff and Black targets, 12-check in-depth result, and `tests/test_tier_checks.py` are verified.
+The experimental `tier_checks/` framework has been retired and removed after a complete coverage audit.
+
+The audit confirmed that it did not provide unique Tier-1 or Tier-2 acceptance coverage beyond the authoritative system. Several checks were weaker than, duplicated, or had fallen behind the accepted implementation:
+
+- its targeted pytest check omitted `tests/test_run_anaFit.py`;
+- its Ruff and Black target list also omitted `tests/test_run_anaFit.py`;
+- its Ruff and Black checks targeted the complete checker directory rather than an explicit Python-file list;
+- its workflow-input and recorded-output checks were weaker than the accepted launcher-contract, reference, runtime-readiness, and scientific integration tests;
+- its reference contract was weaker than the production schema-version-2 provenance validator;
+- its full-quality check called the authoritative `scripts/quality_check.py` gate directly;
+- its in-depth mode duplicated pytest, Ruff, and Black execution;
+- warnings and skipped checks counted as successful outcomes.
+
+The authoritative Tier-1 and Tier-2 acceptance interfaces remain:
+
+- `python scripts/quality_check.py --mode full`;
+- the prepared-dependency pytest gate;
+- the scientific runtime-readiness pytest gate;
+- the authoritative J100/J50 scientific integration gate;
+- `bash install.sh --check`;
+- `INSTALL_JOBS=2 bash install.sh --build`.
+
+Potential future enhancements identified during the audit include subprocess timeouts, optional provenance-backed JSON quality reports, requirement-level duration reporting, active Python identity reporting, and non-empty documentation-presence checks. These are enhancement ideas only and do not require maintaining a second acceptance framework.
 
 ## Troubleshooting
 

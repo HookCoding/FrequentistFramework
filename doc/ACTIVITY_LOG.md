@@ -2007,3 +2007,68 @@ Clean-clone submodule acquisition and building have not yet been verified end to
 #### Scope boundary
 
 This change affects installation and dependency build safety only. It does not change the J100 or J50 background-only scientific workflows, frozen references, numerical results, or schema-version-2 provenance.
+
+### 2026-08-21: Redundant modular tier-check framework retired
+
+#### Objective
+
+Audit the experimental `tier_checks/` framework against the completed authoritative Tier-1 and Tier-2 system, remove it if it provided no unique acceptance coverage, and preserve the existing activity-log history unchanged.
+
+#### Coverage audit completed
+
+Every framework component and all 12 modular checks were reviewed against the authoritative tests and operating gates.
+
+The audit found no unique accepted scientific, dependency, repository, installer, build, runtime, or CI protection in `tier_checks/`.
+
+The framework had fallen behind the authoritative system:
+
+- its targeted pytest check omitted `tests/test_run_anaFit.py`;
+- its Ruff and Black target list also omitted `tests/test_run_anaFit.py`;
+- its Ruff and Black checks targeted the complete `tier_checks/` directory rather than an explicit Python-file list;
+- its workflow-input check was weaker than the accepted launcher-contract tests;
+- its recorded-output check verified existing non-empty logs rather than fresh scientific execution;
+- its reference contract was weaker than the production schema-version-2 provenance validator;
+- its full-quality check directly invoked the authoritative `scripts/quality_check.py` gate;
+- its in-depth mode duplicated pytest, Ruff, and Black execution;
+- warnings and skipped checks counted as successful outcomes.
+
+#### Removal completed
+
+- Removed all 27 tracked files under `tier_checks/`.
+- Removed ignored Python bytecode caches left under the retired directory.
+- Confirmed that the `tier_checks/` directory no longer exists.
+- Updated `doc/TIER2_SYSTEM.md` to record the retirement and identify the authoritative replacement gates.
+- Corrected the optional pre-commit wording to refer to the authoritative lightweight quality gate.
+- Preserved every existing activity-log entry unchanged.
+
+#### Useful ideas retained for possible future work
+
+- per-command subprocess timeouts;
+- optional provenance-backed JSON quality reports;
+- requirement-level duration reporting;
+- concise failure-output summaries;
+- active Python executable and version reporting;
+- active tool-version verification derived from the dependency lock;
+- non-empty presence checks for authoritative documentation.
+
+These are optional enhancements to the authoritative system and do not require maintaining a second acceptance framework.
+
+#### Verification performed
+
+- Full lightweight gate: 103 passed and 2 prepared-dependency tests deselected.
+- Ruff: passed.
+- Black: passed.
+- Full lightweight gate exit code: 0.
+- Prepared-dependency gate: 2 passed and 11 deselected.
+- Prepared-dependency gate exit code: 0.
+- Repository diff validation: passed.
+
+#### Current status
+
+The repository now has one authoritative Tier-1 and Tier-2 acceptance system rather than two divergent implementations.
+
+The authoritative interfaces remain the lightweight full gate, prepared-dependency gate, runtime-readiness gate, J100/J50 scientific integration gate, installer check mode, and non-destructive dependency build mode.
+
+#### Scope boundary
+
+This change removes redundant experimental checking infrastructure only. It does not modify the authoritative J100 or J50 workflows, scientific results, frozen references, schema-version-2 provenance, dependency revisions, installer behaviour, or accepted background-only analysis scope.
