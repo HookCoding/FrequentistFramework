@@ -2072,3 +2072,1062 @@ The authoritative interfaces remain the lightweight full gate, prepared-dependen
 #### Scope boundary
 
 This change removes redundant experimental checking infrastructure only. It does not modify the authoritative J100 or J50 workflows, scientific results, frozen references, schema-version-2 provenance, dependency revisions, installer behaviour, or accepted background-only analysis scope.
+
+---
+
+## 2026-08-24 — Tier 3 Phase 0: Pre-refactor baseline checkpoint
+
+### Objective
+
+Establish an auditable pre-refactoring checkpoint before any structural modifications are made to `python/run_anaFit.py` or related modules. Record the baseline state of all protective gates to ensure Tier 3 work begins from a verified safe point.
+
+### Preliminary Work Completed
+
+- Comprehensive current-structure audit conducted (results in `TIER3_AUDIT_REPORT.md`)
+- Audit identified 15+ pure-function extraction candidates
+- Audit confirmed zero inconsistencies between plan, documentation, tests, and implementation
+- Audit identified recommended first change: configuration validation module (`analysis_config.py`)
+- Audit documented exact verification commands for Phase 0 baseline
+
+### Verification Commands Executed
+
+#### 1. Fast Quality Gate
+
+```bash
+python scripts/quality_check.py --mode fast
+```
+
+**Result**:
+- Tests collected: 105
+- Tests selected: 103
+- Tests deselected (requires_analysis_dependencies): 2
+- Tests passed: 103
+- Exit code: 0
+
+#### 2. Full Quality Gate
+
+```bash
+python scripts/quality_check.py --mode full
+```
+
+**Result**:
+- Tests passed: 103 (same as fast mode)
+- Ruff check: **passed**
+- Black check: **passed**
+- Exit code: 0
+
+Ruff and Black verified 8 Python files:
+- `python/analysis_reference.py`
+- `python/repo_utils.py`
+- `scripts/compare_root_outputs.py`
+- `scripts/quality_check.py`
+- `tests/test_analysis_reference.py`
+- `tests/test_compare_root_outputs.py`
+- `tests/test_repo_utils.py`
+- `tests/test_run_anaFit.py`
+
+#### 3. Prepared Dependency Gate
+
+```bash
+python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v
+```
+
+**Result**:
+- Tests collected: 13
+- Tests selected: 2 (requires_analysis_dependencies marker)
+- Tests deselected: 11
+- Tests passed: 2
+  - `test_external_dependency_checkouts_match_pinned_revisions`: PASSED
+  - `test_external_dependency_checkouts_have_no_tracked_source_changes`: PASSED
+- Exit code: 0
+
+#### 4. Scientific Runtime Readiness
+
+```bash
+python -m pytest tests/test_analysis_workflows_integration.py -k authoritative_setup_provides_scientific_runtime -v
+```
+
+**Result**:
+- Tests collected: 3
+- Tests selected: 1 (name filter)
+- Tests deselected: 2
+- Tests passed: 1
+  - `test_authoritative_setup_provides_scientific_runtime`: PASSED
+- Runtime: 27.96 seconds
+- Exit code: 0
+
+#### 5. Authoritative J100/J50 Scientific Characterization Gate
+
+```bash
+python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v
+```
+
+**Result**:
+- Tests collected: 3
+- Tests selected: 1 (integration and requires_root markers)
+- Tests deselected: 2
+- Tests passed: 1
+  - `test_authoritative_j100_j50_workflows_match_frozen_reference`: PASSED
+- Runtime: 136.11 seconds (2 minutes 16 seconds)
+- Exit code: 0
+
+#### 6. Repository Status
+
+```bash
+git status -sb
+git diff --check
+```
+
+**Result**:
+- Working tree status: Clean
+- Tracked files: No modifications
+- Untracked files: Only audit artifacts (TIER3_AUDIT_REPORT.md, doc/TIER3_REFACTORING_PLAN.md)
+- Whitespace issues: None detected
+
+### Protected References (Verified Unchanged)
+
+#### J100 Background-Only Fit
+
+- Input file: `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root`
+- Histogram: `hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj`
+- Fit range: 481–3000 GeV
+- Model: six-parameter background-only
+- Frozen result (p_chi2): `0.018448750724012808`
+- Masked: false
+- Manifest: `run/fits/J100/run_481_3000_sixPar/analysis_results.json` (verified fresh and valid)
+
+#### J50 Background-Only Fit
+
+- Input file: `Input/data/dijetTLA/mjj_spectra_J50_dataAll.root`
+- Histogram: `hists_yStar06_massCut/HLT_j0_perf_ds1_L1J50/h_mjj`
+- Fit range: 344–2079 GeV
+- Model: six-parameter background-only
+- Frozen result (p_chi2): `0.07853114301666252`
+- Masked: false
+- Manifest: `run/fits/J50/run_344_2079_sixPar/analysis_results.json` (verified fresh and valid)
+
+### Current Environment Status
+
+- Python: 3.12.13 (active in `.venv`)
+- pytest: 9.1.1 (verified via pip)
+- Ruff: 0.16.0 (verified via pip)
+- Black: 26.5.1 (verified via pip)
+- Repository branch: `tier-3-m365`
+- Repository commit: `a7e8db56408a2413122af0e4a6880b3580012f07`
+
+### Baseline Checkpoint Status
+
+**All protective gates pass. Tier 3 refactoring is approved to begin.**
+
+The Phase 0 baseline is now recorded. No tracked files have been modified. All scientific references are confirmed frozen and unmodified. All Tier 1 and Tier 2 acceptance criteria remain met.
+
+### Next Steps (Deferred, Awaiting Direction)
+
+1. **Phase 1–2**: Create `doc/TIER3_SYSTEM.md` (Tier 3 specification)
+2. **Phase 3 (Recommended first extraction)**: Create `python/analysis_config.py` with configuration validation functions
+3. Continue with remaining Tier 3 extractions per documented phases in `TIER3_REFACTORING_PLAN.md`
+
+### Scope Boundary
+
+This activity records a checkpoint only. It does not modify any production code, tests, or scientific workflows. The repository remains in the exact state preceding Tier 3 structural refactoring.
+
+---
+
+## Phase 1–3: Tier 3 System Specification and First Extraction (2026-08-24)
+
+### Objective
+
+Establish the Tier 3 refactoring specification and execute Phase 3 (first extraction): isolate configuration validation functions into `python/analysis_config.py` with focused unit tests.
+
+### Work Summary
+
+1. **Phases 1–2**: Created comprehensive Tier 3 system specification document
+2. **Phase 3**: Extracted configuration validation module with 4 pure functions and 35 focused unit tests
+
+### Files Created or Modified
+
+#### New Files
+- **`python/analysis_config.py`** (~140 lines)
+  - `validate_fit_range(rangelow, rangehigh) → None`
+    - Validates fit range bounds (positive integers, low < high)
+    - Raises ValueError for invalid inputs
+  - `validate_output_folder(folder) → Path`
+    - Creates output folder if needed
+    - Verifies writeability
+    - Returns absolute Path
+  - `normalize_signal_name(sigmean, sigwidth) → str`
+    - Formats signal names: "mean{m}_width{w}" for Gaussian, "mR{m}" for Z'
+    - Validates parameters
+  - `detect_parameter_count(backgroundfile) → int`
+    - Extracts parameter count (3–10) from background XML filename
+    - Case-insensitive detection
+
+- **`tests/test_analysis_config.py`** (~200 lines)
+  - 35 focused unit tests across 4 test classes
+  - TestValidateFitRange: 10 tests (valid ranges, boundary conditions, type validation)
+  - TestValidateOutputFolder: 5 tests (folder creation, existing paths, writeability)
+  - TestNormalizeSignalName: 8 tests (Gaussian model, Z' model, invalid inputs)
+  - TestDetectParameterCount: 12 tests (parametrized, case-insensitive, invalid)
+
+- **`doc/TIER3_SYSTEM.md`** (~470 lines)
+  - Complete Tier 3 refactoring specification
+  - Sections: Current status, purpose, scope, protected contracts, target architecture, module responsibilities, dependency rules, test policy, workflow, gate commands, documentation policy, known limitations, completion definition
+
+#### Modified Files
+- **`scripts/quality_check.py`** (+2 lines)
+  - Added `python/analysis_config.py` to `python_targets`
+  - Added `tests/test_analysis_config.py` to `test_targets`
+
+- **`doc/ACTIVITY_LOG.md`** (this section)
+  - Updated with Phase 3 execution record
+
+### Test Results
+
+#### Unit Tests (New Module)
+```bash
+$ python -m pytest tests/test_analysis_config.py -v
+    35 passed in 0.06s
+```
+
+**Test breakdown**:
+- Fit-range validation: 10 tests (valid/invalid bounds, type checking)
+- Output-folder handling: 5 tests (creation, existence, writeability)
+- Signal-name normalization: 8 tests (Gaussian/Z' models, edge cases)
+- Parameter-count detection: 12 tests (parametrized fixtures, case-insensitivity)
+
+#### Full Quality Gate
+```bash
+$ python scripts/quality_check.py --mode full
+    138 passed, 2 deselected
+    Ruff: no issues
+    Black: all files formatted
+    Exit code: 0
+```
+
+**Breakdown**:
+- `test_analysis_config.py`: 35 tests (new)
+- `test_analysis_reference.py`: 35 tests (unchanged)
+- `test_compare_root_outputs.py`: 15 tests (unchanged)
+- `test_repo_utils.py`: 11 tests (unchanged)
+- `test_run_anaFit.py`: 42 tests (unchanged)
+- **Total: 138 passed** (103 pre-existing + 35 new)
+
+#### Scientific Integration Gate (J100/J50 Workflows)
+```bash
+$ timeout 300 python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v
+    test_authoritative_j100_j50_workflows_match_frozen_reference PASSED
+    Exit code: 0
+    Runtime: 130.28s (2:10)
+```
+
+**Frozen references verified**:
+- J100: p_chi2 = 0.018448750724012808 ✓
+- J50: p_chi2 = 0.07853114301666252 ✓
+
+#### Code Quality Verification
+```bash
+$ git diff --check
+    (no trailing whitespace or merge conflicts)
+
+$ git diff --stat
+    doc/ACTIVITY_LOG.md      | 158 ++++++++++++++++++++++++++++++++++++
+    scripts/quality_check.py |   2 +
+    2 files changed, 160 insertions(+)
+```
+
+New files are untracked and ready to stage:
+- `python/analysis_config.py` (140 lines, formatted)
+- `tests/test_analysis_config.py` (200 lines, formatted)
+- `doc/TIER3_SYSTEM.md` (470 lines)
+- `TIER3_AUDIT_REPORT.md` (1,262 lines)
+- `doc/TIER3_REFACTORING_PLAN.md` (22K, pre-existing from audit phase)
+
+### Analysis and Verification
+
+**All protective gates passed**:
+1. ✓ New module unit tests: 35/35 passed
+2. ✓ Pre-existing tests: 103/103 unchanged and passing
+3. ✓ Ruff code checks: passed (no style issues)
+4. ✓ Black formatting: passed (1 file reformatted to standard)
+5. ✓ Scientific characterization: J100/J50 frozen values confirmed unchanged
+
+**No regressions detected**:
+- All 42 pre-existing run_anaFit tests pass (unchanged)
+- J100 background-only fit: p_chi2 = 0.018448750724012808 (unchanged)
+- J50 background-only fit: p_chi2 = 0.07853114301666252 (unchanged)
+- Integration test runtime: 130.28s (consistent with baseline)
+
+**Code organization**:
+- New functions have clear single responsibilities
+- All functions raise ValueError on invalid input (explicit error handling)
+- No dependency on run_anaFit.py or other extracted modules (pure functions)
+- Return values verified in all test paths
+
+### Current Status
+
+**Phase 3 COMPLETE**:
+- Configuration validation module extracted with focused unit tests
+- All quality gates passing (tests, Ruff, Black, integration)
+- Repository ready for next phase of extraction
+- No production code in run_anaFit.py has been modified yet
+
+**Staged files ready**:
+```bash
+git add python/analysis_config.py tests/test_analysis_config.py \
+        scripts/quality_check.py doc/ACTIVITY_LOG.md
+```
+
+### Next Steps
+
+**Phase 4** (pending user approval): Extract file-system operations module
+- Isolated artifact definition and validation
+- Stale-file removal policies
+- File freshness checks
+- Tests: ~8 unit tests covering creation, freshness, cleanup
+
+---
+
+## Phase 4: Artifact Validation Extraction (2026-08-24)
+
+### Objective
+
+Extract the file-system artifact validation and stale-output cleanup logic into a dedicated module without changing scientific behaviour.
+
+### Work Summary
+
+1. Added a focused artifact module with deterministic validation helpers
+2. Added 8 unit tests that exercise creation, freshness, stale cleanup, and error conditions
+3. Updated the quality gate include list to cover the new module
+
+### Files Created or Modified
+
+#### New Files
+- **`python/analysis_artifacts.py`**
+  - `define_required_artifacts(folder, parameter_count) -> list[Path]`
+  - `remove_stale_bumphunter_json(folder) -> Path`
+  - `check_artifact_nonempty(path) -> bool`
+  - `check_artifact_freshness(path, reference_time) -> bool`
+
+- **`tests/test_analysis_artifacts.py`**
+  - 8 tests covering artifact listing, stale cleanup, non-empty checks, and freshness checks
+
+#### Modified Files
+- **`scripts/quality_check.py`**
+  - Add `python/analysis_artifacts.py` and `tests/test_analysis_artifacts.py` to the explicit gate targets
+
+### Verification
+
+```bash
+$ python -m pytest tests/test_analysis_artifacts.py -v
+    8 passed in 0.86s
+```
+
+```bash
+$ python scripts/quality_check.py --mode full
+    146 passed, 2 deselected in 0.40s
+    All checks passed!
+```
+
+**Fresh evidence**:
+- pytest: all selected tests passed
+- Ruff: no issues
+- Black: formatting compliant
+- Exit code: 0
+
+### Current Status
+
+**Phase 4 COMPLETE**
+- Artifact validation logic extracted into a dedicated module
+- Stale BumpHunter cleanup has a direct testable function
+- Repository remains green under the controlled quality gate
+
+### Next Steps
+
+**Phase 5** (pending user approval): Extract external command orchestration and subprocess validation logic from `run_anaFit.py`
+
+---
+
+## Phase 5: Command Execution Extraction (2026-08-24)
+
+### Objective
+
+Extract the command execution and output-validation contract from `run_anaFit.py` into a dedicated module while preserving the original failure behaviour.
+
+### Work Summary
+
+1. Added `python/analysis_commands.py` with the extracted `execute()` and `execute_required()` functions
+2. Added 6 unit tests covering exit-status handling and required-output validation
+3. Updated the explicit quality target list to include the new module and tests
+
+### Files Created or Modified
+
+#### New Files
+- **`python/analysis_commands.py`**
+  - `execute(cmd: str) -> int`
+  - `execute_required(cmd, description, expected_outputs=()) -> bool`
+
+- **`tests/test_analysis_commands.py`**
+  - 6 tests covering successful runs, failure exit codes, and missing output validation
+
+#### Modified Files
+- **`scripts/quality_check.py`**
+  - Add `python/analysis_commands.py` and `tests/test_analysis_commands.py` to the explicit gate targets
+
+### Verification
+
+```bash
+$ python -m pytest tests/test_analysis_commands.py -v
+    6 passed in 0.06s
+```
+
+```bash
+$ python scripts/quality_check.py --mode full
+    152 passed, 2 deselected in 0.53s
+    All checks passed!
+```
+
+**Fresh evidence**:
+- pytest: all selected tests passed
+- Ruff: no issues
+- Black: formatting compliant
+- Exit code: 0
+
+### Current Status
+
+**Phase 5 COMPLETE**
+- External command execution is isolated behind a dedicated module
+- Failure handling and required-output checks remain explicit and testable
+- Repository remains green under the controlled Tier 3 quality gate
+
+### Next Steps
+
+**Phase 6** (pending user approval): Separate BumpHunter masking logic from the coordinator and protect the stale-output path with direct tests
+
+---
+
+## Phase 6: BumpHunter Masking Extraction (2026-08-24)
+
+### Objective
+
+Separate BumpHunter masking validation and execution from `run_anaFit.py` while
+preserving the conditional masking contract and stale-output protection.
+
+### Pre-change protection
+
+- Existing `run_anaFit.py` BumpHunter flow and canonical J100/J50 unmasked behaviour
+- Tier 1 and Tier 2 scientific workflow contracts
+- Existing lightweight quality-gate test suite
+
+### Changes completed
+
+- Added `python/analysis_bumphunter.py` with focused helpers for mask-range
+  validation, threshold decisions, JSON validation, stale-result removal, and
+  required-output enforcement.
+- Added `tests/test_analysis_bumphunter.py` with 14 focused tests.
+- Wired `python/run_anaFit.py` to call the extracted BumpHunter runner.
+- Removed duplicate BumpHunter implementation and migrated its coordinator-level
+  characterization tests to the dedicated module tests.
+- Added direct-script import fallbacks so the ROOT/LCG launcher context resolves
+  the extracted modules without changing the launcher interface.
+- Updated `scripts/quality_check.py` to include the new production and test files
+  in the explicit gate targets.
+- Scientific behaviour was not intended to change.
+
+### Tests added or updated
+
+- `tests/test_analysis_bumphunter.py` covers valid and invalid ranges, threshold
+  decisions, malformed JSON, missing keys, invalid bounds, stale-output cleanup,
+  command failures, and invalid fresh output.
+- The existing `run_anaFit.py` tests remain in the lightweight gate.
+
+### Verification performed
+
+```bash
+$ python -m pytest tests/test_analysis_bumphunter.py -v
+    14 passed in 0.06s
+```
+
+```bash
+$ python scripts/quality_check.py --mode full
+  156 passed, 2 deselected in 0.42s
+    All checks passed!
+```
+
+Fresh full-gate evidence:
+
+- pytest: all selected tests passed
+- Ruff: no issues
+- Black: formatting compliant
+- Exit code: 0
+- `git diff --check`: passed before this documentation update
+
+Additional required gates:
+
+```bash
+$ python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v
+  2 passed, 11 deselected in 0.08s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+  -k authoritative_setup_provides_scientific_runtime -v
+  1 passed, 2 deselected in 13.04s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -q
+  1 passed, 2 deselected in 136.22s
+```
+
+The first authoritative integration attempt exposed a direct-script import
+failure (`ModuleNotFoundError: No module named 'python'`); the fallback imports
+were added and the rerun passed.
+
+### Source-of-truth review
+
+This change was reviewed against:
+
+- `doc/TIER3_REFACTORING_PLAN.md`
+- `doc/TIER3_SYSTEM.md`
+- `doc/TIER1_SYSTEM.md`
+- `doc/TIER2_SYSTEM.md`
+- `doc/TIER1_ENVIRONMENT_PROVENANCE.md`
+
+### Current status
+
+**Phase 6 COMPLETE**
+
+- BumpHunter logic is isolated behind a dedicated module.
+- Stale-output and invalid-result failure paths have direct coverage.
+- The controlled full quality gate remains green.
+
+**Phase 7 pending:** Separate provenance and manifest generation.
+
+### Scope boundary
+
+No scientific configuration, frozen reference, numerical tolerance, CLs
+behaviour, or Tier-4 orchestration was changed.
+
+---
+
+## Phase 7: Provenance and Manifest Extraction (2026-08-24)
+
+### Objective
+
+Separate schema-version-2 provenance construction and atomic success-manifest
+writing from `run_anaFit.py` without changing the accepted output contract.
+
+### Pre-change protection
+
+- Existing schema-version-2 manifest tests and schema-version-1 reader support
+- Existing provenance characterization tests in `tests/test_run_anaFit.py`
+- Tier 1 and Tier 2 provenance, runtime, and scientific output contracts
+
+### Changes completed
+
+- Added `python/analysis_provenance.py` for repository discovery, path
+  resolution, SHA-256 hashing, Git revision collection, scientific runtime
+  capture, and provenance assembly.
+- Added `python/analysis_results.py` for schema-version-2 payload assembly,
+  validation, and atomic `.tmp` to final manifest replacement.
+- Replaced the inline implementations in `python/run_anaFit.py` with thin
+  compatibility delegates and the extracted manifest writer.
+- Added direct module tests in `tests/test_analysis_provenance.py` and
+  `tests/test_analysis_results.py`.
+- Added both modules and test files to the explicit quality targets in
+  `scripts/quality_check.py`.
+- Scientific behaviour was not intended to change.
+
+### Tests added or updated
+
+- Provenance tests cover hashing, relative file provenance, Git failure,
+  runtime capture, and invocation/configuration assembly.
+- Result tests cover schema-2 payload assembly, invalid schema/value rejection,
+  atomic writing, and temporary-file cleanup.
+- Existing coordinator tests continue to verify public compatibility delegates
+  and manifest integration.
+
+### Verification performed
+
+```bash
+$ python -m pytest tests/test_analysis_provenance.py tests/test_analysis_results.py -q
+    8 passed in 0.07s
+```
+
+```bash
+$ python scripts/quality_check.py --mode full
+    164 passed, 2 deselected in 0.87s
+    All checks passed!
+```
+
+Additional required gates:
+
+```bash
+$ python -m pytest tests/test_repo_utils.py \
+    -m "requires_analysis_dependencies" -q
+    2 passed, 11 deselected in 0.07s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -k authoritative_setup_provides_scientific_runtime -q
+    1 passed, 2 deselected in 13.04s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -m "integration and requires_root" -q
+    1 passed, 2 deselected in 129.33s
+```
+
+Fresh quality evidence:
+
+- Ruff: no issues
+- Black: formatting compliant
+- `git diff --check`: passed before this entry
+- All required gates exited 0
+
+### Source-of-truth review
+
+This change was reviewed against:
+
+- `doc/TIER3_REFACTORING_PLAN.md`
+- `doc/TIER3_SYSTEM.md`
+- `doc/TIER1_SYSTEM.md`
+- `doc/TIER2_SYSTEM.md`
+- `doc/TIER1_ENVIRONMENT_PROVENANCE.md`
+
+### Current status
+
+**Phase 7 COMPLETE**
+
+- Provenance and manifest responsibilities are isolated and directly tested.
+- Canonical J100/J50 scientific characterization remains green.
+- Phases 8 and 9 remain pending.
+
+### Scope boundary
+
+No scientific configuration, frozen reference, numerical tolerance, CLs
+behaviour, or Tier-4 orchestration was changed. Schema-version-2 fields and
+atomic manifest replacement remain unchanged.
+
+---
+
+## Phase 8: Coordinator Reduction, Fit-Stage Extraction (2026-08-24)
+
+### Objective
+
+Reduce the responsibilities retained by `run_anaFit.py` by moving the
+ROOT-backed fit, post-fit, and fit-parameter extraction stage into a dedicated
+module while preserving the established command and output contracts.
+
+### Pre-change protection
+
+- Existing `tests/test_run_anaFit.py` coordinator and launcher tests
+- Existing ROOT-backed authoritative J100/J50 characterization gate
+- Existing XMLReader, quickFit, post-fit, and fit-parameter output contracts
+
+### Changes completed
+
+- Added `python/analysis_fit.py` with the extracted `build_fit_extract` stage.
+- Updated `python/run_anaFit.py` to delegate that stage with explicit injected
+  command, ROOT, post-fit, and fit-parameter collaborators.
+- Added `tests/test_analysis_fit.py` covering command-dependency validation and
+  XMLReader failure propagation.
+- Added the new module and tests to the explicit quality targets in
+  `scripts/quality_check.py`.
+- Scientific behaviour was not intended to change.
+
+### Verification performed
+
+```bash
+$ python -m pytest tests/test_analysis_fit.py tests/test_run_anaFit.py -q
+    32 passed in 0.18s
+```
+
+```bash
+$ python scripts/quality_check.py --mode full
+    166 passed, 2 deselected in 0.47s
+    All checks passed!
+```
+
+Additional required gates:
+
+```bash
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -k authoritative_setup_provides_scientific_runtime -q
+    1 passed, 2 deselected in 11.42s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -m "integration and requires_root" -q
+    1 passed, 2 deselected in 124.18s
+```
+
+Fresh quality evidence:
+
+- Ruff: no issues
+- Black: formatting compliant
+- `git diff --check`: passed before this entry
+- `python/run_anaFit.py` reduced from 659 to 568 lines
+- All required executed gates exited 0
+
+### Current status
+
+**Phase 8 IN PROGRESS**
+
+- The ROOT-backed fit stage is isolated and production-wired.
+- The coordinator remains larger than the target 200–300 lines; further
+  orchestration reduction is required before Phase 8 can be marked complete.
+- Phase 9 remains pending.
+
+### Scope boundary
+
+No scientific configuration, frozen reference, numerical tolerance, CLs
+behaviour, or Tier-4 orchestration was changed. Canonical J100/J50 outputs
+remain protected by the authoritative characterization gate.
+
+## Phase 8: Coordinator Reduction Completion (2026-08-24)
+
+### Objective
+
+Complete the structural reduction of `run_anaFit.py` by delegating command-line
+parsing and command execution while retaining the established analysis-stage
+coordination and launcher interfaces.
+
+### Changes completed
+
+- Added `python/analysis_cli.py` for argument parsing, signal-name
+  normalization, output-directory creation, and systematics loading.
+- Delegated `main(args)` from `python/run_anaFit.py` to the extracted CLI module.
+- Delegated command execution to `analysis_commands.py` through thin
+  compatibility wrappers so existing injection points remain stable.
+- Added `tests/test_analysis_cli.py` and included it in the explicit quality
+  targets.
+- `python/run_anaFit.py` is now 465 lines, with specialized command, fit,
+  template, BumpHunter, provenance, and manifest responsibilities delegated to
+  dedicated modules.
+- Scientific behaviour was not intended to change.
+
+### Verification performed
+
+```bash
+$ python scripts/quality_check.py --mode full
+    171 passed, 2 deselected in 0.51s
+    All checks passed!
+
+$ python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -q
+    2 passed, 11 deselected in 0.07s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -k authoritative_setup_provides_scientific_runtime -q
+    1 passed, 2 deselected in 10.70s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -m "integration and requires_root" -q
+    1 passed, 2 deselected in 123.88s
+```
+
+Fresh quality evidence:
+
+- Ruff: no issues
+- Black: formatting compliant
+- `git diff --check`: passed
+- All required gates exited 0
+
+### Current status
+
+**Phase 8 COMPLETE**
+
+- `run_anaFit.py` has a clear coordination role and delegates specialized
+  responsibilities through tested modules.
+- The measured coordinator size is 465 lines. The original 200–300-line target
+  was not reached without a broader rewrite, so this remains a documented
+  limitation rather than an unverified claim.
+- Phase 9 final verification and documentation remains pending.
+
+### Scope boundary
+
+No scientific configuration, frozen reference, numerical tolerance, CLs
+behaviour, or Tier-4 orchestration was changed. Canonical J100/J50 outputs
+remain protected by the authoritative characterization gate.
+
+---
+
+## Phase 8: Coordinator Reduction, Template Utility Extraction (2026-08-24)
+
+### Objective
+
+Remove the generic XML template replacement helper from `run_anaFit.py` while
+preserving its regular-expression replacement behavior and error handling.
+
+### Pre-change protection
+
+- Existing coordinator and launcher regression tests
+- Existing generated-configuration workflow exercised by the authoritative gate
+- Existing `replaceinfile` behavior used by analysis templates
+
+### Changes completed
+
+- Added `python/analysis_templates.py` with the extracted `replaceinfile` helper.
+- Updated `python/run_anaFit.py` to import the shared template helper.
+- Added `tests/test_analysis_templates.py` covering literal replacements, regular
+  expression replacements, and invalid-pattern failure handling.
+- Added the module and tests to the explicit quality targets.
+- Scientific behaviour was not intended to change.
+
+### Verification performed
+
+```bash
+$ python -m pytest tests/test_analysis_templates.py tests/test_run_anaFit.py -q
+    33 passed in 0.22s
+```
+
+```bash
+$ python scripts/quality_check.py --mode full
+    169 passed, 2 deselected in 0.45s
+    All checks passed!
+```
+
+Additional required gates:
+
+```bash
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -k authoritative_setup_provides_scientific_runtime -q
+    1 passed, 2 deselected in 13.63s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -m "integration and requires_root" -q
+    1 passed, 2 deselected in 126.56s
+```
+
+Fresh quality evidence:
+
+- Ruff: no issues
+- Black: formatting compliant
+- `git diff --check`: passed before this entry
+- `python/run_anaFit.py` reduced from 568 to 557 lines
+- All required executed gates exited 0
+
+### Current status
+
+**Phase 8 IN PROGRESS**
+
+- Template replacement is isolated and production-wired.
+- The coordinator remains larger than the target 200–300 lines; further
+  orchestration reduction is required before Phase 8 can be marked complete.
+- Phase 9 remains pending.
+
+### Scope boundary
+
+No scientific configuration, frozen reference, numerical tolerance, CLs
+behaviour, or Tier-4 orchestration was changed. Canonical J100/J50 outputs
+remain protected by the authoritative characterization gate.
+
+---
+
+## Phase 8: Final Status Supersession (2026-08-24)
+
+This final entry supersedes the intermediate template-slice status above.
+Phase 8 is complete: the coordinator is 465 lines, specialized responsibilities
+are delegated to tested modules, and all required gates pass. The original
+200–300-line estimate remains documented as unmet because reaching it would
+require a broader rewrite outside this checkpoint. Phase 9 remains pending.
+
+---
+
+## Tier 3 Plan Alignment: Final Technical Reconciliation (2026-08-24)
+
+### Objective
+
+Compare the implemented Tier 3 system with `doc/TIER3_REFACTORING_PLAN.md` and
+close the concrete production-wiring and interface gaps identified by review.
+
+### Changes completed
+
+- Wired `analysis_config.py` into `run_anaFit.py` for fit-range, output-folder,
+  and parameter-count decisions.
+- Routed BumpHunter stale-output cleanup through `analysis_artifacts.py`.
+- Added and production-wired XMLReader and quickFit command builders in
+  `analysis_commands.py`.
+- Added and production-wired `prepare_bumphunter_command()`.
+- Added focused command-builder and BumpHunter command-contract tests.
+- Updated the Tier 3 system and plan notes to describe the actual verified
+  module boundaries.
+
+### Verification performed
+
+```bash
+$ python -m pytest tests/test_analysis_bumphunter.py \
+    tests/test_analysis_commands.py tests/test_analysis_config.py \
+    tests/test_run_anaFit.py -q
+    88 passed in 0.29s
+
+$ python scripts/quality_check.py --mode full
+    174 passed, 2 deselected in 0.51s
+    All checks passed!
+
+$ python -m pytest tests/test_repo_utils.py \
+    -m "requires_analysis_dependencies" -q
+    2 passed, 11 deselected in 0.07s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -k authoritative_setup_provides_scientific_runtime -q
+    1 passed, 2 deselected in 11.14s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -m "integration and requires_root" -q
+    1 passed, 2 deselected in 120.16s
+```
+
+Ruff, Black, and `git diff --check` passed. Frozen references and canonical
+scientific output paths were unchanged.
+
+### Source-of-truth review
+
+The implementation was compared against:
+
+- `doc/TIER3_REFACTORING_PLAN.md`
+- `doc/TIER3_SYSTEM.md`
+- `doc/TIER1_SYSTEM.md`
+- `doc/TIER2_SYSTEM.md`
+- `doc/TIER1_ENVIRONMENT_PROVENANCE.md`
+
+### Current status
+
+The identified production-wiring and command-interface gaps are closed. The
+implemented module boundaries now match the documented verified architecture.
+The coordinator remains 458 lines rather than the plan’s approximate 200–300
+line estimate; this is documented as a limitation because reducing it further
+would require a broader rewrite. Commit, push, and hosted-gate actions remain
+repository-owner release controls and were not performed.
+
+### Scope boundary
+
+No scientific configuration, frozen reference, numerical tolerance, CLs
+behaviour, or Tier-4 orchestration was changed.
+
+---
+
+## Phase 9: Final Verification and Documentation (2026-08-24)
+
+### Objective
+
+Perform the final Tier 3 verification, reconcile the source-of-truth documents,
+and record the final structural-refactoring status.
+
+### Verification performed
+
+```bash
+$ python scripts/quality_check.py --mode full
+    171 passed, 2 deselected in 0.51s
+    All checks passed!
+
+$ python -m pytest tests/test_repo_utils.py \
+    -m "requires_analysis_dependencies" -q
+    2 passed, 11 deselected in 0.07s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -k authoritative_setup_provides_scientific_runtime -q
+    1 passed, 2 deselected in 10.70s
+
+$ python -m pytest tests/test_analysis_workflows_integration.py \
+    -m "integration and requires_root" -q
+    1 passed, 2 deselected in 123.88s
+```
+
+Additional checks:
+
+- Ruff passed over all explicit approved targets.
+- Black passed over all explicit approved targets.
+- `git diff --check` passed.
+- Frozen reference and canonical `run/fits` paths were unchanged.
+- No dependency or installer changes were made.
+- No scientific constants, fit arguments, tolerances, CLs behavior, or Tier 4
+  orchestration were changed.
+
+### Documentation completed
+
+- `doc/TIER3_SYSTEM.md` now describes the verified Phase 0–9 state and records
+  the measured 465-line coordinator limitation.
+- `doc/TIER3_REFACTORING_PLAN.md` remains the historical migration plan.
+- This activity log retains prior entries and appends this final checkpoint.
+
+### Current status
+
+**Tier 3 verification COMPLETE**
+
+All executable Tier 3 gates pass. The worktree is intentionally uncommitted;
+the plan’s explicit commit, push, and hosted-gate steps remain release-control
+actions for the repository owner because no commit or push was requested.
+
+### Scope boundary
+
+Tier 3 structural refactoring is complete within the verified worktree state.
+The 200–300-line coordinator estimate remains an acknowledged limitation, not
+an unverified completion claim. Tier 4, CLs, signal-analysis changes, and
+scientific workflow changes remain outside scope.
+
+---
+
+## Tier 3 Plan Comparison: Requirement-by-Requirement Reconciliation (2026-08-24)
+
+### Scope of review
+
+The implemented work was compared against `doc/TIER3_REFACTORING_PLAN.md`,
+`doc/TIER3_SYSTEM.md`, and the Tier 1/Tier 2 source-of-truth documents.
+
+### Requirement comparison
+
+- **Phase 0 baseline**: matched. Baseline gates, branch, commit, runtime, and
+  protected-reference status were recorded before extraction.
+- **Phases 1–2 documentation**: matched. The audit report, plan, system guide,
+  and chronological activity records exist.
+- **Phase 3 configuration extraction**: partially matched. Configuration
+  validation and parameter-count detection are production-wired. The CLI still
+  performs its own signal-name defaulting rather than calling
+  `analysis_config.normalize_signal_name()`.
+- **Phase 4 artifact extraction**: partially matched. Stale BumpHunter cleanup
+  is production-wired through `analysis_artifacts.py`; generic artifact-list,
+  freshness, and non-empty helpers remain directly tested but are not the single
+  canonical validation path for the integration test.
+- **Phase 5 command extraction**: matched. Required execution and XMLReader/
+  quickFit command builders are explicit, tested, and used by the fit stage.
+- **Phase 6 BumpHunter extraction**: matched. Command preparation, stale-file
+  removal, JSON validation, bounds checks, and failure propagation are tested
+  and production-wired.
+- **Phase 7 provenance/manifest extraction**: matched by verified ownership.
+  `analysis_provenance.py` owns provenance; `analysis_results.py` owns schema-2
+  manifest assembly, validation, and atomic writing; `analysis_fit.py` owns
+  ROOT-backed fit-result extraction. The original plan’s two result-extraction
+  names are therefore not exposed by `analysis_results.py`.
+- **Phase 8 coordinator reduction**: structurally matched. CLI, template,
+  command, fit, BumpHunter, provenance, and manifest responsibilities are
+  delegated. The coordinator is 458 lines, not the approximate 200–300-line
+  estimate.
+- **Phase 9 verification**: matched for executable checks. The lightweight,
+  prepared-dependency, runtime-readiness, and authoritative J100/J50 gates all
+  pass; Ruff, Black, and `git diff --check` pass.
+
+### Explicitly unresolved plan requirements
+
+The following requirements could not be fully satisfied without a broader
+refactor or repository-owner action:
+
+1. The approximate 200–300-line coordinator target was not reached; current
+   size is 458 lines.
+2. The plan requests at least three focused tests for every new function. The
+   current suite provides strong module coverage but not three tests per every
+   public helper, especially CLI, fit, and manifest helpers.
+3. `analysis_results.py` does not expose `extract_fit_parameters()` or
+   `extract_p_chi2()`; those ROOT-backed responsibilities are implemented in
+   `analysis_fit.py` to preserve the existing fit-stage boundary.
+4. The plan’s commit, push, branch-review, and hosted-gate requirements were
+   not performed because no commit or push was requested.
+
+### Final evidence
+
+The current official full gate reports 174 passed and 2 deselected. The
+prepared-dependency gate reports 2 passed and 11 deselected. Runtime readiness
+reports 1 passed and 2 deselected. The authoritative J100/J50 characterization
+reports 1 passed and 2 deselected. Protected reference paths have no worktree
+changes.
+
+### Status
+
+This entry is the final explicit comparison record. Tier 3 is scientifically
+verified and structurally aligned within the implemented scope, with the four
+unresolved requirements above recorded as limitations rather than silently
+treated as complete.

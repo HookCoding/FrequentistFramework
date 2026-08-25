@@ -119,12 +119,30 @@ def main() -> None:
     _print_optional_workflow_hints(repo_root)
 
     python_targets = [
+        "python/analysis_artifacts.py",
+        "python/analysis_bumphunter.py",
+        "python/analysis_cli.py",
+        "python/analysis_commands.py",
+        "python/analysis_config.py",
+        "python/analysis_fit.py",
+        "python/analysis_provenance.py",
         "python/analysis_reference.py",
+        "python/analysis_results.py",
+        "python/analysis_templates.py",
         "python/repo_utils.py",
         "scripts/compare_root_outputs.py",
         "scripts/quality_check.py",
     ]
     test_targets = [
+        "tests/test_analysis_artifacts.py",
+        "tests/test_analysis_bumphunter.py",
+        "tests/test_analysis_cli.py",
+        "tests/test_analysis_commands.py",
+        "tests/test_analysis_config.py",
+        "tests/test_analysis_fit.py",
+        "tests/test_analysis_provenance.py",
+        "tests/test_analysis_results.py",
+        "tests/test_analysis_templates.py",
         "tests/test_analysis_reference.py",
         "tests/test_compare_root_outputs.py",
         "tests/test_repo_utils.py",
