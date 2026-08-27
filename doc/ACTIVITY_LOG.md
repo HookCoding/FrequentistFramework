@@ -3131,3 +3131,294 @@ This entry is the final explicit comparison record. Tier 3 is scientifically
 verified and structurally aligned within the implemented scope, with the four
 unresolved requirements above recorded as limitations rather than silently
 treated as complete.
+
+## 2026-08-27: Independent Tier 1, Tier 2, and Tier 3 acceptance audit
+
+### Objective
+
+Independently verify the GitHub Copilot-generated Tier 3 refactor against the Tier 1, Tier 2, and Tier 3 source-of-truth documents.
+
+The audit treated the recorded completion statements as claims requiring verification. It checked the repository state, development environment, original and expanded quality gates, prepared dependencies, installer contract, scientific runtime, authoritative J100/J50 workflows, module wiring, test coverage, documentation, and release controls.
+
+### Repository state
+
+The audited branch was:
+
+```text
+tier-3-m365
+```
+
+The audited commit was:
+
+```text
+3facbd78def9b372f8ca5f20480e4d9ddd9f9052
+Add Tier 3 modular analysis architecture and tests
+```
+
+The branch remained clean throughout the audit.
+
+The Tier 3 commit is exactly one commit ahead of the accepted Tier 2 commit `5e0192c`. The documented pre-refactoring commit `a7e8db56408a2413122af0e4a6880b3580012f07` is an ancestor of the audited commit.
+
+The remote `tier-3-m365` branch exists and points to the same audited commit.
+
+### Development environment
+
+The active development environment matched the Tier 2 lock:
+
+```text
+Python 3.12.13
+pytest 9.1.1
+Ruff 0.16.0
+Black 26.5.1
+```
+
+### Expanded lightweight gate
+
+Command:
+
+```bash
+python scripts/quality_check.py --mode full
+```
+
+Result:
+
+```text
+176 collected
+174 passed
+2 prepared-dependency tests deselected
+Ruff passed
+Black passed
+```
+
+No approved lightweight test uses `skip`, `skipif`, or `xfail`.
+
+All nine Tier 3 production modules and their corresponding test files are included in the explicit quality-gate targets.
+
+`python/run_anaFit.py` is covered by tests but remains outside the Ruff and Black source targets.
+
+### Original Tier 1 and Tier 2 gate
+
+The pre-Tier-3 quality-gate target list was executed separately against the Tier 3 implementation.
+
+Result:
+
+```text
+95 collected
+93 passed
+2 prepared-dependency tests deselected
+Ruff passed
+Black passed
+```
+
+The remaining original Tier 1 and Tier 2 tests remain functional after the refactor.
+
+Ten collected BumpHunter cases were removed from `tests/test_run_anaFit.py`. Nine have direct replacements in the new BumpHunter suite. The former direct test for a successful BumpHunter command without fresh output is now protected through tested composition between `run_bumphunter()` and `execute_required()`, rather than through one combined test.
+
+### Prepared dependencies
+
+Command:
+
+```bash
+python -m pytest tests/test_repo_utils.py \
+  -m "requires_analysis_dependencies" -v
+```
+
+Result:
+
+```text
+2 passed
+11 deselected
+```
+
+The tests confirmed that the four prepared dependency checkouts match their pinned revisions and contain no tracked source changes.
+
+### Installer contract
+
+Command:
+
+```bash
+bash install.sh --check
+```
+
+Result:
+
+```text
+Installation contract check passed.
+No files were modified.
+```
+
+The parent dependency gitlinks and the three nested RooFitExtensions revisions matched the documented values.
+
+The non-destructive build mode was not rerun because Tier 3 did not modify dependencies or installer files. Its earlier verified result remains the current build evidence.
+
+### Scientific runtime readiness
+
+Command:
+
+```bash
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -k authoritative_setup_provides_scientific_runtime -v
+```
+
+Result:
+
+```text
+1 passed
+2 deselected
+25.98 seconds
+```
+
+The authoritative setup provided the required scientific runtime and prepared analysis dependencies.
+
+### Authoritative J100/J50 characterization
+
+Command:
+
+```bash
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+
+Result:
+
+```text
+1 passed
+2 deselected
+159.45 seconds
+```
+
+The test executed both authoritative launchers:
+
+```text
+scripts/run_anaFit_J100.sh
+scripts/run_anaFit_J50.sh
+```
+
+Both workflows wrote to fresh isolated output directories.
+
+The test required the established ten scientific artifacts for each workflow. Every artifact existed, was non-empty, and had a timestamp at or after the workflow start time.
+
+No unexpected masked ROOT files, masked XML files, or `BHresults.json` files were produced.
+
+Fresh schema-version-2 manifests passed the complete provenance validator. The validator checked the repository commit, scientific runtime, four dependency revisions, input path and SHA-256, four configuration paths and SHA-256 values, and invocation settings.
+
+The fresh J100 and J50 results matched the unchanged frozen reference using the unchanged tolerances:
+
+```text
+Fit parameters: rtol=1e-6, atol=1e-8
+P-values:       rtol=1e-5, atol=1e-8
+```
+
+The frozen reference, launchers, integration test, dependencies, installer files, and numerical tolerances were not changed by the Tier 3 commit.
+
+### Verified Tier 3 structure
+
+The production coordinator delegates work to the following modules:
+
+```text
+analysis_artifacts.py
+analysis_bumphunter.py
+analysis_cli.py
+analysis_commands.py
+analysis_config.py
+analysis_fit.py
+analysis_provenance.py
+analysis_results.py
+analysis_templates.py
+```
+
+No extracted module imports `run_anaFit.py`, and no circular dependency was identified.
+
+Scientific command execution is owned by `analysis_commands.py`. Read-only Git revision collection is owned by `analysis_provenance.py`.
+
+ROOT imports are limited to `analysis_fit.py`, `analysis_provenance.py`, and the coordinator.
+
+The new Tier 3 modules compiled under Python 3.12.13 without warnings. Six invalid escape-sequence warnings remain in `run_anaFit.py`, but the affected expressions predate Tier 3.
+
+The coordinator is 458 lines. This is a substantial reduction from the original 1,100-plus-line file, but it does not meet the planned estimate of approximately 200 to 300 lines.
+
+### Confirmed limitations
+
+Tier 3 preserves the canonical J100/J50 background-only workflows but does not fully satisfy every requirement in `doc/TIER3_REFACTORING_PLAN.md`.
+
+Five public helpers are directly tested but are not called by production:
+
+```text
+analysis_artifacts.define_required_artifacts()
+analysis_artifacts.check_artifact_nonempty()
+analysis_artifacts.check_artifact_freshness()
+analysis_config.normalize_signal_name()
+analysis_bumphunter.should_mask()
+```
+
+`define_required_artifacts()` does not reproduce the Tier 1 artifact contract. It returns four generic paths rather than the ten authoritative artifacts, and its `parameter_count` argument does not affect the result.
+
+The authoritative integration test independently defines and validates the correct ten-artifact contract. The unused artifact helper therefore does not weaken current J100/J50 acceptance.
+
+`normalize_signal_name()` is not equivalent to the production CLI for integer-valued float widths. The CLI preserves `7.0`, while the unused helper produces `7`.
+
+`should_mask()` uses a strict less-than comparison. The coordinator enters the masking branch when the p-value is less than or equal to the threshold. The helper therefore differs from production at exact threshold equality. Equality is not directly tested.
+
+`validate_fit_range()` correctly rejects missing, floating-point, non-positive, equal, and reversed bounds. It accepts `True` as a lower bound because Python treats Boolean values as integers. Normal command-line use is unaffected.
+
+`analysis_fit.py` has focused failure tests but no focused successful-path unit test covering post-fit extraction, fit-parameter extraction, returned paths, or masked execution. The canonical successful unmasked path is covered by the real J100/J50 integration gate.
+
+The complete successful and failed masked-refit paths are not exercised through `run_anaFit()`. Individual BumpHunter, command, fit-failure, and manifest components are tested separately.
+
+No coordinator-level test explicitly proves that `write_analysis_results()` is not called after XMLReader, quickFit, BumpHunter, masked-refit, or provenance failure.
+
+A failed analysis does not write a new success manifest. However, an earlier `analysis_results.json` can remain when an existing output directory is reused. This behaviour predates Tier 3. The authoritative scientific gate avoids stale acceptance by using fresh temporary directories and checking artifact timestamps.
+
+`assemble_manifest_payload()` converts values before validation. This permits inappropriate caller types, including conversion of the string `"false"` to Boolean `True`. The production coordinator supplies correct Boolean and numeric values, so the canonical manifests are unaffected.
+
+`execute_required()` rejects nonzero commands and missing output files. It does not independently reject empty or stale files. The authoritative integration test provides non-empty and freshness validation for J100 and J50.
+
+`test_returns_absolute_path()` creates and leaves the empty directory `relative/folder` under the repository instead of isolating the path through `tmp_path`.
+
+The three-focused-tests-per-public-helper target is not met, particularly for CLI, fit, manifest, and some provenance interfaces.
+
+### Documentation and whitespace findings
+
+The final reconciliation in this activity log correctly records that Phase 3 and Phase 4 are only partially matched. It does not record all unused helpers or the mismatch between `define_required_artifacts()` and the Tier 1 artifact contract.
+
+The recorded statement that Phase 6 is fully matched is too broad because `should_mask()` is unused and the complete masked-refit coordinator path is not tested.
+
+The complete Tier 3 commit fails:
+
+```bash
+git diff --check 5e0192c..HEAD
+```
+
+Thirteen trailing-whitespace errors were found in `TIER3_AUDIT_REPORT.md`. They are blank lines containing spaces inside fenced code examples and do not affect production behaviour.
+
+The final activity-log statements that `git diff --check` passed are therefore not correct for the complete committed Tier 3 change set. Intermediate worktree checks may have passed before later documentation was added.
+
+### Release controls
+
+The audited Tier 3 commit is pushed to:
+
+```text
+origin/tier-3-m365
+```
+
+No pull request exists for the branch.
+
+No GitHub Actions run exists for commit `3facbd78def9b372f8ca5f20480e4d9ddd9f9052`.
+
+The workflow `.github/workflows/tier1-root-comparison.yml` triggers only for `harry` and `tier-2-m365`. It does not include `tier-3-m365` and has no manual `workflow_dispatch` trigger.
+
+Branch review and hosted lightweight-gate confirmation therefore remain incomplete.
+
+### Final assessment
+
+Tier 1 is accepted for the canonical J100 and J50 background-only workflows.
+
+Tier 2 is accepted. The pinned development environment, original tests, Ruff checks, and Black checks remain functional after Tier 3.
+
+Tier 3 is scientifically functional for the canonical J100 and J50 workflows. The refactor preserves the frozen reference, provenance contract, scientific configuration, canonical failure propagation, and dependency state.
+
+Tier 3 cannot yet be accepted as fully compliant with every requirement in the refactoring plan. Production-wiring gaps, focused test gaps, artifact-helper inconsistencies, masked-path coverage, documentation corrections, commit whitespace, branch review, and hosted CI confirmation remain outstanding.
+
+Signal analysis, real masked analysis, limit setting, and CLs are not scientifically characterized by this audit and remain outside the accepted canonical scope.
+
+This entry supersedes earlier Tier 3 completion statements where they conflict with the independently verified findings above.
