@@ -3422,3 +3422,31 @@ Tier 3 cannot yet be accepted as fully compliant with every requirement in the r
 Signal analysis, real masked analysis, limit setting, and CLs are not scientifically characterized by this audit and remain outside the accepted canonical scope.
 
 This entry supersedes earlier Tier 3 completion statements where they conflict with the independently verified findings above.
+
+## 2026-08-27: Tier 3 hosted lightweight gate completed
+
+The GitHub Actions branch policy was updated to include `tier-3-m365` for push and pull-request triggers.
+
+The update was committed as:
+
+```text
+fd469826d337db43f769b734bf110c2a4adbe09f
+```
+
+The hosted workflow ran for this commit after the push to `tier-3-m365`.
+
+Result:
+
+```text
+Workflow: Tier 1 and Tier 2 quality gate
+Trigger: push
+Status: success
+Duration: 30 seconds
+Run ID: 33066619109
+```
+
+This completes the hosted lightweight-gate release control for the current Tier 3 commit.
+
+The branch remains without a pull request or recorded branch review. The structural and testing limitations recorded by the independent acceptance audit remain unchanged.
+
+This entry supersedes the earlier audit statement that no hosted GitHub Actions run existed for `tier-3-m365`.
