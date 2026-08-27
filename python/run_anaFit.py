@@ -20,6 +20,10 @@ def execute(cmd):
 
 
 def execute_required(cmd, description, expected_outputs=()):
+    for output_path in expected_outputs:
+        if os.path.lexists(output_path):
+            os.remove(output_path)
+
     rtv = execute(cmd)
 
     if rtv != 0:
@@ -226,6 +230,34 @@ def get_git_revision(repository_path):
             )
         )
 
+    status = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository_path),
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    if status.returncode != 0:
+        raise RuntimeError(
+            "Could not determine Git status for {}: {}".format(
+                repository_path,
+                status.stderr.strip(),
+            )
+        )
+
+    if status.stdout.strip():
+        raise RuntimeError(
+            "Cannot record an unqualified Git revision for a repository "
+            "with tracked modifications: {}".format(repository_path)
+        )
+
     return revision
 
 
@@ -274,19 +306,23 @@ def build_analysis_provenance(
             categoryfile,
             repository_root=repository_root,
         ),
+        "backgroundfile": (
+            None
+            if backgroundfile is None
+            else build_file_provenance(
+                backgroundfile,
+                repository_root=repository_root,
+            )
+        ),
+        "signalfile": (
+            None
+            if signalfile is None
+            else build_file_provenance(
+                signalfile,
+                repository_root=repository_root,
+            )
+        ),
     }
-
-    if backgroundfile is not None:
-        configurations["backgroundfile"] = build_file_provenance(
-            backgroundfile,
-            repository_root=repository_root,
-        )
-
-    if signalfile is not None:
-        configurations["signalfile"] = build_file_provenance(
-            signalfile,
-            repository_root=repository_root,
-        )
 
     return {
         "repository_commit": get_git_revision(repository_root),
@@ -756,7 +792,8 @@ def run_anaFit(datafile,
         #rtv=execute("timeout --foreground 1800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-8 --muScanPoints 20 --minStrat 1 --nllOffset 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
         rtv=execute("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-06 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
         if rtv != 0:
-            print("WARNING: Non-zero return code from quickLimit. Check if tolerable")
+            print("ERROR: quickLimit failed with exit code {}".format(rtv))
+            return -1
     
     provenance = build_analysis_provenance(
         datafile=datafile,

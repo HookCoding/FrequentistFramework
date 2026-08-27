@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -125,7 +126,7 @@ def _validate_file_provenance(
     }
 
 
-def _extract_analysis_results(fit_dir: Path) -> Optional[float]:
+def _extract_analysis_results(fit_dir: Path) -> Optional[dict[str, Any]]:
     results_path = fit_dir / "analysis_results.json"
     if not results_path.exists():
         return None
@@ -171,8 +172,9 @@ def _extract_analysis_results(fit_dir: Path) -> Optional[float]:
             f"unexpected={sorted(unexpected_keys)})"
         )
 
+    provenance = None
     if schema_version == 2:
-        _validate_analysis_provenance(results["provenance"])
+        provenance = _validate_analysis_provenance(results["provenance"])
 
     if results["status"] != "success":
         raise ValueError(f"Analysis results in {results_path} do not record a successful run")
@@ -188,7 +190,10 @@ def _extract_analysis_results(fit_dir: Path) -> Optional[float]:
     if not 0.0 <= p_chi2 <= 1.0:
         raise ValueError(f"Analysis results p_chi2 in {results_path} must be between 0 and 1")
 
-    return p_chi2
+    return {
+        "p_chi2": p_chi2,
+        "provenance": provenance,
+    }
 
 
 def _build_workflow_payload(fit_dir: Path) -> dict[str, Any]:
@@ -197,22 +202,30 @@ def _build_workflow_payload(fit_dir: Path) -> dict[str, Any]:
     if not fit_params:
         raise ValueError(f"No fit parameters parsed from {log_path}")
 
-    manifest_p_chi2 = _extract_analysis_results(fit_dir)
-    p_chi2 = manifest_p_chi2 if manifest_p_chi2 is not None else legacy_p_chi2
+    manifest_results = _extract_analysis_results(fit_dir)
+    p_chi2 = manifest_results["p_chi2"] if manifest_results is not None else legacy_p_chi2
 
-    return {
+    payload = {
         "fit_parameters": fit_params,
         "p_chi2": p_chi2,
         "p_bh": _extract_optional_bh_pvalue(fit_dir),
         "cls_limit_points": [],
     }
 
+    if manifest_results is not None and manifest_results["provenance"] is not None:
+        stable_provenance = dict(manifest_results["provenance"])
+        stable_provenance.pop("repository_commit")
+        payload["provenance"] = stable_provenance
+
+    return payload
+
 
 def _validate_workflow_payload(workflow_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     required_keys = {"fit_parameters", "p_chi2", "p_bh", "cls_limit_points"}
+    optional_keys = {"provenance"}
     payload_keys = set(payload)
     missing = required_keys - payload_keys
-    unexpected = payload_keys - required_keys
+    unexpected = payload_keys - required_keys - optional_keys
     if missing or unexpected:
         raise ValueError(
             f"Workflow {workflow_name} has invalid keys "
@@ -248,12 +261,17 @@ def _validate_workflow_payload(workflow_name: str, payload: dict[str, Any]) -> d
     if not isinstance(cls_limit_points, list):
         raise ValueError(f"Workflow {workflow_name} cls_limit_points must be a list")
 
-    return {
+    validated = {
         "fit_parameters": fit_parameters,
         "p_chi2": None if p_chi2 is None else float(p_chi2),
         "p_bh": None if p_bh is None else float(p_bh),
         "cls_limit_points": cls_limit_points,
     }
+
+    if "provenance" in payload:
+        validated["provenance"] = _validate_reference_provenance(payload["provenance"])
+
+    return validated
 
 
 def _validate_analysis_reference(payload: dict[str, Any]) -> dict[str, Any]:
@@ -294,6 +312,11 @@ def _assert_numeric_close(
     absolute_tolerance: float,
     description: str,
 ) -> None:
+    if not math.isfinite(actual) or not math.isfinite(expected):
+        raise AssertionError(
+            f"{description} must contain finite values: " f"actual={actual}, expected={expected}"
+        )
+
     difference = abs(actual - expected)
     allowed = absolute_tolerance + relative_tolerance * abs(expected)
 
@@ -321,6 +344,15 @@ def assert_analysis_reference_close(
     for workflow_name in expected:
         actual_workflow = actual[workflow_name]
         expected_workflow = expected[workflow_name]
+
+        actual_provenance = actual_workflow.get("provenance")
+        expected_provenance = expected_workflow.get("provenance")
+
+        if actual_provenance != expected_provenance:
+            raise AssertionError(
+                f"{workflow_name} provenance differs: "
+                f"actual={actual_provenance}, expected={expected_provenance}"
+            )
 
         actual_parameters = actual_workflow["fit_parameters"]
         expected_parameters = expected_workflow["fit_parameters"]
@@ -480,13 +512,26 @@ def _validate_configuration_provenance(
             f"unexpected={sorted(payload_keys - required_configurations)})"
         )
 
-    return {
+    validated = {
         name: _validate_file_provenance(
             payload[name],
             f"Analysis provenance configuration {name}",
         )
-        for name in sorted(required_configurations)
+        for name in ("topfile", "categoryfile")
     }
+
+    for name in ("backgroundfile", "signalfile"):
+        value = payload[name]
+        validated[name] = (
+            None
+            if value is None
+            else _validate_file_provenance(
+                value,
+                f"Analysis provenance configuration {name}",
+            )
+        )
+
+    return validated
 
 
 def _validate_invocation_provenance(payload: Any) -> dict[str, Any]:
@@ -560,6 +605,38 @@ def _validate_invocation_provenance(payload: Any) -> dict[str, Any]:
         "limit_enabled": payload["limit_enabled"],
         "prefit_enabled": payload["prefit_enabled"],
         "mask_threshold": float(mask_threshold),
+    }
+
+
+def _validate_reference_provenance(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("Analysis reference provenance must be a JSON object")
+
+    required_keys = {
+        "runtime",
+        "tool_revisions",
+        "input",
+        "configurations",
+        "invocation",
+    }
+    payload_keys = set(payload)
+
+    if payload_keys != required_keys:
+        raise ValueError(
+            "Analysis reference provenance has invalid keys "
+            f"(missing={sorted(required_keys - payload_keys)}, "
+            f"unexpected={sorted(payload_keys - required_keys)})"
+        )
+
+    return {
+        "runtime": _validate_runtime_provenance(payload["runtime"]),
+        "tool_revisions": _validate_tool_revisions(payload["tool_revisions"]),
+        "input": _validate_file_provenance(
+            payload["input"],
+            "Analysis reference provenance input",
+        ),
+        "configurations": _validate_configuration_provenance(payload["configurations"]),
+        "invocation": _validate_invocation_provenance(payload["invocation"]),
     }
 
 

@@ -92,6 +92,17 @@ if [[ -e "$pybh_environment" ]]; then
             "Move it aside explicitly before rebuilding."
     fi
 
+    existing_python_version="$(
+        "$environment_python" -c \
+            'import platform; print(platform.python_version())'
+    )" || fail "Could not determine the existing pyBH_env Python version"
+
+    if [[ "$existing_python_version" != "$scientific_python_version" ]]; then
+        fail \
+            "Existing pyBH_env uses Python $existing_python_version; expected " \
+            "$scientific_python_version. It has been preserved."
+    fi
+
     if ! verify_environment "$environment_python"; then
         fail \
             "Existing pyBH_env failed import validation. It has been " \

@@ -83,15 +83,41 @@ def test_execute_required_accepts_success_with_expected_output(
 ) -> None:
     module = _load_run_anafit_module(monkeypatch)
     expected_output = tmp_path / "result.root"
-    expected_output.write_text("fresh result")
 
-    monkeypatch.setattr(module, "execute", lambda cmd: 0)
+    def create_fresh_output(cmd):
+        expected_output.write_text("fresh result")
+        return 0
+
+    monkeypatch.setattr(module, "execute", create_fresh_output)
 
     assert module.execute_required(
         "analysis command",
         "test analysis",
         expected_outputs=[str(expected_output)],
     )
+    assert expected_output.read_text() == "fresh result"
+
+
+def test_execute_required_rejects_stale_expected_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_run_anafit_module(monkeypatch)
+    expected_output = tmp_path / "result.root"
+    expected_output.write_text("stale result")
+
+    def return_success_without_output(cmd):
+        assert not expected_output.exists()
+        return 0
+
+    monkeypatch.setattr(module, "execute", return_success_without_output)
+
+    assert not module.execute_required(
+        "analysis command",
+        "test analysis",
+        expected_outputs=[str(expected_output)],
+    )
+    assert not expected_output.exists()
 
 
 def test_execute_required_rejects_nonzero_command_status(
@@ -661,21 +687,105 @@ def test_calculate_file_sha256_rejects_missing_file(
         module.calculate_file_sha256(missing_file)
 
 
-def test_get_git_revision_returns_repository_commit(
+def _create_test_git_repository(repository: Path) -> str:
+    repository.mkdir()
+    subprocess.run(
+        ["git", "init"],
+        cwd=repository,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repository,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.invalid"],
+        cwd=repository,
+        check=True,
+    )
+
+    tracked_file = repository / "tracked.txt"
+    tracked_file.write_text("committed content\n", encoding="utf-8")
+
+    subprocess.run(
+        ["git", "add", "tracked.txt"],
+        cwd=repository,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Create test repository"],
+        cwd=repository,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+
+
+def test_get_git_revision_returns_clean_repository_commit(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _load_run_anafit_module(monkeypatch)
-    repo_root = Path(__file__).resolve().parents[1]
+    repository = tmp_path / "repository"
+    expected_revision = _create_test_git_repository(repository)
 
-    assert module.get_git_revision(repo_root) == (
-        subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=repo_root,
-            text=True,
-            capture_output=True,
-            check=True,
-        ).stdout.strip()
+    assert module.get_git_revision(repository) == expected_revision
+
+
+@pytest.mark.parametrize("staged", [False, True])
+def test_get_git_revision_rejects_tracked_modifications(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    staged: bool,
+) -> None:
+    module = _load_run_anafit_module(monkeypatch)
+    repository = tmp_path / "repository"
+    _create_test_git_repository(repository)
+
+    (repository / "tracked.txt").write_text(
+        "modified content\n",
+        encoding="utf-8",
     )
+
+    if staged:
+        subprocess.run(
+            ["git", "add", "tracked.txt"],
+            cwd=repository,
+            check=True,
+        )
+
+    with pytest.raises(
+        RuntimeError,
+        match="repository with tracked modifications",
+    ):
+        module.get_git_revision(repository)
+
+
+def test_get_git_revision_ignores_untracked_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_run_anafit_module(monkeypatch)
+    repository = tmp_path / "repository"
+    expected_revision = _create_test_git_repository(repository)
+
+    (repository / "untracked-build-output.txt").write_text(
+        "generated output\n",
+        encoding="utf-8",
+    )
+
+    assert module.get_git_revision(repository) == expected_revision
 
 
 def test_get_git_revision_rejects_non_repository(
@@ -1109,3 +1219,165 @@ def test_run_anafit_writes_provenance_for_successful_unmasked_fit(
         "masked": False,
         "provenance": expected_provenance,
     }
+
+
+def test_run_anafit_quicklimit_failure_prevents_success_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_run_anafit_module(monkeypatch)
+
+    datafile = tmp_path / "input.root"
+    topfile = tmp_path / "top.template"
+    categoryfile = tmp_path / "category.template"
+    backgroundfile = tmp_path / "background.template"
+    signalfile = tmp_path / "signal.template"
+    output_folder = tmp_path / "output"
+
+    output_folder.mkdir()
+    datafile.write_bytes(b"test ROOT input")
+    topfile.write_text(
+        "CATEGORYFILE OUTPUTFILE SIGNAME\n",
+        encoding="utf-8",
+    )
+    categoryfile.write_text(
+        "BACKGROUNDFILE DATAFILE DATAHIST RANGELOW RANGEHIGH "
+        "BINS NBKG NSIG SIGNAME SIGNALFILE\n",
+        encoding="utf-8",
+    )
+    backgroundfile.write_text(
+        "background template\n",
+        encoding="utf-8",
+    )
+    signalfile.write_text(
+        "SIGNAME SIGMEAN SIGWIDTH\n",
+        encoding="utf-8",
+    )
+    (output_folder / "AnaWSBuilder.dtd").write_text(
+        "test DTD\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        module,
+        "build_fit_extract",
+        lambda **kwargs: (
+            0.25,
+            str(output_folder / "PostFit.root"),
+            str(output_folder / "FitParameters.root"),
+        ),
+    )
+
+    commands: list[str] = []
+
+    def fail_quicklimit(command):
+        commands.append(command)
+        assert command.startswith("quickLimit ")
+        return 9
+
+    monkeypatch.setattr(module, "execute", fail_quicklimit)
+
+    def reject_provenance(**kwargs):
+        raise AssertionError("Provenance must not be generated after quickLimit failure")
+
+    def reject_manifest(**kwargs):
+        raise AssertionError("Success manifest must not be written after quickLimit failure")
+
+    monkeypatch.setattr(
+        module,
+        "build_analysis_provenance",
+        reject_provenance,
+    )
+    monkeypatch.setattr(
+        module,
+        "write_analysis_results",
+        reject_manifest,
+    )
+
+    result = module.run_anaFit(
+        datafile=str(datafile),
+        datahist="directory/histogram",
+        topfile=str(topfile),
+        categoryfile=str(categoryfile),
+        wsfile=str(output_folder / "workspace.root"),
+        outputfile=str(output_folder / "FitResult.root"),
+        nbkg="1.0E+03, 0, 2.0E+03",
+        nsig="0, -1.0E+03, 1.0E+03",
+        rangelow=481,
+        rangehigh=3000,
+        signame="test_signal",
+        backgroundfile=str(backgroundfile),
+        signalfile=str(signalfile),
+        dosignal=True,
+        dolimit=True,
+        maskthreshold=0.01,
+        doprefit=False,
+        folder=str(output_folder),
+    )
+
+    assert result == -1
+    assert len(commands) == 1
+    assert not (output_folder / "analysis_results.json").exists()
+
+
+@pytest.mark.parametrize("analysis_status", [0, -1, 23])
+def test_injection_runner_propagates_analysis_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    analysis_status: int,
+) -> None:
+    inject_module = ModuleType("InjectGaussian")
+    inject_module.InjectGaussian = object
+
+    analysis_module = ModuleType("run_anaFit")
+    captured: dict[str, object] = {}
+
+    def fake_run_anafit(**kwargs):
+        captured.update(kwargs)
+        return analysis_status
+
+    analysis_module.run_anaFit = fake_run_anafit
+
+    monkeypatch.setitem(sys.modules, "InjectGaussian", inject_module)
+    monkeypatch.setitem(sys.modules, "run_anaFit", analysis_module)
+
+    module_path = Path(__file__).resolve().parents[1] / "python" / "run_injections_anaFit.py"
+    spec = importlib.util.spec_from_file_location(
+        "run_injections_anaFit_under_test",
+        module_path,
+    )
+
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load module from {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    result = module.main(
+        [
+            "--datafile",
+            "input.root",
+            "--datahist",
+            "directory/histogram",
+            "--topfile",
+            "top.xml",
+            "--categoryfile",
+            "category.xml",
+            "--wsfile",
+            "workspace.root",
+            "--outputfile",
+            "fit-result.root",
+            "--nbkg",
+            "1000,0,2000",
+            "--rangelow",
+            "481",
+            "--rangehigh",
+            "3000",
+            "--folder",
+            str(tmp_path / "output"),
+        ]
+    )
+
+    assert result == analysis_status
+    assert captured["datafile"] == "input.root"
+    assert captured["datahist"] == "directory/histogram"

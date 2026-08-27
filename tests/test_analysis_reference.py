@@ -370,6 +370,54 @@ def test_analysis_reference_comparison_rejects_pvalue_outside_tolerance() -> Non
         assert_analysis_reference_close(actual, expected)
 
 
+@pytest.mark.parametrize(
+    ("payload_name", "non_finite_value"),
+    [
+        ("actual", float("nan")),
+        ("actual", float("inf")),
+        ("actual", float("-inf")),
+        ("expected", float("nan")),
+        ("expected", float("inf")),
+        ("expected", float("-inf")),
+    ],
+)
+def test_analysis_reference_comparison_rejects_non_finite_fit_parameters(
+    payload_name: str,
+    non_finite_value: float,
+) -> None:
+    expected = _complete_reference_payload()
+    actual = _complete_reference_payload()
+
+    payload = actual if payload_name == "actual" else expected
+    payload["J100"]["fit_parameters"]["p2"] = non_finite_value
+
+    with pytest.raises(
+        AssertionError,
+        match="J100 fit parameter p2 must contain finite values",
+    ):
+        assert_analysis_reference_close(actual, expected)
+
+
+def test_analysis_reference_comparison_rejects_provenance_drift() -> None:
+    expected = _complete_reference_payload()
+    actual = _complete_reference_payload()
+
+    expected_provenance = _valid_analysis_provenance()
+    actual_provenance = _valid_analysis_provenance()
+    expected_provenance.pop("repository_commit")
+    actual_provenance.pop("repository_commit")
+
+    expected["J100"]["provenance"] = expected_provenance
+    actual["J100"]["provenance"] = actual_provenance
+    actual["J100"]["provenance"]["tool_revisions"]["quickFit"] = "9" * 40
+
+    with pytest.raises(
+        AssertionError,
+        match="J100 provenance differs",
+    ):
+        assert_analysis_reference_close(actual, expected)
+
+
 def test_analysis_reference_comparison_rejects_parameter_name_change() -> None:
     expected = _complete_reference_payload()
     actual = _complete_reference_payload()
@@ -454,6 +502,21 @@ def _valid_analysis_provenance() -> dict[str, object]:
             "mask_threshold": 0.01,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "configuration_name",
+    ["backgroundfile", "signalfile"],
+)
+def test_validate_analysis_provenance_accepts_null_optional_configuration(
+    configuration_name: str,
+) -> None:
+    payload = _valid_analysis_provenance()
+    payload["configurations"][configuration_name] = None
+
+    validated = _validate_analysis_provenance(payload)
+
+    assert validated["configurations"][configuration_name] is None
 
 
 def test_validate_analysis_provenance_accepts_complete_payload() -> None:

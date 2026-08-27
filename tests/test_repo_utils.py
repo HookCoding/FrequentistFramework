@@ -297,6 +297,10 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     assert '"$pybh_source"' in installer_text
 
     assert 'if [[ -e "$pybh_environment" ]]; then' in installer_text
+    assert "existing_python_version" in installer_text
+    assert "platform.python_version()" in installer_text
+    assert "Existing pyBH_env uses Python" in installer_text
+    assert "expected" in installer_text
     assert "Existing pyBH_env failed import validation" in installer_text
     assert "Existing pyBumpHunter environment is valid" in installer_text
 

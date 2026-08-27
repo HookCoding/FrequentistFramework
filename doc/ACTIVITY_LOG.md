@@ -2072,3 +2072,54 @@ The authoritative interfaces remain the lightweight full gate, prepared-dependen
 #### Scope boundary
 
 This change removes redundant experimental checking infrastructure only. It does not modify the authoritative J100 or J50 workflows, scientific results, frozen references, schema-version-2 provenance, dependency revisions, installer behaviour, or accepted background-only analysis scope.
+
+#### 2026-08-27: Copilot merge-review safety corrections
+
+##### Objective
+
+Resolve the ten findings reported by GitHub Copilot during review of pull request 5 before merging the Tier-1 and Tier-2 branch.
+
+##### Changes completed
+
+- Updated mandatory command execution to remove expected outputs before execution, preventing stale XMLReader or quickFit artifacts from satisfying a successful command.
+- Added explicit rejection of non-finite values in tolerance-aware scientific comparisons.
+- Updated Git provenance collection to reject repositories with staged or unstaged tracked modifications while permitting untracked build products.
+- Aligned schema-version-2 production and validation for optional background and signal configuration files by recording absent values as null.
+- Preserved validated stable provenance in analysis-reference payloads.
+- Added exact comparison of runtime identity, dependency revisions, input identity, configuration identity, and invocation settings.
+- Kept repository_commit in full manifests while excluding it from the frozen reference to avoid a self-referential commit cycle.
+- Updated quickLimit failure handling so a failed requested limit returns a nonzero status before provenance or success-manifest generation.
+- Updated run_injections_anaFit.py to return the run_anaFit status.
+- Updated the pyBumpHunter installer to reject an existing environment whose Python version differs from the authoritative scientific Python version.
+- Updated the frozen J100 and J50 reference with stable provenance.
+- Added focused regression coverage for stale outputs, non-finite values, provenance drift, dirty repositories, quickLimit failure, injection-runner status propagation, nullable configuration provenance, and pyBumpHunter interpreter-version policy.
+
+##### Verification performed
+
+Focused Python suites:
+
+- 105 tests passed.
+- Failures: 0.
+
+Authoritative lightweight gate:
+
+- Tests collected: 122.
+- Tests passed: 120.
+- Prepared-dependency tests deselected: 2.
+- Ruff: passed.
+- Black: passed.
+- Unexpected failures: 0.
+
+Repository validation:
+
+- git diff --check passed.
+- Broad legacy formatting changes introduced during review were removed before final verification.
+- The resulting change set remains limited to the reviewed safety corrections and their tests.
+
+##### Remaining work
+
+- Commit the reviewed safety corrections.
+- Regenerate the canonical J100 and J50 schema-version-2 manifests from the resulting clean committed tree.
+- Verify that each regenerated manifest records the new commit.
+- Rerun the prepared-dependency, runtime-readiness, scientific characterization, and lightweight gates.
+- Resolve the remaining upstream merge conflicts.

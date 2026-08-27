@@ -100,7 +100,7 @@ def main(args):
     print("Running run_anaFit with datahist %s" % args.datahist)
     print(args.nbkg,args.nsig,args.dosignal,args.dolimit,args.sigmean,args.sigwidth,args.signame,args.maskthreshold,args.doprefit,systdict)
 
-    run_anaFit(datafile=injecteddatafile,
+    return run_anaFit(datafile=injecteddatafile,
                datahist=args.datahist,
                topfile=args.topfile,
                backgroundfile=args.backgroundfile,
