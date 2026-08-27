@@ -33,7 +33,7 @@
       "range_low": 344,
       "signal_enabled": false
     },
-    "repository_commit": "d50e925a1dad14ebb9254f50c90afe88a0415964",
+    "repository_commit": "132a8b35e9e3a4042fe55a452c5806514cac8556",
     "runtime": {
       "python_executable": "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-centos9-gcc11-opt/bin/python",
       "python_version": "3.9.12",

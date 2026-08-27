@@ -2123,3 +2123,60 @@ Repository validation:
 - Verify that each regenerated manifest records the new commit.
 - Rerun the prepared-dependency, runtime-readiness, scientific characterization, and lightweight gates.
 - Resolve the remaining upstream merge conflicts.
+
+#### 2026-08-27: Canonical manifest provenance corrected
+
+##### Objective
+
+Complete the remaining GitHub Copilot review findings by regenerating the canonical J100 and J50 schema-version-2 manifests from a clean committed source revision.
+
+##### Changes completed
+
+- Moved provenance collection to the beginning of run_anaFit(), before generated outputs can modify tracked repository artifacts.
+- Retained success-manifest writing at the end of the workflow so failed analyses cannot record success.
+- Committed the provenance-ordering correction as:
+  - 132a8b35e9e3a4042fe55a452c5806514cac8556
+  - Capture provenance before analysis output generation
+- Confirmed the repository was clean before scientific execution.
+- Regenerated J100 and J50 in a temporary output root.
+- Copied only the regenerated analysis_results.json manifests into the canonical tracked locations.
+- Preserved all other tracked scientific artifacts unchanged.
+
+##### Scientific regeneration results
+
+J100:
+
+- Global chi-square p-value: 0.018448750724012808.
+- Workflow completed successfully.
+- Manifest repository commit:
+  - 132a8b35e9e3a4042fe55a452c5806514cac8556
+
+J50:
+
+- Global chi-square p-value: 0.07853114301666252.
+- Workflow completed successfully.
+- Manifest repository commit:
+  - 132a8b35e9e3a4042fe55a452c5806514cac8556
+
+##### Verification performed
+
+- Both workflows completed successfully from temporary isolated outputs.
+- Both regenerated manifests record the clean source revision used for execution.
+- Only the two canonical analysis_results.json files were promoted.
+- The canonical reference validation test passed:
+  - 1 passed.
+  - 43 deselected.
+  - Failures: 0.
+
+##### Review status
+
+All ten GitHub Copilot review findings are now resolved at the implementation and canonical-evidence level. The two inaccurate manifest-revision findings are resolved by scientifically regenerating both canonical manifests from clean commit 132a8b35e9e3a4042fe55a452c5806514cac8556.
+
+##### Remaining verification
+
+- Rerun the prepared-dependency gate.
+- Rerun scientific runtime readiness.
+- Rerun the authoritative J100/J50 scientific characterization gate.
+- Rerun the authoritative lightweight gate.
+- Commit the regenerated manifests and this evidence entry.
+- Resolve the upstream merge conflicts.
