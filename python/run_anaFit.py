@@ -525,6 +525,21 @@ def run_anaFit(datafile,
     for key, value in args_names.items():
       print(f"{key}: {value}")
 
+    provenance = build_analysis_provenance(
+        datafile=datafile,
+        datahist=datahist,
+        topfile=topfile,
+        categoryfile=categoryfile,
+        backgroundfile=backgroundfile,
+        signalfile=signalfile,
+        rangelow=rangelow,
+        rangehigh=rangehigh,
+        dosignal=dosignal,
+        dolimit=dolimit,
+        doprefit=doprefit,
+        maskthreshold=maskthreshold,
+    )
+
     # generate the config files on the fly in run dir
     if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
       #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
@@ -795,21 +810,6 @@ def run_anaFit(datafile,
             print("ERROR: quickLimit failed with exit code {}".format(rtv))
             return -1
     
-    provenance = build_analysis_provenance(
-        datafile=datafile,
-        datahist=datahist,
-        topfile=topfile,
-        categoryfile=categoryfile,
-        backgroundfile=backgroundfile,
-        signalfile=signalfile,
-        rangelow=rangelow,
-        rangehigh=rangehigh,
-        dosignal=dosignal,
-        dolimit=dolimit,
-        doprefit=doprefit,
-        maskthreshold=maskthreshold,
-    )
-
     write_analysis_results(
         folder=folder,
         p_chi2=final_p_chi2,

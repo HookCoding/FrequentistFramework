@@ -1277,17 +1277,24 @@ def test_run_anafit_quicklimit_failure_prevents_success_manifest(
 
     monkeypatch.setattr(module, "execute", fail_quicklimit)
 
-    def reject_provenance(**kwargs):
-        raise AssertionError("Provenance must not be generated after quickLimit failure")
-
-    def reject_manifest(**kwargs):
-        raise AssertionError("Success manifest must not be written after quickLimit failure")
+    captured_provenance = {
+        "repository_commit": "a" * 40,
+        "runtime": {
+            "python_version": "3.9.12",
+            "python_executable": "/cvmfs/example/bin/python",
+            "root_version": "6.26/08",
+        },
+    }
 
     monkeypatch.setattr(
         module,
         "build_analysis_provenance",
-        reject_provenance,
+        lambda **kwargs: captured_provenance,
     )
+
+    def reject_manifest(**kwargs):
+        raise AssertionError("Success manifest must not be written after quickLimit failure")
+
     monkeypatch.setattr(
         module,
         "write_analysis_results",
