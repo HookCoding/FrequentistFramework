@@ -5,10 +5,12 @@ on:
     branches:
       - harry
       - tier-2-m365
+      - tier-3-m365
   push:
     branches:
       - harry
       - tier-2-m365
+      - tier-3-m365
 
 permissions:
   contents: read
