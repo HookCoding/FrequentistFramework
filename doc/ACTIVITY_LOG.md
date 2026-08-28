@@ -2278,3 +2278,17 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Changed the general repository-cleanliness check from a fatal assertion to a GitHub Actions warning with the detected status printed in the log.
 - Retained recursive submodule reporting and mandatory `install.sh --check` validation.
 - Scientific runtime compatibility remains untested because the first job stopped before the CernVM-FS repository probes and LCG runtime steps.
+
+##### Nested RooFitExtensions acquisition added
+
+- The second hosted probe passed top-level gitlink validation for `xmlAnaWSBuilder`, `quickFit`, `workspaceCombiner`, and `pyBumpHunter`.
+- `install.sh --check` then failed because `xmlAnaWSBuilder/RooFitExtensions` was absent.
+- Confirmed that none of the three parent dependency revisions records `RooFitExtensions` as a Git gitlink.
+- Confirmed that the prepared LXPlus checkouts use the publicly readable repository:
+  - `https://gitlab.cern.ch/atlas_higgs_combination/software/RooFitExtensions.git`
+- Confirmed that the required revision is available:
+  - `ba94bfcbfa4f4a4e3541ade09580399e409e8514`
+- Added a workflow step that acquires separate RooFitExtensions checkouts for `xmlAnaWSBuilder`, `quickFit`, and `workspaceCombiner`.
+- Each checkout is detached at the exact recorded revision and verified before `install.sh --check` runs.
+- Kept acquisition outside `install.sh` so its `--check` mode remains read-only.
+- LCG and ROOT compatibility remain untested because the second hosted run stopped during dependency validation.

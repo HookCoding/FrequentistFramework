@@ -33,6 +33,32 @@ jobs:
           cvmfs_http_proxy: DIRECT
           cvmfs_quota_limit: "10000"
 
+      - name: Acquire pinned RooFitExtensions checkouts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          readonly repository_url="https://gitlab.cern.ch/atlas_higgs_combination/software/RooFitExtensions.git"
+          readonly revision="ba94bfcbfa4f4a4e3541ade09580399e409e8514"
+
+          for dependency in xmlAnaWSBuilder quickFit workspaceCombiner; do
+            checkout_path="$dependency/RooFitExtensions"
+
+            if [[ -e "$checkout_path" ]]; then
+              echo "::error title=Unexpected RooFitExtensions path::$checkout_path already exists but is not recorded by the clean checkout."
+              exit 1
+            fi
+
+            git clone --no-checkout "$repository_url" "$checkout_path"
+            git -C "$checkout_path" checkout --detach "$revision"
+
+            actual_revision="$(git -C "$checkout_path" rev-parse HEAD)"
+            if [[ "$actual_revision" != "$revision" ]]; then
+              echo "::error title=RooFitExtensions revision mismatch::$dependency expected $revision but found $actual_revision."
+              exit 1
+            fi
+          done
+
       - name: Verify clean checkout and dependency revisions
         shell: bash
         run: |
