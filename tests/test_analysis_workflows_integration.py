@@ -39,6 +39,11 @@ WORKFLOWS = (
     ),
 )
 
+APPROVED_SCIENTIFIC_PYTHON_EXECUTABLES = {
+    "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/" "x86_64-centos9-gcc11-opt/bin/python",
+    "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/" "x86_64-ubuntu2204-gcc11-opt/bin/python",
+}
+
 
 def _require_runtime(repo_root: Path) -> None:
     required_paths = (
@@ -150,6 +155,17 @@ def test_authoritative_j100_j50_workflows_match_frozen_reference(
 
     fresh = build_analysis_reference(tmp_path)
     frozen = read_analysis_reference(repo_root / "tests" / "references" / "analysis_reference.json")
+
+    expected_python_executable = os.environ.get("ANAFIT_EXPECTED_PYTHON_EXECUTABLE")
+    if expected_python_executable is not None:
+        assert expected_python_executable in APPROVED_SCIENTIFIC_PYTHON_EXECUTABLES, (
+            "Unapproved expected scientific Python executable: " f"{expected_python_executable}"
+        )
+
+        for workflow_payload in frozen.values():
+            workflow_payload["provenance"]["runtime"][
+                "python_executable"
+            ] = expected_python_executable
 
     assert_analysis_reference_close(fresh, frozen)
 

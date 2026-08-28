@@ -2478,3 +2478,24 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - `python/run_anaFit.py` compiled successfully.
 - Six existing invalid-escape `SyntaxWarning` messages remain in legacy code and are unrelated to this correction.
 - The authoritative hosted J100/J50 characterization gate remains pending rerun.
+
+##### Hosted J100/J50 scientific results reproduced
+
+- The portable quickFit redirection correction allowed both authoritative workflows to complete on the GitHub-hosted runner.
+- J100 and J50 created their required fit-result and fit-parameter artifacts.
+- The hosted results reproduced the canonical fit parameters and chi-square p-values.
+- The characterization comparison reached the final provenance check.
+- The only difference was the scientific Python executable path:
+  - LXPlus baseline: `x86_64-centos9-gcc11-opt/bin/python`;
+  - GitHub-hosted runtime: `x86_64-ubuntu2204-gcc11-opt/bin/python`.
+- Python remained version 3.9.12.
+- ROOT and PyROOT remained version 6.26/08.
+- Tool revisions, input hashes, configuration hashes, invocation settings, fit parameters, and p-values matched the frozen reference.
+- Added an explicit allowlist containing only the CentOS 9 and Ubuntu 22.04 LCG 102a Python executable paths.
+- Added `ANAFIT_EXPECTED_PYTHON_EXECUTABLE` support to the integration test.
+- The environment override is rejected unless it exactly matches one of the approved paths.
+- When no override is supplied, the existing frozen CentOS 9 reference remains unchanged.
+- Configured the hosted workflow to select the approved Ubuntu LCG Python executable.
+- Exact comparison of all remaining provenance and scientific values remains unchanged.
+- Ruff and Black passed for the updated integration test.
+- Final hosted characterization verification remains pending rerun.

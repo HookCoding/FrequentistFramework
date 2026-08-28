@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 90
     env:
       ANAFIT_LCG_PLATFORM: x86_64-ubuntu2204-gcc11-opt
+      ANAFIT_EXPECTED_PYTHON_EXECUTABLE: /cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-ubuntu2204-gcc11-opt/bin/python
       CC: gcc-11
       CXX: g++-11
 
