@@ -2292,3 +2292,12 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Each checkout is detached at the exact recorded revision and verified before `install.sh --check` runs.
 - Kept acquisition outside `install.sh` so its `--check` mode remains read-only.
 - LCG and ROOT compatibility remain untested because the second hosted run stopped during dependency validation.
+
+##### Scientific setup shell compatibility corrected
+
+- The next hosted probe reached `scripts/setup_buildAndFit.sh`.
+- Scientific setup stopped because the workflow enabled Bash nounset mode and `_DIRXMLWSBUILDER` is intentionally unset before initial environment setup.
+- Changed only the two workflow steps that source the scientific setup script from `set -euo pipefail` to `set -eo pipefail`.
+- Retained immediate command-failure and pipeline-failure handling.
+- Dependency acquisition and validation progressed beyond the previous missing RooFitExtensions failure.
+- LCG and ROOT compatibility remain pending the corrected hosted rerun.

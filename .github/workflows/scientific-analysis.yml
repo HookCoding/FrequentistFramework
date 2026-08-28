@@ -85,7 +85,7 @@ jobs:
       - name: Inspect scientific runtime
         shell: bash
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source scripts/setup_buildAndFit.sh
           echo "Operating system:"
           cat /etc/os-release
@@ -102,7 +102,7 @@ jobs:
       - name: Run scientific runtime-readiness gate
         shell: bash
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source scripts/setup_buildAndFit.sh
           python -m pytest \
             tests/test_analysis_workflows_integration.py \
