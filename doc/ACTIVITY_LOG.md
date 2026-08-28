@@ -2313,3 +2313,20 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
   - fail explicitly if scientific environment setup returns a nonzero status.
 - Setup failures remain fatal and are reported through a GitHub Actions error annotation.
 - LCG and ROOT compatibility remain pending the corrected hosted rerun.
+
+##### Ubuntu-compatible LCG platform override added
+
+- The hosted runtime probe established the LCG 102a CentOS 9 view but could not execute its binaries on Ubuntu 24.04.
+- Observed missing host-library failures included:
+  - `libicuuc.so.67`;
+  - `libcrypt.so.2`.
+- Confirmed that CVMFS provides the LCG 102a platform:
+  - `x86_64-ubuntu2204-gcc11-opt`.
+- Added an opt-in `ANAFIT_LCG_PLATFORM` override to `scripts/setup_buildAndFit.sh`.
+- Preserved `x86_64-centos9-gcc11-opt` as the default when the override is unset, retaining the established LXPlus scientific environment.
+- Configured the GitHub-hosted runtime-probe job to use:
+  - `ANAFIT_LCG_PLATFORM=x86_64-ubuntu2204-gcc11-opt`.
+- The override configures the selected LCG view and reproduces the XMLReader and quickFit path and library setup without modifying the pinned dependency checkouts.
+- Shell syntax validation passed.
+- Hosted Python, ROOT, dependency-build, and scientific compatibility with the Ubuntu LCG view remain pending rerun.
+- The frozen J100/J50 references still record the CentOS 9 Python executable path. Hosted provenance comparison must be addressed before enabling the complete characterization gate.

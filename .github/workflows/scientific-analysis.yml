@@ -18,6 +18,8 @@ jobs:
     name: LCG and ROOT runtime probe
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      ANAFIT_LCG_PLATFORM: x86_64-ubuntu2204-gcc11-opt
 
     steps:
       - name: Check out repository and dependencies
