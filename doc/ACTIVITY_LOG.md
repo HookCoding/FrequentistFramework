@@ -2361,3 +2361,13 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - The pinned external dependency sources remain unchanged.
 - Shell syntax validation and `git diff --check` passed.
 - Completion of the three RooFitExtensions builds, parent dependency builds, runtime-readiness gate, and scientific characterization gate remains pending the corrected hosted rerun.
+
+##### Hosted dependency build completed
+
+- The corrected hosted run completed all three nested RooFitExtensions builds and the parent scientific dependency builds.
+- Post-build `install.sh --check` passed with all top-level gitlinks and nested RooFitExtensions revisions verified.
+- The post-build prepared-dependency pytest gate initially used `/usr/bin/python` because GitHub Actions starts each step in a fresh shell.
+- The system Python did not provide pytest.
+- Updated the post-build verification step to restore `scripts/setup_buildAndFit.sh` and validate its status before invoking pytest.
+- The verification step now uses the LCG 102a Python 3.9.12 environment.
+- The prepared-dependency pytest gate and runtime-readiness gate remain pending the corrected rerun.

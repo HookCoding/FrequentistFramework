@@ -118,8 +118,20 @@ jobs:
       - name: Verify dependencies after build
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
           bash install.sh --check
+
+          set +e
+          set +u
+          source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
+
           python -m pytest tests/test_repo_utils.py \
             -m "requires_analysis_dependencies" \
             -v
