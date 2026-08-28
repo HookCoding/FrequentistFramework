@@ -85,8 +85,16 @@ jobs:
       - name: Inspect scientific runtime
         shell: bash
         run: |
-          set -eo pipefail
+          set -o pipefail
+          set +e
+          set +u
           source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
           echo "Operating system:"
           cat /etc/os-release
           echo "Architecture:"
@@ -102,8 +110,16 @@ jobs:
       - name: Run scientific runtime-readiness gate
         shell: bash
         run: |
-          set -eo pipefail
+          set -o pipefail
+          set +e
+          set +u
           source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
           python -m pytest \
             tests/test_analysis_workflows_integration.py \
             -k authoritative_setup_provides_scientific_runtime \

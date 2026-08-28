@@ -2301,3 +2301,15 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Retained immediate command-failure and pipeline-failure handling.
 - Dependency acquisition and validation progressed beyond the previous missing RooFitExtensions failure.
 - LCG and ROOT compatibility remain pending the corrected hosted rerun.
+
+##### ATLAS setup errexit compatibility corrected
+
+- The next hosted probe reached ATLAS local environment setup.
+- `atlasLocalSetup.sh` refused to continue because Bash errexit mode was enabled by the GitHub Actions shell.
+- Updated both scientific setup steps to follow the established `install.sh` pattern:
+  - disable errexit and nounset while sourcing `scripts/setup_buildAndFit.sh`;
+  - capture the setup exit status;
+  - restore errexit;
+  - fail explicitly if scientific environment setup returns a nonzero status.
+- Setup failures remain fatal and are reported through a GitHub Actions error annotation.
+- LCG and ROOT compatibility remain pending the corrected hosted rerun.
