@@ -2499,3 +2499,53 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Exact comparison of all remaining provenance and scientific values remains unchanged.
 - Ruff and Black passed for the updated integration test.
 - Final hosted characterization verification remains pending rerun.
+
+##### Final GitHub-hosted scientific verification
+
+GitHub Actions run `33173767689` completed successfully.
+
+Complete workflow:
+
+- Status: passed.
+- Total duration: 7 minutes 51 seconds.
+- GitHub-hosted runner: Ubuntu 24.04.
+- Scientific LCG platform: `x86_64-ubuntu2204-gcc11-opt`.
+- Scientific Python: 3.9.12.
+- ROOT and PyROOT: 6.26/08.
+- Compiler: GCC and G++ 11.
+
+The workflow successfully completed:
+
+- recursive checkout of the four pinned top-level dependencies;
+- acquisition of the three pinned RooFitExtensions checkouts;
+- CernVM-FS setup and repository probes;
+- read-only installation-contract validation;
+- non-destructive compilation of RooFitExtensions and the three C++ dependencies;
+- pyBumpHunter environment creation and validation;
+- prepared-dependency verification;
+- scientific runtime-readiness verification;
+- authoritative J100 and J50 workflow execution;
+- required fresh-artifact validation;
+- schema-version-2 provenance validation;
+- frozen scientific-reference comparison.
+
+Authoritative J100/J50 characterization gate:
+
+- 1 passed.
+- 2 deselected.
+- Runtime: 127.70 seconds.
+- Failures: 0.
+- J100 completed successfully.
+- J50 completed successfully.
+- Fit parameters reproduced the frozen reference.
+- Chi-square p-values reproduced the frozen reference.
+- Tool revisions, input hashes, configuration hashes, and invocation settings matched.
+- The approved Ubuntu LCG Python executable was recorded and validated.
+
+##### Completion status
+
+The GitHub-hosted scientific analysis workflow is operational and passing. It provides clean hosted dependency acquisition, non-destructive dependency building, runtime verification, and complete J100/J50 scientific characterization.
+
+The existing lightweight Python 3.12 quality workflow remains separate and unchanged.
+
+The branch-specific push trigger remains temporary while the workflow is under review. Before final integration, review whether to retain manual execution only, add scheduled execution, or run the hosted scientific gate for selected trusted branch changes.
