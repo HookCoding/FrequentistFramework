@@ -169,7 +169,42 @@ jobs:
             exit "$setup_status"
           fi
 
+          set +e
           python -m pytest \
             tests/test_analysis_workflows_integration.py \
             -m "integration and requires_root" \
             -v
+          characterization_status=$?
+          set -e
+
+          if (( characterization_status != 0 )); then
+            echo "::group::Hosted scientific failure diagnostics"
+            echo "Compiler commands:"
+            command -v gcc || true
+            command -v g++ || true
+            command -v x86_64-linux-gnu-g++-11 || true
+            gcc --version || true
+            g++ --version || true
+            x86_64-linux-gnu-g++-11 --version || true
+
+            echo "Generated quickFit logs:"
+            find /tmp/pytest-of-runner \
+              -type f \
+              -name 'quickFitLog*.log' \
+              -print \
+              -exec sh -c '
+                for log_file do
+                  echo "===== $log_file ====="
+                  cat "$log_file"
+                done
+              ' sh {} + 2>/dev/null || true
+
+            echo "Generated fit files:"
+            find /tmp/pytest-of-runner \
+              -type f \
+              \( -name 'FitResult*.root' -o -name 'FitParameters*.root' \) \
+              -print 2>/dev/null || true
+            echo "::endgroup::"
+
+            exit "$characterization_status"
+          fi

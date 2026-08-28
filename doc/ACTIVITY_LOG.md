@@ -2408,3 +2408,21 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - No scientific comparison or provenance validation has been weakened.
 - The first hosted characterization run will determine whether the Ubuntu LCG build reproduces the canonical J100/J50 scientific results.
 - The frozen reference currently records the CentOS 9 LCG Python executable path, so an exact stable-provenance mismatch may occur even if the numerical results reproduce.
+
+##### First hosted J100 characterization failure diagnosed
+
+- The hosted characterization gate reached the real J100 workflow.
+- XMLReader completed and generated the J100 workspace.
+- quickFit was invoked but did not create:
+  - `FitResult_anaFit_sixPar_bkgOnly.root`.
+- The analysis correctly returned a nonzero status and the integration test failed.
+- The failure occurred before manifest generation and frozen-reference comparison.
+- Build and runtime logs showed that the dependencies were compiled with Ubuntu GCC 13.3 while the selected LCG platform is `x86_64-ubuntu2204-gcc11-opt`.
+- ROOT also reported an inability to extract GCC 11 standard-library include paths and a possible C++ standard-library mismatch.
+- Added failure-only diagnostics to the hosted characterization step.
+- On failure, the workflow now prints:
+  - available compiler commands and versions;
+  - all generated quickFit logs;
+  - any generated fit-result and fit-parameter files.
+- The workflow preserves and returns the original characterization failure status.
+- No scientific acceptance or provenance validation was weakened.
