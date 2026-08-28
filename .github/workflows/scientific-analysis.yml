@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 90
     env:
       ANAFIT_LCG_PLATFORM: x86_64-ubuntu2204-gcc11-opt
+      CC: gcc-11
+      CXX: g++-11
 
     steps:
       - name: Check out repository and dependencies
@@ -27,6 +29,16 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+
+      - name: Install LCG-compatible compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes gcc-11 g++-11
+          test "$(gcc-11 -dumpversion | cut -d. -f1)" = "11"
+          test "$(g++-11 -dumpversion | cut -d. -f1)" = "11"
+          command -v x86_64-linux-gnu-g++-11
 
       - name: Set up CernVM-FS
         uses: cvmfs-contrib/github-action-cvmfs@10197e000cc0add8e54ac4fb73d3ed44e2de72b4

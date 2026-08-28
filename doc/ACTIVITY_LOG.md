@@ -2426,3 +2426,18 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
   - any generated fit-result and fit-parameter files.
 - The workflow preserves and returns the original characterization failure status.
 - No scientific acceptance or provenance validation was weakened.
+
+##### Hosted compiler toolchain aligned with LCG
+
+- Expanded failure diagnostics confirmed that the Ubuntu 24.04 runner provided GCC and G++ 13.3.0.
+- The selected LCG platform expects the GCC 11 toolchain.
+- `x86_64-linux-gnu-g++-11` was unavailable.
+- The generated quickFit log was empty and no fit-result files were created, indicating failure during early executable or ROOT initialization.
+- Added installation of `gcc-11` and `g++-11` before CernVM-FS setup.
+- Added explicit checks that both installed compilers report major version 11.
+- Added a check that `x86_64-linux-gnu-g++-11` is available.
+- Set the hosted job environment:
+  - `CC=gcc-11`;
+  - `CXX=g++-11`.
+- This aligns dependency compilation with the `x86_64-ubuntu2204-gcc11-opt` LCG platform and provides the compiler executable ROOT attempts to invoke.
+- The authoritative J100/J50 characterization gate remains pending the GCC 11 hosted rerun.
