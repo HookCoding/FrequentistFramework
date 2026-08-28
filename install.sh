@@ -245,6 +245,7 @@ build_roofit_extensions() {
     cmake \
         -S "$source_dir" \
         -B "$build_dir" \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON
 
     configure_status=$?
@@ -305,6 +306,7 @@ build_cpp_dependency() {
         -S "$source_dir" \
         -B "$build_dir" \
         -DRooFitExtensions_DIR="$roofit_build" \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON
 
     configure_status=$?

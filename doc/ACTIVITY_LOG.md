@@ -2348,3 +2348,16 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Increased the hosted job timeout from 30 to 90 minutes.
 - The complete runtime-readiness gate remains pending the first hosted dependency build.
 - A ROOT compiler include-path diagnostic was observed and will be evaluated only if it causes an actual build or runtime failure.
+
+##### Hosted CMake compatibility correction
+
+- The first hosted dependency build established Python 3.9.12 and ROOT 6.26/08 and passed the complete installation-contract check.
+- `xmlAnaWSBuilder/RooFitExtensions` configured and built successfully.
+- ROOT emitted compiler include-path and C++ standard-library mismatch diagnostics, but the RooFitExtensions build completed.
+- The subsequent `xmlAnaWSBuilder` configuration failed because CMake 4.2.1 removed compatibility with projects declaring a minimum CMake version below 3.5.
+- Added `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to both centralized CMake configuration paths in `install.sh`:
+  - nested RooFitExtensions configuration;
+  - parent C++ dependency configuration.
+- The pinned external dependency sources remain unchanged.
+- Shell syntax validation and `git diff --check` passed.
+- Completion of the three RooFitExtensions builds, parent dependency builds, runtime-readiness gate, and scientific characterization gate remains pending the corrected hosted rerun.
