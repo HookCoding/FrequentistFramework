@@ -2,6 +2,9 @@ name: Scientific analysis runtime probe
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - github-actions-analysis
 
 permissions:
   contents: read

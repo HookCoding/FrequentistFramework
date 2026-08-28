@@ -2261,3 +2261,10 @@ Begin evaluating whether the authoritative FrequentistFramework scientific runti
 The runtime-probe workflow is implemented locally but has not yet been executed on GitHub Actions. Its first hosted run must determine whether the existing `LCG_102a` `x86_64-centos9-gcc11-opt` scientific environment is compatible with the GitHub-hosted Ubuntu 24.04 runner.
 
 Dependency building, the authoritative J100/J50 scientific characterization gate, caching, scheduled execution, and required-check status remain deferred until the hosted runtime probe passes.
+
+##### Hosted trigger correction
+
+- The initial manual workflow could not be started while it existed only on the feature branch.
+- Added a temporary push trigger limited to `github-actions-analysis`.
+- Retained `workflow_dispatch` for manual execution after the workflow becomes available from the repository default branch.
+- The temporary branch trigger will be removed or revised after the hosted probe has been verified.
