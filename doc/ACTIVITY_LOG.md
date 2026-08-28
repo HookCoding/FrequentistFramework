@@ -2577,3 +2577,28 @@ The branch-specific push trigger remains temporary while the workflow is under r
 - The workflow remains automatic for pushes to `github-actions-analysis` and can also be invoked manually.
 - YAML syntax validation and `git diff --check` passed.
 - Final execution of the expanded single job remains pending.
+
+##### Tracked repository modifications changed from fatal to warning
+
+- Changed scientific Git provenance collection so staged or unstaged tracked modifications no longer stop the analysis.
+- `get_git_revision()` now:
+  - determines the current full Git revision;
+  - checks for tracked modifications;
+  - prints a warning when tracked modifications are present;
+  - prints the tracked Git status;
+  - returns the current revision so the analysis can continue.
+- Untracked files remain permitted as before.
+- Failures to determine the Git revision or inspect repository status remain fatal.
+- The manifest continues to record the current 40-character repository commit.
+- A warning indicates that the recorded commit does not fully describe the modified working tree.
+- Updated regression coverage for both staged and unstaged tracked modifications.
+- Focused regression result:
+  - 2 passed;
+  - 46 deselected.
+- Complete `tests/test_run_anaFit.py` result:
+  - 48 passed.
+- Ruff passed for `tests/test_run_anaFit.py`.
+- Black passed for `tests/test_run_anaFit.py`.
+- `python/run_anaFit.py` compiled successfully.
+- Six existing invalid-escape `SyntaxWarning` messages remain in legacy code and are unrelated to this change.
+- Hosted verification of the revised provenance behavior remains pending.

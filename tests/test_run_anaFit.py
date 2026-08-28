@@ -750,14 +750,15 @@ def test_get_git_revision_returns_clean_repository_commit(
 
 
 @pytest.mark.parametrize("staged", [False, True])
-def test_get_git_revision_rejects_tracked_modifications(
+def test_get_git_revision_warns_for_tracked_modifications(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     staged: bool,
 ) -> None:
     module = _load_run_anafit_module(monkeypatch)
     repository = tmp_path / "repository"
-    _create_test_git_repository(repository)
+    expected_revision = _create_test_git_repository(repository)
 
     (repository / "tracked.txt").write_text(
         "modified content\n",
@@ -771,11 +772,13 @@ def test_get_git_revision_rejects_tracked_modifications(
             check=True,
         )
 
-    with pytest.raises(
-        RuntimeError,
-        match="repository with tracked modifications",
-    ):
-        module.get_git_revision(repository)
+    assert module.get_git_revision(repository) == expected_revision
+
+    captured = capsys.readouterr()
+    assert "WARNING: Recording Git revision" in captured.out
+    assert expected_revision in captured.out
+    assert "repository with tracked modifications" in captured.out
+    assert "tracked.txt" in captured.out
 
 
 def test_get_git_revision_ignores_untracked_files(

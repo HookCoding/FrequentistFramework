@@ -253,10 +253,14 @@ def get_git_revision(repository_path):
         )
 
     if status.stdout.strip():
-        raise RuntimeError(
-            "Cannot record an unqualified Git revision for a repository "
-            "with tracked modifications: {}".format(repository_path)
+        print(
+            "WARNING: Recording Git revision {} for repository with "
+            "tracked modifications: {}".format(
+                revision,
+                repository_path,
+            )
         )
+        print(status.stdout.rstrip())
 
     return revision
 
