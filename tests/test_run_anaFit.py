@@ -183,6 +183,7 @@ def test_build_fit_extract_stops_after_quickfit_failure(
 ) -> None:
     module = _load_run_anafit_module(monkeypatch)
     calls: list[str] = []
+    commands: list[str] = []
 
     def execute_required_with_quickfit_failure(
         cmd,
@@ -190,6 +191,7 @@ def test_build_fit_extract_stops_after_quickfit_failure(
         expected_outputs=(),
     ):
         calls.append(description)
+        commands.append(cmd)
         return description != "quickFit background or signal fit"
 
     monkeypatch.setattr(
@@ -216,6 +218,10 @@ def test_build_fit_extract_stops_after_quickfit_failure(
         "XMLReader workspace generation",
         "quickFit background or signal fit",
     ]
+
+    quickfit_command = commands[1]
+    assert " > quickFitLog.log 2>&1" in quickfit_command
+    assert chr(38) + chr(62) not in quickfit_command
 
 
 @pytest.mark.parametrize(

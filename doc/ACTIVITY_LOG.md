@@ -2455,3 +2455,26 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Existing compiler, quickFit-log, and generated-fit-file diagnostics remain enabled.
 - The characterization gate continues to return its original failing status.
 - No scientific acceptance criteria were changed.
+
+##### Portable quickFit redirection implemented
+
+- Raw Unicode code-point inspection confirmed that the quickFit command used the Bash-specific `&>` redirection operator.
+- The command is executed through `subprocess.call(..., shell=True)`, which uses `/bin/sh` rather than guaranteeing Bash.
+- On the GitHub-hosted Ubuntu runner, `/bin/sh` did not apply the intended combined stdout and stderr redirection.
+- This allowed the shell command to return before the expected quickFit output and log files were created.
+- Replaced the Bash-specific operator with portable POSIX-compatible redirection:
+  - `> quickFitLog.log 2>&1`.
+- Added regression coverage that verifies:
+  - portable stdout and stderr redirection is present;
+  - the Bash-specific combined-redirection operator is absent.
+- Raw code-point inspection verified the resulting redirection characters unambiguously.
+- Focused regression result:
+  - 1 passed;
+  - 47 deselected.
+- Complete `tests/test_run_anaFit.py` result:
+  - 48 passed.
+- Ruff passed for `tests/test_run_anaFit.py`.
+- Black passed for `tests/test_run_anaFit.py` with no changes required.
+- `python/run_anaFit.py` compiled successfully.
+- Six existing invalid-escape `SyntaxWarning` messages remain in legacy code and are unrelated to this correction.
+- The authoritative hosted J100/J50 characterization gate remains pending rerun.

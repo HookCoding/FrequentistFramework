@@ -423,7 +423,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, 
     edmplot=fitresultfile.replace("FitResult","edm").replace(".root", ".pdf")
 
     #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
-    quickfit_command = "quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s" % (
+    quickfit_command = "quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s > %s 2>&1" % (
         wsfile,
         _poi,
         _range,
