@@ -199,6 +199,29 @@ jobs:
             g++ --version || true
             x86_64-linux-gnu-g++-11 --version || true
 
+            echo "Configured CMake compilers:"
+            for cache_file in \
+              xmlAnaWSBuilder/build/CMakeCache.txt \
+              quickFit/build/CMakeCache.txt \
+              workspaceCombiner/build/CMakeCache.txt
+            do
+              echo "===== $cache_file ====="
+              grep -E \
+                '^(CMAKE_C_COMPILER|CMAKE_CXX_COMPILER)(:FILEPATH)?=' \
+                "$cache_file" || true
+            done
+
+            echo "quickFit executable information:"
+            file quickFit/build/quickFit || true
+            ldd quickFit/build/quickFit || true
+
+            echo "Direct quickFit startup probe:"
+            set +e
+            timeout 30s quickFit/build/quickFit --help
+            quickfit_probe_status=$?
+            set -e
+            echo "quickFit startup probe status: $quickfit_probe_status"
+
             echo "Generated quickFit logs:"
             find /tmp/pytest-of-runner \
               -type f \

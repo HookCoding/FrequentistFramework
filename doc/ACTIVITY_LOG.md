@@ -2441,3 +2441,17 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
   - `CXX=g++-11`.
 - This aligns dependency compilation with the `x86_64-ubuntu2204-gcc11-opt` LCG platform and provides the compiler executable ROOT attempts to invoke.
 - The authoritative J100/J50 characterization gate remains pending the GCC 11 hosted rerun.
+
+##### Hosted quickFit executable diagnostics expanded
+
+- Installing GCC 11 provided `x86_64-linux-gnu-g++-11`, but the hosted J100 quickFit invocation still exited before producing output.
+- The redirected quickFit log remained empty and no fit-result files were created.
+- Added failure-only diagnostics for:
+  - compilers recorded in each dependency CMake cache;
+  - quickFit executable metadata;
+  - dynamic-library resolution through `ldd`;
+  - a bounded direct `quickFit --help` startup probe;
+  - the direct startup-probe exit status.
+- Existing compiler, quickFit-log, and generated-fit-file diagnostics remain enabled.
+- The characterization gate continues to return its original failing status.
+- No scientific acceptance criteria were changed.
