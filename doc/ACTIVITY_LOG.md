@@ -2549,3 +2549,31 @@ The GitHub-hosted scientific analysis workflow is operational and passing. It pr
 The existing lightweight Python 3.12 quality workflow remains separate and unchanged.
 
 The branch-specific push trigger remains temporary while the workflow is under review. Before final integration, review whether to retain manual execution only, add scheduled execution, or run the hosted scientific gate for selected trusted branch changes.
+
+##### Single complete hosted test job implemented
+
+- Expanded the passing GitHub-hosted scientific workflow into one complete test job.
+- Renamed the workflow to:
+  - `Complete hosted analysis test suite`.
+- Renamed the job to:
+  - `Complete lightweight and scientific test suite`.
+- Added the locked development environment to the beginning of the same job:
+  - Python 3.12.13;
+  - dependencies from `requirements-dev-lock.txt`.
+- Added the authoritative complete lightweight quality gate:
+  - `python scripts/quality_check.py --mode full`.
+- The single job now runs, in sequence:
+  - the complete lightweight pytest suite;
+  - Ruff;
+  - Black;
+  - scientific dependency acquisition;
+  - installation-contract validation;
+  - non-destructive scientific dependency building;
+  - the prepared-dependency pytest gate;
+  - the scientific runtime-readiness pytest gate;
+  - the authoritative J100/J50 characterization pytest gate.
+- The development and scientific Python environments remain separated within the job.
+- The scientific steps continue to restore LCG 102a Python 3.9.12 and ROOT 6.26/08 explicitly.
+- The workflow remains automatic for pushes to `github-actions-analysis` and can also be invoked manually.
+- YAML syntax validation and `git diff --check` passed.
+- Final execution of the expanded single job remains pending.
