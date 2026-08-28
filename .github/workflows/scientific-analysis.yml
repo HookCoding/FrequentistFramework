@@ -1,0 +1,76 @@
+name: Scientific analysis runtime probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scientific-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scientific-runtime-probe:
+    name: LCG and ROOT runtime probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository and dependencies
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up CernVM-FS
+        uses: cvmfs-contrib/github-action-cvmfs@10197e000cc0add8e54ac4fb73d3ed44e2de72b4
+        with:
+          cvmfs_repositories: atlas.cern.ch,sft.cern.ch
+          cvmfs_http_proxy: DIRECT
+          cvmfs_quota_limit: "10000"
+
+      - name: Verify clean checkout and dependency revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          git submodule status --recursive
+          test -z "$(git status --porcelain)"
+          bash install.sh --check
+
+      - name: Verify CernVM-FS repositories
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
+          test -d /cvmfs/sft.cern.ch/lcg/views/LCG_102a
+          cvmfs_config probe atlas.cern.ch
+          cvmfs_config probe sft.cern.ch
+
+      - name: Inspect scientific runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/setup_buildAndFit.sh
+          echo "Operating system:"
+          cat /etc/os-release
+          echo "Architecture:"
+          uname -m
+          echo "Python executable:"
+          command -v python
+          echo "Python version:"
+          python --version
+          echo "ROOT version:"
+          root-config --version
+          python -c "import ROOT; print(ROOT.gROOT.GetVersion())"
+
+      - name: Run scientific runtime-readiness gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/setup_buildAndFit.sh
+          python -m pytest \
+            tests/test_analysis_workflows_integration.py \
+            -k authoritative_setup_provides_scientific_runtime \
+            -v

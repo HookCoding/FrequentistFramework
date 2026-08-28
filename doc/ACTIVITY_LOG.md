@@ -2221,3 +2221,43 @@ Repository state:
 - The working tree remained clean after final scientific verification.
 - Both canonical manifests record source revision 132a8b35e9e3a4042fe55a452c5806514cac8556.
 - All ten GitHub Copilot review findings are resolved and verified.
+
+#### 2026-08-28: GitHub-hosted scientific runtime probe implemented
+
+##### Objective
+
+Begin evaluating whether the authoritative FrequentistFramework scientific runtime can execute on a GitHub-hosted Linux runner before enabling dependency builds or the complete J100/J50 characterization analysis.
+
+##### Changes completed
+
+- Added `.github/workflows/scientific-analysis.yml`.
+- Kept the hosted scientific probe separate from the existing Tier-1 and Tier-2 lightweight quality workflow.
+- Configured manual execution through `workflow_dispatch`.
+- Selected the fixed `ubuntu-24.04` GitHub-hosted runner image.
+- Restricted workflow permissions to read-only repository contents.
+- Added per-branch concurrency control and a 30-minute job timeout.
+- Configured recursive submodule checkout without persisted Git credentials.
+- Added CernVM-FS setup for:
+  - `atlas.cern.ch`;
+  - `sft.cern.ch`.
+- Pinned the CernVM-FS action to immutable commit:
+  - `10197e000cc0add8e54ac4fb73d3ed44e2de72b4`.
+- Added clean-checkout, recursive submodule, and `install.sh --check` validation.
+- Added CernVM-FS repository probes.
+- Added inspection of the hosted operating system, architecture, Python executable, Python version, ROOT version, and PyROOT version.
+- Added execution of the existing scientific runtime-readiness pytest gate.
+- Deliberately excluded dependency compilation and the complete J100/J50 scientific characterization gate from this initial probe.
+
+##### Local verification
+
+- Confirmed that the workflow contains no literal HTML line-break elements.
+- YAML syntax validation passed.
+- `git diff --check` passed.
+- Reviewed the staged workflow diff.
+- The existing lightweight GitHub Actions workflow remains unchanged.
+
+##### Current status
+
+The runtime-probe workflow is implemented locally but has not yet been executed on GitHub Actions. Its first hosted run must determine whether the existing `LCG_102a` `x86_64-centos9-gcc11-opt` scientific environment is compatible with the GitHub-hosted Ubuntu 24.04 runner.
+
+Dependency building, the authoritative J100/J50 scientific characterization gate, caching, scheduled execution, and required-check status remain deferred until the hosted runtime probe passes.
