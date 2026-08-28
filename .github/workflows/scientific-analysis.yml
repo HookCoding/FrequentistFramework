@@ -153,3 +153,23 @@ jobs:
             tests/test_analysis_workflows_integration.py \
             -k authoritative_setup_provides_scientific_runtime \
             -v
+
+      - name: Run authoritative J100 and J50 characterization gate
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          set +u
+          source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
+
+          python -m pytest \
+            tests/test_analysis_workflows_integration.py \
+            -m "integration and requires_root" \
+            -v

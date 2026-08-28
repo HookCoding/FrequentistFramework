@@ -2371,3 +2371,40 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Updated the post-build verification step to restore `scripts/setup_buildAndFit.sh` and validate its status before invoking pytest.
 - The verification step now uses the LCG 102a Python 3.9.12 environment.
 - The prepared-dependency pytest gate and runtime-readiness gate remain pending the corrected rerun.
+
+##### Hosted build and runtime foundation verified
+
+- GitHub Actions run `33168104641` passed at commit:
+  - `eb59c6824fd1fafc1db2175f685a79ef2876a687`.
+- Total workflow duration was 5 minutes 58 seconds.
+- CernVM-FS probes passed for `atlas.cern.ch` and `sft.cern.ch`.
+- Verified hosted scientific runtime:
+  - Python 3.9.12;
+  - ROOT and PyROOT 6.26/08;
+  - LCG platform `x86_64-ubuntu2204-gcc11-opt`.
+- All three RooFitExtensions checkouts were acquired at revision:
+  - `ba94bfcbfa4f4a4e3541ade09580399e409e8514`.
+- All nested RooFitExtensions builds completed.
+- `xmlAnaWSBuilder`, `quickFit`, and `workspaceCombiner` built successfully.
+- The pyBumpHunter environment was created and validated.
+- The complete non-destructive dependency build passed.
+- Prepared-dependency gate:
+  - 2 passed;
+  - 11 deselected;
+  - failures: 0.
+- Scientific runtime-readiness gate:
+  - 1 passed;
+  - 2 deselected;
+  - runtime: 4.13 seconds;
+  - failures: 0.
+- ROOT compiler include-path and C++ standard-library mismatch diagnostics remained non-fatal during the successful build.
+
+##### Authoritative hosted characterization added
+
+- Added execution of the existing authoritative J100/J50 scientific characterization gate after the hosted build and runtime-readiness gates.
+- The workflow invokes:
+  - `tests/test_analysis_workflows_integration.py`;
+  - marker expression `integration and requires_root`.
+- No scientific comparison or provenance validation has been weakened.
+- The first hosted characterization run will determine whether the Ubuntu LCG build reproduces the canonical J100/J50 scientific results.
+- The frozen reference currently records the CentOS 9 LCG Python executable path, so an exact stable-provenance mismatch may occur even if the numerical results reproduce.
