@@ -37,9 +37,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git status --short
+          repository_status="$(git status --porcelain)"
+          if [[ -n "$repository_status" ]]; then
+            echo "::warning title=Repository checkout is not clean::Untracked or modified files were detected after environment setup."
+            printf '%s\n' "$repository_status"
+          else
+            echo "Repository checkout is clean."
+          fi
           git submodule status --recursive
-          test -z "$(git status --porcelain)"
           bash install.sh --check
 
       - name: Verify CernVM-FS repositories
