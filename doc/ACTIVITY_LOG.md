@@ -2330,3 +2330,21 @@ Dependency building, the authoritative J100/J50 scientific characterization gate
 - Shell syntax validation passed.
 - Hosted Python, ROOT, dependency-build, and scientific compatibility with the Ubuntu LCG view remain pending rerun.
 - The frozen J100/J50 references still record the CentOS 9 Python executable path. Hosted provenance comparison must be addressed before enabling the complete characterization gate.
+
+##### Hosted Ubuntu LCG runtime verified and build phase added
+
+- The hosted probe successfully established the Ubuntu-compatible LCG 102a view.
+- Verified scientific runtime:
+  - Python 3.9.12;
+  - ROOT and PyROOT 6.26/08;
+  - Python executable under `x86_64-ubuntu2204-gcc11-opt`.
+- The runtime-readiness test reached its required-artifact checks and failed because the scientific dependencies had not yet been built.
+- The first missing executable was:
+  - `xmlAnaWSBuilder/build/bin/XMLReader`.
+- Added the authoritative non-destructive dependency build command:
+  - `INSTALL_JOBS=2 bash install.sh --build`.
+- Added post-build `install.sh --check` validation.
+- Added the prepared-dependency pytest gate after the build.
+- Increased the hosted job timeout from 30 to 90 minutes.
+- The complete runtime-readiness gate remains pending the first hosted dependency build.
+- A ROOT compiler include-path diagnostic was observed and will be evaluated only if it causes an actual build or runtime failure.

@@ -17,7 +17,7 @@ jobs:
   scientific-runtime-probe:
     name: LCG and ROOT runtime probe
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       ANAFIT_LCG_PLATFORM: x86_64-ubuntu2204-gcc11-opt
 
@@ -108,6 +108,21 @@ jobs:
           echo "ROOT version:"
           root-config --version
           python -c "import ROOT; print(ROOT.gROOT.GetVersion())"
+
+      - name: Build scientific dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          INSTALL_JOBS=2 bash install.sh --build
+
+      - name: Verify dependencies after build
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash install.sh --check
+          python -m pytest tests/test_repo_utils.py \
+            -m "requires_analysis_dependencies" \
+            -v
 
       - name: Run scientific runtime-readiness gate
         shell: bash
