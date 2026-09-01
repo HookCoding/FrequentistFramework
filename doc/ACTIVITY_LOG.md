@@ -2602,3 +2602,21 @@ The branch-specific push trigger remains temporary while the workflow is under r
 - `python/run_anaFit.py` compiled successfully.
 - Six existing invalid-escape `SyntaxWarning` messages remain in legacy code and are unrelated to this change.
 - Hosted verification of the revised provenance behavior remains pending.
+
+##### README installation and validation instructions corrected
+
+- Replaced the unsafe sourced installer command:
+  - `. install.sh`
+- Documented the supported non-destructive build command:
+  - `bash install.sh --build`
+- Added an explicit warning that sourcing `install.sh` can terminate the active shell when the installer reaches an `exit` command.
+- Reformatted the installation, setup, run, file, and validation instructions as structured Markdown.
+- Replaced the outdated quality-check description with the current Tier 1 and Tier 2 validation model.
+- Documented the locked Python development-environment setup.
+- Documented the authoritative complete lightweight quality command:
+  - `python scripts/quality_check.py --mode full`
+- Added links to:
+  - `doc/TIER1_SYSTEM.md`;
+  - `doc/TIER2_SYSTEM.md`;
+  - `doc/TIER1_ENVIRONMENT_PROVENANCE.md`.
+- `git diff --check` passed.
