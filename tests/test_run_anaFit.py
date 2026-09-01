@@ -183,6 +183,7 @@ def test_build_fit_extract_stops_after_quickfit_failure(
 ) -> None:
     module = _load_run_anafit_module(monkeypatch)
     calls: list[str] = []
+    commands: list[str] = []
 
     def execute_required_with_quickfit_failure(
         cmd,
@@ -190,6 +191,7 @@ def test_build_fit_extract_stops_after_quickfit_failure(
         expected_outputs=(),
     ):
         calls.append(description)
+        commands.append(cmd)
         return description != "quickFit background or signal fit"
 
     monkeypatch.setattr(
@@ -216,6 +218,10 @@ def test_build_fit_extract_stops_after_quickfit_failure(
         "XMLReader workspace generation",
         "quickFit background or signal fit",
     ]
+
+    quickfit_command = commands[1]
+    assert " > quickFitLog.log 2>&1" in quickfit_command
+    assert chr(38) + chr(62) not in quickfit_command
 
 
 @pytest.mark.parametrize(
@@ -744,14 +750,15 @@ def test_get_git_revision_returns_clean_repository_commit(
 
 
 @pytest.mark.parametrize("staged", [False, True])
-def test_get_git_revision_rejects_tracked_modifications(
+def test_get_git_revision_warns_for_tracked_modifications(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     staged: bool,
 ) -> None:
     module = _load_run_anafit_module(monkeypatch)
     repository = tmp_path / "repository"
-    _create_test_git_repository(repository)
+    expected_revision = _create_test_git_repository(repository)
 
     (repository / "tracked.txt").write_text(
         "modified content\n",
@@ -765,11 +772,13 @@ def test_get_git_revision_rejects_tracked_modifications(
             check=True,
         )
 
-    with pytest.raises(
-        RuntimeError,
-        match="repository with tracked modifications",
-    ):
-        module.get_git_revision(repository)
+    assert module.get_git_revision(repository) == expected_revision
+
+    captured = capsys.readouterr()
+    assert "WARNING: Recording Git revision" in captured.out
+    assert expected_revision in captured.out
+    assert "repository with tracked modifications" in captured.out
+    assert "tracked.txt" in captured.out
 
 
 def test_get_git_revision_ignores_untracked_files(

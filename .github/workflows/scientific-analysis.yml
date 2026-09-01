@@ -1,0 +1,266 @@
+name: Complete hosted analysis test suite
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - github-actions-analysis
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scientific-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  complete-analysis-test-suite:
+    name: Complete lightweight and scientific test suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      ANAFIT_LCG_PLATFORM: x86_64-ubuntu2204-gcc11-opt
+      ANAFIT_EXPECTED_PYTHON_EXECUTABLE: /cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-ubuntu2204-gcc11-opt/bin/python
+      CC: gcc-11
+      CXX: g++-11
+
+    steps:
+      - name: Check out repository and dependencies
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up locked development Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
+          cache: pip
+          cache-dependency-path: requirements-dev-lock.txt
+
+      - name: Install locked development dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev-lock.txt
+
+      - name: Run complete lightweight quality gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/quality_check.py --mode full
+
+      - name: Install LCG-compatible compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes gcc-11 g++-11
+          test "$(gcc-11 -dumpversion | cut -d. -f1)" = "11"
+          test "$(g++-11 -dumpversion | cut -d. -f1)" = "11"
+          command -v x86_64-linux-gnu-g++-11
+
+      - name: Set up CernVM-FS
+        uses: cvmfs-contrib/github-action-cvmfs@10197e000cc0add8e54ac4fb73d3ed44e2de72b4
+        with:
+          cvmfs_repositories: atlas.cern.ch,sft.cern.ch
+          cvmfs_http_proxy: DIRECT
+          cvmfs_quota_limit: "10000"
+
+      - name: Acquire pinned RooFitExtensions checkouts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          readonly repository_url="https://gitlab.cern.ch/atlas_higgs_combination/software/RooFitExtensions.git"
+          readonly revision="ba94bfcbfa4f4a4e3541ade09580399e409e8514"
+
+          for dependency in xmlAnaWSBuilder quickFit workspaceCombiner; do
+            checkout_path="$dependency/RooFitExtensions"
+
+            if [[ -e "$checkout_path" ]]; then
+              echo "::error title=Unexpected RooFitExtensions path::$checkout_path already exists but is not recorded by the clean checkout."
+              exit 1
+            fi
+
+            git clone --no-checkout "$repository_url" "$checkout_path"
+            git -C "$checkout_path" checkout --detach "$revision"
+
+            actual_revision="$(git -C "$checkout_path" rev-parse HEAD)"
+            if [[ "$actual_revision" != "$revision" ]]; then
+              echo "::error title=RooFitExtensions revision mismatch::$dependency expected $revision but found $actual_revision."
+              exit 1
+            fi
+          done
+
+      - name: Verify clean checkout and dependency revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository_status="$(git status --porcelain)"
+          if [[ -n "$repository_status" ]]; then
+            echo "::warning title=Repository checkout is not clean::Untracked or modified files were detected after environment setup."
+            printf '%s\n' "$repository_status"
+          else
+            echo "Repository checkout is clean."
+          fi
+          git submodule status --recursive
+          bash install.sh --check
+
+      - name: Verify CernVM-FS repositories
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
+          test -d /cvmfs/sft.cern.ch/lcg/views/LCG_102a
+          cvmfs_config probe atlas.cern.ch
+          cvmfs_config probe sft.cern.ch
+
+      - name: Inspect scientific runtime
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          set +u
+          source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
+          echo "Operating system:"
+          cat /etc/os-release
+          echo "Architecture:"
+          uname -m
+          echo "Python executable:"
+          command -v python
+          echo "Python version:"
+          python --version
+          echo "ROOT version:"
+          root-config --version
+          python -c "import ROOT; print(ROOT.gROOT.GetVersion())"
+
+      - name: Build scientific dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          INSTALL_JOBS=2 bash install.sh --build
+
+      - name: Verify dependencies after build
+        shell: bash
+        run: |
+          set -o pipefail
+          bash install.sh --check
+
+          set +e
+          set +u
+          source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
+
+          python -m pytest tests/test_repo_utils.py \
+            -m "requires_analysis_dependencies" \
+            -v
+
+      - name: Run scientific runtime-readiness gate
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          set +u
+          source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
+          python -m pytest \
+            tests/test_analysis_workflows_integration.py \
+            -k authoritative_setup_provides_scientific_runtime \
+            -v
+
+      - name: Run authoritative J100 and J50 characterization gate
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          set +u
+          source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
+
+          set +e
+          python -m pytest \
+            tests/test_analysis_workflows_integration.py \
+            -m "integration and requires_root" \
+            -v
+          characterization_status=$?
+          set -e
+
+          if (( characterization_status != 0 )); then
+            echo "::group::Hosted scientific failure diagnostics"
+            echo "Compiler commands:"
+            command -v gcc || true
+            command -v g++ || true
+            command -v x86_64-linux-gnu-g++-11 || true
+            gcc --version || true
+            g++ --version || true
+            x86_64-linux-gnu-g++-11 --version || true
+
+            echo "Configured CMake compilers:"
+            for cache_file in \
+              xmlAnaWSBuilder/build/CMakeCache.txt \
+              quickFit/build/CMakeCache.txt \
+              workspaceCombiner/build/CMakeCache.txt
+            do
+              echo "===== $cache_file ====="
+              grep -E \
+                '^(CMAKE_C_COMPILER|CMAKE_CXX_COMPILER)(:FILEPATH)?=' \
+                "$cache_file" || true
+            done
+
+            echo "quickFit executable information:"
+            file quickFit/build/quickFit || true
+            ldd quickFit/build/quickFit || true
+
+            echo "Direct quickFit startup probe:"
+            set +e
+            timeout 30s quickFit/build/quickFit --help
+            quickfit_probe_status=$?
+            set -e
+            echo "quickFit startup probe status: $quickfit_probe_status"
+
+            echo "Generated quickFit logs:"
+            find /tmp/pytest-of-runner \
+              -type f \
+              -name 'quickFitLog*.log' \
+              -print \
+              -exec sh -c '
+                for log_file do
+                  echo "===== $log_file ====="
+                  cat "$log_file"
+                done
+              ' sh {} + 2>/dev/null || true
+
+            echo "Generated fit files:"
+            find /tmp/pytest-of-runner \
+              -type f \
+              \( -name 'FitResult*.root' -o -name 'FitParameters*.root' \) \
+              -print 2>/dev/null || true
+            echo "::endgroup::"
+
+            exit "$characterization_status"
+          fi
