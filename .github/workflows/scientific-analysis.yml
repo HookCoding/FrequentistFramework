@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - github-actions-analysis
+      - harry
+      - tier-2-m365
 
 permissions:
   contents: read
