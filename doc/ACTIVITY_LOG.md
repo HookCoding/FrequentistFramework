@@ -2620,3 +2620,40 @@ The branch-specific push trigger remains temporary while the workflow is under r
   - `doc/TIER2_SYSTEM.md`;
   - `doc/TIER1_ENVIRONMENT_PROVENANCE.md`.
 - `git diff --check` passed.
+
+#### 2026-09-01: GitHub-hosted analysis branch merged into tier-2-m365
+
+##### Merge completed
+
+- Merged `github-actions-analysis` into `tier-2-m365` using an explicit merge commit.
+- The merge completed without conflicts.
+- The merged change set includes:
+  - the complete GitHub-hosted lightweight and scientific test workflow;
+  - CVMFS and Ubuntu-compatible LCG 102a setup;
+  - hosted dependency acquisition and non-destructive building;
+  - GCC 11 and CMake 4 compatibility;
+  - portable quickFit output redirection;
+  - approved cross-platform runtime provenance;
+  - warning-only handling for tracked repository modifications;
+  - updated installation and validation documentation;
+  - associated regression tests and activity-log evidence.
+
+##### Post-merge lightweight verification
+
+Command: `python scripts/quality_check.py --mode full`
+
+Result:
+
+- Tests collected: 122.
+- Tests selected: 120.
+- Tests passed: 120.
+- Prepared-dependency tests deselected: 2.
+- Unexpected failures: 0.
+- Ruff: passed.
+- Black: passed.
+- Black files unchanged: 8.
+- Existing legacy `SyntaxWarning` messages: 6.
+
+##### Current status
+
+The local `tier-2-m365` branch contains the verified merge and is ahead of `origin/tier-2-m365`. The merged target branch has not yet been pushed.
