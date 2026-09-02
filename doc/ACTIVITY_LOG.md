@@ -3203,3 +3203,119 @@ manifests reflect the current clean commit, and every established gate
 (lightweight, dependency, and the real scientific characterization gate)
 passes. This closes the finding; no further Tier 3 chunk work is implied
 or affected by this change. Chunks 2 through 12 remain open.
+
+## 2026-09-02: Propagate scientific setup failures instead of silently continuing
+
+### Objective
+
+Address a second GitHub Copilot review finding, on
+`scripts/setup_buildAndFit.sh` lines 12-14: `source
+"${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh"`, `lsetup "views
+LCG_102a ..."`, and `lsetup cmake` had no exit-status check. Because every
+caller that sources this script deliberately disables `errexit` first
+(required, since ATLAS's own setup machinery isn't nounset/errexit-safe —
+see the 2026-08-28 "ATLAS setup errexit compatibility corrected" entry), a
+failed setup command was silently followed by the script's remaining
+`export`/`mkdir` lines succeeding, so the sourced script still returned 0
+overall. A caller checking that return code would see success and
+potentially build or fit against the host environment instead of the
+pinned LCG_102a view.
+
+### Scope: both branches, and the two callers that don't check the sourcing's own exit status
+
+Reading the complete file (not just the three lines Copilot's comment
+quoted) found the identical pattern in the `else` branch (the *default*
+LXPlus path used whenever `ANAFIT_LCG_PLATFORM` is unset — the path this
+very development session has been exercising on lxplus975 all along, not
+just the hosted-CI override path Copilot's comment happened to point at):
+`source setup_lxplus.sh` for both `xmlAnaWSBuilder` and `quickFit` had the
+same unguarded-failure problem.
+
+Separately, guarding `setup_buildAndFit.sh` alone is necessary but not
+sufficient: `scripts/run_anaFit_J100.sh` and `scripts/run_anaFit_J50.sh`
+have no `set -e` anywhere and never checked the exit status of `.
+"$setup_script"` — so even a correctly-`return 1`-ing setup script would
+have been silently ignored by the two authoritative launchers, which is
+exactly the concern Copilot's own wording ("The workflow then treats a
+failed scientific setup as successful") points at. The hosted CI
+workflow (`.github/workflows/scientific-analysis.yml`) already checks
+this correctly (`setup_status=$?` after each `source
+scripts/setup_buildAndFit.sh`, per the same 2026-08-28 precedent) and did
+not need changing.
+
+### Changes completed
+
+- `scripts/setup_buildAndFit.sh`:
+  - `ANAFIT_LCG_PLATFORM` branch: `source atlasLocalSetup.sh`, both
+    `lsetup` calls now `|| return 1`.
+  - Default LXPlus branch: `source setup_lxplus.sh` (both
+    `xmlAnaWSBuilder` and `quickFit`) now has its exit status captured
+    explicitly and checked *after* the following `cd .. || return 1` —
+    not `|| return 1` directly on the `source` line, which would have
+    returned before restoring the working directory, leaving the calling
+    shell inside `xmlAnaWSBuilder/`/`quickFit/` on failure. Verified this
+    ordering matters: an earlier draft of this fix using the naive `||
+    return 1` form was caught by a directory-restoration test before being
+    corrected (see Tests below).
+  - Verified the success path is unaffected: sourced the corrected script
+    directly on this LXPlus session (the same default branch every
+    integration-gate run in this session has been exercising) — exit
+    status 0, `_DIRXMLWSBUILDER`/`_DIRFIT` both correctly exported, `pwd`
+    correctly back at the repository root afterward.
+- `scripts/run_anaFit_J100.sh`, `scripts/run_anaFit_J50.sh`: added a
+  `setup_status=$?` check immediately after `. "$setup_script"`, printing
+  an error and exiting with that status on failure — the exact same idiom
+  already used later in both scripts for `run_anaFit.py`'s own
+  `analysis_status`.
+
+### Tests added
+
+- `test_setup_build_and_fit_propagates_setup_lxplus_failure_and_restores_cwd`
+  (new, first direct test of `setup_buildAndFit.sh` itself — no prior
+  test exercised its own logic in isolation): sources the real script
+  against an isolated fake directory tree with a deliberately-failing
+  `xmlAnaWSBuilder/setup_lxplus.sh`, asserts the source reports exit
+  status 1 **and** that the calling shell's working directory is
+  correctly restored, not left inside `xmlAnaWSBuilder/`. Caught the
+  cwd-leak regression described above during development of this fix.
+- `test_launcher_propagates_setup_failure_before_running_analysis`
+  (new, parametrized over both launchers, mirroring the existing
+  `test_launcher_propagates_analysis_failure_before_plotting` pattern):
+  stubs `ANAFIT_SETUP_SCRIPT` with a script that fails, asserts the
+  launcher exits with that failure code and that the (separately stubbed)
+  analysis runner is never invoked and no plot output is produced.
+
+A note on a test-authoring pitfall hit and fixed while writing the first
+new test: the fake failing `setup_lxplus.sh` initially used `exit 1`.
+Because `setup_lxplus.sh` is always *sourced*, never executed, `exit`
+terminates the entire calling shell rather than just the source
+operation — which silently killed the whole test harness process instead
+of exercising the intended failure path. Confirmed the real external
+`xmlAnaWSBuilder/setup_lxplus.sh` and `quickFit/setup_lxplus.sh` already
+correctly use `return 1`, and fixed the fake fixture to match.
+
+### Verification performed
+
+- `bash -n` on all three changed scripts → syntax OK.
+- `python -m pytest tests/test_run_anaFit.py -k "setup_build_and_fit or launcher" -v`
+  → 7 passed (2 new + 5 existing, all unaffected).
+- `python -m pytest tests/test_run_anaFit.py -q` → 48 passed.
+- `python scripts/quality_check.py --mode full` → 127 passed, 2
+  deselected, Ruff/Black clean, exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -v -m "requires_root or integration"`
+  → **2 passed**, 238.75s: both the authoritative J100/J50
+  characterization gate (real rerun, frozen reference reproduced) and
+  `test_authoritative_setup_provides_scientific_runtime` (which directly
+  sources the now-corrected `setup_buildAndFit.sh` to establish the real
+  scientific environment) passed — confirming the fix does not break real
+  environment setup, only closes the silent-failure gap.
+- `python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`
+  → 2 passed, 11 deselected.
+- `git status -sb` → only the four intended files; `git diff --check`
+  passed.
+
+### Current status
+
+Both GitHub Copilot findings raised on this PR are now resolved and
+verified. This change is standalone, not tied to a `doc/TIER3_COMPLETION_PLAN.md`
+chunk. Chunks 2 through 12 remain open.

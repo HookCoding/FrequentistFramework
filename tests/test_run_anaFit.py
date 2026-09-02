@@ -162,6 +162,97 @@ def test_build_fit_extract_stops_after_quickfit_failure(
     assert chr(38) + chr(62) not in quickfit_command
 
 
+def test_setup_build_and_fit_propagates_setup_lxplus_failure_and_restores_cwd(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    setup_script = repo_root / "scripts" / "setup_buildAndFit.sh"
+
+    working_directory = tmp_path / "workdir"
+    (working_directory / "xmlAnaWSBuilder").mkdir(parents=True)
+    (working_directory / "quickFit").mkdir(parents=True)
+    # setup_lxplus.sh is always sourced, never executed, so it must fail
+    # via `return` (matching the real xmlAnaWSBuilder/quickFit checkouts'
+    # own setup_lxplus.sh) -- `exit` here would terminate the entire
+    # calling shell instead of just the source operation.
+    (working_directory / "xmlAnaWSBuilder" / "setup_lxplus.sh").write_text(
+        "#!/bin/bash\nreturn 1\n"
+    )
+
+    environment = os.environ.copy()
+    environment.pop("ANAFIT_LCG_PLATFORM", None)
+    environment.pop("_DIRXMLWSBUILDER", None)
+    environment.pop("_DIRFIT", None)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'cd "{working_directory}" && '
+            f'source "{setup_script}"; '
+            'echo "STATUS:$?"; '
+            'echo "CWD:$(pwd)"',
+        ],
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert "STATUS:1" in completed.stdout
+    # The failure must not leave the shell inside xmlAnaWSBuilder/ --
+    # cd back to the pre-source directory is required before returning.
+    assert f"CWD:{working_directory}" in completed.stdout
+
+
+@pytest.mark.parametrize(
+    ("launcher_name", "region"),
+    [
+        ("run_anaFit_J100.sh", "J100"),
+        ("run_anaFit_J50.sh", "J50"),
+    ],
+)
+def test_launcher_propagates_setup_failure_before_running_analysis(
+    tmp_path: Path,
+    launcher_name: str,
+    region: str,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    setup_script = tmp_path / "fake-setup.sh"
+    analysis_runner = tmp_path / "fake-analysis-runner.sh"
+    output_dir = tmp_path / "outputs"
+    runner_marker = tmp_path / "runner-called.txt"
+
+    setup_script.write_text("#!/bin/bash\necho 'setup failed' >&2\nexit 7\n")
+    setup_script.chmod(0o755)
+
+    analysis_runner.write_text(f'#!/bin/bash\ntouch "{runner_marker}"\nexit 0\n')
+    analysis_runner.chmod(0o755)
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "ANAFIT_OUTPUT_DIR": str(output_dir),
+            "ANAFIT_SETUP_SCRIPT": str(setup_script),
+            "ANAFIT_RUNNER": str(analysis_runner),
+            "FIT_PARS": "six",
+        }
+    )
+
+    completed = subprocess.run(
+        ["bash", str(repo_root / "scripts" / launcher_name)],
+        cwd=repo_root,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 7
+    assert not runner_marker.exists()
+    assert not list(output_dir.rglob("postFit.pdf"))
+
+
 @pytest.mark.parametrize(
     ("launcher_name", "region"),
     [

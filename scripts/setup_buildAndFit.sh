@@ -9,9 +9,9 @@ fi
 
 if [[ -n ${ANAFIT_LCG_PLATFORM:-} ]]; then
     export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
-    source "${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh"
-    lsetup "views LCG_102a ${ANAFIT_LCG_PLATFORM}"
-    lsetup cmake
+    source "${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh" || return 1
+    lsetup "views LCG_102a ${ANAFIT_LCG_PLATFORM}" || return 1
+    lsetup cmake || return 1
 
     if [[ -z ${_DIRXMLWSBUILDER:-} ]]; then
         export _DIRXMLWSBUILDER="${PWD}/xmlAnaWSBuilder"
@@ -32,13 +32,21 @@ else
     if [[ -z ${_DIRXMLWSBUILDER:-} ]]; then
         cd xmlAnaWSBuilder/ || return 1
         source setup_lxplus.sh
+        _setup_lxplus_status=$?
         cd .. || return 1
+        if (( _setup_lxplus_status != 0 )); then
+            return 1
+        fi
     fi
 
     if [[ -z ${_DIRFIT:-} ]]; then
         cd quickFit/ || return 1
         source setup_lxplus.sh
+        _setup_lxplus_status=$?
         cd .. || return 1
+        if (( _setup_lxplus_status != 0 )); then
+            return 1
+        fi
     fi
 fi
 

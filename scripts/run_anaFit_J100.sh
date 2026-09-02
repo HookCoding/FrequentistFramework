@@ -10,6 +10,11 @@ cd "$repo_dir"
 
 {
     . "$setup_script"
+    setup_status=$?
+    if (( setup_status != 0 )); then
+        echo "ERROR: scientific environment setup failed with exit code $setup_status" >&2
+        exit "$setup_status"
+    fi
 
     # Set FIT_PARS to a space-separated list such as "six" or "six seven".
     pars_list="${FIT_PARS:-six}"
