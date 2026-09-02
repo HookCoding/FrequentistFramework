@@ -2970,3 +2970,46 @@ Chunk 1's extraction is now confirmed both by the fast unit-test gate
 the actual production launcher scripts — the new module boundary and
 import mechanism work correctly outside the test harness, not only inside
 it. No scientific result changed.
+
+## 2026-09-02: Housekeeping — remove duplicate `subprocess` import in `python/run_anaFit.py`
+
+### Objective
+
+Fix a pre-existing duplicate import identified by the user during review
+of Chunk 1.B: `python/run_anaFit.py` imported `subprocess` twice — once as
+part of the combined `import os,sys,re,argparse,subprocess,shutil` line,
+and again as a standalone `import subprocess` line immediately before
+`import ROOT`. This predates Tier 3 (present in the original,
+unmodified file); Chunk 1.B's edit happened to touch the surrounding
+lines (replacing the old `execute`/`execute_required` definitions with
+`from run_execution import execute, execute_required`) without removing
+the pre-existing duplicate.
+
+### Change
+
+Removed the standalone `import subprocess` line. The combined import on
+line 4 already provides it; `subprocess.run(...)` (used in
+`get_git_revision`, two call sites) is otherwise unaffected. Zero
+behavior change — Python treats a duplicate `import` as a harmless no-op,
+so this is a pure readability fix, not a bug fix.
+
+### Verification performed
+
+- `python -m py_compile python/run_anaFit.py` → compiles (only the six
+  pre-existing, unrelated legacy `SyntaxWarning` messages remain).
+- `grep -n "^import subprocess\|subprocess\."` confirms exactly one
+  import and both existing `subprocess.run(...)` call sites unchanged.
+- `python -m pytest tests/test_run_anaFit.py tests/test_run_execution.py -q`
+  → 50 passed.
+- `python scripts/quality_check.py --mode full` → 122 passed, 2
+  deselected, Ruff/Black clean, exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed, 164.10s, frozen reference reproduced exactly.
+- `git status -sb` → only `python/run_anaFit.py` touched (1 line
+  removed); `git diff --check` passed.
+
+### Current status
+
+This is a standalone housekeeping fix, not tied to a specific
+`doc/TIER3_COMPLETION_PLAN.md` chunk. All chunk status is unchanged:
+Chunks 2 through 12 remain open.

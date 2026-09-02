@@ -10,7 +10,6 @@ from ExtractPostfitFromWS import PostfitExtractor
 from ExtractFitParameters import FitParameterExtractor
 from PreFit import PreFitter
 from run_execution import execute, execute_required
-import subprocess
 import ROOT
 
 
