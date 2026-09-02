@@ -3144,3 +3144,62 @@ Regenerate and commit the two canonical manifests (immediately following
 entry). Until that lands, `quality_check.py --mode full` is expected to
 show exactly the one failure described above — this is not an unrelated
 regression if seen at this specific commit.
+
+## 2026-09-02: Canonical manifest provenance regenerated for repository_dirty
+
+### Objective
+
+Resolve the known, expected failure left by the previous entry
+(`test_analysis_reference_matches_frozen_output`) by regenerating the two
+canonical J100/J50 manifests from the clean commit that introduced
+`repository_dirty` (`a83e888`), matching the established
+2026-08-27 "Canonical manifest provenance corrected" precedent for this
+exact kind of schema change.
+
+### Procedure
+
+- Confirmed the working tree was clean at commit `a83e888` before
+  execution (`git status -sb`).
+- Ran both authoritative launchers into a fresh, isolated temporary output
+  root (`ANAFIT_OUTPUT_DIR`), with `ANAFIT_SKIP_PLOTS=1`:
+  - `bash scripts/run_anaFit_J100.sh` — completed successfully, 2m1s,
+    `p(chi2)=0.018` printed.
+  - `bash scripts/run_anaFit_J50.sh` — completed successfully, 1m36s,
+    `p(chi2)=0.079` printed.
+- Inspected both fresh `analysis_results.json` manifests before promoting
+  them: both recorded `"repository_commit": "a83e888c59bb..."` (exact
+  match for the commit used), `"repository_dirty": false` (correctly
+  clean), `p_chi2` values exactly matching the frozen reference
+  (`0.018448750724012808` and `0.07853114301666252`), and every other
+  provenance field (tool revisions, input/configuration hashes,
+  invocation settings) unchanged from the previously committed manifests.
+- Copied only the two regenerated `analysis_results.json` files into their
+  canonical tracked locations, overwriting the previous ones. No other
+  tracked scientific artifact was touched. Confirmed via `git diff
+  --stat`: exactly 2 files, 3 lines each
+  (`repository_commit` value changed, `repository_dirty` line added).
+
+### Verification performed
+
+- `python scripts/quality_check.py --mode full` → **124 passed, 2
+  deselected**, exit code 0 (the previously-failing test now passes).
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed, 190.39s. Both J100 and J50 reran from fresh isolated
+  outputs a second time (independent of the regeneration run above) and
+  matched the frozen reference within tolerance — confirming the
+  regenerated canonical manifests are consistent with a completely
+  independent fresh run, not just self-consistent with themselves.
+- `python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`
+  → 2 passed, 11 deselected.
+- `git status -sb` → only the two manifest files; no untracked artifacts.
+- `git diff --check` → passed.
+
+### Current status
+
+The Copilot-flagged provenance gap is fully resolved and verified:
+`analysis_results.json` now persists a validated, machine-checkable
+`repository_dirty` field for every future run, the two canonical
+manifests reflect the current clean commit, and every established gate
+(lightweight, dependency, and the real scientific characterization gate)
+passes. This closes the finding; no further Tier 3 chunk work is implied
+or affected by this change. Chunks 2 through 12 remain open.
