@@ -205,6 +205,81 @@ def test_setup_build_and_fit_propagates_setup_lxplus_failure_and_restores_cwd(
     assert f"CWD:{working_directory}" in completed.stdout
 
 
+def test_setup_build_and_fit_lcg_platform_branch_exposes_build_directories(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    setup_script = repo_root / "scripts" / "setup_buildAndFit.sh"
+
+    working_directory = tmp_path / "workdir"
+    (working_directory / "xmlAnaWSBuilder" / "build" / "bin").mkdir(parents=True)
+    (working_directory / "xmlAnaWSBuilder" / "build" / "lib").mkdir(parents=True)
+    (working_directory / "xmlAnaWSBuilder" / "lib").mkdir(parents=True)
+    (working_directory / "quickFit" / "build").mkdir(parents=True)
+    (working_directory / "quickFit" / "lib").mkdir(parents=True)
+
+    # ATLAS_LOCAL_ROOT_BASE is hardcoded to a real CVMFS path in
+    # production; overriding it here (now that the script honors an
+    # existing value) lets this test exercise the real
+    # ANAFIT_LCG_PLATFORM branch with a fake ATLAS/lsetup stub instead of
+    # requiring genuine CVMFS/Ubuntu infrastructure.
+    fake_atlas_root = tmp_path / "fake-atlas-root"
+    (fake_atlas_root / "user").mkdir(parents=True)
+    (fake_atlas_root / "user" / "atlasLocalSetup.sh").write_text(
+        "#!/bin/bash\nlsetup() { return 0; }\n"
+    )
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "ANAFIT_LCG_PLATFORM": "x86_64-fake-platform",
+            "ATLAS_LOCAL_ROOT_BASE": str(fake_atlas_root),
+        }
+    )
+    for stale_variable in ("_DIRXMLWSBUILDER", "_DIRFIT", "_BIN_PATH", "_LIB_PATH"):
+        environment.pop(stale_variable, None)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'cd "{working_directory}" && '
+            f'source "{setup_script}"; '
+            'echo "STATUS:$?"; '
+            'echo "PATH:$PATH"; '
+            'echo "LD_LIBRARY_PATH:$LD_LIBRARY_PATH"',
+        ],
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert "STATUS:0" in completed.stdout, completed.stdout + completed.stderr
+
+    path_line = next(line for line in completed.stdout.splitlines() if line.startswith("PATH:"))
+    ld_library_path_line = next(
+        line for line in completed.stdout.splitlines() if line.startswith("LD_LIBRARY_PATH:")
+    )
+
+    xml_build_bin = str(working_directory / "xmlAnaWSBuilder" / "build" / "bin")
+    xml_build_lib = str(working_directory / "xmlAnaWSBuilder" / "build" / "lib")
+    xml_lib = str(working_directory / "xmlAnaWSBuilder" / "lib")
+    quickfit_build = str(working_directory / "quickFit" / "build")
+    quickfit_lib = str(working_directory / "quickFit" / "lib")
+
+    assert xml_build_bin in path_line
+    assert quickfit_build in path_line
+    # The pre-fix, nonexistent xmlAnaWSBuilder/bin path must not reappear,
+    # even via a future accidental partial revert.
+    assert str(working_directory / "xmlAnaWSBuilder" / "bin") not in path_line
+
+    assert xml_build_lib in ld_library_path_line
+    assert xml_lib in ld_library_path_line
+    assert quickfit_build in ld_library_path_line
+    assert quickfit_lib in ld_library_path_line
+
+
 @pytest.mark.parametrize(
     ("launcher_name", "region"),
     [

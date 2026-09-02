@@ -8,23 +8,29 @@ if [[ ! -d xmlAnaWSBuilder ]] || [[ ! -d quickFit ]]; then
 fi
 
 if [[ -n ${ANAFIT_LCG_PLATFORM:-} ]]; then
-    export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
+    export ATLAS_LOCAL_ROOT_BASE="${ATLAS_LOCAL_ROOT_BASE:-/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase}"
     source "${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh" || return 1
     lsetup "views LCG_102a ${ANAFIT_LCG_PLATFORM}" || return 1
     lsetup cmake || return 1
 
     if [[ -z ${_DIRXMLWSBUILDER:-} ]]; then
         export _DIRXMLWSBUILDER="${PWD}/xmlAnaWSBuilder"
-        export _BIN_PATH="${_DIRXMLWSBUILDER}/bin"
-        export _LIB_PATH="${_DIRXMLWSBUILDER}/lib"
+        # install.sh builds XMLReader/libxmlAnaWSBuilder.so into build/;
+        # only the copied RooFitExtensions library lives at the top-level
+        # lib/ (there is no top-level bin/ at all).
+        export _BIN_PATH="${_DIRXMLWSBUILDER}/build/bin"
+        export _LIB_PATH="${_DIRXMLWSBUILDER}/build/lib:${_DIRXMLWSBUILDER}/lib"
         export LD_LIBRARY_PATH="${_LIB_PATH}:${LD_LIBRARY_PATH:-}"
         export PATH="${_BIN_PATH}:${PATH}"
     fi
 
     if [[ -z ${_DIRFIT:-} ]]; then
         export _DIRFIT="${PWD}/quickFit"
-        export _BIN_PATH="${_DIRFIT}/bin"
-        export _LIB_PATH="${_DIRFIT}/lib"
+        # quickFit's build output (quickFit, quickLimit, libquick.so) sits
+        # flat in build/, not build/bin or build/lib; the copied
+        # RooFitExtensions library is the separate top-level lib/.
+        export _BIN_PATH="${_DIRFIT}/build"
+        export _LIB_PATH="${_DIRFIT}/build:${_DIRFIT}/lib"
         export LD_LIBRARY_PATH="${_LIB_PATH}:${LD_LIBRARY_PATH:-}"
         export PATH="${_BIN_PATH}:${PATH}"
     fi

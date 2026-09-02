@@ -3319,3 +3319,130 @@ correctly use `return 1`, and fixed the fake fixture to match.
 Both GitHub Copilot findings raised on this PR are now resolved and
 verified. This change is standalone, not tied to a `doc/TIER3_COMPLETION_PLAN.md`
 chunk. Chunks 2 through 12 remain open.
+
+## 2026-09-02: Correct wrong PATH/LD_LIBRARY_PATH in the ANAFIT_LCG_PLATFORM branch
+
+### Objective
+
+Address a third GitHub Copilot review finding, on
+`scripts/setup_buildAndFit.sh` lines 18-21: the `ANAFIT_LCG_PLATFORM`
+branch exported `_BIN_PATH="${_DIRXMLWSBUILDER}/bin"` and
+`_LIB_PATH="${_DIRXMLWSBUILDER}/lib"`, but `install.sh` actually builds
+XMLReader and `libxmlAnaWSBuilder.so` into `xmlAnaWSBuilder/build/bin` and
+`xmlAnaWSBuilder/build/lib`.
+
+### Independent verification of the claim (not taken on faith)
+
+Directly inspected the real checkout before changing anything:
+
+- `xmlAnaWSBuilder/bin/` — **does not exist**.
+- `xmlAnaWSBuilder/build/bin/XMLReader` — the real, built executable.
+- `xmlAnaWSBuilder/lib/` — exists and holds the copied
+  `libRooFitExtensions.so` (a real, separate dependency — this is the
+  directory Copilot's suggested fix correctly retains rather than
+  discards).
+- `xmlAnaWSBuilder/build/lib/libxmlAnaWSBuilder.so` — the real library,
+  entirely absent from the old `LD_LIBRARY_PATH`.
+
+Copilot's finding and suggested fix (union both lib directories, point
+bin at `build/bin`) were both confirmed correct.
+
+### The identical, unflagged bug in the parallel quickFit block
+
+Reading the whole file (not just the quoted lines) found the same pattern
+one block down, for `quickFit`, which Copilot's comment did not mention:
+`_BIN_PATH="${_DIRFIT}/bin"` (exists but is **empty**) and
+`_LIB_PATH="${_DIRFIT}/lib"` (has `libRooFitExtensions.so` but not
+`libquick.so`). quickFit's actual build output is flat in `quickFit/build/`
+(`quickFit`, `quickLimit`, `quickAsimov`, `libquick.so` all sit directly
+there, confirmed via `ls` and via `install.sh`'s own build-verification
+step), not nested under `build/bin`/`build/lib` the way xmlAnaWSBuilder is.
+Fixed with the equivalent, layout-adjusted correction.
+
+### Impact analysis — precise, not assumed
+
+Before concluding this was purely defensive, checked what actually
+depends on the broken values:
+
+- `readelf -d` on the real built `XMLReader`/`quickFit` binaries shows
+  both have **RPATH baked in** at build time (absolute paths into this
+  checkout's own `build/lib` / `build` and `RooFitExtensions/build`), and
+  `ldd` confirms both resolve their own shared libraries via that RPATH
+  already. So on this checkout, the `LD_LIBRARY_PATH` gap was likely
+  inert for XMLReader/quickFit specifically — and `run_anaFit.py` invokes
+  both via **hardcoded relative paths**
+  (`xmlAnaWSBuilder/build/bin/XMLReader`, `quickFit/build/quickFit`), so
+  the broken `PATH` never mattered for those two either.
+- `quickLimit` is different: `run_anaFit.py` invokes it via a **bare
+  command name** (`execute("quickLimit -f ...")`, `python/run_anaFit.py:782`,
+  no path prefix at all) — this genuinely depends on `PATH` alone to find
+  `quickFit/build/quickLimit`. Under the old, broken
+  `_BIN_PATH="${_DIRFIT}/bin"` (empty directory), any `dolimit=True` run
+  under `ANAFIT_LCG_PLATFORM` would have failed with "command not found."
+  This was never caught by the passing hosted CI run because the
+  canonical J100/J50 background-only gate always has `dolimit=False` and
+  never exercises `quickLimit`.
+
+This is reported precisely rather than claiming the fix "unbroke the
+hosted pipeline" (it likely didn't, for the tested background-only path)
+or dismissing the finding as harmless (it was a real, silent gap for the
+untested `dolimit=True` path, exactly the kind of defect Copilot review
+exists to surface before it's hit in practice).
+
+### Changes completed
+
+- `scripts/setup_buildAndFit.sh`:
+  - `ANAFIT_LCG_PLATFORM` branch: `_BIN_PATH`/`_LIB_PATH` corrected for
+    both `xmlAnaWSBuilder` (`build/bin`; `build/lib:lib`) and `quickFit`
+    (`build`; `build:lib`, since quickFit's build output has no nested
+    `bin`/`lib`).
+  - `ATLAS_LOCAL_ROOT_BASE` changed from unconditionally hardcoded to
+    `"${ATLAS_LOCAL_ROOT_BASE:-/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase}"`
+    — honors an existing value instead of always overwriting it. This is
+    what makes the new test below possible at all: it is the same
+    override-if-unset convention already used throughout this repo's
+    scripts (`ANAFIT_SETUP_SCRIPT`, `ANAFIT_RUNNER`, `ANAFIT_OUTPUT_DIR`,
+    etc.), applied here for the same reason. Zero behavior change in
+    production, where this variable is never pre-set.
+
+### Tests added
+
+- `test_setup_build_and_fit_lcg_platform_branch_exposes_build_directories`
+  (new): exercises the **real** `ANAFIT_LCG_PLATFORM` branch end-to-end,
+  using a fake `ATLAS_LOCAL_ROOT_BASE` tree containing a stub
+  `atlasLocalSetup.sh` that defines a no-op `lsetup` function (avoids
+  needing genuine CVMFS/Ubuntu infrastructure, which isn't available on
+  this lxplus session for this specific platform branch). Asserts the
+  resulting `PATH` contains the real `xmlAnaWSBuilder/build/bin` and
+  `quickFit/build` directories, `LD_LIBRARY_PATH` contains all four real
+  library directories (`xmlAnaWSBuilder/build/lib`, `xmlAnaWSBuilder/lib`,
+  `quickFit/build`, `quickFit/lib`), and explicitly that the old, wrong
+  `xmlAnaWSBuilder/bin` path never reappears.
+
+### Verification performed
+
+- `bash -n scripts/setup_buildAndFit.sh` → syntax OK.
+- `python -m pytest tests/test_run_anaFit.py -k "setup_build_and_fit or launcher" -v`
+  → 8 passed (1 new + 7 existing, all unaffected).
+- `python -m pytest tests/test_run_anaFit.py -q` → 49 passed.
+- `python scripts/quality_check.py --mode full` → 128 passed, 2
+  deselected, Ruff/Black clean, exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -v -m "requires_root or integration"`
+  → 2 passed, 183.14s (both the authoritative J100/J50 characterization
+  gate and the runtime-readiness gate) — confirms the unchanged default
+  LXPlus branch (the one actually exercised on this session's own
+  environment) and the rest of the script are unaffected by this fix.
+  The `ANAFIT_LCG_PLATFORM` branch itself is validated by the new
+  isolated unit test above plus, going forward, the existing hosted
+  `scientific-analysis.yml` workflow, which is the only environment that
+  genuinely exercises that branch for real.
+- `python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`
+  → 2 passed, 11 deselected.
+- `git status -sb` → only the two intended files; `git diff --check`
+  passed.
+
+### Current status
+
+All three GitHub Copilot findings raised on this PR are now resolved and
+verified. Standalone change, not tied to a `doc/TIER3_COMPLETION_PLAN.md`
+chunk. Chunks 2 through 12 remain open.
