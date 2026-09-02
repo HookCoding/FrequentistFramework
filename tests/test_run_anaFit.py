@@ -933,6 +933,26 @@ def test_resolve_analysis_path_rejects_missing_file(
         )
 
 
+def test_resolve_analysis_path_uses_get_repository_root_when_omitted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Every current call site passes repository_root explicitly, so the
+    # "repository_root is None -> call get_repository_root()" branch is a
+    # real, documented part of the function's signature (repository_root
+    # defaults to None) that no existing test actually exercises.
+    module = _load_run_anafit_module(monkeypatch)
+    input_file = tmp_path / "Input" / "data.root"
+    input_file.parent.mkdir()
+    input_file.write_bytes(b"ROOT fixture")
+
+    monkeypatch.setattr(module, "get_repository_root", lambda: tmp_path)
+
+    resolved = module.resolve_analysis_path("Input/data.root")
+
+    assert resolved == input_file.resolve()
+
+
 def test_build_file_provenance_records_relative_path_and_hash(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -990,6 +1010,29 @@ def test_build_file_provenance_rejects_missing_file(
             "Input/missing.root",
             repository_root=tmp_path,
         )
+
+
+def test_build_file_provenance_uses_get_repository_root_when_omitted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Same gap as resolve_analysis_path above: every current call site in
+    # build_analysis_provenance() passes repository_root explicitly, so
+    # this function's own "repository_root is None" fallback is
+    # untested, even though it is part of the documented signature.
+    module = _load_run_anafit_module(monkeypatch)
+    input_file = tmp_path / "Input" / "data.root"
+    input_file.parent.mkdir()
+    input_file.write_bytes(b"canonical input")
+
+    monkeypatch.setattr(module, "get_repository_root", lambda: tmp_path)
+
+    provenance = module.build_file_provenance("Input/data.root")
+
+    assert provenance == {
+        "path": "Input/data.root",
+        "sha256": module.calculate_file_sha256(input_file),
+    }
 
 
 def test_build_analysis_provenance_records_runtime_inputs_tools_and_invocation(

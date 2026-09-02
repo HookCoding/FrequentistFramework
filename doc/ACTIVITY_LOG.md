@@ -3809,3 +3809,97 @@ byte-for-byte identical to before the move. The one call site in
 
 Chunks 3 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 2
 (both Step A and Step B) is complete and verified.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 3.A: characterization tests for the provenance pipeline
+
+### Objective
+
+Pin down the current, unmodified behavior of all seven functions in the
+repository-discovery -> path-resolution -> hashing -> Git-revision ->
+runtime-collection -> payload-assembly pipeline in `python/run_anaFit.py`
+before extracting them into `run_provenance.py`, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 3.
+
+### Pre-change state
+
+All seven target functions already had direct tests (18 test functions,
+19 cases counting the `warns_for_tracked_modifications` parametrization):
+`get_repository_root` (2), `resolve_analysis_path` (3),
+`calculate_file_sha256` (2), `build_file_provenance` (3),
+`get_git_revision` (4 cases), `collect_scientific_runtime` (2),
+`build_analysis_provenance` (2). All 19 pass unmodified.
+
+Reviewing each function's contract against its tests found one real gap,
+duplicated across two functions: both `resolve_analysis_path(path,
+repository_root=None)` and `build_file_provenance(path,
+repository_root=None)` have a documented `repository_root=None` fallback
+branch (`if repository_root is None: repository_root =
+get_repository_root()`) that no existing test exercises — every existing
+test, and every real call site in `build_analysis_provenance` (confirmed
+by `grep -n "resolve_analysis_path(\|build_file_provenance("
+python/run_anaFit.py`), always passes `repository_root` explicitly. This
+fallback is not currently reached in production, but it is part of each
+function's documented signature, and both functions become independently
+importable from `python/run_provenance.py` after this chunk, at which
+point any future direct caller could reasonably omit it.
+
+### Target functions — inputs and outputs (as they exist today)
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `get_repository_root()` | none | `Path` | raises `RuntimeError` if no `.git` found |
+| `resolve_analysis_path(path, repository_root=None)` | `path: str`, optional `repository_root` | `Path` | raises `FileNotFoundError` if missing |
+| `calculate_file_sha256(path)` | `path` | `str` (hex digest) | reads the file in chunks |
+| `build_file_provenance(path, repository_root=None)` | as above | `dict {"path", "sha256"}` | — |
+| `get_git_revision(repository_path)` | `repository_path` | `(str, bool)` (40-hex SHA, dirty flag) | runs `git rev-parse HEAD` + `git status --porcelain`; warns (does not fail) on a dirty tree |
+| `collect_scientific_runtime()` | none | `dict {"python_version","python_executable","root_version"}` | requires `ROOT` importable |
+| `build_analysis_provenance(...)` | 12 named arguments | full provenance `dict` | calls all of the above |
+
+### Tests added
+
+- `test_resolve_analysis_path_uses_get_repository_root_when_omitted` —
+  patches `get_repository_root` to return a controlled `tmp_path`, calls
+  `resolve_analysis_path("Input/data.root")` with `repository_root`
+  omitted, asserts the file is resolved relative to the patched root —
+  proving the fallback branch actually calls and uses
+  `get_repository_root()`.
+- `test_build_file_provenance_uses_get_repository_root_when_omitted` —
+  same proof for `build_file_provenance`.
+
+### What this commit does NOT do
+
+No production file was modified. `git diff --stat -- python/run_anaFit.py`
+was empty throughout this change — only `tests/test_run_anaFit.py` was
+touched (two new tests, 43 lines).
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -v -k "sha256 or
+  git_revision or scientific_runtime or repository_root or
+  resolve_analysis_path or build_file_provenance or
+  build_analysis_provenance"` → 21 passed (19 pre-existing cases plus the
+  2 new gap tests), run against the unmodified `python/run_anaFit.py`.
+- `python -m pytest tests/test_run_anaFit.py -v` → 48 passed (full-file
+  regression check).
+- `python scripts/quality_check.py --mode full` → 131 passed, 2
+  deselected; ruff clean; black clean (12 files unchanged).
+- `git diff --stat` → only `tests/test_run_anaFit.py` touched.
+- `git diff --check` → passed.
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Chunk 3, Step A.
+2. `git diff --stat` shows only `tests/test_run_anaFit.py` — zero
+   production files touched.
+3. Both new tests assert a real resolved path / provenance dict produced
+   from a controlled fixture, not merely "does not raise."
+4. Tests were run against the unmodified target file before any
+   production change; results reported in full above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 3.B (extraction of `run_provenance.py`) and Chunks 4 through 12 are
+open.
