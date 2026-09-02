@@ -5,10 +5,9 @@ on:
     branches:
       - harry
       - tier-2-m365
-  push:
-    branches:
-      - harry
-      - tier-2-m365
+      - tier-3-claude
+      - tier-3-completion
+
 
 permissions:
   contents: read
