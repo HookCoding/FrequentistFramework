@@ -711,6 +711,35 @@ def test_write_analysis_results_atomically_replaces_existing_manifest(
     assert not (tmp_path / "analysis_results.json.tmp").exists()
 
 
+def test_write_analysis_results_coerces_masked_and_p_chi2_to_json_native_types(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The function body explicitly calls bool(masked) and float(p_chi2)
+    # before assembling the payload. Every other test here already passes
+    # native bool/float values, so that coercion is never actually
+    # exercised. Passing non-bool/non-float-but-coercible values here (an
+    # int for each) is the only way to tell "the coercion runs" apart from
+    # "the value happened to already be the right type" - and it is
+    # exactly the kind of implicit-but-load-bearing behavior a verbatim
+    # move must not silently drop.
+    module = _load_run_anafit_module(monkeypatch)
+
+    results_path = module.write_analysis_results(
+        folder=str(tmp_path),
+        p_chi2=1,
+        masked=1,
+        provenance=_example_analysis_provenance(),
+    )
+
+    payload = json.loads(Path(results_path).read_text())
+
+    assert payload["p_chi2"] == pytest.approx(1.0)
+    assert isinstance(payload["p_chi2"], float)
+    assert payload["masked"] is True
+    assert isinstance(payload["masked"], bool)
+
+
 @pytest.mark.parametrize(
     ("launcher_name", "region"),
     [

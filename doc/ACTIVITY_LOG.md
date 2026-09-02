@@ -3632,3 +3632,78 @@ rebase.
 All 13 commits currently on `tier-3-completion` (branch point through
 `16f61fc`) now have a corresponding activity-log entry. Chunks 2 through
 12 remain open.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 2.A: characterization tests for `write_analysis_results`
+
+### Objective
+
+Pin down the current, unmodified behavior of `write_analysis_results()` in
+`python/run_anaFit.py` before extracting it into `run_manifest.py`, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 2.
+
+### Pre-change state
+
+`write_analysis_results()` already had three direct tests
+(`test_write_analysis_results_writes_success_manifest`,
+`test_write_analysis_results_records_masked_fit`,
+`test_write_analysis_results_atomically_replaces_existing_manifest`),
+covering the success payload, the masked-fit payload, and atomic
+replacement of a pre-existing manifest. All three pass native `bool`/
+`float` values for `masked`/`p_chi2`, so none of them exercises the
+function body's explicit `bool(masked)` and `float(p_chi2)` coercion
+calls — a real gap, since a value that is merely truthy (not already a
+`bool`) or an int (not already a `float`) was never used to prove the
+coercion is what actually produces the JSON-native type, as opposed to
+the value simply already being the right type.
+
+### Target function — inputs and outputs (as it exists today)
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `write_analysis_results(folder, p_chi2, masked, provenance)` | `folder: str`, `p_chi2: float`, `masked: bool`, `provenance: dict` | `str` (path to the written manifest) | atomically writes `<folder>/analysis_results.json` (schema v2) via a temp file + `os.replace`; deletes no pre-existing state itself (the atomic replace handles that) |
+
+### Tests added
+
+- `test_write_analysis_results_coerces_masked_and_p_chi2_to_json_native_types`
+  — calls the real `write_analysis_results()` with `p_chi2=1` (an `int`)
+  and `masked=1` (a truthy `int`, not a `bool`), then asserts the written-
+  and-reread JSON payload has `p_chi2` as a Python `float` (`1.0`, via
+  `isinstance`) and `masked` as the Python `bool` `True` (via `is True`
+  and `isinstance`) — proving the function's `bool()`/`float()` calls are
+  load-bearing, not redundant.
+
+### What this commit does NOT do
+
+No production file was modified. `git diff --stat -- python/run_anaFit.py`
+was empty throughout this change — only `tests/test_run_anaFit.py` was
+touched (one new test, 29 lines).
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -v -k write_analysis_results`
+  → 4 passed (the 3 existing tests plus the new coercion test), run
+  against the unmodified `python/run_anaFit.py`.
+- `python -m pytest tests/test_run_anaFit.py -v` → 50 passed (full-file
+  regression check).
+- `python scripts/quality_check.py --mode full` → 129 passed, 2
+  deselected; ruff clean; black clean (10 files unchanged).
+- `git diff --stat` → only `tests/test_run_anaFit.py` touched.
+- `git diff --check` → passed (no whitespace errors).
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Chunk 2, Step A.
+2. `git diff --stat` shows only `tests/test_run_anaFit.py` — zero
+   production files touched.
+3. The new test asserts real output values and their concrete Python
+   types (`isinstance` checks), not merely "does not raise."
+4. Tests were run against the unmodified target file before any
+   production change; results reported in full above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 2.B (extraction of `run_manifest.py`) and Chunks 3 through 12 are
+open.
