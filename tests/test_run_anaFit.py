@@ -77,6 +77,28 @@ def test_main_propagates_analysis_status(
     assert result == analysis_status
 
 
+def test_execute_returns_the_real_subprocess_return_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_run_anafit_module(monkeypatch)
+
+    assert module.execute("exit 0") == 0
+    assert module.execute("exit 3") == 3
+
+
+def test_execute_prints_the_command_before_running_it(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = _load_run_anafit_module(monkeypatch)
+
+    module.execute("echo hello")
+
+    captured = capsys.readouterr()
+    assert "EXECUTE: echo hello" in captured.out
+    assert "hello" in captured.out
+
+
 def test_execute_required_accepts_success_with_expected_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

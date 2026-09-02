@@ -2726,3 +2726,83 @@ is ready for Chunk 1 (`run_execution.py`) PR A (characterization tests for
 
 All of Chunks 1 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open.
 None has started.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 1.A: characterization tests for `execute`/`execute_required`
+
+### Objective
+
+Pin down the current, unmodified behavior of `execute()` and
+`execute_required()` in `python/run_anaFit.py` before extracting them into
+`run_execution.py`, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 1.
+
+### Pre-change state
+
+`execute_required()` already had four direct tests
+(`test_execute_required_accepts_success_with_expected_output`,
+`test_execute_required_rejects_stale_expected_output`,
+`test_execute_required_rejects_nonzero_command_status`,
+`test_execute_required_rejects_missing_expected_output`), but every one of
+them replaces `execute` itself via `monkeypatch.setattr(module, "execute",
+...)` before calling anything. `execute()` — the function that actually
+prints `"EXECUTE: {cmd}"` and calls `subprocess.call(cmd, shell=True)` —
+had never been called for real by any existing test.
+
+### Target functions — inputs and outputs (as they exist today)
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `execute(cmd)` | `cmd: str` | `int` (subprocess return code) | runs `cmd` via `subprocess.call(shell=True)`; prints `"EXECUTE: {cmd}"` |
+| `execute_required(cmd, description, expected_outputs=())` | `cmd: str`, `description: str`, `expected_outputs: Sequence[str]` | `bool` | deletes any pre-existing `expected_outputs` before running; prints error diagnostics on failure |
+
+### Tests added
+
+- `test_execute_returns_the_real_subprocess_return_code` — calls the real
+  `execute()` with `"exit 0"` and `"exit 3"`, asserts the return value is
+  the shell's actual exit code both times (not a boolean or a hardcoded
+  value).
+- `test_execute_prints_the_command_before_running_it` — calls the real
+  `execute("echo hello")` with `capsys` capturing stdout, asserts both
+  `"EXECUTE: echo hello"` (the function's own print) and `"hello"` (the
+  child process's own output) are present, proving a real subprocess ran.
+
+### What this PR does NOT do
+
+No production file was modified. `git diff --stat -- python/run_anaFit.py`
+was empty throughout this change — only `tests/test_run_anaFit.py` was
+touched.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -k execute -v` → 6 passed
+  (the 4 existing `execute_required` tests plus the 2 new `execute`
+  tests).
+- `python -m pytest tests/test_run_anaFit.py -q` → 50 passed (full-file
+  regression check).
+- `python -m ruff check tests/test_run_anaFit.py` → passed.
+- `python -m black --check tests/test_run_anaFit.py` → passed, unchanged.
+- `git diff --stat -- python/run_anaFit.py` → empty.
+- A manual, uncaptured replay of the same three `execute()` calls
+  (`exit 0`, `exit 3`, `echo hello`) was run directly against the loaded
+  module to trace exactly what each assertion checks, independent of
+  pytest's own output capturing.
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Base commit for these tests: `365460e` (Chunk 0 baseline) — matches the
+   file's state at the time the tests were written; `run_anaFit.py` was
+   not touched afterward either.
+2. Every new test asserts a real output/side-effect (return-code
+   passthrough for two distinct exit codes; two distinct printed strings),
+   not just "no exception."
+3. `git diff --stat` shows no production file touched.
+4. Tests were run and read by the user (repository owner), not only
+   reported passing by the author.
+5. Human-verification checkpoint: confirmed by the user in this session
+   ("i agree lets continue") after reviewing the test code, the manual
+   trace of `execute()`'s real output, and a full line-by-line walkthrough
+   of both new tests and the shared `_load_run_anafit_module` helper.
+
+### Remaining open chunks
+
+Chunk 1.B (extraction of `run_execution.py`) and Chunks 2 through 12 are
+open.
