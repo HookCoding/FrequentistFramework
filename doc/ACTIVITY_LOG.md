@@ -3541,3 +3541,94 @@ workflow this branch has actually been using since Chunk 1. Going
 forward, chunks continue to follow the same Step A → human verification →
 Step B sequence as before; only the document's account of how that gets
 reviewed on GitHub changed. Chunks 2 through 12 remain open.
+
+## 2026-09-02: Activity-log completeness audit — three missing entries backfilled
+
+### Objective
+
+The user asked directly whether every change on this branch had been
+recorded in this log. Rather than assume yes, cross-checked every commit
+on `tier-3-completion` since it branched from `tier-3-claude` (`git log
+--oneline 5cb6a32..HEAD`) against every dated section header in this file.
+Found three commits with no corresponding entry. This entry backfills all
+three, appended here per guardrail 2 (append-only; new entries go at the
+end, existing ones are never reordered or edited) — the same approach
+this log's own 2026-07-29 "Activity-log correction" entry used for an
+identical situation.
+
+### Gap 1 — `3f025cc`: "Add Tier 3 completion plan"
+
+This is the commit that added `doc/TIER3_COMPLETION_PLAN.md` itself (1,318
+lines) to this branch — the authoritative, from-scratch Tier 3 execution
+plan described in this file's own preceding entries. No production code
+was changed. This predates the Chunk 0 baseline entry immediately
+following it in this log and was the first commit made on
+`tier-3-completion` after branching.
+
+### Gap 2 — `e3379fc`: "Enable hosted CI on tier-3-completion"
+
+Added `tier-3-completion` to the branch-trigger lists in both
+`.github/workflows/tier1-root-comparison.yml` (`pull_request` trigger) and
+`.github/workflows/scientific-analysis.yml` (`push` trigger), matching the
+same trigger coverage already present for `harry`, `tier-2-m365`, and
+`tier-3-claude`. This commit also included a pre-existing, uncommitted
+local edit (from the prior "updated workflow to current branch" session,
+made by the user, not by this session) adding `tier-3-claude` to both
+files and removing `tier1-root-comparison.yml`'s separate `push` trigger
+for `harry`/`tier-2-m365` — both changes were already present, uncommitted,
+in the working tree when this session began, and were committed together
+since they touched the same lines. This commit is what made the hosted
+`scientific-analysis.yml` push-triggered workflow actually run against
+this branch for the first time; its first resulting run
+(`https://github.com/HookCoding/FrequentistFramework/actions/runs/33629659100`)
+passed.
+
+### Gap 3 — `0da38fd`: "Potential fix for pull request finding"
+
+Not a commit made by this session — authored and committed directly by
+the user (Harry Hook) via GitHub's web UI, accepting a Copilot Autofix
+suggestion on PR #6. Discovered when this session found the branch had
+diverged from `origin/tier-3-completion` shortly after the push that
+enabled hosted CI, and rebased Gap 2's follow-on commit onto it. Changes
+`tests/test_analysis_workflows_integration.py`: merges two adjacent
+Python string literals in `APPROVED_SCIENTIFIC_PYTHON_EXECUTABLES` (the
+LCG_102a CentOS9/Ubuntu Python executable path strings) into one literal
+each — a Copilot-flagged readability finding about relying on implicit
+string-literal concatenation. Zero behavioral change (the concatenated
+and single-literal forms produce identical string values); confirmed by
+this session's full quality gate passing unchanged immediately after the
+rebase.
+
+### Verification performed
+
+- `git log --oneline 5cb6a32..HEAD` (13 commits) cross-referenced against
+  `grep -n "^## 2026-09-02" doc/ACTIVITY_LOG.md` (10 entries before this
+  one) — confirmed exactly these three gaps and no others.
+- Commit timestamps checked directly (`git log --reverse --format="%h %ad
+  %s" --date=iso-strict`) to confirm claims in this entry against the
+  actual record rather than memory: `0da38fd` (13:52:52+01:00, i.e.
+  14:52:52 in this session's own +02:00 commits) postdates `e3379fc`
+  (14:19:23+02:00), confirming it was authored on GitHub after the push
+  that created the branch there, and predates `351b7d7` (14:59:04+02:00),
+  confirming the rebase placed it correctly. This also caught a drafting
+  error before commit: an earlier draft of this entry cited "Chunk 1.B
+  supplementary verification" (`abfde43`, committed 14:09:51+02:00 —
+  before `0da38fd` existed) as having verified Gap 3's change, which is
+  impossible by timestamp alone. The commit that actually verified it is
+  "Housekeeping — remove duplicate `subprocess` import," whose real
+  J100/J50 integration-gate run (164.10s) ran after the rebase and
+  exercises `APPROVED_SCIENTIFIC_PYTHON_EXECUTABLES` (the constant
+  `0da38fd` edited) directly, since that test validates the runtime
+  Python executable against it during the actual rerun.
+- No code, test, or gate changes in this entry — documentation only,
+  backfilling the record for commits already made, pushed, and verified
+  by their own contemporaneous gate runs (Gap 1: no code to verify; Gap 2:
+  verified by the hosted CI run cited above; Gap 3: verified as described
+  immediately above).
+- `git diff --check` → passed.
+
+### Current status
+
+All 13 commits currently on `tier-3-completion` (branch point through
+`16f61fc`) now have a corresponding activity-log entry. Chunks 2 through
+12 remain open.
