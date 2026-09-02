@@ -28,6 +28,16 @@ def _load_run_anafit_module(
         monkeypatch.setitem(sys.modules, module_name, module)
 
     module_path = Path(__file__).resolve().parents[1] / "python" / "run_anaFit.py"
+
+    # run_anaFit.py imports its extracted sibling modules with flat,
+    # same-directory-style imports (e.g. "from run_execution import
+    # execute"), matching how Python resolves them in production when the
+    # script is invoked directly (its own directory is auto-prepended to
+    # sys.path). Loading the file via importlib does not get that for
+    # free, so it must be added explicitly here, mirroring what the
+    # interpreter already does automatically outside of tests.
+    monkeypatch.syspath_prepend(str(module_path.parent))
+
     spec = importlib.util.spec_from_file_location("run_anaFit_under_test", module_path)
 
     if spec is None or spec.loader is None:
@@ -75,100 +85,6 @@ def test_main_propagates_analysis_status(
     )
 
     assert result == analysis_status
-
-
-def test_execute_returns_the_real_subprocess_return_code(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-
-    assert module.execute("exit 0") == 0
-    assert module.execute("exit 3") == 3
-
-
-def test_execute_prints_the_command_before_running_it(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-
-    module.execute("echo hello")
-
-    captured = capsys.readouterr()
-    assert "EXECUTE: echo hello" in captured.out
-    assert "hello" in captured.out
-
-
-def test_execute_required_accepts_success_with_expected_output(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-    expected_output = tmp_path / "result.root"
-
-    def create_fresh_output(cmd):
-        expected_output.write_text("fresh result")
-        return 0
-
-    monkeypatch.setattr(module, "execute", create_fresh_output)
-
-    assert module.execute_required(
-        "analysis command",
-        "test analysis",
-        expected_outputs=[str(expected_output)],
-    )
-    assert expected_output.read_text() == "fresh result"
-
-
-def test_execute_required_rejects_stale_expected_output(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-    expected_output = tmp_path / "result.root"
-    expected_output.write_text("stale result")
-
-    def return_success_without_output(cmd):
-        assert not expected_output.exists()
-        return 0
-
-    monkeypatch.setattr(module, "execute", return_success_without_output)
-
-    assert not module.execute_required(
-        "analysis command",
-        "test analysis",
-        expected_outputs=[str(expected_output)],
-    )
-    assert not expected_output.exists()
-
-
-def test_execute_required_rejects_nonzero_command_status(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-
-    monkeypatch.setattr(module, "execute", lambda cmd: 7)
-
-    assert not module.execute_required(
-        "analysis command",
-        "test analysis",
-    )
-
-
-def test_execute_required_rejects_missing_expected_output(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-    missing_output = tmp_path / "missing-result.root"
-
-    monkeypatch.setattr(module, "execute", lambda cmd: 0)
-
-    assert not module.execute_required(
-        "analysis command",
-        "test analysis",
-        expected_outputs=[str(missing_output)],
-    )
 
 
 def test_build_fit_extract_stops_after_xmlreader_failure(

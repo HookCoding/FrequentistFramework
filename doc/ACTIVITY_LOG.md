@@ -2806,3 +2806,127 @@ touched.
 
 Chunk 1.B (extraction of `run_execution.py`) and Chunks 2 through 12 are
 open.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 1.B: extract `run_execution.py`
+
+### Objective
+
+Move `execute()` and `execute_required()`, characterized in Chunk 1.A
+(commit `7029a46`), out of `python/run_anaFit.py` into a new
+`python/run_execution.py`, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 1.
+
+### What changed
+
+- `python/run_execution.py` created, containing `execute()` and
+  `execute_required()` moved verbatim from `python/run_anaFit.py`
+  (identical bodies; only the `os`/`subprocess`/`sys` imports they
+  actually need were added at module top level), then formatted with
+  `python -m black python/run_execution.py` once it was added to the
+  Tier 2 target list (one whitespace-only change: a list comprehension
+  collapsed to one line — no logic change).
+- `python/run_anaFit.py`: the two function definitions removed; replaced
+  with `from run_execution import execute, execute_required` (flat
+  sibling-import style, matching the file's existing
+  `from ExtractPostfitFromWS import PostfitExtractor`-style imports and
+  how Python resolves imports when the script is run directly in
+  production). Every existing call site (`execute_required(...)` in the
+  XMLReader/quickFit/BumpHunter paths, `execute(...)` for the `.dtd`
+  symlink, `plot_edm.py`, the resolution-binning generator, and the
+  `quickLimit` call) is unchanged — only the definitions moved, not the
+  call sites.
+- `tests/test_run_anaFit.py`: added a blocking prerequisite fix to
+  `_load_run_anafit_module` — `monkeypatch.syspath_prepend(str(module_path.parent))`
+  before `exec_module`, so the file can resolve `run_anaFit.py`'s new
+  `from run_execution import ...` line the same way Python's interpreter
+  already does automatically in production (the script's own directory is
+  auto-added to `sys.path` when run directly; loading via
+  `importlib.util.spec_from_file_location` does not get that for free).
+  Confirmed this was in fact required: adding the import before this fix
+  reproduced the exact `ModuleNotFoundError` the plan predicted.
+- `tests/test_run_execution.py` created: the six relocated tests, using
+  the plain `from python import run_execution` style (no `ROOT`/sibling
+  stubbing needed — this module touches neither).
+- `scripts/quality_check.py`: added `python/run_execution.py` to
+  `python_targets` and `tests/test_run_execution.py` to `test_targets`.
+
+### A real integration issue the acceptance check caught
+
+Relocating the tests was not a purely mechanical import-line swap. The
+four original `execute_required` tests patch `execute` via
+`monkeypatch.setattr(module, "execute", fake)`, where `module` was the
+loaded `run_anaFit` module. Before this chunk, `execute_required` and
+`execute` were defined in the *same* module, so patching `execute` there
+correctly intercepted `execute_required`'s internal call. After the move,
+`execute_required` lives in `run_execution.py` and looks up `execute` in
+*that* module's own globals — patching the old location (`module.execute`
+on the loaded `run_anaFit` object) no longer reaches it. Running the tests
+immediately after moving the code (before relocating the tests) reproduced
+this exactly: `test_execute_required_accepts_success_with_expected_output`
+failed with `/bin/sh: line 1: analysis: command not found` (exit 127),
+because `execute_required` was calling the real, unpatched `execute`. The
+relocated tests in `tests/test_run_execution.py` patch
+`run_execution.execute` directly instead — the correct target now that
+both functions share that module's namespace — and all six pass. This
+required changing more than the Test Relocation Rule's "import statement
+only" baseline (the monkeypatch *target* and the direct-call *receiver*
+also changed from `module.X` to `run_execution.X`), but no assertion,
+fixture value, or expected outcome was altered — the correction is a
+necessary consequence of the functions changing which module's namespace
+they live in, not a hidden behavior change.
+
+### Confirm: no scientific behavior changed
+
+`execute()`/`execute_required()`'s bodies are byte-for-byte identical to
+before the move (aside from Black's one whitespace-only reformat, applied
+after the move). Every call site in `run_anaFit.py` is untouched.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_execution.py tests/test_run_anaFit.py -v`
+  → 6 + 44 = 50 passed (same total as before the move: the six execute
+  tests moved out of `test_run_anaFit.py`, into `test_run_execution.py`,
+  net count unchanged).
+- `grep -n "^def execute\b\|^def execute_required\b" python/run_anaFit.py`
+  → no output (definitions fully removed).
+- `python scripts/quality_check.py --mode full` → 122 passed, 2
+  deselected; Ruff passed; Black passed (after the one-file reformat
+  above); exit code 0.
+- `python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`
+  → 2 passed, 11 deselected.
+- `git status -sb` → only this chunk's five changed/new files, plus the
+  two pre-existing unrelated workflow-file modifications carried over
+  since Chunk 0.
+- `git diff --check` → passed.
+- No integration-gate rerun performed for this chunk — Chunk 1 does not
+  touch a real branch condition or template-generation logic (unlike
+  Chunks 4, 5, 8, where it is mandatory), only relocates two
+  already-isolated pure functions.
+
+### Compliance review (Section 8, Extraction checklist)
+
+1. Chunk 1, PR B (this entry).
+2. PR A is merged (`7029a46`) and referenced above.
+3. No scientific constants, references, tolerances, dependency revisions,
+   or canonical workflow arguments touched.
+4. Relocated tests' diffs are not import-line-only, as noted above — the
+   monkeypatch target and call receiver also changed, explicitly because
+   the code moved between module namespaces; no assertion or expected
+   value changed.
+5. New/moved functions are all covered (relocated tests + no new
+   functions were introduced this chunk).
+6. Confirmed by grep: `run_anaFit.py` actually imports and never
+   redefines `execute`/`execute_required`.
+7. Only the six intended files were staged for this chunk (the two
+   pre-existing workflow-file diffs remain unstaged, not part of this
+   commit).
+8. All required Section 7 gates ran and passed, output captured above.
+9. `git diff --check` passed.
+10. This activity-log entry appended (not a rewrite of any existing
+    section).
+11. Chunks 2 through 12 remain open, listed below.
+12. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 2 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 1
+(both PR A and PR B) is complete and verified.
