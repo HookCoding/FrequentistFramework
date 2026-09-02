@@ -405,7 +405,9 @@ def test_analysis_reference_comparison_rejects_provenance_drift() -> None:
     expected_provenance = _valid_analysis_provenance()
     actual_provenance = _valid_analysis_provenance()
     expected_provenance.pop("repository_commit")
+    expected_provenance.pop("repository_dirty")
     actual_provenance.pop("repository_commit")
+    actual_provenance.pop("repository_dirty")
 
     expected["J100"]["provenance"] = expected_provenance
     actual["J100"]["provenance"] = actual_provenance
@@ -459,6 +461,7 @@ def test_analysis_reference_comparison_rejects_cls_structure_change() -> None:
 def _valid_analysis_provenance() -> dict[str, object]:
     return {
         "repository_commit": "a" * 40,
+        "repository_dirty": False,
         "runtime": {
             "python_version": "3.9.12",
             "python_executable": "/cvmfs/example/bin/python",
@@ -525,6 +528,7 @@ def test_validate_analysis_provenance_accepts_complete_payload() -> None:
     validated = _validate_analysis_provenance(payload)
 
     assert validated["repository_commit"] == "a" * 40
+    assert validated["repository_dirty"] is False
     assert validated["runtime"]["python_version"] == "3.9.12"
     assert validated["runtime"]["root_version"] == "6.26/08"
     assert validated["input"]["sha256"] == "f" * 64
@@ -543,6 +547,10 @@ def test_validate_analysis_provenance_accepts_complete_payload() -> None:
         (
             lambda payload: payload.update({"repository_commit": "not-a-git-revision"}),
             "must be a full Git revision",
+        ),
+        (
+            lambda payload: payload.update({"repository_dirty": "false"}),
+            "repository_dirty must be boolean",
         ),
         (
             lambda payload: payload["runtime"].pop("root_version"),

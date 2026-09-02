@@ -214,7 +214,13 @@ def _build_workflow_payload(fit_dir: Path) -> dict[str, Any]:
 
     if manifest_results is not None and manifest_results["provenance"] is not None:
         stable_provenance = dict(manifest_results["provenance"])
+        # repository_commit and repository_dirty describe the specific run
+        # instance that produced this manifest, not the scientific result
+        # itself, so both are excluded from the stable cross-run/cross-
+        # environment comparison (matching repository_commit's existing
+        # treatment, for the same self-referential-identity reasoning).
         stable_provenance.pop("repository_commit")
+        stable_provenance.pop("repository_dirty")
         payload["provenance"] = stable_provenance
 
     return payload
@@ -646,6 +652,7 @@ def _validate_analysis_provenance(payload: Any) -> dict[str, Any]:
 
     required_keys = {
         "repository_commit",
+        "repository_dirty",
         "runtime",
         "tool_revisions",
         "input",
@@ -661,11 +668,16 @@ def _validate_analysis_provenance(payload: Any) -> dict[str, Any]:
             f"unexpected={sorted(payload_keys - required_keys)})"
         )
 
+    repository_dirty = payload["repository_dirty"]
+    if not isinstance(repository_dirty, bool):
+        raise ValueError("Analysis provenance repository_dirty must be boolean")
+
     return {
         "repository_commit": _validate_git_revision(
             payload["repository_commit"],
             "Analysis provenance repository_commit",
         ),
+        "repository_dirty": repository_dirty,
         "runtime": _validate_runtime_provenance(
             payload["runtime"],
         ),

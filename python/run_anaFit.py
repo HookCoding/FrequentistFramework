@@ -212,7 +212,9 @@ def get_git_revision(repository_path):
             )
         )
 
-    if status.stdout.strip():
+    dirty = bool(status.stdout.strip())
+
+    if dirty:
         print(
             "WARNING: Recording Git revision {} for repository with "
             "tracked modifications: {}".format(
@@ -222,7 +224,7 @@ def get_git_revision(repository_path):
         )
         print(status.stdout.rstrip())
 
-    return revision
+    return revision, dirty
 
 
 def collect_scientific_runtime():
@@ -288,11 +290,19 @@ def build_analysis_provenance(
         ),
     }
 
+    repository_commit, repository_dirty = get_git_revision(repository_root)
+
     return {
-        "repository_commit": get_git_revision(repository_root),
+        "repository_commit": repository_commit,
+        "repository_dirty": repository_dirty,
         "runtime": collect_scientific_runtime(),
         "tool_revisions": {
-            name: get_git_revision(repository_path)
+            # Only the main repository's dirty state is persisted: the pinned
+            # tool checkouts already have a dedicated, always-run tracked-
+            # modification check (test_repo_utils.py::
+            # test_external_dependency_checkouts_have_no_tracked_source_changes),
+            # so duplicating that signal here would be redundant.
+            name: get_git_revision(repository_path)[0]
             for name, repository_path in tool_repositories.items()
         },
         "input": build_file_provenance(

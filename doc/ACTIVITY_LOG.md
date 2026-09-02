@@ -3013,3 +3013,134 @@ so this is a pure readability fix, not a bug fix.
 This is a standalone housekeeping fix, not tied to a specific
 `doc/TIER3_COMPLETION_PLAN.md` chunk. All chunk status is unchanged:
 Chunks 2 through 12 remain open.
+
+## 2026-09-02: Persist repository dirty state in schema-version-2 provenance (code + tests)
+
+### Objective
+
+Address a GitHub Copilot review finding on `python/run_anaFit.py`'s
+`get_git_revision()`: when the main repository has tracked modifications,
+the function prints a console warning and continues, but
+`analysis_results.json` still records only `repository_commit`, with no
+persisted, machine-verifiable indication that the tree was dirty at
+generation time. Once the warning scrolls off, a manifest looks like a
+clean, fully-provenance-tracked result even when it wasn't.
+
+This is not new: an earlier Copilot review (2026-08-27, "Copilot
+merge-review safety corrections") made dirty tracked trees **fatal**; that
+was deliberately relaxed to a warning-only path the same day
+("Tracked repository modifications changed from fatal to warning") to
+avoid blocking the hosted CI environment. Copilot is now correctly
+pointing out that the warning-only path never actually fixed the
+underlying provenance-integrity gap it was already known to create — it
+only stopped it from being fatal. This change resolves that gap properly:
+keep the analysis non-fatal on a dirty tree (preserving the CI
+compatibility the 2026-08-27 relaxation was for), but persist the dirty
+state as a first-class, validated field in the manifest.
+
+### Scope decision: main repository only, not the four pinned tool checkouts
+
+`get_git_revision()` is also called for `xmlAnaWSBuilder`, `quickFit`,
+`workspaceCombiner`, and `pyBumpHunter`. Their dirty state is **not**
+added to the provenance schema, because it is already covered by an
+existing, dedicated, always-run check:
+`tests/test_repo_utils.py::test_external_dependency_checkouts_have_no_tracked_source_changes`
+(part of the `requires_analysis_dependencies` gate). Duplicating that
+signal inside the provenance payload would be redundant. `tool_revisions`
+therefore keeps its existing shape (`dict[str, str]`) unchanged.
+
+### Changes completed
+
+- `python/run_anaFit.py`:
+  - `get_git_revision()` now returns `(revision, dirty)` instead of just
+    `revision`. The warning-and-continue behavior is unchanged; `dirty`
+    is simply the boolean the function already computed to decide whether
+    to print the warning.
+  - `build_analysis_provenance()` unpacks the main repository's
+    `(repository_commit, repository_dirty)` and adds `repository_dirty`
+    as a new top-level key in the returned payload. The four tool-checkout
+    calls now take `get_git_revision(path)[0]`, discarding their dirty
+    flag per the scope decision above.
+- `python/analysis_reference.py`:
+  - `_validate_analysis_provenance()`: `repository_dirty` added to
+    `required_keys` and validated as a boolean.
+  - `_build_workflow_payload()`: `repository_dirty` is popped from the
+    "stable" provenance used for the frozen-reference comparison,
+    alongside the existing `repository_commit` pop — same
+    self-referential-identity reasoning: both fields describe the specific
+    run instance, not the scientific result, so neither belongs in a
+    cross-run/cross-environment comparison. **This means the frozen
+    reference (`tests/references/analysis_reference.json`) requires no
+    change** — it never included `repository_commit` and correspondingly
+    never includes `repository_dirty`.
+- `tests/test_run_anaFit.py`:
+  - Updated `test_get_git_revision_returns_clean_repository_commit`,
+    `test_get_git_revision_warns_for_tracked_modifications` (both
+    parametrized cases), and `test_get_git_revision_ignores_untracked_files`
+    to unpack the new `(revision, dirty)` return value and assert the
+    correct `dirty` boolean for each case (clean, staged/unstaged dirty,
+    untracked-only).
+  - Updated `test_build_analysis_provenance_records_runtime_inputs_tools_and_invocation`'s
+    stub and expected payload to include `repository_dirty: False`.
+  - Added `test_build_analysis_provenance_records_dirty_repository_state`:
+    asserts that when the main repository is dirty but all four tool
+    checkouts are clean, the payload records `repository_dirty: True`
+    while `tool_revisions` correctly contains only revision strings with
+    no leaked dirty state.
+- `tests/test_analysis_reference.py`:
+  - `_valid_analysis_provenance()` fixture updated with
+    `"repository_dirty": False`.
+  - `test_analysis_reference_comparison_rejects_provenance_drift` updated
+    to pop `repository_dirty` alongside `repository_commit` from both
+    sides, matching the production exclusion above.
+  - `test_validate_analysis_provenance_accepts_complete_payload` asserts
+    `repository_dirty is False`.
+  - `test_validate_analysis_provenance_rejects_invalid_payload` gained a
+    new parametrized case: a non-boolean `repository_dirty` value is
+    rejected with `"repository_dirty must be boolean"`.
+
+### Known, expected, temporary failure at this exact commit
+
+`tests/test_analysis_reference.py::test_analysis_reference_matches_frozen_output`
+calls `build_analysis_reference()` with no `repo_root` override, i.e.
+against the **real, tracked** `run/fits/J100/.../analysis_results.json`
+and `run/fits/J50/.../analysis_results.json` files. Those files were
+generated by the pre-change code and do not yet have `repository_dirty`,
+so `_validate_analysis_provenance()` now correctly rejects them as missing
+a required key. This is the exact ordering problem the 2026-08-21
+schema-version-2 rollout and the 2026-08-27 "Canonical manifest provenance
+corrected" entry already hit and solved the same way: commit the code
+first, then regenerate the two canonical manifests from that clean commit,
+then commit the regenerated manifests separately. That regeneration is the
+immediately following activity-log entry, not deferred.
+
+### Verification performed
+
+- `python -m py_compile python/run_anaFit.py python/analysis_reference.py`
+  → compiles (same six pre-existing, unrelated legacy `SyntaxWarning`
+  messages).
+- `python -m pytest tests/test_run_anaFit.py -k "git_revision or build_analysis_provenance" -v`
+  → 7 passed.
+- `python -m pytest tests/test_run_anaFit.py -q` → 45 passed (44 + 1 new
+  test).
+- `python -m pytest tests/test_analysis_reference.py -v` → **44 passed, 1
+  failed** (`test_analysis_reference_matches_frozen_output`, explained
+  above — every other test, including the four new/updated provenance
+  validation cases, passes).
+- `python scripts/quality_check.py --mode full` → **123 passed, 1 failed,
+  2 deselected**, same single expected failure; Ruff and Black were run
+  separately against every touched file
+  (`python/run_execution.py`, `tests/test_run_execution.py`,
+  `tests/test_run_anaFit.py`, `python/analysis_reference.py`,
+  `tests/test_analysis_reference.py`) since the gate's own Ruff/Black
+  steps don't run after a pytest failure: both passed, no changes needed.
+- `git diff --check` → passed.
+- No integration-gate rerun yet — it is run as part of manifest
+  regeneration in the next entry, since that rerun *is* the regeneration.
+
+### Remaining open work
+
+Regenerate and commit the two canonical manifests (immediately following
+entry). Until that lands, `quality_check.py --mode full` is expected to
+show exactly the one failure described above — this is not an unrelated
+regression if seen at this specific commit.

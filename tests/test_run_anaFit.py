@@ -684,7 +684,9 @@ def test_get_git_revision_returns_clean_repository_commit(
     repository = tmp_path / "repository"
     expected_revision = _create_test_git_repository(repository)
 
-    assert module.get_git_revision(repository) == expected_revision
+    revision, dirty = module.get_git_revision(repository)
+    assert revision == expected_revision
+    assert dirty is False
 
 
 @pytest.mark.parametrize("staged", [False, True])
@@ -710,7 +712,9 @@ def test_get_git_revision_warns_for_tracked_modifications(
             check=True,
         )
 
-    assert module.get_git_revision(repository) == expected_revision
+    revision, dirty = module.get_git_revision(repository)
+    assert revision == expected_revision
+    assert dirty is True
 
     captured = capsys.readouterr()
     assert "WARNING: Recording Git revision" in captured.out
@@ -732,7 +736,9 @@ def test_get_git_revision_ignores_untracked_files(
         encoding="utf-8",
     )
 
-    assert module.get_git_revision(repository) == expected_revision
+    revision, dirty = module.get_git_revision(repository)
+    assert revision == expected_revision
+    assert dirty is False
 
 
 def test_get_git_revision_rejects_non_repository(
@@ -961,7 +967,7 @@ def test_build_analysis_provenance_records_runtime_inputs_tools_and_invocation(
     monkeypatch.setattr(
         module,
         "get_git_revision",
-        lambda path: revisions[Path(path)],
+        lambda path: (revisions[Path(path)], False),
     )
     monkeypatch.setattr(
         module,
@@ -998,6 +1004,7 @@ def test_build_analysis_provenance_records_runtime_inputs_tools_and_invocation(
 
     assert provenance == {
         "repository_commit": "a" * 40,
+        "repository_dirty": False,
         "runtime": {
             "python_version": "3.9.12",
             "python_executable": "/cvmfs/example/bin/python",
@@ -1040,6 +1047,70 @@ def test_build_analysis_provenance_records_runtime_inputs_tools_and_invocation(
             "prefit_enabled": True,
             "mask_threshold": 0.01,
         },
+    }
+
+
+def test_build_analysis_provenance_records_dirty_repository_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_run_anafit_module(monkeypatch)
+    repository_root = Path("/repository")
+
+    monkeypatch.setattr(
+        module,
+        "get_repository_root",
+        lambda: repository_root,
+    )
+
+    def fake_get_git_revision(path):
+        # Only the main repository is dirty; the four tool checkouts are
+        # clean, confirming their dirty state (discarded via [0] in
+        # production) never leaks into the persisted payload.
+        if Path(path) == repository_root:
+            return "a" * 40, True
+        return "b" * 40, False
+
+    monkeypatch.setattr(module, "get_git_revision", fake_get_git_revision)
+    monkeypatch.setattr(
+        module,
+        "collect_scientific_runtime",
+        lambda: {
+            "python_version": "3.9.12",
+            "python_executable": "/cvmfs/example/bin/python",
+            "root_version": "6.26/08",
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "build_file_provenance",
+        lambda path, repository_root=None: {
+            "path": str(path),
+            "sha256": "f" * 64,
+        },
+    )
+
+    provenance = module.build_analysis_provenance(
+        datafile="Input/data.root",
+        datahist="directory/histogram",
+        topfile="config/top.template",
+        categoryfile="config/category.template",
+        backgroundfile=None,
+        signalfile=None,
+        rangelow=481,
+        rangehigh=3000,
+        dosignal=False,
+        dolimit=False,
+        doprefit=True,
+        maskthreshold=0.01,
+    )
+
+    assert provenance["repository_commit"] == "a" * 40
+    assert provenance["repository_dirty"] is True
+    assert provenance["tool_revisions"] == {
+        "xmlAnaWSBuilder": "b" * 40,
+        "quickFit": "b" * 40,
+        "workspaceCombiner": "b" * 40,
+        "pyBumpHunter": "b" * 40,
     }
 
 
