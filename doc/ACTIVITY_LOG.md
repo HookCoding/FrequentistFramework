@@ -3707,3 +3707,105 @@ touched (one new test, 29 lines).
 
 Chunk 2.B (extraction of `run_manifest.py`) and Chunks 3 through 12 are
 open.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 2.B: extract `run_manifest.py`
+
+### Objective
+
+Move `write_analysis_results()`, characterized in Chunk 2.A (commit
+`639b94d`), out of `python/run_anaFit.py` into a new
+`python/run_manifest.py`, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 2.
+
+### What changed
+
+- `python/run_manifest.py` created, containing `write_analysis_results()`
+  moved verbatim from `python/run_anaFit.py` (identical body; only the
+  `json`/`os` imports it actually needs were added at module top level).
+- `python/run_anaFit.py`: the function definition removed; replaced with
+  `from run_manifest import write_analysis_results` (flat sibling-import
+  style, added directly below the existing
+  `from run_execution import execute, execute_required` line). The single
+  call site (inside `run_anaFit()`, assembling the success manifest) is
+  unchanged — only the definition moved, not the call site.
+- `tests/test_run_anaFit.py`: the `_example_analysis_provenance()` helper
+  and all four `write_analysis_results` tests (the three original plus
+  Chunk 2.A's new coercion test) removed.
+- `tests/test_run_manifest.py` created: the four relocated tests plus
+  their `_example_analysis_provenance()` helper, using the plain
+  `from python import run_manifest` style (no `ROOT`/sibling stubbing
+  needed — this module touches neither) and calling
+  `run_manifest.write_analysis_results(...)` directly instead of through
+  the `_load_run_anafit_module`/`monkeypatch` machinery, which these tests
+  no longer need at all.
+- `scripts/quality_check.py`: added `python/run_manifest.py` to
+  `python_targets` and `tests/test_run_manifest.py` to `test_targets`.
+
+### Test Relocation Rule: no exception needed this time
+
+Unlike Chunk 1.B (where `execute_required`'s internal call to `execute`
+broke the old `monkeypatch.setattr(module, "execute", ...)` target once
+the two functions were split across module namespaces),
+`write_analysis_results` does not call, or get called by, any other
+relocated function — it is called directly by `run_anaFit()`, which stays
+in `python/run_anaFit.py`. The two coordinator-level tests
+(`test_run_anafit_writes_provenance_for_successful_unmasked_fit`,
+`test_run_anafit_quicklimit_failure_prevents_success_manifest`) already
+patch `write_analysis_results` via
+`monkeypatch.setattr(module, "write_analysis_results", fake)`, where
+`module` is the loaded `run_anaFit` object — since `run_anaFit()` still
+resolves that name from its own module's globals (now bound there via the
+new `from run_manifest import write_analysis_results` line), this
+continues to intercept correctly with no change. Confirmed by running
+both tests unchanged after the move: both pass. The four relocated tests'
+own diff genuinely is import-statement-and-call-site-only, exactly as the
+Test Relocation Rule's baseline describes.
+
+### Confirm: no scientific behavior changed
+
+`write_analysis_results()`'s body, including the `bool(masked)`/
+`float(p_chi2)` coercion Chunk 2.A's new test specifically exercises, is
+byte-for-byte identical to before the move. The one call site in
+`run_anaFit()` is untouched.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_manifest.py tests/test_run_anaFit.py -v`
+  → 4 + 46 = 50 passed (same total as before the move: the four
+  `write_analysis_results` tests moved out of `test_run_anaFit.py`, into
+  `test_run_manifest.py`, net count unchanged).
+- `grep -n "^def write_analysis_results" python/run_anaFit.py` → no
+  output (definition fully removed).
+- `python scripts/quality_check.py --mode full` → 129 passed, 2
+  deselected; Ruff passed; Black passed (no reformatting needed); exit
+  code 0.
+- `git diff --check` → passed.
+- No integration-gate rerun performed for this chunk — Chunk 2 is not one
+  of the chunks Section 7 marks mandatory (4, 5, 8, and always before 12);
+  `write_analysis_results` touches no branch condition or template logic,
+  only relocates one already-isolated pure function.
+
+### Compliance review (Section 8, Extraction checklist)
+
+1. Chunk 2, Step B (this entry).
+2. Step A is committed (`639b94d`) and referenced above.
+3. No scientific constants, references, tolerances, dependency revisions,
+   or canonical workflow arguments touched.
+4. Relocated tests' diffs are import-statement-and-call-site-only, as
+   confirmed above — no monkeypatch-target exception was needed this
+   time.
+5. The one relocated function is covered by its four relocated tests; no
+   new functions were introduced this chunk.
+6. Confirmed by grep: `run_anaFit.py` actually imports and never
+   redefines `write_analysis_results`.
+7. Only this chunk's five changed/new files were staged.
+8. All required Section 7 gates ran and passed, output captured above.
+9. `git diff --check` passed.
+10. This activity-log entry appended (not a rewrite of any existing
+    section).
+11. Chunks 3 through 12 remain open, listed below.
+12. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 3 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 2
+(both Step A and Step B) is complete and verified.

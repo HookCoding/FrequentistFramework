@@ -122,6 +122,7 @@ def main() -> None:
         "python/analysis_reference.py",
         "python/repo_utils.py",
         "python/run_execution.py",
+        "python/run_manifest.py",
         "scripts/compare_root_outputs.py",
         "scripts/quality_check.py",
     ]
@@ -131,6 +132,7 @@ def main() -> None:
         "tests/test_repo_utils.py",
         "tests/test_run_anaFit.py",
         "tests/test_run_execution.py",
+        "tests/test_run_manifest.py",
     ]
 
     if args.mode == "fast":
