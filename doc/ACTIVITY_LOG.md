@@ -2657,3 +2657,72 @@ Result:
 ##### Current status
 
 The local `tier-2-m365` branch contains the verified merge and is ahead of `origin/tier-2-m365`. The merged target branch has not yet been pushed.
+
+## 2026-09-02: Tier-3 pre-flight baseline (Chunk 0)
+
+### Objective
+
+Begin executing `doc/TIER3_COMPLETION_PLAN.md`. Per the plan's Chunk 0,
+prove the branch is in the fully-passing state the plan's Section 2
+baseline claims before any Tier 3 extraction PR is opened, so any later
+gate failure can be attributed to a Tier 3 change and not to a
+pre-existing condition.
+
+### Branch
+
+- Created `tier-3-completion` from `tier-3-claude` at commit `5cb6a32`
+  (`updated workflow to current branch`).
+- Committed `doc/TIER3_COMPLETION_PLAN.md` as `3f025cc` (`Add Tier 3
+  completion plan`) — the plan document only; no production code changed.
+- Two pre-existing, unrelated local modifications carried over from
+  `tier-3-claude` (`.github/workflows/scientific-analysis.yml`,
+  `.github/workflows/tier1-root-comparison.yml`) remain uncommitted and
+  untouched; they are out of Tier 3 scope and were not staged.
+
+### Pre-change state
+
+Per the plan's Section 2 baseline: Tier 1 and Tier 2 are complete and
+verified on this branch's ancestry; `python/run_anaFit.py` is still a
+single 901-line module; no Tier 3 extraction has begun.
+
+### Verification performed
+
+All three gates from `doc/TIER3_COMPLETION_PLAN.md` Section 7, run with
+nothing else staged, at commit `3f025cc`:
+
+1. `python scripts/quality_check.py --mode full`
+   - Tests collected: 122; selected: 120; passed: 120; prepared-dependency
+     tests deselected: 2; unexpected failures: 0.
+   - Ruff: passed. Black: passed (8 files unchanged).
+   - Six pre-existing legacy `SyntaxWarning` messages in `run_anaFit.py`
+     (invalid escape sequences), unrelated to this baseline, unchanged
+     from prior entries.
+   - Exit code: 0.
+
+2. `python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`
+   - 2 passed, 11 deselected.
+   - Exit code: 0.
+
+3. `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+   - Real authoritative J100/J50 rerun from fresh isolated output
+     directories, fresh schema-version-2 manifests, tolerance-aware
+     frozen-reference comparison.
+   - 1 passed, 2 deselected, runtime 126.12s.
+   - Exit code: 0.
+
+- `git status -sb`: only the two pre-existing, unrelated workflow-file
+  modifications noted above; no untracked artifacts left by test
+  execution.
+- `git diff --check`: passed (exit 0).
+
+### Current status
+
+The Chunk 0 baseline is established and fully passing. `tier-3-completion`
+is ready for Chunk 1 (`run_execution.py`) PR A (characterization tests for
+`execute`/`execute_required`, no production-code changes) per
+`doc/TIER3_COMPLETION_PLAN.md`.
+
+### Remaining open chunks
+
+All of Chunks 1 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open.
+None has started.
