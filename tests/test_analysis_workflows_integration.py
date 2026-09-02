@@ -40,8 +40,8 @@ WORKFLOWS = (
 )
 
 APPROVED_SCIENTIFIC_PYTHON_EXECUTABLES = {
-    "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/" "x86_64-centos9-gcc11-opt/bin/python",
-    "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/" "x86_64-ubuntu2204-gcc11-opt/bin/python",
+    "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-centos9-gcc11-opt/bin/python",
+    "/cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-ubuntu2204-gcc11-opt/bin/python",
 }
 
 
