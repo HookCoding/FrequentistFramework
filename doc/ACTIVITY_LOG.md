@@ -3446,3 +3446,98 @@ exists to surface before it's hit in practice).
 All three GitHub Copilot findings raised on this PR are now resolved and
 verified. Standalone change, not tied to a `doc/TIER3_COMPLETION_PLAN.md`
 chunk. Chunks 2 through 12 remain open.
+
+## 2026-09-02: Revise the plan's PR model to match the workflow actually used
+
+### Objective
+
+Address a fourth GitHub Copilot review finding, on
+`doc/TIER3_COMPLETION_PLAN.md` guardrail 7 ("One PR = one step of one
+chunk"): the actual PR opened for this branch bundles the pre-flight
+baseline, Chunk 1's characterization and extraction, and several unrelated
+standalone fixes together, which is exactly what guardrail 7 said never to
+do. Copilot correctly identified that this means the plan's stated
+mechanism for enforcing "tests written and human-verified before
+production files are modified" — a separately merged characterization PR,
+required before the extraction PR can even be opened — was not actually
+happening.
+
+### Root cause: the plan's guardrail 7 never matched the workflow the user chose
+
+Earlier in this branch's history (Chunk 1's characterization checkpoint),
+the user was explicitly asked whether to verify each step locally in
+conversation or push a branch and open a real GitHub PR per step, and
+chose local conversational verification. That choice is fundamentally
+incompatible with guardrail 7's literal wording, which assumes a
+separately-merged PR exists between every characterization and extraction
+step. The plan document was never updated to reflect that choice at the
+time it was made — this entry is that update, prompted by Copilot
+correctly noticing the gap between the document and the practice.
+
+### What was preserved vs. what changed
+
+The safety **substance** guardrail 7 exists for was, in fact, honored for
+Chunk 1: the characterization tests were reviewed (test code read, a real
+unmocked trace of `execute()`'s output shown, a full line-by-line
+walkthrough given) and explicitly confirmed by the user ("i agree lets
+continue") *before* `run_anaFit.py` was touched. What was missing was the
+GitHub **artifact** of that — a separately merged PR — not the
+verification itself.
+
+`doc/TIER3_COMPLETION_PLAN.md` is revised accordingly, offered to and
+selected by the user from three options (rewrite the guardrail to match
+reality; keep the guardrail and literally split into per-step PRs from
+here on; retroactively split the already-open PR too). The chosen
+approach:
+
+- Section 5 ("The PR-chunk delivery model") retitled "The chunk delivery
+  model," with a "Revision note" at its start explaining this exact
+  history transparently, and rewritten throughout: each chunk is still
+  delivered as two ordered, individually-verifiable steps (renamed
+  "Step A"/"Step B" throughout the whole document, replacing "PR A"/"PR
+  B"), each its own commit, but the human-verification checkpoint between
+  them happens in session before Step B's commit is made, not via a
+  separately merged PR. A new subsection, "What actually gets reviewed on
+  GitHub," states plainly that individual steps are not each their own PR
+  — work accumulates as ordered commits, and a PR is opened per chunk or
+  a small labeled batch for final review, with the Step A/Step B ordering
+  verifiable by reading the commit history within it.
+- Guardrails 2, 3, 7, and 8 (Section 1) reworded to reference commits and
+  the in-session verification checkpoint instead of PR merges.
+- Section 8 retitled "Per-step compliance checklist," both checklist
+  variants reworded (e.g. "is PR A merged" → "did Step A's commit precede
+  this one in the branch history").
+- Section 6 chunk-by-chunk text: every "PR A"/"PR B" label renamed to
+  "Step A"/"Step B"; "single PR" chunk headers (0, 8, 12) renamed "single
+  commit"; stray "PR content"/"PR description"/"opened and merged as its
+  own tiny PR" phrasing corrected throughout.
+- Section 7 and Section 9 updated similarly (gate-comment wording, the
+  completion definition's "both its PRs... merged" → "both its steps'
+  commits... made").
+
+No guardrail was weakened: every substantive requirement (tests before
+code, human verification of characterization before extraction, explicit
+recording of that verification, append-only activity log, no scope
+creep) is unchanged. Only the mechanism for the human-verification
+checkpoint and the artifact structure around it changed, to describe what
+this project actually does.
+
+### Verification performed
+
+- `grep -n "single PR\|PR's\|PR provides\|PR description\|PR content\|PR is not ready\|PR is marked\|two-PR\|characterization PR\|extraction PR\|PR A\|PR B\|PRs\b" doc/TIER3_COMPLETION_PLAN.md`
+  → only two intentional, correct remaining matches (the Revision Note's
+  historical reference to "the resulting single PR" Copilot reviewed, and
+  "What actually gets reviewed on GitHub"'s description of the real,
+  eventual PR's own commit history) — confirmed both are appropriate, not
+  leftover stale wording.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_COMPLETION_PLAN.md` → clean.
+- `git diff --check` → passed.
+- No code, test, or gate changes in this entry — documentation only.
+
+### Current status
+
+`doc/TIER3_COMPLETION_PLAN.md`'s process description now matches the
+workflow this branch has actually been using since Chunk 1. Going
+forward, chunks continue to follow the same Step A → human verification →
+Step B sequence as before; only the document's account of how that gets
+reviewed on GitHub changed. Chunks 2 through 12 remain open.

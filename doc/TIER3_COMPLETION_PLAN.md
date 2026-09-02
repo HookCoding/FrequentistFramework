@@ -22,22 +22,26 @@ expected and is not evidence that this plan is wrong or needs to match
 them. Do not open, diff against, or otherwise consult another branch's
 Tier 3 artifacts while executing this plan.
 
-**Delivery model**: this plan is delivered as a sequence of small, focused
-pull requests, each independently reviewable and mergeable to the
-repository's main branch. Section 5 defines the two-part PR pattern every
-chunk follows and the templates/checklists a reviewer uses to decide
-whether to approve a given PR. Section 6 breaks the work into chunks and
-applies that pattern to each. **Read Section 5 before opening any PR** —
-it defines the review contract every chunk depends on.
+**Delivery model**: this plan is delivered as a sequence of small,
+individually-verifiable steps (Step A, then Step B, per chunk — see
+Section 5), each recorded as its own commit with its own activity-log
+entry, so the work is reviewable at that granularity regardless of how it
+is eventually batched into pull requests for review. Section 5 defines
+the two-step pattern every chunk follows, the required human-verification
+checkpoint between steps, and the templates/checklists used to decide
+whether a step (or the PR that eventually bundles one or more chunks) is
+ready. Section 6 breaks the work into chunks and applies that pattern to
+each. **Read Section 5 before starting any chunk** — it defines the
+review contract every chunk depends on.
 
 If you are an LLM or engineer picking up Tier 3 work, **read this document
 in full before touching any file**, then follow it exactly. It is written
 to be followed mechanically, item by item, with no scope judgment calls
-left open, and to be reviewable one small PR at a time.
+left open, and to be reviewable one small step at a time.
 
 ### Document hierarchy (who wins when documents disagree)
 
-1. **This document** — the current Tier 3 backlog, PR structure, and
+1. **This document** — the current Tier 3 backlog, step structure, and
    guardrails.
 2. `doc/TIER1_SYSTEM.md`, `doc/TIER1_ENVIRONMENT_PROVENANCE.md`,
    `doc/TIER2_SYSTEM.md` — non-negotiable scientific, environment, and
@@ -46,7 +50,7 @@ left open, and to be reviewable one small PR at a time.
 3. `doc/ACTIVITY_LOG.md` — the chronological evidence record. Authoritative
    for **what has actually happened**, in date order. Never authoritative
    for what *should* happen next — that is this document's job. Every
-   merged PR appends one new entry here (Section 5's PR template doubles
+   step's commit appends one new entry here (Section 5's templates double
    as the activity-log entry — see Section 5).
 4. `Claude science raw output.md` (repository root) — informal background
    material that originally proposed the Tier 1–4 structure, including the
@@ -75,8 +79,9 @@ These apply to every single change made under this plan, no exceptions.
    a side effect of refactoring. The Tier 1 gates (Section 7) are the proof
    that a change did not move the science — not an assertion in prose.
 2. **The activity log is append-only.**
-   - Every merged PR adds a **new dated, titled section** at the end of
-     `doc/ACTIVITY_LOG.md`, using Section 5's PR-description content.
+   - Every step's commit adds a **new dated, titled section** at the end
+     of `doc/ACTIVITY_LOG.md`, using Section 5's activity-log-entry
+     templates.
    - **Never** edit, reorder, shorten, or delete an existing section. If
      later work contradicts or supersedes an earlier statement, write a
      new entry that says so explicitly. The old entry stays exactly as
@@ -84,15 +89,16 @@ These apply to every single change made under this plan, no exceptions.
    - Results are **only ever added**, never removed: do not delete old
      verification output, old test counts, or old known-limitations text
      to make the log read more cleanly.
-3. **Tests before code — structurally enforced by the two-PR pattern.**
+3. **Tests before code — structurally enforced by the two-step pattern.**
    No production file targeted by a chunk may be modified until the
    characterization tests for that chunk's target function(s) have been
-   (a) written against the **current, unmodified** code, (b) reviewed and
-   explicitly confirmed by a human to pass and to faithfully capture real
-   behavior (not just "does not raise"), and (c) merged to the main
-   branch as their own PR. See Section 5, "The two-PR pattern." An
-   extraction PR opened before its characterization PR is merged is out
-   of process and must not be opened.
+   (a) written against the **current, unmodified** code, in their own
+   commit that touches no production file, and (b) reviewed and explicitly
+   confirmed by a human, in session, to pass and to faithfully capture real
+   behavior (not just "does not raise"). See Section 5, "Every chunk is
+   delivered as two ordered steps." Making Step B's commit before Step A's
+   human-verification checkpoint has happened is out of process and must
+   not be done.
 4. **Every function created or materially modified requires new, focused
    tests**, covering: its normal successful path; at least one meaningful
    invalid-input or failure path (where applicable); its return value and
@@ -104,17 +110,22 @@ These apply to every single change made under this plan, no exceptions.
    or an equivalent whole-repository formatting pass over `.cpp` files.
    Use `python scripts/quality_check.py --mode full`, and add every new
    source and test file to its explicit `python_targets`/`test_targets`
-   lists as part of the same PR that creates the file.
+   lists as part of the same commit that creates the file.
 6. **Explicit git staging only.** No `git add .`, no `git commit -a`. Stage
    only the paths that belong to the change being made.
-7. **One PR = one step of one chunk.** Never combine a characterization
-   step and an extraction step in the same PR, and never combine two
-   chunks' work in the same PR. A PR that grows beyond one target
-   function-group's one step should be split, not merged into one large
-   review.
-8. **Every PR must be checked against this document** before it is opened
-   for review. Section 8 gives the exact checklist. If any answer is "no,"
-   the PR is not ready.
+7. **One commit = one step of one chunk; Step A always precedes Step B in
+   the commit history.** Never combine a characterization step and an
+   extraction step in the same commit. The human-verification checkpoint
+   (Section 5) happens between them, in session, before Step B's commit is
+   made — this is what a reviewer (human or automated) checks by reading
+   the commit history in order, since individual steps are not each their
+   own separately-merged GitHub pull request (Section 5, "What actually
+   gets reviewed on GitHub"). A PR opened for review may bundle one chunk
+   or a small, clearly-labeled batch of chunks/standalone fixes, but must
+   never obscure the Step A/Step B ordering within its own commit history.
+8. **Every change must be checked against this document** before its
+   commit is made. Section 8 gives the exact checklist. If any answer is
+   "no," the change is not ready.
 9. **Do not describe a chunk as complete in `doc/TIER3_SYSTEM.md` or in an
    activity-log entry unless the corresponding tests and gates have
    actually been run and have actually passed**, with output captured in
@@ -333,47 +344,62 @@ Therefore:
 
 ---
 
-## 5. The PR-chunk delivery model
+## 5. The chunk delivery model
 
-Every chunk in Section 6 is delivered as **two pull requests**, opened and
-merged in order, never combined:
+### Revision note (read this first)
 
-### PR A — Characterization (tests only, zero production-code changes)
+The original version of this section required each chunk step to be its
+own pull request, opened and merged on GitHub before the next step could
+even begin. In practice, executing Chunk 0 and Chunk 1 showed that isn't
+how this project actually reviews changes: the repository owner chose, when
+asked directly, to verify each characterization step **conversationally in
+session** (reading the actual test code and a real trace of its output,
+then explicitly confirming) rather than by opening a separate GitHub PR
+per step and waiting for a merge event between them. GitHub Copilot's
+automated review of the resulting single PR correctly flagged the
+mismatch between that practice and this section's original wording. This
+section is rewritten to describe the process actually being followed,
+which preserves every substantive safety property the original wording
+was for — tests written and verified against unmodified code before any
+extraction — without requiring an artifact (a separately merged PR) that
+this project doesn't actually produce between steps.
 
-Adds tests that pin down the **current, unmodified** behavior of the
-chunk's target function(s) — for a file with existing functions, this
-usually means calling them exactly as they exist today (in-place, not yet
-extracted); for `plotPostFit.py` (no functions yet) and `plot_postfit.cpp`
-(no test harness yet) it means an end-to-end characterization: run the
-current script/macro against a fixture input, assert on its real,
-observable output (file created, non-empty, or a specific extracted
-value), exactly the "freeze the outputs... assert every future run
-reproduces them" pattern already established for Tier 1.
+### Every chunk is delivered as two ordered steps, Step A then Step B
 
-**PR A must not touch the target production file at all** (touching a
-*test* file, or a *new* test file, is the entire content of PR A). This is
+**Step A — Characterization (tests only, zero production-code changes)**,
+delivered as its own commit. Adds tests that pin down the **current,
+unmodified** behavior of the chunk's target function(s) — for a file with
+existing functions, this usually means calling them exactly as they exist
+today (in-place, not yet extracted); for `plotPostFit.py` (no functions
+yet) and `plot_postfit.cpp` (no test harness yet) it means an end-to-end
+characterization: run the current script/macro against a fixture input,
+assert on its real, observable output (file created, non-empty, or a
+specific extracted value), exactly the "freeze the outputs... assert
+every future run reproduces them" pattern already established for Tier 1.
+
+**Step A's commit must not touch the target production file at all**
+(touching a *test* file, or a *new* test file, is the entire content of
+the commit — confirm with `git diff --stat` before committing). This is
 what makes "tests are written and human-verified... before files are
 modified" a structural property of the process, not a checklist item that
 could be skipped.
 
-**Required human-verification checkpoint before PR A is merged**: a human
-reviewer (not the LLM authoring the PR) must:
-1. Run the new tests locally against the target file at PR A's base commit
-   (i.e. before any Tier 3 change to that file) and confirm they pass.
+**Required human-verification checkpoint before Step B's commit is
+made**: a human reviewer (not the LLM authoring the change) must, in the
+session, before any extraction work begins:
+1. Run the new tests locally against the target file as it stood before
+   Step A's commit (i.e. before any Tier 3 change to that file) and
+   confirm they pass — or review a trace of them doing so.
 2. Read each new test and confirm it asserts something meaningful about a
    real input, output, or side effect of the target function(s) — not
    merely that the call "does not raise."
-3. Record this explicitly as a PR review comment, using this exact form so
-   it is machine-greppable in PR history:
-   > `Verified: N characterization tests pass against unmodified <file> at
-   > <short-sha>, and each asserts a real input/output/side-effect of
-   > <function name(s)>.`
+3. Give explicit, recorded confirmation (e.g. "verified, proceed" in the
+   session, or the equivalent) before Step B's commit is made. Record that
+   this happened, and how, in Step B's activity-log entry — this is the
+   record that substitutes for a separate merged PR.
 
-PR A may only be merged after that comment is posted. PR B (below) may
-only be opened after PR A shows merged on the default branch.
-
-**PR A description template** (this content, filled in, is also what gets
-appended to `doc/ACTIVITY_LOG.md` in the same PR):
+**Step A activity-log entry template** (this content is what gets
+appended to `doc/ACTIVITY_LOG.md` as Step A's commit):
 
 ```markdown
 ## Chunk <N>.A — Characterization tests for <target file/function(s)>
@@ -391,31 +417,31 @@ before any extraction, per doc/TIER3_COMPLETION_PLAN.md Chunk <N>.
 - `test_x` — exercises <input>, asserts <output/side-effect>.
 - (one row per new test function)
 
-### What this PR does NOT do
+### What this commit does NOT do
 No production file is modified. <file> is unchanged byte-for-byte in this
-diff — confirm with `git diff --stat` in the PR description.
+diff — confirm with `git diff --stat`.
 
 ### Verification performed
 - `python -m pytest <new_test_file> -v` → result, all passing.
 - `git diff --stat` → only the new test file(s) appear.
 
-### Reviewer checklist (Section 8, Characterization variant)
+### Compliance review (Section 8, Characterization variant)
 - [ ] Base commit for these tests is named and matches the file's current state.
 - [ ] Every new test asserts a real output/side-effect, not just "no exception."
 - [ ] `git diff --stat` shows no production file touched.
-- [ ] Tests pass locally when run by the reviewer, not only reported by the author.
-- [ ] Human-verification comment (exact form above) posted before merge.
+- [ ] Tests were run (or a real trace of them was reviewed) by a human, not only reported by the author.
+- [ ] Explicit human-verification confirmation given and recorded before Step B's commit.
 ```
 
-### PR B — Extraction
-
-Moves the now-characterized function(s) into their target module (or, for
+**Step B — Extraction**, delivered as its own commit, made only after
+Step A's human-verification checkpoint above. Moves the now-characterized
+function(s) into their target module (or, for
 `plotPostFit.py`/`plot_postfit.cpp`, restructures the file in place),
-relocating PR A's tests per the **Test Relocation Rule** below, and adds
+relocating Step A's tests per the **Test Relocation Rule** below, and adds
 any further tests guardrail 4 requires for newly-introduced functions
 (e.g. `should_mask()`, `prepare_run_templates()`, `parse_args()`).
 
-**Test Relocation Rule**: move each test from PR A's file into its final
+**Test Relocation Rule**: move each test from Step A's file into its final
 home **verbatim except for the import statement** — do not alter fixture
 setup, assertions, or expected values while moving. Delete the old copy in
 the same commit that deletes the corresponding function definition from
@@ -424,14 +450,14 @@ a higher-level entry point (e.g. a coordinator-level or end-to-end test)
 stays where it is — it is testing integration, not the moved unit, and
 does not relocate.
 
-**PR B description template**:
+**Step B activity-log entry template**:
 
 ```markdown
 ## Chunk <N>.B — Extract <target> into <new module/function(s)>
 
 ### Objective
-Move <function(s)>, characterized and human-verified in PR A (#<PR-A-number>,
-merged at <sha>), into <new module/file structure>, per
+Move <function(s)>, characterized and human-verified in Step A (commit
+<short-sha>), into <new module/file structure>, per
 doc/TIER3_COMPLETION_PLAN.md Chunk <N>.
 
 ### What changed
@@ -439,7 +465,7 @@ doc/TIER3_COMPLETION_PLAN.md Chunk <N>.
   one documented exception: ...>.
 - `<old file>` updated: <function(s)> removed, replaced with a call to
   `<new module>.<function>`.
-- Tests relocated from PR A's `<test file>` to `<final test file>`
+- Tests relocated from Step A's `<test file>` to `<final test file>`
   (import path only changed; assertions unchanged — confirm with a diff).
 - New tests added for newly-introduced functions: <list>.
 - `scripts/quality_check.py` updated: `<new file>`/`<new test file>` added
@@ -456,42 +482,60 @@ integration-gate rerun for those two chunks.
 - Integration-gate rerun, if this chunk requires it (Chunks 4, 5) → result.
 - `git diff --check` → result.
 
-### Reviewer checklist (Section 8, Extraction variant)
-- [ ] PR A is merged and linked; this PR's tests are the relocated ones, not newly invented.
+### Compliance review (Section 8, Extraction variant)
+- [ ] Step A's commit is named/linked; this commit's tests are the relocated ones, not newly invented.
 - [ ] Diffed test files show only import-line changes for relocated tests.
 - [ ] Production code actually calls the new function (grep, don't assume).
 - [ ] No extracted module imports from the coordinator/original file.
 - [ ] All required gates in Section 7 ran and passed, output captured.
-- [ ] Activity-log entry appended (this PR body content), not a rewrite of any existing section.
+- [ ] Activity-log entry appended (this content), not a rewrite of any existing section.
 ```
 
-### Why two PRs, not one
+### Why two steps, not one commit
 
-A single PR mixing "add tests" and "move code" forces a reviewer to
+Mixing "add tests" and "move code" in one commit forces a reviewer to
 simultaneously judge whether the tests are trustworthy *and* whether the
 move preserved behavior, using the same tests as evidence for both — which
-is circular if the tests themselves were written after the code moved. The
-split makes each PR small, each with one honest question a reviewer can
-answer independently: PR A — "do these tests actually describe what the
-code does today?"; PR B — "does the moved code still pass the tests we
-already agreed describe it?"
+is circular if the tests themselves were written after the code moved.
+The split keeps each step small, each with one honest question a reviewer
+can answer independently: Step A — "do these tests actually describe what
+the code does today?"; Step B — "does the moved code still pass the tests
+we already agreed describe it?"
+
+### What actually gets reviewed on GitHub
+
+Individual steps are not each opened as their own GitHub pull request.
+Work accumulates as ordered commits on the working branch (Step A, then
+Step B, then the next chunk's Step A, and so on), and a pull request is
+opened covering one chunk or a small, clearly-labeled batch of chunks
+and/or standalone fixes, for final review. What guardrail 7 actually
+requires is that within that PR's commit history, the Step A / Step B
+ordering and separation is real and inspectable — not that GitHub shows a
+separate merged PR per step. A reviewer (human or automated) can still
+verify the split by reading the commits in order: does an
+add-only-tests commit exist before a production-code-changing commit for
+the same target, and does the activity log record the human-verification
+checkpoint between them.
 
 ---
 
 ## 6. Chunks
 
-Work through these **in order**; within a chunk, PR A before PR B. Do not
-start the next chunk's PR A until the current chunk's PR B is merged.
+Work through these **in order**; within a chunk, Step A's commit before
+Step B's commit, with the Section 5 human-verification checkpoint between
+them. Do not start the next chunk's Step A until the current chunk's Step
+B commit is made and its gates pass.
 
-### Chunk 0 — Pre-flight baseline confirmation (single PR, no code change)
+### Chunk 0 — Pre-flight baseline confirmation (single commit, no code change)
 
 **Objective**: Prove the branch is in the fully-passing state Section 2
-claims before any Tier 3 PR is opened.
+claims before any Tier 3 work begins.
 
-**PR content**: no code change. Run every gate in Section 7 with nothing
-staged; record exact pass/fail counts as a new `doc/ACTIVITY_LOG.md` entry
-("Tier-3 pre-flight baseline"), opened and merged as its own tiny PR so
-the baseline is itself reviewable and citable by every later chunk.
+**Commit content**: no code change. Run every gate in Section 7 with
+nothing staged; record exact pass/fail counts as a new
+`doc/ACTIVITY_LOG.md` entry ("Tier-3 pre-flight baseline"), made as its
+own tiny, standalone commit so the baseline is itself reviewable and
+citable by every later chunk.
 
 **Acceptance check**: all three gates in Section 7 exit 0. If any does
 not, stop — fix or explicitly scope out the failure before Chunk 1, and
@@ -512,25 +556,25 @@ record that decision in the activity log.
 no provenance, no XML handling) and used by nearly every later chunk —
 extracting first gives every later chunk a stable, already-tested import.
 
-**PR A — characterization**: write/relocate-source
+**Step A — characterization**: write/relocate-source
 `test_execute_required_accepts_success_with_expected_output`,
 `test_execute_required_rejects_stale_expected_output`,
 `test_execute_required_rejects_nonzero_command_status`,
 `test_execute_required_rejects_missing_expected_output` — these already
-exist in `tests/test_run_anaFit.py`; for this chunk, PR A is "confirm they
+exist in `tests/test_run_anaFit.py`; for this chunk, Step A is "confirm they
 already characterize `execute`/`execute_required`'s current behavior and
 get the required human-verification comment on the *existing* tests" (no
-new test file yet — the move happens in PR B). If review finds a gap
+new test file yet — the move happens in Step B). If review finds a gap
 (e.g. `execute()` itself has no direct test), add it here, against the
-unmodified file, before PR B.
+unmodified file, before Step B.
 
-**PR B — extraction**:
+**Step B — extraction**:
 - Create `python/run_execution.py` containing `execute()` and
   `execute_required()`, moved verbatim.
 - Update `run_anaFit.py` to `from run_execution import execute,
   execute_required` — flat sibling style (Section 4.2). Never `from
   python.run_execution import ...` here.
-- **Blocking step, required for this PR's own acceptance check to pass**:
+- **Blocking step, required for this step's own acceptance check to pass**:
   `tests/test_run_anaFit.py` loads `run_anaFit.py` via
   `importlib.util.spec_from_file_location(...)` + `exec_module(...)`,
   which does **not** put `python/` on `sys.path` (no `conftest.py` exists
@@ -570,14 +614,14 @@ python scripts/quality_check.py --mode full
 dependency on fit-execution or provenance logic beyond receiving
 already-computed values — a low-risk second extraction.
 
-**PR A**: confirm the existing
+**Step A**: confirm the existing
 `test_write_analysis_results_writes_success_manifest`,
 `test_write_analysis_results_records_masked_fit`,
 `test_write_analysis_results_atomically_replaces_existing_manifest`
 characterize current behavior (same human-verification process as Chunk
-1's PR A); add any missing case against the unmodified file first.
+1's Step A); add any missing case against the unmodified file first.
 
-**PR B**:
+**Step B**:
 - Create `python/run_manifest.py` containing `write_analysis_results()`,
   moved verbatim.
 - Update `run_anaFit.py`'s import (flat sibling style).
@@ -613,7 +657,7 @@ consumed by the coordinator as a single call. Largest extraction by line
 count, lowest risk — every function is a pure read of the filesystem, Git,
 or the ROOT runtime.
 
-**PR A**: confirm the existing tests
+**Step A**: confirm the existing tests
 (`test_calculate_file_sha256_*`, `test_get_git_revision_*`,
 `test_collect_scientific_runtime_*`, `test_get_repository_root_*`,
 `test_resolve_analysis_path_*`, `test_build_file_provenance_*`,
@@ -621,7 +665,7 @@ or the ROOT runtime.
 gap against the unmodified file first, with the required human-
 verification comment.
 
-**PR B**:
+**Step B**:
 - Create `python/run_provenance.py` containing all seven functions, moved
   verbatim and preserving call order/error handling exactly, **with one
   narrow, justified exception**: `get_repository_root()` should call
@@ -675,7 +719,7 @@ out twice, independently, with no single place that states it — precisely
 what extract-function refactors exist for, because duplicated conditions
 are exactly what silently drifts unnoticed later.
 
-**PR A**: confirm the existing `load_bumphunter_results`/`run_bumphunter`
+**Step A**: confirm the existing `load_bumphunter_results`/`run_bumphunter`
 tests (`test_load_bumphunter_results_accepts_valid_payload`,
 `test_load_bumphunter_results_rejects_malformed_json`,
 `test_load_bumphunter_results_rejects_missing_keys`,
@@ -685,13 +729,13 @@ tests (`test_load_bumphunter_results_accepts_valid_payload`,
 `test_run_bumphunter_rejects_success_without_fresh_output`,
 `test_run_bumphunter_rejects_invalid_fresh_output`) characterize current
 behavior. `should_mask()` does not exist yet, so it has no
-characterization step — its tests are written fresh in PR B under
+characterization step — its tests are written fresh in Step B under
 guardrail 4, since there is no "original behavior" to pin down beyond the
 two inline `>` comparisons already covered by the coordinator-level tests
 that stay in `tests/test_run_anaFit.py` per the Test Relocation Rule's
 point on integration tests.
 
-**PR B**:
+**Step B**:
 - Create `python/run_masking.py` containing `load_bumphunter_results()`
   and `run_bumphunter()`, moved verbatim.
 - Add `should_mask(p_value, threshold)` returning `p_value <= threshold` —
@@ -717,7 +761,7 @@ python -m pytest tests/test_run_masking.py tests/test_run_anaFit.py -v
 python scripts/quality_check.py --mode full
 python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v
 ```
-The integration-gate run is **mandatory** in this PR B (not optional):
+The integration-gate run is **mandatory** in this Step B (not optional):
 this chunk changes a real branch condition inside the coordinator, and the
 real J100/J50 rerun is the only proof the rewritten condition still
 produces the unmasked accept path both canonical workflows currently take.
@@ -743,9 +787,9 @@ produces XML *template* files, not the RooFit `.root` workspace itself
 (built later by `run_fit.py`) — hence `run_templates.py`, chosen to avoid
 inviting confusion between the two.
 
-**PR A — characterization, no unit tests exist today**: this block has
+**Step A — characterization, no unit tests exist today**: this block has
 **no existing direct tests** — only indirect coverage through the full
-J100/J50 integration gate. PR A therefore writes the **first** direct
+J100/J50 integration gate. Step A therefore writes the **first** direct
 tests against the current inline block, calling into `run_anaFit()`
 end-to-end with controlled inputs (matching the coordinator-level testing
 style already used in `tests/test_run_anaFit.py`) and asserting on the
@@ -766,7 +810,7 @@ all. Minimum coverage:
   `"four"` through `"ten"` — not one unified `if/elif` ladder. A
   background-file name matching both `"three"` and `"four"` currently
   resolves to `nPars = 4`, not `3`. This is existing behavior, confirmed
-  by reading the source; PR A's test pins it down exactly as-is so PR B
+  by reading the source; Step A's test pins it down exactly as-is so Step B
   cannot accidentally "clean it up" into a single chain, which would
   silently change behavior for any filename matching two of these
   substrings.
@@ -777,7 +821,7 @@ all. Minimum coverage:
 Human-verification checkpoint applies as in Section 5, with extra weight
 here since these are first-ever tests for this logic, not a relocation.
 
-**PR B**:
+**Step B**:
 - Create `python/run_templates.py` containing `replaceinfile()` moved
   verbatim. Decompose the templating/prefit block internally into at
   least two private helpers, called from one public entry point (moving it
@@ -788,11 +832,11 @@ here since these are first-ever tests for this logic, not a relocation.
   - `_seed_prefit_parameters(...)` — the `doprefit` branch: regex-parsing
     `[PARn,lo,hi]` ranges, running `PreFitter`, substituting fitted seed
     values back in. **Copy the `nPars` if/elif structure exactly as-is**
-    (see PR A's regression test above) — do not unify it.
+    (see Step A's regression test above) — do not unify it.
 - Apply the import-placement rule: `from PreFit import PreFitter` moves
   inside `_seed_prefit_parameters`'s `doprefit` handling.
 - Update `run_anaFit()` to call the new public entry point.
-- Move PR A's tests into `tests/test_run_templates.py` per the Test
+- Move Step A's tests into `tests/test_run_templates.py` per the Test
   Relocation Rule, scoping ROOT/PreFitter stubbing only to the
   `_seed_prefit_parameters` calls (the rest of the module needs none, per
   Section 4.2).
@@ -825,11 +869,11 @@ the fit.
 (unmasked, masked refit) with no logic difference other than arguments —
 already function-shaped, just needs to move.
 
-**PR A**: confirm the two existing failure-path tests
+**Step A**: confirm the two existing failure-path tests
 (`test_build_fit_extract_stops_after_xmlreader_failure`,
 `test_build_fit_extract_stops_after_quickfit_failure`) characterize
 current behavior. These only cover failure paths (Section 2's baseline);
-PR A adds the missing successful-path characterization against the
+Step A adds the missing successful-path characterization against the
 **unmodified** function first:
 - a successful unmasked call returning the expected `(pval, postfitfile,
   parameterfile)` shape, using controlled test doubles for
@@ -839,7 +883,7 @@ PR A adds the missing successful-path characterization against the
   range reaches the quickFit command and the correct normalized-p-value
   source (`Run3TLA_bkgonly_rebinned` vs. `Run3TLA_rebinned`) is selected.
 
-**PR B**:
+**Step B**:
 - Create `python/run_fit.py` containing `build_fit_extract()`, moved
   verbatim. It needs **both** `execute` and `execute_required` from
   `run_execution.py` (`execute` for the `plot_edm.py` diagnostic call and
@@ -856,7 +900,7 @@ PR A adds the missing successful-path characterization against the
   deferred import) — if they still need stubbing, the import was placed
   too early.
 - Update `run_anaFit.py`'s import (flat sibling style).
-- Apply the Test Relocation Rule for the two existing tests plus PR A's
+- Apply the Test Relocation Rule for the two existing tests plus Step A's
   two new ones into `tests/test_run_fit.py`.
 - Register both new files.
 
@@ -882,7 +926,7 @@ are presentation/entry-point concerns, separable from `run_anaFit()`'s
 scientific orchestration. Last extraction; leaves `run_anaFit.py` as close
 to a pure coordinator as this plan gets.
 
-**PR A**: this logic has no existing dedicated test (only indirect
+**Step A**: this logic has no existing dedicated test (only indirect
 coverage via `test_main_propagates_analysis_status`). Characterize the
 **current inline logic in `main()`** first, calling `main()`/re-deriving
 its argument-parsing behavior against the unmodified file:
@@ -894,15 +938,15 @@ its argument-parsing behavior against the unmodified file:
 - a representative full set of CLI flags (mirroring an actual invocation
   from `scripts/run_anaFit_J100.sh`) parses into the expected values.
 
-**PR B**:
+**Step B**:
 - Create `python/run_cli.py` containing `build_arg_parser()` (covering
   exactly the arguments `main()` currently registers) and
   `normalize_signal_name()` (the exact default-naming logic, behavior
-  preserved per PR A's `7.0` regression test).
+  preserved per Step A's `7.0` regression test).
 - Update `run_anaFit.py`'s `main()` to call `run_cli.build_arg_parser()`
   and `run_cli.normalize_signal_name()` instead of containing this logic
   inline, then call `run_anaFit()` exactly as before.
-- Move PR A's tests into `tests/test_run_cli.py`.
+- Move Step A's tests into `tests/test_run_cli.py`.
 - Apply the Test Relocation Rule to `test_main_propagates_analysis_status`
   only if it turns out to test parsing behavior directly — if it only
   tests status propagation through `main()` end-to-end, it stays in
@@ -917,17 +961,17 @@ python scripts/quality_check.py --mode full
 
 ---
 
-### Chunk 8 — Coordinator slimming and dependency-direction verification (single PR, verification only)
+### Chunk 8 — Coordinator slimming and dependency-direction verification (single commit, verification only)
 
-**Objective**: With Chunks 1–7 merged, confirm `run_anaFit()` now reads as
+**Objective**: With Chunks 1–7 done, confirm `run_anaFit()` now reads as
 an orchestration of calls into the seven new modules, not a container for
 their logic. This is a checkpoint, not a new extraction — **no new target
-function exists here, so guardrail 3's two-PR/characterization-first
+function exists here, so guardrail 3's two-step/characterization-first
 pattern does not apply**; there is nothing new to characterize before
 modifying, only a verification pass over work already characterized and
-extracted in Chunks 1–7. Deliver as a single PR.
+extracted in Chunks 1–7. Deliver as a single commit.
 
-**PR content**:
+**Commit content**:
 - Re-read `run_anaFit.py` top to bottom. It should contain only: imports,
   `run_anaFit()`, `main()`, and the `if __name__ == "__main__":` guard. If
   any extracted logic was copied rather than moved, remove the duplicate.
@@ -984,7 +1028,7 @@ a small fixture log file, no matplotlib needed) from rendering (needs
 matplotlib; testable only for "does it run and produce a file," which is
 still worth asserting).
 
-**PR A — characterization**: `plot_edm.py` has no existing tests. Write
+**Step A — characterization**: `plot_edm.py` has no existing tests. Write
 tests against the current, single `plot_minuit_continuous(filename,
 outname)` function, using a small fixture log file with representative
 Minuit trace lines (the existing committed
@@ -1000,15 +1044,15 @@ is a real, already-available fixture):
   "__main__":` guard logic too — characterize that entry point directly if
   it's simplest).
 
-**PR B**:
+**Step B**:
 - Add `parse_minuit_edm_log()` and `plot_minuit_edm_trace()` to
   `plot_edm.py`, rewriting `plot_minuit_continuous()` to call both in
-  sequence, preserving every current behavior PR A pinned down exactly.
-- Relocate PR A's tests, updating only what the split requires (e.g.
+  sequence, preserving every current behavior Step A pinned down exactly.
+- Relocate Step A's tests, updating only what the split requires (e.g.
   splitting one end-to-end assertion into a parse-level assertion plus a
   plot-level assertion where that's clearer) — do not silently drop
   coverage; if a test's assertion moves to a different function, say so
-  explicitly in the PR description, don't just delete and re-add.
+  explicitly in the commit's activity-log entry, don't just delete and re-add.
 - **New tests required** for the two newly-introduced functions
   individually (guardrail 4): `parse_minuit_edm_log()` against the fixture
   log, asserting the exact parsed tuple contents (not just "returns
@@ -1033,7 +1077,7 @@ acceptance" entry.
 ### Chunk 10 — `python/plotPostFit.py`
 
 **Current state**: zero functions — the entire 79-line file is top-level
-script code. **PR A's characterization must therefore run the current
+script code. **Step A's characterization must therefore run the current
 script end-to-end**, since there is nothing importable to call directly
 yet.
 
@@ -1048,7 +1092,7 @@ yet.
 | `main(argv=None)` (**new**) | `argv` | `None` | orchestrates the above, then `canvas.SaveAs(output)` and closes the input file |
 | `if __name__ == "__main__": main()` (**new**) | — | — | — |
 
-**PR A — characterization (subprocess-level, since no functions exist
+**Step A — characterization (subprocess-level, since no functions exist
 yet)**: run the current script as a subprocess against the already-
 committed fixture
 `run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root`,
@@ -1063,12 +1107,12 @@ scientific acceptance") that PDF artifacts are excluded from strict
 scientific comparison. The meaningful, stable invariant to characterize is
 "runs successfully against a real fixture and produces a real, non-empty
 plot" — record this explicitly as the chosen characterization strategy so
-a future reader does not expect stronger guarantees than this PR provides.
+a future reader does not expect stronger guarantees than this step provides.
 
-**PR B**:
+**Step B**:
 - Introduce the six functions/guard in the table above, preserving every
-  behavior PR A's subprocess-level test observed.
-- Keep PR A's subprocess-level test (it becomes an end-to-end regression
+  behavior Step A's subprocess-level test observed.
+- Keep Step A's subprocess-level test (it becomes an end-to-end regression
   test of `main()`, still valuable after the split — do not delete it).
 - **New tests required** (guardrail 4) for each newly-introduced function
   individually, using controlled ROOT test doubles per
@@ -1112,7 +1156,7 @@ than inventing a second, separate CI mechanism.
 | `void draw_residual_panel(TCanvas* can, TH1D* first, TH1D* second, bool bump_hunter, BumpHunterInfo const& bh, char const* pars_str, char const* out_file_name)` (**new**) | as listed | `void` | draws one panel and calls `can->Print(out_file_name)`; the existing loop over three histogram pairs calls this once per pair instead of repeating the body inline |
 | `void plot_postfit(char const* in_dir, char const* pars_str)` (unchanged signature) | as today | `void` | becomes the orchestrator: build paths, open files, call the three functions above |
 
-**PR A — characterization**: since there's no unit-callable structure yet,
+**Step A — characterization**: since there's no unit-callable structure yet,
 characterize the **whole macro's current output** against the already-
 committed J100 fixture directory
 (`run/fits/J100/run_481_3000_sixPar/`, which has no `BHresults.json`,
@@ -1128,12 +1172,12 @@ exercising the current no-BumpHunter fallback path):
   meaningful comparison target per the same Tier 1 policy cited in Chunk
   10).
 
-**PR B**:
+**Step B**:
 - Introduce the `BumpHunterInfo`/`PostfitHistograms` structs and the three
   new free functions in the table above, rewriting `plot_postfit()` to
-  call them, preserving every behavior PR A's macro-level test observed
+  call them, preserving every behavior Step A's macro-level test observed
   and preserving the public entry point's exact signature.
-- Keep PR A's macro-level test (becomes an end-to-end regression test,
+- Keep Step A's macro-level test (becomes an end-to-end regression test,
   still valuable — do not delete it).
 - **New tests required** (guardrail 4) for the newly-introduced,
   independently-testable pieces — most importantly
@@ -1165,7 +1209,7 @@ macro-level test)
 
 ---
 
-### Chunk 12 — `doc/TIER3_SYSTEM.md` and final documentation (single PR)
+### Chunk 12 — `doc/TIER3_SYSTEM.md` and final documentation (single commit)
 
 **Objective**: once Chunks 0–11 are all merged, write `doc/TIER3_SYSTEM.md`,
 modeled on the existing structure of `doc/TIER1_SYSTEM.md` and
@@ -1204,14 +1248,14 @@ git diff --check
 Use exactly these commands. Do not invent alternative invocations.
 
 ```bash
-# After every PR's focused tests
+# After every step's focused tests
 python -m pytest <this chunk's test file(s)> tests/test_run_anaFit.py -v
 
 # After every coherent commit
 python scripts/quality_check.py --mode full
 
-# Mandatory in Chunks 4, 5, and 8 specifically (any PR that touches a real
-# branch condition or template-generation logic, not just moves an
+# Mandatory in Chunks 4, 5, and 8 specifically (any step that touches a
+# real branch condition or template-generation logic, not just moves an
 # already-isolated pure function) — and always before Chunk 12
 python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
@@ -1219,43 +1263,47 @@ python -m pytest tests/test_analysis_workflows_integration.py \
 # After any chunk touching dependency-facing code paths, if in doubt
 python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v
 
-# Before any PR is marked ready for review
+# Before any commit is marked ready
 git status -sb
 git diff --check
 git diff --stat
 ```
 
-Record every exit code in the PR description and the resulting
-activity-log entry. A PR is not ready for review if any required gate
-above was skipped or failed.
+Record every exit code in the commit's activity-log entry. A step's
+commit is not ready if any required gate above was skipped or failed.
 
 ---
 
-## 8. Per-PR compliance checklist
+## 8. Per-step compliance checklist
 
-Two variants — use whichever matches the PR being opened. Run this
-against **this document** before requesting review. If any answer is
-"no," the PR is not ready.
+Two variants — use whichever matches the step whose commit is about to be
+made. Run this against **this document** before making that commit (for
+Step A) or before opening the eventual PR for review (as a final check
+covering every commit in it). If any answer is "no," the commit/PR is not
+ready.
 
-**Characterization PR (A) checklist**:
+**Step A (characterization) checklist**:
 ```text
-1. Which chunk does this PR belong to, and is it PR A? (name it explicitly)
+1. Which chunk does this commit belong to, and is it Step A? (name it explicitly)
 2. Does `git diff --stat` show ONLY new test file(s) — zero production files touched?
 3. Does every new/confirmed test assert a real input/output/side-effect,
    not merely "does not raise"?
-4. Were the tests run by a human reviewer locally against the unmodified
-   target file, not only reported as passing by the PR's author?
-5. Is the required human-verification comment (Section 5's exact form)
-   posted before merge?
+4. Were the tests run (or a real trace of them reviewed) by a human,
+   against the unmodified target file, not only reported as passing by
+   the author?
+5. Was explicit human-verification confirmation given, in session, before
+   Step B's commit was made — and is that recorded in Step B's
+   activity-log entry?
 6. Were only the explicit, intended files staged (no `git add .`)?
 7. Has a new dated section been appended to doc/ACTIVITY_LOG.md (not a
    rewrite of any existing section)?
 ```
 
-**Extraction PR (B) checklist**:
+**Step B (extraction) checklist**:
 ```text
-1. Which chunk does this PR belong to, and is it PR B? (name it explicitly)
-2. Is PR A for this chunk merged, and linked in this PR's description?
+1. Which chunk does this commit belong to, and is it Step B? (name it explicitly)
+2. Did Step A's commit for this chunk precede this one in the branch
+   history, and is it named/linked in this commit's activity-log entry?
 3. Does the change avoid touching scientific constants, references,
    tolerances, dependency revisions, or canonical workflow arguments?
 4. Is every relocated test's diff limited to its import line — assertions
@@ -1271,7 +1319,7 @@ against **this document** before requesting review. If any answer is
 10. Has a new dated section been appended to doc/ACTIVITY_LOG.md?
 11. Does the activity-log entry name which chunk is now resolved, and
     leave unresolved chunks explicitly listed as still open?
-12. Did this PR avoid consulting or reusing any other branch's Tier 3 work?
+12. Did this commit avoid consulting or reusing any other branch's Tier 3 work?
 ```
 
 ---
@@ -1280,9 +1328,9 @@ against **this document** before requesting review. If any answer is
 
 Tier 3 is complete only when:
 
-- Every chunk in Section 6 (0 through 12) has both its PRs (or single PR,
-  for Chunks 0, 8, 12) merged, each with a corresponding activity-log
-  entry recording passing gate output.
+- Every chunk in Section 6 (0 through 12) has both its steps' commits (or
+  single commit, for Chunks 0, 8, 12) made, each with a corresponding
+  activity-log entry recording passing gate output.
 - `run_anaFit.py` contains only `run_anaFit()`, `main()`, and the
   `__main__` guard (Chunk 8's acceptance check).
 - No extracted Python module imports from `run_anaFit.py`.
@@ -1302,7 +1350,7 @@ Tier 3 is complete only when:
 
 Do not declare Tier 3 complete in any document unless every bullet above
 is independently verifiable from the activity log and the repository's
-merged PR history at the time the claim is made.
+commit history at the time the claim is made.
 
 ---
 
