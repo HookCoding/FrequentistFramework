@@ -2930,3 +2930,43 @@ after the move). Every call site in `run_anaFit.py` is untouched.
 
 Chunks 2 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 1
 (both PR A and PR B) is complete and verified.
+
+## 2026-09-02: Chunk 1.B supplementary verification — authoritative J100/J50 gate
+
+### Objective
+
+`doc/TIER3_COMPLETION_PLAN.md` Section 7 does not list the integration
+gate as mandatory for Chunk 1 (only Chunks 4, 5, 8, and before 12). At the
+user's explicit request, run it anyway after Chunk 1.B (commit `c68585b`)
+as extra confidence, since real production code did change — including
+the exact import mechanism (`from run_execution import execute,
+execute_required`) that only gets exercised for real when the launcher
+scripts invoke `run_anaFit.py` directly as a script, not through the test
+suite's simulated `sys.path` fix.
+
+### Verification performed
+
+Command: `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+
+Result:
+
+- 1 passed, 2 deselected.
+- Runtime: 168.02s.
+- Both J100 and J50 reran from fresh isolated output directories using
+  the real authoritative launcher scripts.
+- Fresh schema-version-2 manifests generated and validated.
+- Fit parameters and chi-square p-values matched the frozen reference
+  within the established tolerances.
+- Exit code: 0.
+
+`git status -sb` after the run: only the two pre-existing, unrelated
+workflow-file modifications carried since Chunk 0; no untracked artifacts
+left by the run. `git diff --check`: passed.
+
+### Current status
+
+Chunk 1's extraction is now confirmed both by the fast unit-test gate
+(recorded in the Chunk 1.B entry above) and by a real end-to-end rerun of
+the actual production launcher scripts — the new module boundary and
+import mechanism work correctly outside the test harness, not only inside
+it. No scientific result changed.
