@@ -1,7 +1,13 @@
 import argparse
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
-import ROOT
+if TYPE_CHECKING:
+    # Only for the type hints below - never imported at runtime (see the
+    # deferred-import comments in load_postfit_histograms()/
+    # draw_postfit_canvas()/main() for why: this module must stay
+    # importable, and its functions callable where ROOT-free, with zero
+    # real ROOT presence).
+    import ROOT
 
 
 class PostfitHistograms(NamedTuple):
@@ -18,6 +24,16 @@ def parse_args(argv=None):
 
 
 def load_postfit_histograms(input_file):
+    # ROOT is imported here, not at module scope: this is the only
+    # ROOT-touching statement that needs to run before this function is
+    # actually called (see doc/TIER3_COMPLETION_PLAN.md Section 4.2's
+    # deferred-import rule, already applied to every other ROOT-touching
+    # function across this whole Tier 3 plan). Deferring it here - and
+    # from draw_postfit_canvas()/main() below - is what lets parse_args()
+    # be imported and called with genuinely zero ROOT presence, not even
+    # a stub (GitHub Copilot review, PR #6).
+    import ROOT
+
     # Returns the still-open ROOT.TFile alongside the histograms it owns -
     # not just a PostfitHistograms triple. Verified directly (see
     # doc/ACTIVITY_LOG.md's Tier 3 Chunk 10.B entry): once this function
@@ -69,6 +85,8 @@ def build_ratio_histogram(data, postfit):
 
 
 def draw_postfit_canvas(data, postfit, chi2_hist, ratio_hist):
+    import ROOT
+
     c = ROOT.TCanvas()
     pad1 = ROOT.TPad("pad1", "top pad", 0, 0.3, 1, 1.0)
     pad1.SetBottomMargin(0)  # no x-axis labels on top pad
@@ -78,6 +96,22 @@ def draw_postfit_canvas(data, postfit, chi2_hist, ratio_hist):
     postfit.Draw("same c")
 
     legend = ROOT.TLegend(0.65, 0.7, 0.88, 0.88)
+    # Without this, the legend is silently dropped from the finished plot:
+    # legend is a local variable with no reference surviving this
+    # function's return, and cppyy owns (and therefore garbage-collects,
+    # deleting the underlying C++ object) any TObject it constructed
+    # itself, once Python's refcount on it reaches zero - verified
+    # directly (see doc/ACTIVITY_LOG.md's Tier 3 Chunk 10 legend-lifetime
+    # entry): pad1's primitives contained no TLegend at all after this
+    # function returned, without this call. The original, single-scope
+    # script never hit this, because `legend` stayed alive as a
+    # script-level name for the whole run - the same class of hazard
+    # already found and fixed for load_postfit_histograms()'s TFile,
+    # surfacing again here for a different object. ROOT.SetOwnership(...,
+    # False) tells cppyy the C++ side (the pad's own primitive list) now
+    # owns this object, so it survives after the Python reference is
+    # gone.
+    ROOT.SetOwnership(legend, False)
     legend.AddEntry(data, "Data", "lep")
     legend.AddEntry(postfit, "Postfit", "l")
     legend.Draw()
@@ -103,6 +137,8 @@ def draw_postfit_canvas(data, postfit, chi2_hist, ratio_hist):
 
 
 def main(argv=None):
+    import ROOT
+
     ROOT.gStyle.SetOptStat(0)
     ROOT.gROOT.SetBatch(True)
 

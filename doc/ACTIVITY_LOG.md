@@ -6539,3 +6539,138 @@ superseded "marker decision" reasoning and 10.B's verification section
 (which reported results from this developer's own CVMFS-mounted session,
 still accurate for that environment) - this section is the correction of
 record for what CI itself actually needs.
+
+## 2026-09-03: Fix plotPostFit.py's module-level ROOT coupling and a real legend-lifetime bug (GitHub Copilot review, PR #6)
+
+### Finding 1: `parse_args()` still needed ROOT to import
+
+Copilot: "The extracted `parse_args()` API is still impossible to import
+in the repository's ROOT-less Python environment because ROOT is
+imported unconditionally here. This also conflicts with Chunk 10's
+explicit requirement that `parse_args()` be tested with zero stubbing;
+the new tests only pass by injecting a fake ROOT module. Please defer
+ROOT imports to the ROOT-dependent functions."
+
+Verified: correct. `python/plotPostFit.py` had `import ROOT` at module
+scope (left there after Chunk 10.B's own decision to move
+`ROOT.gStyle`/`ROOT.gROOT.SetBatch()` into `main()`, without going the
+rest of the way and deferring the bare `import ROOT` statement itself).
+`doc/TIER3_COMPLETION_PLAN.md`'s own Chunk 10 text states `parse_args()`
+"needs no ROOT at all and should be tested with zero stubbing" -
+Chunk 10.B's tests instead stubbed `sys.modules["ROOT"]` with a bare
+`ModuleType`, satisfying the letter of "the module imports" but not
+"zero stubbing."
+
+Fix: removed the module-level `import ROOT` entirely. `import ROOT` is
+now deferred inside each function that actually touches it -
+`load_postfit_histograms()`, `draw_postfit_canvas()`, `main()` - matching
+`doc/TIER3_COMPLETION_PLAN.md` Section 4.2's deferred-import rule already
+applied to every other ROOT-touching function across this whole Tier 3
+plan (this file was simply not brought fully into line with it in Chunk
+10.B). `build_ratio_histogram()` needed no `ROOT` import at all, even
+before this fix - it only calls methods on the histogram objects passed
+to it. `PostfitHistograms`'s field type hints (`"ROOT.TH1"`) are string
+literals, never evaluated at runtime, so they impose no import
+requirement; a `if TYPE_CHECKING: import ROOT` guard was added so
+`ruff`'s `F821` (undefined name in a string annotation) stays satisfied
+without a real runtime import.
+
+`tests/test_plot_post_fit.py` updated to match: the
+`_import_plot_post_fit_with_stubbed_root()` helper is gone; the module is
+now imported once, plainly, at the top of the test file
+(`from python import plotPostFit as plot_post_fit`), exactly like
+`test_run_manifest.py`/`test_run_execution.py` already do for their own
+ROOT-free modules. The three `parse_args()` tests no longer take a
+`monkeypatch` fixture at all.
+
+Verified directly, twice: (1) `python -c "import sys;
+sys.path.insert(0, 'python'); import plotPostFit as ppf;
+ppf.parse_args(['-i','a','-o','b']); print('ROOT' in sys.modules)"` →
+prints `False` - the module imports and `parse_args()` runs with zero
+ROOT presence in `sys.modules`, real or fake. (2) the full test file
+still passes for real against this host's actual ROOT runtime for the
+other four tests, which still need it.
+
+### Finding 2: the canvas-content test was too weak - and while fixing it, a real bug was found
+
+Copilot: "This test only verifies that two named pads exist, so it still
+passes if the refactor drops the data/postfit plots, ratio, legend, or
+chi2 annotation - the actual behavior of `draw_postfit_canvas()`. The
+end-to-end test's non-empty-PDF check would also pass for an effectively
+empty canvas. Please assert the expected primitives/content in each pad."
+
+Verified, and this surfaced something worse than a coverage gap: while
+building a stronger test, `draw_postfit_canvas()`'s legend was found to
+be **actually missing** from its own output, right now, in the code
+already committed for Chunk 10.B - a real regression Copilot's coverage
+concern would have caught, had the stronger test existed from the start.
+
+Reproduced directly, isolated from the rest of the function: `legend =
+ROOT.TLegend(...); legend.AddEntry(...); legend.Draw()` inside a
+function, with `legend` never referenced again after that function
+returns, produces a `TCanvas` whose pad contains **no `TLegend` at all**
+- `[p.ClassName() for p in pad1.GetListOfPrimitives()]` came back
+`['TH1D', 'TH1D']` with no `TLegend` present. Cause: cppyy (PyROOT) owns,
+and therefore deletes, the underlying C++ object of any `TObject` it
+constructed once the Python wrapper's reference count reaches zero -
+`legend` was a purely local variable inside `draw_postfit_canvas()` with
+no reference surviving the function's return, so it was garbage-collected
+before the caller ever saw the canvas. This is the exact same class of
+hazard already found and fixed for `load_postfit_histograms()`'s `TFile`
+in Chunk 10.B (see that entry above), now found a second time for a
+different object - both hazards exist only because the original,
+single-scope script kept every such object alive as a script-level name
+for its entire run, a guarantee that silently broke the moment the code
+was split into functions with their own local scopes.
+
+Fix: `ROOT.SetOwnership(legend, False)` immediately after constructing
+the legend, telling cppyy the C++ side now owns it, so it survives after
+the Python reference is gone. Verified directly: with the fix reverted
+locally, `[p.ClassName() for p in pad1.GetListOfPrimitives()]` came back
+without `TLegend`; with it restored, `['TH1D', 'TH1D', 'TLegend', ...]`.
+The end-to-end script's output PDF also grew from 170489 to 170679 bytes
+once the legend was actually being drawn again - independent, physical
+corroboration.
+
+`draw_postfit_canvas()`'s test
+(`test_draw_postfit_canvas_returns_two_pad_canvas`, renamed
+`test_draw_postfit_canvas_draws_expected_content_in_each_pad`) rewritten
+to assert real content per pad, not just pad names: pad1's two `TH1D`
+histograms by name (`data`/`postfit`), exactly one `TLegend` with exactly
+the two expected `(label, option)` entries (`("Data", "lep")`,
+`("Postfit", "l")`), a `TLatex` whose exact title is the rendered
+`#chi^{2}/ndof = ...` string; pad2's single `TH1D` by name (the ratio
+histogram's own name). This test was confirmed to **fail** with
+`AssertionError: legend missing or duplicated in pad1` against the
+`ROOT.SetOwnership(...)`-reverted code, and to pass against the fix -
+the direct regression test for this bug, exactly the protection Copilot
+asked for.
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_post_fit.py -v` → 9 passed (~50-67s
+  across repeated runs), run for real against this host's actual
+  CVMFS/LCG scientific runtime.
+- `python scripts/quality_check.py --mode full` → 172 passed, 6
+  deselected; ruff clean; black clean (27 files unchanged).
+- `python "$repo_dir/python/plotPostFit.py" -i
+  run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root -o
+  <tmp>` (direct end-to-end invocation, matching the launchers exactly) →
+  exit 0, `<tmp>` created, 170679 bytes.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` → 1 passed, 2 deselected, in
+  165.61s (run in the background per this session's established
+  practice) - confirms the J100/J50 authoritative workflows, which both
+  invoke `plotPostFit.py`, still match the frozen scientific reference
+  after both fixes.
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' python/plotPostFit.py tests/test_plot_post_fit.py` →
+  no output.
+
+### What this commit does NOT do
+
+Both fixes are confined to `python/plotPostFit.py` and
+`tests/test_plot_post_fit.py`. No other file changed. Per the append-only
+guardrail, Chunk 10.A's and 10.B's entries above are left exactly as
+written - this section is the correction of record for both Copilot
+findings.

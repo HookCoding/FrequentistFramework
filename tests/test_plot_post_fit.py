@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import importlib
 import os
 import subprocess
-import sys
 from pathlib import Path
-from types import ModuleType
 
 import pytest
+
+from python import plotPostFit as plot_post_fit
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _PYTHON_DIR = _REPO_ROOT / "python"
@@ -20,33 +19,26 @@ _FIXTURE_POSTFIT_FILE = (
     / "PostFit_anaFit_sixPar_bkgOnly.root"
 )
 
-# python/plotPostFit.py does `import ROOT` unconditionally at module scope
-# (see doc/TIER3_COMPLETION_PLAN.md Chunk 10 / doc/ACTIVITY_LOG.md's Chunk
-# 10.B entry) - unlike plot_edm.py's matplotlib import, this cannot be
-# deferred past an early return, since ROOT types/constants are used
-# throughout every extracted function. This repository's own pytest dev
-# venv cannot import ROOT at all (confirmed directly). Two different
-# strategies are used below, matched to what each function actually needs:
+# python/plotPostFit.py defers every `import ROOT` to inside the specific
+# functions that need it (load_postfit_histograms()/draw_postfit_canvas()/
+# main() - see doc/TIER3_COMPLETION_PLAN.md Section 4.2's deferred-import
+# rule, already applied to every other ROOT-touching function across this
+# whole Tier 3 plan). parse_args() and build_ratio_histogram() touch no
+# ROOT name at module or function scope at all, so importing this module
+# above - a genuine, un-stubbed `from python import plotPostFit` - needs
+# no ROOT presence whatsoever, real or fake (confirmed directly: this
+# repository's own pytest dev venv cannot import ROOT at all, and this
+# import still succeeds). This is a direct fix for GitHub Copilot's PR #6
+# review of this file: an earlier version imported ROOT unconditionally at
+# module scope and could only satisfy this import with a stub.
 #
-# - parse_args() never touches ROOT itself, only argparse - so a bare,
-#   attribute-less stub module is enough for `import plotPostFit` to
-#   succeed and for parse_args() to be called directly, with zero real
-#   ROOT dependency. This is a direct, verified payoff of moving
-#   ROOT.gStyle/gROOT.SetBatch() out of module scope and into main() in
-#   this same commit: importing the module alone no longer requires any
-#   real ROOT behavior.
-# - load_postfit_histograms()/build_ratio_histogram()/draw_postfit_canvas()
-#   all build or read genuine ROOT objects, so they are exercised for real,
-#   as small inline scripts run via subprocess after sourcing
-#   scripts/setup_buildAndFit.sh - the same probe pattern Chunk 10.A's
-#   end-to-end test (kept below, unchanged) already established, and the
-#   same pattern test_authoritative_setup_provides_scientific_runtime uses.
-
-
-def _import_plot_post_fit_with_stubbed_root(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    monkeypatch.setitem(sys.modules, "ROOT", ModuleType("ROOT"))
-    sys.modules.pop("python.plotPostFit", None)
-    return importlib.import_module("python.plotPostFit")
+# load_postfit_histograms()/build_ratio_histogram()/draw_postfit_canvas()
+# still build or read genuine ROOT objects once actually called, so they
+# are exercised for real, as small inline scripts run via subprocess after
+# sourcing scripts/setup_buildAndFit.sh - the same probe pattern Chunk
+# 10.A's end-to-end test (kept below, unchanged) already established, and
+# the same pattern test_authoritative_setup_provides_scientific_runtime
+# uses.
 
 
 def _run_real_root_snippet(snippet: str) -> subprocess.CompletedProcess[str]:
@@ -82,21 +74,17 @@ def _assert_snippet_ok(completed: subprocess.CompletedProcess[str]) -> None:
     assert "SNIPPET_OK" in completed.stdout, completed.stdout
 
 
-# --- parse_args(): zero real ROOT needed ---------------------------------
+# --- parse_args(): zero real ROOT needed ----------------------------------
 
 
-def test_parse_args_parses_required_flags(monkeypatch: pytest.MonkeyPatch) -> None:
-    plot_post_fit = _import_plot_post_fit_with_stubbed_root(monkeypatch)
-
+def test_parse_args_parses_required_flags() -> None:
     args = plot_post_fit.parse_args(["-i", "in.root", "-o", "out.pdf"])
 
     assert args.inputFile == "in.root"
     assert args.output == "out.pdf"
 
 
-def test_parse_args_accepts_long_flags(monkeypatch: pytest.MonkeyPatch) -> None:
-    plot_post_fit = _import_plot_post_fit_with_stubbed_root(monkeypatch)
-
+def test_parse_args_accepts_long_flags() -> None:
     args = plot_post_fit.parse_args(["--inputFile", "in.root", "--output", "out.pdf"])
 
     assert args.inputFile == "in.root"
@@ -111,9 +99,7 @@ def test_parse_args_accepts_long_flags(monkeypatch: pytest.MonkeyPatch) -> None:
         ["-o", "out.pdf"],
     ],
 )
-def test_parse_args_requires_both_flags(argv: list[str], monkeypatch: pytest.MonkeyPatch) -> None:
-    plot_post_fit = _import_plot_post_fit_with_stubbed_root(monkeypatch)
-
+def test_parse_args_requires_both_flags(argv: list[str]) -> None:
     with pytest.raises(SystemExit):
         plot_post_fit.parse_args(argv)
 
@@ -144,9 +130,9 @@ assert histograms.chi2.GetNbinsX() == 6
 
 # The returned file must still be open and its histograms still usable -
 # this is the real regression test for the file-lifetime fix described in
-# plotPostFit.py's load_postfit_histograms() docstring/comment: a version
-# that returned only the PostfitHistograms triple (discarding the TFile)
-# was verified to garbage-collect the file and invalidate these same
+# plotPostFit.py's load_postfit_histograms() comment: a version that
+# returned only the PostfitHistograms triple (discarding the TFile) was
+# verified to garbage-collect the file and invalidate these same
 # histograms before this point is even reached.
 assert postfit_file.IsOpen()
 assert histograms.postfit.GetNbinsX() > 0
@@ -198,7 +184,15 @@ print("SNIPPET_OK")
 
 @pytest.mark.requires_root
 @pytest.mark.requires_analysis_dependencies
-def test_draw_postfit_canvas_returns_two_pad_canvas() -> None:
+def test_draw_postfit_canvas_draws_expected_content_in_each_pad() -> None:
+    # Asserts the actual content GitHub Copilot's PR #6 review flagged as
+    # unprotected: not just "two pads exist", but that pad1 really holds
+    # the data/postfit histograms plus a legend with the right entries and
+    # the chi2/ndof annotation, and pad2 really holds the ratio histogram.
+    # This is also the direct regression test for a real bug found while
+    # writing it (see doc/ACTIVITY_LOG.md): the legend was being silently
+    # garbage-collected out of the canvas before this fix, and this
+    # assertion set was confirmed to fail against that unfixed version.
     snippet = f"""
 import sys
 sys.path.insert(0, {str(_PYTHON_DIR)!r})
@@ -222,6 +216,29 @@ assert isinstance(canvas, ROOT.TCanvas)
 pads = canvas.GetListOfPrimitives()
 pad_names = sorted(p.GetName() for p in pads if isinstance(p, ROOT.TPad))
 assert pad_names == ["pad1", "pad2"]
+pad1 = pads[0]
+pad2 = pads[1]
+
+pad1_prims = list(pad1.GetListOfPrimitives())
+pad1_hist_names = [p.GetName() for p in pad1_prims if p.ClassName() == "TH1D"]
+assert pad1_hist_names == ["data_t2", "postfit_t2"]
+
+legends = [p for p in pad1_prims if p.ClassName() == "TLegend"]
+assert len(legends) == 1, "legend missing or duplicated in pad1"
+entries = list(legends[0].GetListOfPrimitives())
+assert [(e.GetLabel(), e.GetOption()) for e in entries] == [
+    ("Data", "lep"),
+    ("Postfit", "l"),
+]
+
+latexes = [p for p in pad1_prims if p.ClassName() == "TLatex"]
+assert any(t.GetTitle() == "#chi^{{2}}/ndof = 1.234" for t in latexes), (
+    [t.GetTitle() for t in latexes]
+)
+
+pad2_prims = list(pad2.GetListOfPrimitives())
+pad2_hist_names = [p.GetName() for p in pad2_prims if p.ClassName() == "TH1D"]
+assert pad2_hist_names == [ratio.GetName()]
 
 print("SNIPPET_OK")
 """
