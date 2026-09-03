@@ -2,7 +2,7 @@ import argparse
 
 
 def build_arg_parser():
-    parser = argparse.ArgumentParser(description="%prog [options]")
+    parser = argparse.ArgumentParser(description="%(prog)s [options]")
     parser.add_argument(
         "--datafile", dest="datafile", type=str, required=True, help="Input data file"
     )

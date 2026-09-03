@@ -5231,3 +5231,105 @@ Chunks 8 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. All seven
 module extractions (Chunks 1-7) are now complete and verified;
 `python/run_anaFit.py` is 254 lines. Chunk 8 (coordinator slimming and
 dependency-direction verification) is next.
+
+## 2026-09-03: Fix run_cli.py description placeholder and a wrong test return annotation (GitHub Copilot review, PR #6)
+
+### What Copilot found
+
+Two findings on the Chunk 7.B commit (`fdee1ae`):
+
+1. `python/run_cli.py:5` (also flagged, incorrectly, as recurring on line
+   53 - no second occurrence actually exists there, checked directly):
+   `argparse.ArgumentParser(description="%prog [options]")` uses the
+   optparse-era `%prog` placeholder, which `argparse` does not substitute
+   in `description` - it would appear literally in `--help` output.
+   `argparse`'s own placeholder is `%(prog)s`.
+2. `tests/test_run_fit.py:135-138`:
+   `_prepare_build_fit_extract_success_doubles()` is annotated `-> None`
+   but actually `return`s `executed_commands` (a `list[str]`).
+
+### Verification performed before fixing
+
+- Finding 2 (return-type mismatch) is directly visible by reading the
+  function body against its own signature - confirmed by inspection, no
+  further check needed.
+- Finding 1 required checking whether `argparse` actually substitutes
+  `%(prog)s` (unlike `%prog`, which is optparse-specific) - confirmed
+  empirically: constructing two parsers with `description="%prog
+  [options]"` and `description="%(prog)s [options]"` respectively and
+  rendering each showed the first prints the placeholder text unchanged,
+  the second substitutes the real program name. This is a real,
+  user-visible bug (a person running `--help` would see the literal
+  string `%prog [options]` instead of a description).
+- **Scope check**: `git blame`/direct comparison against the pre-Tier-3
+  commit (`5b23af8`) confirmed `'%prog [options]'` is not something this
+  refactor introduced - it was already present, verbatim, in the original
+  `run_anaFit.py`'s inline `main()`, moved as-is into `run_cli.py` by
+  Chunk 7.B per the "move verbatim" policy. A repo-wide `grep -rn
+  "%prog"` additionally found the exact same `%prog [options]` pattern in
+  **29 other files** across `python/` (essentially every script in the
+  repo using `argparse`/`optparse`), confirming this is a long-standing,
+  repo-wide copy-paste convention, not something specific to
+  `run_anaFit.py`. Per `doc/TIER3_COMPLETION_PLAN.md`'s own guardrail
+  ("Fixing pre-existing, unrelated issues noticed along the way ... note
+  them in the activity log if seen again, do not fix them unless a chunk
+  says to"), the other 29 occurrences are explicitly **out of scope** and
+  were not touched - Tier 3's scope is the four named files, not a
+  repo-wide sweep. This one occurrence is fixed because it is literally
+  the line Copilot flagged in this PR's diff and is required to complete
+  the merge review, matching this project's established practice for
+  addressing real PR review findings (e.g. the `should_mask()` NaN fix).
+
+### A second, unrelated pre-existing bug found while verifying the fix (noted, not fixed)
+
+Confirming the `%(prog)s` substitution end-to-end via
+`parser.print_help()` crashed with `ValueError: unsupported format
+character ')' ... `, unrelated to the `description` fix itself. Root
+cause: the `--sigwidth` argument's `help=` text - `"Width of signal
+Gaussian for s+b fit (in %). If -999 dealing with Zprime samples."` -
+contains a bare `%` that `argparse`'s help-string `%`-expansion (used for
+things like `%(default)s`) chokes on when rendering the *full* help
+output. This exact string was confirmed present, unchanged, at the
+pre-Tier-3 commit (`5b23af8`) too - calling `run_anaFit.py --help` (or
+now `run_cli.build_arg_parser().print_help()`) has been broken since
+before this refactor started. Per the same plan guardrail cited above,
+this is noted here rather than fixed; the new regression test below
+verifies the `description` fix in isolation (via the formatter's
+`add_text()`/`format_help()`, not `parser.print_help()`) specifically to
+avoid tripping over this unrelated, out-of-scope crash.
+
+### Fixes
+
+- `python/run_cli.py`: `description="%prog [options]"` ->
+  `description="%(prog)s [options]"`.
+- `tests/test_run_fit.py`: `_prepare_build_fit_extract_success_doubles()`'s
+  return annotation `-> None` -> `-> list[str]`.
+- `tests/test_run_cli.py`:
+  `test_build_arg_parser_description_uses_argparse_prog_placeholder`
+  added - asserts `"%prog" not in parser.description` and that rendering
+  the description through the formatter substitutes the real `prog`
+  value. Confirmed to fail against the pre-fix `"%prog [options]"` string
+  (`AssertionError: assert '%prog' not in '%prog [options]'`) and pass
+  against the fix.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_cli.py -v` → 6 passed (5 pre-existing
+  plus the new regression test).
+- `python -m pytest tests/test_run_fit.py tests/test_run_cli.py tests/test_run_anaFit.py -v`
+  → 26 passed.
+- `python scripts/quality_check.py --mode full` → 152 passed, 2
+  deselected; ruff clean; black clean (22 files unchanged).
+- `git diff --check` → passed.
+- The mandatory integration gate was not rerun: neither fix touches the
+  fit/masking pipeline (a CLI help-text placeholder and a test-only type
+  annotation), matching the same judgment already applied to Chunk 7.B
+  itself.
+
+### Scope
+
+Only `python/run_cli.py`, `tests/test_run_fit.py`, and
+`tests/test_run_cli.py` touched. Not folded into Chunk 8 - a review
+finding on already-pushed Chunk 7 work, fixed immediately as its own
+commit, per this project's established practice for Copilot review
+findings.

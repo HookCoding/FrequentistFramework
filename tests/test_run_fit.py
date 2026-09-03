@@ -135,7 +135,7 @@ class _FakeFitParameterExtractor:
 def _prepare_build_fit_extract_success_doubles(
     monkeypatch: pytest.MonkeyPatch,
     first_bin: int = 9,
-) -> None:
+) -> list[str]:
     # build_fit_extract() only reaches ROOT / PostfitExtractor /
     # FitParameterExtractor once both execute_required calls (XMLReader,
     # quickFit) have already succeeded -- a plain "return True" is enough
