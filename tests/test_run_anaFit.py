@@ -454,6 +454,44 @@ def test_load_bumphunter_results_rejects_invalid_mask_limits(
         module.load_bumphunter_results(str(results_file))
 
 
+def test_load_bumphunter_results_rejects_non_dict_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # No existing test exercises the "results is not a JSON object"
+    # branch - every other test's fixture is already a dict.
+    module = _load_run_anafit_module(monkeypatch)
+    results_file = tmp_path / "BHresults.json"
+    results_file.write_text(json.dumps([1, 2, 3]))
+
+    with pytest.raises(ValueError, match="must be a JSON object"):
+        module.load_bumphunter_results(str(results_file))
+
+
+@pytest.mark.parametrize("blind_range", ["", "   "])
+def test_load_bumphunter_results_rejects_invalid_blind_range(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    blind_range: str,
+) -> None:
+    # Same gap as above for BlindRange's own explicit validation branch -
+    # every other test's fixture already has a non-empty BlindRange.
+    module = _load_run_anafit_module(monkeypatch)
+    results_file = tmp_path / "BHresults.json"
+    results_file.write_text(
+        json.dumps(
+            {
+                "BlindRange": blind_range,
+                "MaskMin": 500,
+                "MaskMax": 600,
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="BlindRange must be a non-empty string"):
+        module.load_bumphunter_results(str(results_file))
+
+
 def test_run_bumphunter_removes_stale_output_and_loads_fresh_results(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

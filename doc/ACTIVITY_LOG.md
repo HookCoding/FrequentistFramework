@@ -4102,3 +4102,106 @@ reference exactly.
 
 Chunks 4 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 3
 (both Step A and Step B) is complete and verified.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 4.A: characterization tests for `load_bumphunter_results`/`run_bumphunter`
+
+### Objective
+
+Pin down the current, unmodified behavior of `load_bumphunter_results()`
+and `run_bumphunter()` in `python/run_anaFit.py` before extracting them
+into `run_masking.py`, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 4.
+`should_mask()` is a new function with no prior behavior to characterize
+(per the plan's own explicit carve-out), so it has no Step A tests —
+those are written fresh in Step B under guardrail 4.
+
+### Pre-change state
+
+Both target functions already had eight direct tests (ten cases counting
+`rejects_invalid_mask_limits`'s three-way parametrization). All ten pass
+unmodified. Reviewing `load_bumphunter_results()`'s four validation
+branches against its four existing tests found two branches with no
+coverage at all: the `if not isinstance(results, dict)` check (every
+fixture is already a dict) and the `BlindRange` non-empty-string check
+(every fixture already uses `"500,600"` or `"stale"`).
+
+### A discrepancy between the plan's rationale and the actual code, found while re-reading `run_anaFit()`
+
+The plan's Chunk 4 rationale states "both call sites already use the
+exact same `>` comparison," citing `if pval_global > maskthreshold` and
+`if pval_masked > maskthreshold`. Re-reading the coordinator directly
+found a **third** occurrence of the identical `pval_global > maskthreshold`
+sub-expression, reused inside a compound condition at what is currently
+line 530: `if dolimit and dosignal and pval_global > maskthreshold:`
+(gates whether `quickLimit` runs). This is exactly the kind of
+duplication-that-drifts-unnoticed the chunk exists to eliminate, and
+leaving it as a bare `>` comparison while the other two sites call
+`should_mask()` would defeat the point. Step B will replace all three
+occurrences, not the two the plan's rationale text named -
+`test_run_anafit_quicklimit_failure_prevents_success_manifest` already
+exercises this exact branch (`dosignal=True, dolimit=True, pval_global=0.25`
+mocked, `maskthreshold=0.01`), so it doubles as the regression check for
+this third call site's rewrite with no new test needed.
+
+### A second Test Relocation Rule exception anticipated for Step B
+
+`run_bumphunter()` calls `execute_required(...)`, which lives in
+`run_execution.py`, a different module from where `run_bumphunter` is
+moving (`run_masking.py`). Its four tests currently patch
+`module.execute_required` (`module` = the loaded `run_anaFit` object) -
+this only works today because both functions are defined in the same
+module. Once `run_bumphunter` moves, `execute_required` will be looked up
+in `run_masking`'s own namespace (via its own `from run_execution import
+execute_required`), so the relocated tests will need to patch
+`run_masking.execute_required` directly - the same necessary-consequence
+pattern already documented for Chunk 1.B's `execute`/`execute_required`
+split and Chunk 3.B's `find_repo_root`/`ROOT` cases.
+
+### Target functions — inputs and outputs (as they exist today)
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `load_bumphunter_results(results_file)` | `results_file: str` | `dict {"BlindRange","MaskMin","MaskMax"}` | raises `ValueError` on malformed input |
+| `run_bumphunter(postfitfile, folder)` | `postfitfile: str`, `folder: str` | same shape as above | deletes stale `BHresults.json`; runs the BumpHunter subprocess; raises `RuntimeError` on failure |
+
+### Tests added
+
+- `test_load_bumphunter_results_rejects_non_dict_payload` — a JSON array
+  instead of an object, asserts `"must be a JSON object"`.
+- `test_load_bumphunter_results_rejects_invalid_blind_range` (parametrized
+  `["", "   "]`) — asserts `"BlindRange must be a non-empty string"`.
+
+### What this commit does NOT do
+
+No production file was modified. `git diff --stat -- python/run_anaFit.py`
+was empty throughout this change — only `tests/test_run_anaFit.py` was
+touched (two new tests, 38 lines).
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -v -k "load_bumphunter_results
+  or run_bumphunter"` → 13 passed (10 pre-existing cases plus the 3 new
+  gap-test cases), run against the unmodified `python/run_anaFit.py`.
+- `python -m pytest tests/test_run_anaFit.py -v` → 30 passed (full-file
+  regression check).
+- `python scripts/quality_check.py --mode full` → 134 passed, 2
+  deselected; ruff clean; black clean (14 files unchanged).
+- `git diff --stat` → only `tests/test_run_anaFit.py` touched.
+- `git diff --check` → passed.
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Chunk 4, Step A.
+2. `git diff --stat` shows only `tests/test_run_anaFit.py` — zero
+   production files touched.
+3. Both new tests assert the real, specific `ValueError` message for
+   their branch, not merely "does not raise."
+4. Tests were run against the unmodified target file before any
+   production change; results reported in full above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 4.B (extraction of `run_masking.py`) and Chunks 5 through 12 are
+open.
