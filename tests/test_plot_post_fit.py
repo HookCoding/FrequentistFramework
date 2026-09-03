@@ -122,6 +122,7 @@ def test_parse_args_requires_both_flags(argv: list[str], monkeypatch: pytest.Mon
 
 
 @pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
 def test_load_postfit_histograms_applies_styling_and_keeps_file_open() -> None:
     assert _FIXTURE_POSTFIT_FILE.exists(), "expected fixture PostFit ROOT file missing"
 
@@ -159,6 +160,7 @@ print("SNIPPET_OK")
 
 
 @pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
 def test_build_ratio_histogram_computes_real_ratio_and_styling() -> None:
     # Per doc/TIER3_COMPLETION_PLAN.md Chunk 10: this function is tested
     # against small real ROOT.TH1D objects built in-test, not a full input
@@ -195,6 +197,7 @@ print("SNIPPET_OK")
 
 
 @pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
 def test_draw_postfit_canvas_returns_two_pad_canvas() -> None:
     snippet = f"""
 import sys
@@ -268,6 +271,7 @@ def _run_plot_post_fit_script(
 
 
 @pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
 def test_plot_post_fit_script_produces_nonempty_pdf_for_real_fixture(tmp_path: Path) -> None:
     # Do not attempt byte-identical PDF comparison - ROOT's PDF output is
     # not guaranteed bit-reproducible across environments/fonts, and Tier 1

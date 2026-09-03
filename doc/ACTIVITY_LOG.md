@@ -6448,3 +6448,94 @@ just via the test suite).
 
 Chunk 11 (`plot_postfit.cpp`) and Chunk 12
 (`doc/TIER3_SYSTEM.md`) are open.
+
+## 2026-09-03: Fix plot_post_fit real-ROOT tests failing in CI (no CVMFS mount)
+
+### Objective
+
+The GitHub Actions CI run for this branch (`ubuntu`-hosted runner,
+`/home/runner/work/FrequentistFramework/FrequentistFramework`) reported
+`quality_check.py --mode full` failing with 4 real failures in
+`tests/test_plot_post_fit.py`:
+`test_load_postfit_histograms_applies_styling_and_keeps_file_open`,
+`test_build_ratio_histogram_computes_real_ratio_and_styling`,
+`test_draw_postfit_canvas_returns_two_pad_canvas`, and
+`test_plot_post_fit_script_produces_nonempty_pdf_for_real_fixture` — each
+failing with `scripts/setup_buildAndFit.sh: line 12:
+/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh: No
+such file or directory`. This is a genuine, verified environment gap, not
+a false report: the GitHub Actions runner has no CVMFS mount at all, so
+any test that actually sources `scripts/setup_buildAndFit.sh` cannot pass
+there, regardless of ROOT/RooFit correctness.
+
+### The actual bug: an incorrect marker decision in Chunk 10.A/10.B
+
+Chunk 10.A's activity-log entry recorded a marker decision: mark these
+tests `@pytest.mark.requires_root` only, reasoning from
+`doc/TIER2_SYSTEM.md`'s literal marker definitions ("`requires_root`:
+needs the configured ROOT/RooFit runtime", "`requires_analysis_dependencies`:
+needs prepared external checkouts") that a test needing only ROOT (not
+built `XMLReader`/`quickFit`/`pyBumpHunter` binaries) should not need the
+second marker. **This reasoning was wrong in practice**: it did not
+account for `test_authoritative_setup_provides_scientific_runtime` (in
+`tests/test_analysis_workflows_integration.py`) already being marked
+**both** `@pytest.mark.requires_root` and
+`@pytest.mark.requires_analysis_dependencies`, despite doing exactly the
+same thing these four new tests do - sourcing
+`scripts/setup_buildAndFit.sh` in a subprocess. That existing precedent
+should have been followed literally instead of re-derived abstractly from
+the marker-name definitions. The real, load-bearing distinction is not
+"does it need XMLReader/quickFit/pyBumpHunter" but "does it need CVMFS
+mounted at all" - and every test that sources
+`scripts/setup_buildAndFit.sh` needs CVMFS, full stop.
+
+This bug only surfaced in CI, not in this developer's own session, because
+this session's environment (`afs.cern.ch`, with CVMFS mounted) satisfies
+both markers' conditions simultaneously - `requires_root` alone was
+sufficient there to reach a real, working ROOT runtime, masking the
+missing `requires_analysis_dependencies` marker's actual purpose (keeping
+the test out of the *ordinary*, CVMFS-less CI gate in the first place).
+
+### Fix
+
+Added `@pytest.mark.requires_analysis_dependencies` alongside the
+existing `@pytest.mark.requires_root` on all four real-ROOT tests in
+`tests/test_plot_post_fit.py` (the three added in Chunk 10.B, plus the
+end-to-end test carried over unchanged from Chunk 10.A/Step A). No test
+body, fixture, or assertion changed - only the marker decorators. This
+matches `test_authoritative_setup_provides_scientific_runtime`'s own
+markers exactly, and restores `doc/TIER2_SYSTEM.md`'s stated contract:
+"the ordinary gate excludes tests marked `requires_analysis_dependencies`
+and does not include the integration test file."
+
+`test_parse_args_*` (5 tests) are unaffected - they never touch ROOT or
+CVMFS and continue to run in the ordinary gate, exactly as they did in
+CI's own run (`.....FFFF` in the CI log: 5 passes, then the 4 real-ROOT
+failures, confirming the split was already correct for those five).
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_post_fit.py -v` (no marker filter,
+  matching Chunk 10's own acceptance check, run for real against this
+  host's actual CVMFS/LCG scientific runtime) → 9 passed (46.38s) -
+  unaffected by the marker-only change.
+- `python -m pytest -m "not requires_analysis_dependencies"
+  tests/test_plot_post_fit.py -v` (reproducing `quality_check.py`'s own
+  filter, matching what CI actually runs) → 5 passed, 4 deselected - the
+  four CVMFS-dependent tests are now correctly excluded from exactly the
+  gate that failed in CI.
+- `python scripts/quality_check.py --mode full` → 172 passed, 6
+  deselected (2 pre-existing + these 4, newly and correctly excluded);
+  ruff clean; black clean (27 files unchanged).
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' tests/test_plot_post_fit.py` → no output.
+
+### What this commit does NOT do
+
+Does not touch `python/plotPostFit.py` (production code) at all - this is
+a test-marker-only fix. Per the append-only guardrail, Chunk 10.A's and
+10.B's entries above are left exactly as written, including 10.A's now-
+superseded "marker decision" reasoning and 10.B's verification section
+(which reported results from this developer's own CVMFS-mounted session,
+still accurate for that environment) - this section is the correction of
+record for what CI itself actually needs.
