@@ -4980,3 +4980,106 @@ this file's pre-existing dead imports).
 ### Remaining open chunks
 
 Chunks 7 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 7.A: characterization tests for `main()`'s argument parsing and signal-name defaulting
+
+### Objective
+
+Pin down the current, unmodified behavior of `main()`'s inline
+`argparse` setup and default-signame logic in `python/run_anaFit.py`
+before extracting them into `build_arg_parser()`/`normalize_signal_name()`
+in `run_cli.py`, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 7. Neither
+target function exists yet, so - per Chunk 5.A's precedent - this logic
+is characterized indirectly, by calling the real `main()` (with
+`run_anaFit` monkeypatched to capture its kwargs) rather than by
+constructing a standalone parser that doesn't exist yet.
+
+### Pre-change state
+
+Only `test_main_propagates_analysis_status` touched `main()` before this
+commit, and only to confirm it returns `run_anaFit()`'s status - it never
+inspects parsed arguments or the derived `signame`. No dedicated test
+existed for the default-naming branch (normal width, the `sigwidth ==
+-999` Zprime branch, or the `7.0`-vs-`"7"` string-formatting quirk named
+explicitly in the plan's own Chunk 7 text as a known "clean-up" trap), nor
+for a representative full set of CLI flags parsing correctly.
+
+### Target functions (as they exist today, inline in `main()`)
+
+| Function-to-be | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `build_arg_parser()` | none | `argparse.ArgumentParser` | none |
+| `normalize_signal_name(sigmean, sigwidth, signame)` | `sigmean`, `sigwidth`, `signame` (possibly `None`/falsy) | `str` | none (pure) |
+
+### Tests added
+
+- `test_main_derives_default_signame_for_normal_width` — no `--signame`,
+  `sigmean=1200`, `sigwidth=8.5` -> `"mean1200_width8.5"`.
+- `test_main_preserves_integer_valued_float_width_in_default_signame` —
+  `--sigwidth` omitted (default `7.` = `7.0`) -> `"mean1000_width7.0"`,
+  pinning down the naive `"%s"`-style formatting the plan warns is easy to
+  accidentally "clean up" into `"%g"`-style formatting (which would
+  silently turn `7.0` into `7`) during extraction.
+- `test_main_uses_zprime_naming_when_sigwidth_is_minus_999` —
+  `sigwidth=-999`, `sigmean=1400` -> `"mR1400"`.
+- `test_main_respects_explicit_signame_override` — an explicit
+  `--signame` survives unchanged even when it doesn't match what the
+  default-naming logic would have derived for the same
+  `sigmean`/`sigwidth`.
+- `test_main_parses_representative_j100_style_invocation` — mirrors an
+  actual invocation shape from `scripts/run_anaFit_J100.sh`
+  (`backgroundfile`/`signalfile` present, no `--signame`/`--dosignal`/
+  `--dolimit`/`--doprefit`/`--sysfile`), asserting the full set of parsed
+  values (including defaults `nsig="0,-1E6,1E6"`, `dosignal=False`,
+  `dolimit=False`, `doprefit=False`, `systdict=None`) that reach
+  `run_anaFit()`.
+
+All five new tests pass `--folder` pointing at `tmp_path` to avoid the
+side effect of `main()`'s `os.makedirs(args.folder)` creating a real
+`run/` directory in the working tree (the pre-existing
+`test_main_propagates_analysis_status` already relies on the untouched
+default and was left as-is, per the Test Relocation Rule guidance below).
+
+### Test Relocation Rule check for `test_main_propagates_analysis_status`
+
+Per the plan's own explicit instruction: this test only exercises status
+propagation through `main()` end-to-end (`run_anaFit` fully mocked, no
+inspection of parsed arguments or `signame`) - it does not test parsing
+behavior directly. It therefore stays in `tests/test_run_anaFit.py` and
+is not moved to `tests/test_run_cli.py` in Step B.
+
+### What this commit does NOT do
+
+No production file was modified. `git diff --stat -- python/` was empty
+throughout this change - only `tests/test_run_anaFit.py` was touched (5
+new tests plus one shared capture helper, 220 lines).
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -v -k main` → 7 passed (2
+  pre-existing status-propagation cases plus the 5 new parsing/naming
+  cases), run against the unmodified `python/run_anaFit.py`.
+- `python -m pytest tests/test_run_anaFit.py -v` → 20 passed (full-file
+  regression check).
+- `python scripts/quality_check.py --mode full` → 150 passed, 2
+  deselected; ruff clean; black clean (20 files unchanged).
+- `git diff --stat` → only `tests/test_run_anaFit.py` touched.
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' tests/test_run_anaFit.py` → no output.
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Chunk 7, Step A.
+2. `git diff --stat` shows only `tests/test_run_anaFit.py` - zero
+   production files touched.
+3. Each new test asserts the real, specific derived value (`signame`,
+   or the full set of parsed kwargs), not merely "does not raise."
+4. Tests were run against the unmodified target file before any
+   production change; results reported in full above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 7.B (extraction of `run_cli.py`) and Chunks 8 through 12 are open.
