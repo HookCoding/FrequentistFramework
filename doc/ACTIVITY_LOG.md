@@ -4735,3 +4735,97 @@ Only `python/run_masking.py` and `tests/test_run_masking.py` touched.
 Not folded into any later chunk's work - a review finding on already-
 pushed Chunk 4 work, fixed immediately as its own commit, per this
 project's established practice for Copilot review findings.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 6.A: characterization tests for `build_fit_extract`
+
+### Objective
+
+Pin down the current, unmodified behavior of `build_fit_extract()` in
+`python/run_anaFit.py` before extracting it into `run_fit.py`, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 6.
+
+### Pre-change state
+
+Two failure-path tests already existed
+(`test_build_fit_extract_stops_after_xmlreader_failure`,
+`test_build_fit_extract_stops_after_quickfit_failure`), both passing
+unmodified. Per the plan's Section 2 baseline, these only cover the two
+`execute_required` failure branches — no test exercised the successful
+path at all: the `ROOT.TFile`/`FindBin` lookup for `datafirstbin`, the
+mask-range branch on the quickFit command, the `PostfitExtractor`/
+`FitParameterExtractor` calls, or the p-value-source selection between
+`Run3TLA_rebinned` and `Run3TLA_bkgonly_rebinned`.
+
+### Target function — inputs and outputs (as it exists today)
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, fitresultfile, poi=None, maskrange=None)` | as listed | `(pval: float, postfitfile: str, parameterfile: str)` | runs XMLReader + quickFit subprocesses; writes ROOT files; may generate a resolution-binning file; shells out to `plot_edm.py` |
+
+### Tests added
+
+- `test_build_fit_extract_succeeds_for_unmasked_fit` — drives the full
+  successful path with `maskrange=None` using controlled test doubles
+  (`_FakeTFile`/`_FakeHist` for the `ROOT.TFile`/`FindBin` lookup,
+  `_FakePostfitExtractor`, `_FakeFitParameterExtractor`); asserts the
+  returned `(pval, postfitfile, parameterfile)` tuple, that `maskmin`/
+  `maskmax` reach `PostfitExtractor` as `-1`/`-1`, that
+  `GetPval("Run3TLA_rebinned")` is the p-value source used, that
+  `plot_edm.py` is shelled out to via a plain `execute()` (not
+  `execute_required()`, so its result is discarded), and that
+  `datafirstbin` is computed as `FindBin(rangelow) - 1` from the fake
+  histogram.
+- `test_build_fit_extract_succeeds_for_masked_fit` — same doubles with
+  `maskrange=(500, 600)`; asserts `--range SBLo_Run3TLA,SBHi_Run3TLA`
+  reaches the actual quickFit command string, that `maskmin`/`maskmax`
+  reach `PostfitExtractor` as `500`/`600`, and that
+  `GetPval("Run3TLA_bkgonly_rebinned")` (the renormalized source) is
+  selected instead of the unmasked one.
+
+Both new tests force `os.path.exists()` to `True` via `monkeypatch` so
+the resolution-binning-file branch (`createBinning.py`) is deterministic
+and independent of what happens to already exist on disk for
+`rangelow=481` — a real fixture file for that range exists in the
+repository, which would otherwise make the test's behavior depend on
+filesystem state rather than the code path under test.
+
+### What this commit does NOT do
+
+No production file was modified. `git diff --stat -- python/` was empty
+throughout this change — only `tests/test_run_anaFit.py` was touched.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -v -k build_fit_extract` →
+  4 passed (2 pre-existing failure-path cases plus the 2 new
+  successful-path cases), run against the unmodified
+  `python/run_anaFit.py`.
+- `python -m pytest tests/test_run_anaFit.py -v` → 19 passed (full-file
+  regression check).
+- `python scripts/quality_check.py --mode full` → 145 passed, 2
+  deselected; ruff clean; black clean (18 files unchanged) — one ruff
+  F841 (unused `executed_commands` in the masked test) and one black
+  reformat (long `monkeypatch.setattr(... raising=False)` line) were
+  found and fixed while preparing this commit, both confined to the new
+  test code itself.
+- `git diff --stat` → only `tests/test_run_anaFit.py` touched.
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' tests/test_run_anaFit.py` → no output.
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Chunk 6, Step A.
+2. `git diff --stat` shows only `tests/test_run_anaFit.py` — zero
+   production files touched.
+3. Both new tests assert the real, specific successful-path shape
+   (return tuple, exact kwargs reaching the collaborators, exact p-value
+   source string selected), not merely "does not raise."
+4. Tests were run against the unmodified target file before any
+   production change; results reported in full above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 6.B (extraction of `run_fit.py`) and Chunks 7 through 12 are open.
