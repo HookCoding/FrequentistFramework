@@ -4485,3 +4485,183 @@ touched (five new tests, 402 lines).
 
 Chunk 5.B (extraction and internal decomposition of `run_templates.py`)
 and Chunks 6 through 12 are open.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 5.B: extract and decompose `run_templates.py`
+
+### Objective
+
+Move `replaceinfile()` and the ~150-line inline templating/prefit block,
+characterized in Chunk 5.A (commit `8d614ee`), out of `run_anaFit()` into
+a new `python/run_templates.py`, decomposed into the two private helpers
+the plan names plus one public entry point (not moved intact as one
+function), per `doc/TIER3_COMPLETION_PLAN.md` Chunk 5. This is the
+biggest and, per the plan's own framing, riskiest extraction so far
+(199 lines net removed from the coordinator).
+
+### What changed
+
+- `python/run_templates.py` created with three functions:
+  - `replaceinfile(f, old_new_list)`, moved verbatim.
+  - `_seed_prefit_parameters(datafile, datahist, rangelow, rangehigh,
+    backgroundfile, tmpbackgroundfile, nbkg)` (private) — the `doprefit`
+    sub-block: the `nPars` if/then-separate-elif-chain detection (copied
+    exactly, per Chunk 5.A's regression test), the `[PARn,lo,hi]`
+    range-parsing regex, the `PreFitter` call, and the background-file
+    PAR substitution loop. Returns the updated `nbkg`. `from PreFit
+    import PreFitter` is deferred inside this function (Section 4.2's
+    import-placement rule) — it is the only place in the module that
+    touches a ROOT-facing tool.
+  - `_stage_xml_templates(...)` (private) — everything else: the `.dtd`
+    symlink, path computation, file copies, top/category-file
+    substitution, calling `_seed_prefit_parameters` when
+    `backgroundfile and doprefit`, the final category-file substitution,
+    and the signal-file substitution (including the `systdict`-driven
+    placeholders and the catch-all). Returns `(tmptopfile,
+    tmpcategoryfile, xml_categoryfile, xml_wsfile)` — the finalized
+    signature from Chunk 5.A's analysis.
+  - `prepare_run_templates(...)` (public) — a thin entry point that calls
+    `_stage_xml_templates(...)` and returns its result. This is the one
+    public function `run_anaFit()` now calls.
+  - All original comments preserved verbatim, including the dead,
+    commented-out alternative implementations (the two alternate `.dtd`
+    symlink commands, the commented `replaceinfile(tmpsignalfile,
+    [SIGMEAN, SIGWIDTH])` block, and the entire commented-out
+    `covariancedict` block) - dropping inert comments was judged an
+    unnecessary editorial decision for a chunk whose job is to move code,
+    not curate it.
+- `python/run_anaFit.py`: `replaceinfile()`'s definition and the inline
+  block both removed; replaced with `from run_templates import
+  prepare_run_templates, replaceinfile` (flat sibling-import style) and a
+  single call to `prepare_run_templates(...)`, unpacking its four return
+  values. `replaceinfile` itself is still imported (not just
+  `prepare_run_templates`) because `run_anaFit()`'s masking branch calls
+  it directly for the masked-refit XML copies (`tmptopfilemasked`/
+  `tmpcategoryfilemasked`) - confirmed by `grep -n "replaceinfile("
+  python/run_anaFit.py` before editing, which is why this wasn't
+  mentioned in Chunk 5.A's signature analysis (that only covered the
+  block being moved, not this separate downstream call site).
+- `tests/test_run_templates.py` created with the 5 tests from Chunk 5.A,
+  **rewritten to call `run_templates.prepare_run_templates(...)` and
+  `run_templates.replaceinfile(...)` directly** rather than through
+  `run_anaFit()` end-to-end (see below) - all assertions and expected
+  values are unchanged from Chunk 5.A, only what gets called changed.
+- `scripts/quality_check.py`: added `python/run_templates.py` to
+  `python_targets` and `tests/test_run_templates.py` to `test_targets`.
+
+### Necessary test-relocation adaptation: direct calls, not `run_anaFit()` end-to-end
+
+Chunk 5.A's tests called `module.run_anaFit(...)` end-to-end (mocking
+away `build_fit_extract`/`build_analysis_provenance`/
+`write_analysis_results`) because no standalone function existed yet to
+call directly - that was the whole point of Chunk 5.A being a genuine
+first-ever characterization, not a relocation. Now that
+`prepare_run_templates()` exists as a real, directly-callable function,
+the plan's own text says the relocated tests should scope ROOT/PreFitter
+stubbing "only to the `_seed_prefit_parameters` calls (the rest of the
+module needs none)" - this is only true if the tests call into
+`run_templates.py` directly, not through `run_anaFit.py` (which still
+does a top-level `import ROOT` regardless of what `run_templates.py`
+itself needs). Rewriting the 4 end-to-end tests as direct
+`prepare_run_templates(...)` calls confirmed this: none of the mocking
+of `build_fit_extract`/`build_analysis_provenance`/`write_analysis_results`
+is needed anymore, and only the two `doprefit=True` tests need any
+stubbing at all - not `sys.modules["ROOT"]`, but
+`sys.modules["PreFit"]` (a fake module with a fake `PreFitter` class),
+since `_seed_prefit_parameters`'s `from PreFit import PreFitter` is
+function-local and resolves via `sys.modules` on every call, exactly
+like Chunk 3.B's `collect_scientific_runtime`/`ROOT` case. All five
+tests' assertions and expected values are byte-for-byte the same as
+Chunk 5.A wrote them - only the call mechanism changed, confirmed by
+running them against the moved code and getting identical results
+(including the quirky PAR-substitution content).
+
+### A third dead import, deferred like Chunk 3.B's (not fixed like Chunk 4.B's)
+
+`grep -n "\bre\." python/run_anaFit.py` after the move returns nothing:
+`re` (part of the combined `import os,sys,re,argparse,subprocess,shutil`
+line) is now unused - both of its uses (`replaceinfile`'s `re.sub` and
+the prefit block's `re.findall`) moved with the code. Unlike Chunk 4.B's
+`tests/test_run_anaFit.py` `json` import (a live gate failure, fixed
+immediately because that file is already quality-gated), `re` joins
+`hashlib`/`platform`/`subprocess` in `run_anaFit.py`, which is still not
+registered in `scripts/quality_check.py` - left in place for Chunk 8's
+coordinator-slimming pass, per the same reasoning as Chunk 3.B.
+
+### Confirm: no scientific behavior changed
+
+Every moved line of logic is byte-for-byte identical (aside from the
+ruff/black-driven fixes below, all verified whitespace/syntax-only). Ran
+the **mandatory** integration gate (per Section 7, explicitly required
+for this chunk): the real, authoritative J100/J50 pipeline passed,
+matching the frozen reference exactly - the strongest available
+confirmation that the decomposition did not change the generated XML in
+any way that matters to the fit.
+
+### Ruff/Black fixes required to register the new file (mechanical, zero behavior change)
+
+Registering `run_templates.py` in `python_targets` surfaced pre-existing
+issues in the moved code that were never checked while it lived inside
+the un-gated `run_anaFit.py`:
+- `E722` bare `except:` in `replaceinfile` -> `except Exception:` (does
+  not change what the `try` block can raise: `re.sub` never raises
+  `SystemExit`/`KeyboardInterrupt`).
+- `E713`/`E711` -> `"<!--" not in line` and `systdict is not None`,
+  syntactically equivalent rewrites.
+- `W605` (9 instances) -> the `[PARn,...]`-parsing and `MAG_*`
+  substitution regex patterns changed from plain to raw string literals
+  (`r"..."`); the resulting string values are byte-identical either way
+  (`\[`, `\d`, `\-` are not valid Python escapes in a plain string, so
+  Python already treated them as literal backslash+character - `r"..."`
+  just stops the interpreter's `SyntaxWarning`).
+- A few `E501` (line too long) wraps, including two multi-line splits of
+  dead comment text.
+- `python -m black python/run_templates.py`: one further whitespace-only
+  reformat.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_templates.py -v` → 5 passed, in
+  isolation, confirming zero `ROOT`/`PreFit` stubbing is needed for 3 of
+  the 5 tests and only `sys.modules["PreFit"]` (not `ROOT`) for the other
+  2.
+- `python -m pytest tests/test_run_templates.py tests/test_run_anaFit.py -v`
+  → 22 passed (5 + 17, matching the pre-move total of 22 exactly).
+- `python scripts/quality_check.py --mode full` → 142 passed, 2
+  deselected; ruff clean; black clean (18 files unchanged); exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed in 123.97s - **mandatory** for this chunk, matched against
+  the frozen reference exactly.
+- `git diff --check` → passed.
+
+### Compliance review (Section 8, Extraction checklist)
+
+1. Chunk 5, Step B (this entry).
+2. Step A is committed (`8d614ee`) and referenced above.
+3. No scientific constants, references, tolerances, dependency revisions,
+   or canonical workflow arguments touched.
+4. Relocated tests' diffs are not import-line-only - the call target
+   changed from `module.run_anaFit(...)` to
+   `run_templates.prepare_run_templates(...)`/`replaceinfile(...)`
+   directly, documented above as a necessary, anticipated consequence of
+   the function now existing standalone; no assertion or expected value
+   changed.
+5. All three new/moved functions are covered: `replaceinfile` (1 test),
+   `prepare_run_templates`/`_stage_xml_templates` (3 tests covering the
+   representative, signal-systematics, and nPars-regression cases), and
+   `_seed_prefit_parameters` (2 tests, including the nPars regression).
+6. Confirmed by grep: `run_anaFit.py` actually imports and never
+   redefines `prepare_run_templates`/`replaceinfile`.
+7. Only this chunk's five changed/new files were staged.
+8. All required Section 7 gates ran and passed, including the mandatory
+   integration gate, output captured above.
+9. `git diff --check` passed.
+10. This activity-log entry appended (not a rewrite of any existing
+    section).
+11. Chunks 6 through 12 remain open, listed below.
+12. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 6 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 5
+(both Step A and Step B) is complete and verified - the plan's riskiest
+single extraction is done.
