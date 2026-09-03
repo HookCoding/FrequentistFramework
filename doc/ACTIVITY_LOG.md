@@ -4829,3 +4829,154 @@ throughout this change — only `tests/test_run_anaFit.py` was touched.
 ### Remaining open chunks
 
 Chunk 6.B (extraction of `run_fit.py`) and Chunks 7 through 12 are open.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 6.B: extract `run_fit.py`
+
+### Objective
+
+Move `build_fit_extract()`, characterized in Chunk 6.A (commit
+`e8f5467`), out of `run_anaFit.py` into a new `python/run_fit.py`, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 6.
+
+### What changed
+
+- `python/run_fit.py` created with `build_fit_extract()`, moved verbatim
+  in logic and comments (including the commented-out dead alternatives -
+  the `#bkgonly_opt` lines, the two commented-out `rebinfile=` variants,
+  and the `#pfe.WriteRoot(postfitfile)` line). `from run_execution import
+  execute, execute_required` at module level (flat sibling-import style)
+  - the module needs both: `execute` for the `plot_edm.py` diagnostic
+    call and the conditional `createBinning.py` call; `execute_required`
+    for XMLReader and quickFit.
+  - `import ROOT`, `from ExtractPostfitFromWS import PostfitExtractor`,
+    `from ExtractFitParameters import FitParameterExtractor` are deferred
+    inside `build_fit_extract` itself, placed immediately before the
+    first `ROOT.TFile(...)` line - i.e. after both `execute_required`
+    calls have already succeeded, matching the plan's import-placement
+    rule. This is why the two failure-path tests (`_stops_after_
+    xmlreader_failure`, `_stops_after_quickfit_failure`) need zero
+    ROOT/sibling-module stubbing in their relocated form - both return
+    before reaching the deferred import.
+- `python/run_anaFit.py`: `build_fit_extract()`'s 106-line definition
+  removed; `from ExtractPostfitFromWS import PostfitExtractor`, `from
+  ExtractFitParameters import FitParameterExtractor`, and `import ROOT`
+  removed from the top-level import block (confirmed by `grep -n "ROOT\.
+  \|PostfitExtractor\|FitParameterExtractor" python/run_anaFit.py`
+  before editing that every remaining reference to all three was inside
+  the function being moved - none survive elsewhere in the coordinator).
+  Replaced with `from run_fit import build_fit_extract` (flat
+  sibling-import style). The two `run_anaFit()` call sites
+  (`pval_global, ... = build_fit_extract(...)` and `pval_masked,_,_ =
+  build_fit_extract(...)`) are unchanged - same name, now resolved via
+  the import.
+- `tests/test_run_fit.py` created with the 4 tests from Chunk 6.A
+  (2 pre-existing failure-path, 2 new successful-path), relocated per the
+  Test Relocation Rule with two documented, necessary exceptions (below).
+- `scripts/quality_check.py`: added `python/run_fit.py` to
+  `python_targets` and `tests/test_run_fit.py` to `test_targets`.
+
+### Two Test Relocation Rule exceptions, both anticipated in Chunk 6.A and confirmed necessary
+
+1. **Cross-module patch target.** `execute`/`execute_required` live in
+   `run_execution.py`, a different module from where `build_fit_extract`
+   now lives. The relocated tests patch `run_fit.execute_required`/
+   `run_fit.execute` directly (via `monkeypatch.setattr(run_fit, ...)`),
+   not `module.execute_required` as in the old `test_run_anaFit.py`
+   version - the same necessary-consequence pattern already documented
+   for Chunk 4.B (`run_masking.execute_required`) and Chunk 1.B.
+2. **Deferred-import stubbing.** Because `ROOT`, `PostfitExtractor`, and
+   `FitParameterExtractor` are now imported inside `build_fit_extract`
+   itself rather than at module level, there is no `run_fit.ROOT`/
+   `run_fit.PostfitExtractor` attribute to patch directly (unlike the old
+   `test_run_anaFit.py` version, which patched attributes on the
+   `exec_module`-loaded coordinator object that already had these names
+   bound at import time). The two successful-path tests instead stub the
+   modules those deferred imports resolve against, via
+   `monkeypatch.setitem(sys.modules, "ROOT"/"ExtractPostfitFromWS"/
+   "ExtractFitParameters", fake_module)` - the same technique already
+   used for `run_provenance.collect_scientific_runtime`'s deferred
+   `import ROOT` (Chunk 3.A/3.B) and `run_templates._seed_prefit_
+   parameters`'s deferred `from PreFit import PreFitter` (Chunk 5.B). All
+   assertions and expected values carried over unchanged from Chunk 6.A -
+   only how the doubles are installed differs.
+
+The two failure-path tests needed **neither** exception - they still
+patch `run_fit.execute_required` only (exception 1 applies to both
+failure and success tests equally) and never reach the deferred
+ROOT/extractor imports at all, confirming the import placement is
+correct per the plan's own acceptance check.
+
+### Ruff/Black fixes required to register the new file (mechanical, zero behavior change)
+
+Registering `run_fit.py` in `python_targets` was the first time this
+exact code was lint-checked (it lived inside the un-gated
+`run_anaFit.py` before):
+- `def build_fit_extract(...)`'s 121-character single-line signature
+  wrapped to one parameter per line.
+- Two long `print(...)` string literals and the `quickfit_command`
+  format string wrapped using implicit adjacent-string-literal
+  concatenation - no change to the resulting string values.
+- The `execute(f"python3 python/createBinning.py ...")` call wrapped
+  across two lines (black then folded the two adjacent f-string literals
+  back onto one line, still under 100 columns).
+- Two `E501` findings on already-commented-out dead code
+  (`#binningFileName = f"/afs/.../lbazzano/..."`,
+  `#rebinfile=f"/afs/.../lbazzano/..."` x2) and one on a comment
+  containing a long already-commented-out `print(...)` call marked
+  `# noqa: E501` rather than reformatted, to avoid rewriting the exact
+  text of preserved dead code for a line-length rule that only applies to
+  live formatting; the "If we used masking..." comment was wrapped across
+  two lines instead, since it is prose, not preserved code/data.
+- `python -m black python/run_fit.py`: one further whitespace-only
+  reformat (operator spacing, e.g. `_poi="-p %s" % poi` ->
+  `_poi = "-p %s" % poi`).
+
+None of these touch `run_anaFit.py`, which remains outside
+`python_targets` (deferred to Chunk 8, per the established policy for
+this file's pre-existing dead imports).
+
+### Verification performed
+
+- `python -m pytest tests/test_run_fit.py -v` → 4 passed, in isolation.
+- `python -m pytest tests/test_run_fit.py tests/test_run_anaFit.py -v`
+  → 19 passed (4 + 15, matching the pre-move total of 19 exactly).
+- `python scripts/quality_check.py --mode full` → 145 passed, 2
+  deselected; ruff clean; black clean (20 files unchanged); exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed in 118.72s - **mandatory** for this chunk (Section 7:
+  Chunks 4, 5, 8, and always before 12; this chunk rewrites the
+  coordinator's actual fit/masking call path), matched against the
+  frozen reference exactly.
+- `git diff --stat -- python/run_anaFit.py` → 111 lines changed (1
+  insertion, 110 deletions) - confirms only the import block and the
+  function body were touched, nothing in `run_anaFit()` itself.
+- `git diff --check` → passed (all trailing-whitespace hits are
+  pre-existing lines in `run_anaFit.py`'s untouched body, not part of
+  this diff).
+
+### Compliance review (Section 8, Extraction checklist)
+
+1. Chunk 6, Step B (this entry).
+2. Step A is committed (`e8f5467`) and referenced above.
+3. No scientific constants, references, tolerances, dependency revisions,
+   or canonical workflow arguments touched.
+4. Relocated tests' diffs are not import-line-only - two documented,
+   necessary exceptions (cross-module patch target; deferred-import
+   stubbing), both anticipated in Chunk 6.A; no assertion or expected
+   value changed from Chunk 6.A.
+5. `build_fit_extract` is covered by all 4 tests (2 failure-path,
+   2 successful-path, unmasked and masked).
+6. Confirmed by grep: `run_anaFit.py` actually imports and never
+   redefines `build_fit_extract`.
+7. Only this chunk's five changed/new files were staged.
+8. All required Section 7 gates ran and passed, including the mandatory
+   integration gate, output captured above.
+9. `git diff --check` passed.
+10. This activity-log entry appended (not a rewrite of any existing
+    section).
+11. Chunks 7 through 12 remain open, listed below.
+12. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 7 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open.
