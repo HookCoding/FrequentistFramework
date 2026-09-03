@@ -5943,3 +5943,130 @@ plan, that happens in Step B alongside `plot_edm.py` itself.
 
 Chunk 9.B (extraction of `parse_minuit_edm_log`/`plot_minuit_edm_trace`)
 and Chunks 10 through 12 are open.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 9.B: extract `parse_minuit_edm_log`/`plot_minuit_edm_trace`
+
+### Objective
+
+Split `plot_minuit_continuous()`, characterized in Chunk 9.A (commit
+`de11262`), into `parse_minuit_edm_log()` (log parsing) and
+`plot_minuit_edm_trace()` (matplotlib rendering), per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 9 - separating pure, trivially
+unit-testable logic from rendering that needs matplotlib.
+
+### What changed
+
+- `plot_edm.py`:
+  - `parse_minuit_edm_log(filename)` (new) - the regex-parsing loop,
+    moved verbatim, returning `(cumulative_x, edm_values, star_indices)`.
+    **Decision required by the plan and recorded here** (to be folded
+    into `doc/TIER3_SYSTEM.md` at Chunk 12): the original function caught
+    `FileNotFoundError` itself and called `sys.exit(1)`; this function
+    instead lets `FileNotFoundError` propagate naturally from `open(...)`
+    - a pure, directly-callable function should not terminate the whole
+    process, and doing so made it awkward to test (every caller would
+    need `pytest.raises(SystemExit)` instead of a plain, specific
+    exception type). `plot_minuit_continuous()` (below) is the thin
+    CLI-facing wrapper that still does the print + `sys.exit(1)`,
+    preserving the exact external behavior Chunk 9.A characterized.
+  - `plot_minuit_edm_trace(cumulative_x, edm_values, star_indices,
+    outname)` (new) - the rendering code, moved verbatim, including the
+    "No matching data found." early return (moved here per the plan's own
+    target-decomposition table) and every commented-out dead line
+    (`#    plt.xscale('log')`, the three commented `#print(...)`
+    diagnostics, etc.), preserved exactly.
+  - `plot_minuit_continuous(filename, outname)` - now a thin orchestrator:
+    calls `parse_minuit_edm_log()`, catching `FileNotFoundError` to
+    reproduce the original print + `sys.exit(1)`, then calls
+    `plot_minuit_edm_trace()`. Signature unchanged, per the plan.
+  - `import matplotlib.pyplot as plt` deferred inside
+    `plot_minuit_edm_trace()`, **placed after the empty-data early
+    return**, not before it - a placement choice beyond what Chunk 9.A's
+    entry committed to: it means the "no matching data" path through
+    `plot_minuit_edm_trace()` (and, transitively, through
+    `plot_minuit_continuous()`) needs **zero** matplotlib stubbing, not
+    just `parse_minuit_edm_log()`. Confirmed directly: `import plot_edm`
+    and calling `plot_edm.plot_minuit_edm_trace([], [], [], path)` both
+    succeed with no `sys.modules` stubbing at all, verified before
+    committing.
+  - `import matplotlib.cm as cm` and `import numpy as np` removed - both
+    confirmed dead in Chunk 9.A's entry (zero live uses), and this is the
+    first time the file is lint-checked.
+  - One `E501` fix: the regex pattern literal wrapped across two raw
+    string literals (verified byte-identical `.pattern` before applying).
+  - `python -m black plot_edm.py`: one further, first-ever reformat pass
+    (quote style, argument wrapping) - matching every other
+    newly-registered file in this plan.
+- `tests/test_plot_edm.py`: rewritten - the module-loading helper that
+  stubbed `matplotlib`/`numpy` in `sys.modules` before `exec_module`-ing
+  the file is **gone entirely**, replaced with a plain `import plot_edm`
+  at the top of the file - the concrete testability payoff the plan
+  promised for this decomposition. Only the two tests that actually reach
+  `plot_minuit_edm_trace()`'s non-empty-data path still stub
+  `matplotlib`/`matplotlib.pyplot` (via a smaller, module-scoped
+  `_stub_matplotlib()` helper, `matplotlib.cm` no longer stubbed since
+  it's no longer imported); the other five tests - both empty-data paths,
+  both `parse_minuit_edm_log()` failure/empty cases, and the
+  missing-file/`SystemExit` case - now run with zero stubbing.
+- `scripts/quality_check.py`: registers `plot_edm.py` (in `python_targets`,
+  at repository-root path, not under `python/`) and `tests/test_plot_edm.py`.
+
+### Necessary test-relocation adaptation and new coverage (guardrail 4)
+
+Chunk 9.A's four tests were adapted, not moved wholesale - the module-
+loading mechanism itself changed (see above), and one test
+(`test_plot_minuit_continuous_no_output_when_no_matching_lines`) dropped
+its `matplotlib` stub entirely as a direct, intended consequence of the
+import-placement decision. No assertion or expected value changed from
+Chunk 9.A. Five new tests were added for the two newly-introduced
+functions, per guardrail 4:
+- `parse_minuit_edm_log()`: exact-tuple success case (reusing Chunk 9.A's
+  already-verified synthetic-log values), empty-result case, and the
+  `FileNotFoundError`-propagates case (the decision above).
+- `plot_minuit_edm_trace()`: non-empty-data success case (asserts the
+  exact `savefig` call, same as the orchestrator-level test) and the
+  empty-data early-return case (asserts the message and that no file is
+  created, with zero stubbing).
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_edm.py -v` → 9 passed (4 adapted from
+  Chunk 9.A plus 5 new).
+- `python scripts/quality_check.py --mode full` → 167 passed, 2
+  deselected; ruff clean; black clean (25 files unchanged).
+- `git diff --check` → passed.
+- No integration-gate rerun: `plot_edm.py`'s output is a diagnostic plot,
+  already outside the scientific-acceptance artifact contract per the
+  2026-08-20 "Plotting separated from scientific acceptance" entry,
+  matching the plan's own explicit acceptance-check note for this chunk.
+
+### Compliance review (Section 8, Extraction checklist)
+
+1. Chunk 9, Step B (this entry) - the plan's first non-`run_anaFit.py`
+   extraction.
+2. Step A is committed (`de11262`) and referenced above.
+3. No scientific constants, references, tolerances, dependency revisions,
+   or canonical workflow arguments touched.
+4. Relocated tests' diffs are not import-line-only - the module-loading
+   mechanism itself changed (real `import plot_edm` instead of
+   `exec_module`-with-stubbing), and one test's stub was dropped entirely
+   as a direct, documented consequence of the import-placement decision;
+   no assertion or expected value changed from Chunk 9.A.
+5. Both new functions are covered: `parse_minuit_edm_log()` (3 tests:
+   success, empty, failure) and `plot_minuit_edm_trace()` (2 tests:
+   success, empty).
+6. Confirmed by grep: `plot_edm.py`'s `plot_minuit_continuous()` calls
+   both new functions and defines nothing else duplicating their logic.
+7. Only this chunk's three changed files were staged.
+8. All required Section 7 gates ran; the integration gate's inapplicability
+   to this chunk is explicit in the plan itself, not a judgment call made
+   here.
+9. `git diff --check` passed.
+10. This activity-log entry appended (not a rewrite of any existing
+    section).
+11. Chunks 10 through 12 remain open, listed below.
+12. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 10 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open.

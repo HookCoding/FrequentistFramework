@@ -119,6 +119,7 @@ def main() -> None:
     _print_optional_workflow_hints(repo_root)
 
     python_targets = [
+        "plot_edm.py",
         "python/analysis_reference.py",
         "python/repo_utils.py",
         "python/run_anaFit.py",
@@ -135,6 +136,7 @@ def main() -> None:
     test_targets = [
         "tests/test_analysis_reference.py",
         "tests/test_compare_root_outputs.py",
+        "tests/test_plot_edm.py",
         "tests/test_repo_utils.py",
         "tests/test_run_anaFit.py",
         "tests/test_run_cli.py",
