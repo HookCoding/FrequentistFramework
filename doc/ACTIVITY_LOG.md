@@ -7085,3 +7085,126 @@ boundaries, not silent gaps - flagged here for Chunk 12 to restate in
 ### Remaining open chunks
 
 Chunk 12 (`doc/TIER3_SYSTEM.md`) is the only chunk left.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 12: `doc/TIER3_SYSTEM.md` and final documentation
+
+### Objective
+
+Write `doc/TIER3_SYSTEM.md`, modeled on `doc/TIER1_SYSTEM.md`/
+`doc/TIER2_SYSTEM.md`'s structure, per `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 12 - the final chunk, completing the plan. Single commit, no
+production code change: like Chunk 8, guardrail 3's Step A/Step B
+two-step pattern does not apply here, since there is no new target
+function to characterize first.
+
+### What changed
+
+`doc/TIER3_SYSTEM.md` created (new file), containing, at minimum, per
+Chunk 12's own required-contents list:
+
+- the module tables from the plan's Sections 4.1 and 4.3, updated with
+  actual final function signatures - read directly from the finished
+  source files (`grep -nE '^(def |class )'` against each of the seven
+  `run_anaFit.py` modules, `plot_edm.py`, `python/plotPostFit.py`, and
+  `plot_postfit.cpp`), not re-derived from memory or from earlier,
+  possibly-superseded plan text;
+- every "record the decision" point flagged in Chunks 5, 9, 10, and 11
+  resolved and documented in a dedicated "Decisions recorded during
+  extraction" section: `run_templates.py`'s internal decomposition and
+  the preserved `nPars` quirk (Chunk 5); `parse_minuit_edm_log()`'s
+  `FileNotFoundError`-propagation choice (Chunk 9); `python/plotPostFit.py`'s
+  styling placement, `gStyle`/`gROOT.SetBatch()` relocation, and the
+  `TFile`/`TLegend` lifetime fixes (Chunk 10); `plot_postfit.cpp`'s
+  `exit(1)` placement and the `ResidualPanelKind`/`ResidualPanelInfo`
+  addition beyond the plan's literal signature (Chunk 11);
+- a test-file map from each module/file to its test file(s), including
+  the two new ROOT-macro test files from Chunk 11
+  (`tests/test_read_bumphunter_results.py`,
+  `tests/root_macros/test_read_bumphunter_results.cpp`), each row noting
+  whether real ROOT/CVMFS is needed and, if so, for which specific
+  tests;
+- the unchanged Tier 1/2 gate commands (lightweight full gate, scientific
+  gate), plus the plotting-layer real-ROOT commands this plan introduced,
+  with a paragraph confirming they still cover every extracted module -
+  the scientific gate specifically, since it reruns the real J100/J50
+  launchers, which transitively invoke every one of the four Tier-3
+  refactor targets for real;
+- a "Known limitations" section naming: the two explicit, deliberate
+  scope boundaries Chunk 11 already flagged (`load_postfit_histograms()`
+  (C++) has no dedicated unit test; the `bump_hunter == true` masked
+  path has no automated test at all); the `sys.modules`-stubbing-only
+  testing of `collect_scientific_runtime()`/the `doprefit` branch (never
+  against real ROOT/`PreFit` in a unit test, only end-to-end via the
+  scientific gate); the two preserved pre-existing landmines (the
+  `native_params`/`masked_params` null-pointer risk in
+  `plot_postfit.cpp`, and the `nPars` double-match quirk in
+  `run_templates.py`); and the plan's own out-of-scope boundary (only
+  the four named files were touched).
+
+### Every claim was verified before being written, not just asserted
+
+- The "`run_anaFit.py` imports only from the seven modules, never the
+  reverse" claim: verified via `grep -rn "run_anaFit"
+  python/run_execution.py python/run_manifest.py python/run_provenance.py
+  python/run_masking.py python/run_templates.py python/run_fit.py
+  python/run_cli.py` returning nothing (exit code 1) before writing the
+  claim.
+- The `should_mask()` NaN-handling description: read directly from
+  `python/run_masking.py`'s own source and its inline comment, not
+  reconstructed from memory.
+- The "every real-ROOT/CVMFS test is marked both `requires_root` and
+  `requires_analysis_dependencies`" claim: verified by grepping the
+  decorators immediately preceding every `def test_` in
+  `tests/test_plot_post_fit.py`, `tests/test_plot_postfit_macro.py`, and
+  `tests/test_read_bumphunter_results.py` directly, confirming the three
+  `parse_args()`-only tests correctly have neither marker and all seven
+  real-ROOT tests correctly have both.
+- The "172 passed, 6 deselected" and "27 files unchanged" lightweight-gate
+  numbers, and the "11 passed... 87.29 seconds" plotting-layer-gate
+  number, were both obtained by actually rerunning the gates fresh in
+  this session, immediately before writing them into the document - not
+  copied from an earlier, possibly-stale chunk entry. The scientific-gate
+  number (1 passed, 153.99s) is cited from Chunk 11.B (commit `b026efd`,
+  the most recent commit that could have changed scientific behavior);
+  this chunk makes no production change, so re-running the ~3-minute
+  scientific gate again was judged unnecessary and is not claimed as
+  freshly re-verified in this commit.
+
+### Verification performed
+
+- Manual review: re-read the finished document top to bottom against the
+  actual module and test files it describes (see the spot-checks above),
+  confirming every claim has a citation, per the plan's own acceptance
+  check.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_SYSTEM.md` → no output.
+- `git diff --check` → passed.
+- `python scripts/quality_check.py --mode full` (rerun fresh for this
+  entry's own citations) → 172 passed, 6 deselected; ruff clean; black
+  clean (27 files unchanged); exit code 0.
+- `python -m pytest tests/test_plot_post_fit.py -v
+  tests/test_plot_postfit_macro.py tests/test_read_bumphunter_results.py -v`
+  → 11 passed (9 + 2), 87.29 seconds, exit code 0, run for real against
+  this host's actual CVMFS/LCG scientific runtime.
+- No integration-gate rerun in this commit: no production file changed,
+  so the Chunk 11.B result (`b026efd`, 1 passed, 153.99s) remains the
+  current, accurate citation.
+
+### Compliance review
+
+1. Chunk 12, single commit (no Step A/Step B split applies - no target
+   function exists to characterize, matching Chunk 8's precedent).
+2. Every required-contents item from Chunk 12's own list is present:
+   updated module tables, resolved decision points, test-file map, gate
+   commands with confirmation of continued coverage, and a Known
+   Limitations section.
+3. No production code touched - `git status --short` shows only
+   `doc/TIER3_SYSTEM.md` as new/untracked before this commit.
+4. Every factual claim was checked against the actual repository state
+   in this session before being written, not carried forward from
+   possibly-stale earlier chunk text.
+5. Activity-log entry appended (this content), not a rewrite of any
+   existing section.
+
+### Remaining open chunks
+
+None. All twelve chunks of `doc/TIER3_COMPLETION_PLAN.md` are complete.
