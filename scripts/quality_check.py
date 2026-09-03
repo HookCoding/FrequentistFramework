@@ -121,6 +121,7 @@ def main() -> None:
     python_targets = [
         "python/analysis_reference.py",
         "python/repo_utils.py",
+        "python/run_anaFit.py",
         "python/run_cli.py",
         "python/run_execution.py",
         "python/run_fit.py",

@@ -5633,3 +5633,178 @@ Only `python/run_fit.py` and `tests/test_run_fit.py` touched. Not folded
 into Chunk 8 - a review finding on already-pushed Chunk 6 work, fixed
 immediately as its own commit, per this project's established practice
 for Copilot review findings.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 8: coordinator slimming and dependency-direction verification
+
+### Objective
+
+With Chunks 1-7 done (all seven module extractions complete, plus four
+GitHub Copilot review-finding fixes), verify `run_anaFit()` now reads as
+an orchestration of calls into the seven new modules, not a container for
+their logic, and register `python/run_anaFit.py` itself with the Tier 2
+quality gate. Per the plan, this is a checkpoint, not a new extraction -
+no new target function exists, so guardrail 3's characterization-first
+pattern does not apply; there is nothing new to characterize before
+modifying, only a verification pass over work already characterized and
+extracted in Chunks 1-7. Delivered as a single commit.
+
+### Re-read of `run_anaFit.py` top to bottom
+
+Confirmed the file contains only: imports, `run_anaFit()`, `main()`, and
+the `if __name__ == "__main__":` guard - no extracted logic was copied
+rather than moved, and no partial extractions remain. Verified formally
+via the plan's own acceptance-check script (below).
+
+### Dead imports removed (live gate failures once registered)
+
+Registering `python/run_anaFit.py` in `python_targets` for the first time
+surfaced imports that were dead but never checked while the file was
+un-gated - the same "deferred to Chunk 8" imports named explicitly across
+Chunks 3.B (`hashlib`, `platform`), 5.B (`re`), and implicitly since
+7.B (`argparse`), plus one found only now:
+- `re`, `argparse`, `subprocess`, `hashlib`, `platform`, and
+  `from pathlib import Path` - all confirmed dead by grepping for every
+  live (non-comment) use in the file; none found. Removed.
+- `execute_required` (imported from `run_execution`, alongside `execute`)
+  - confirmed dead: `run_anaFit.py` itself only ever calls `execute(...)`
+    directly (for the quickLimit command); `execute_required` is used
+    inside the sub-modules (`run_masking.py`, `run_templates.py`,
+    `run_fit.py`), not the coordinator. This has been dead since
+    Chunk 1.B's own extraction, simply never linted until now. Removed.
+- `covariancedict = None` in `main()` - a local variable assigned but
+  never used or passed to `run_anaFit()` (confirmed: `main()`'s call to
+  `run_anaFit()` never includes `covariancedict=...`). This pairs with a
+  pre-existing, still-commented `#if args.covariancefile: ...` stub for a
+  CLI flag that was never actually added to `run_cli.py`'s
+  `build_arg_parser()` - an unimplemented feature stub, not something
+  Tier 3 is building out (out of scope per Section 3). Removed the dead
+  assignment; left the commented stub as-is with an explanatory comment
+  added above it, rather than deleting a decade-old TODO-shaped comment
+  outright.
+
+`os`, `sys`, `shutil`, `json`, and every `from run_*` import were
+confirmed live (each has at least one real call site) and kept unchanged.
+
+### Ruff/Black fixes required to register the file (mechanical, zero behavior change)
+
+First time this exact code (the original coordinator, minus what Chunks
+1-7 already moved out) was ever lint-checked:
+- Import block sorted/blank-line-separated (`I001`, auto-fixed).
+- A literal tab character mixed with spaces in one indented comment line
+  (`if sigwidth == -999: <TAB><SPACES># poi=...`) and in one closing-paren
+  line of a multi-line call (seven literal tabs before the paren) -
+  both replaced with plain spaces (`W191`/`E101`).
+- All `W291`/`W293` trailing/blank-line whitespace, auto-fixed.
+- One genuinely dead local variable (`covariancedict`, `F841`) - removed,
+  as above.
+- Several long-line (`E501`) findings:
+  - Two long "####...####" debug `print(...)` banner strings and three
+    already-commented-out dead-code lines (a `shutil.copy2` pair, a
+    `FindBHWindow.py` invocation, and one line of a commented-out `sed`
+    command block) marked `# noqa: E501` rather than reformatted, per the
+    same precedent established in Chunk 6.B's `run_fit.py` - preserving
+    live debug output and dead-code text verbatim rather than rewriting
+    strings for a line-length rule.
+  - Two genuinely long *live* lines given real wraps, both verified
+    byte-identical to the original by direct comparison in a Python shell
+    before applying: the `maskrange=(int(...), int(...))` kwarg (split
+    across three lines) and the live `quickLimit` command string
+    (rewritten via implicit adjacent-string-literal concatenation,
+    mirroring the identical technique already used for
+    `run_fit.py`'s `xmlreader_command`/`quickfit_command` in Chunk 6.B
+    and the Copilot-fix commit for `xmlreader_command`). The still-
+    commented-out `#rtv=execute(...)` sibling line (the disabled
+    `timeout --foreground 1800` variant) was left as dead-code text with
+    `# noqa: E501`, not touched.
+- `python -m black python/run_anaFit.py`: one further, large
+  whitespace-only reformat - this file's original formatting (comma-
+  packed single-line imports, tight `key=value` spacing, unindented
+  multi-line call continuations) had never been through `black` before,
+  unlike every other module extracted so far, which each got this same
+  one-time reformat pass when first registered (Chunks 3.B, 5.B, 6.B,
+  7.B). No `ast` diff beyond whitespace/formatting - confirmed by all
+  tests below passing unchanged before and after.
+
+### Acceptance check (run verbatim from the plan)
+
+```
+$ wc -l python/run_anaFit.py
+292 python/run_anaFit.py
+
+$ python -c "import ast, pathlib; tree = ast.parse(pathlib.Path('python/run_anaFit.py').read_text()); print(sorted({n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}))"
+['main', 'run_anaFit']
+
+$ grep -rn "^from run_anaFit import\|^import run_anaFit" python/run_execution.py python/run_manifest.py python/run_provenance.py python/run_masking.py python/run_templates.py python/run_fit.py python/run_cli.py
+(no output - confirmed no reverse dependency)
+
+$ grep -n "python/run_anaFit.py" scripts/quality_check.py
+        "python/run_anaFit.py",
+```
+
+292 lines - larger than the plan's original "~60-100 lines" estimate
+(Section 4's draft written before Chunks 1-7's actual signatures/kwargs
+were known), but the acceptance check does not assert a line count, only
+that the AST contains exactly `{'main', 'run_anaFit'}` - satisfied. The
+extra size versus the estimate is legitimate orchestration: the masking
+branch (BumpHunter refit, XML template copying/blinding, second
+`build_fit_extract` call) and the quickLimit branch are real coordinator
+logic that stays in `run_anaFit()` by design (Chunks 1-7's scope was the
+seven named modules, not further decomposing the coordinator's own
+control flow), plus `main()`'s CLI wiring and the still-inline
+`--sysfile`-to-`systdict` logic (Chunk 7.B's own documented scope
+boundary).
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -v` → 16 passed.
+- `python scripts/quality_check.py --mode full` → 158 passed, 2
+  deselected; ruff clean; black clean (23 files unchanged) - the first
+  time `run_anaFit.py` itself has ever passed this gate.
+- `python -m pytest tests/ -m "not requires_analysis_dependencies and not (integration and requires_root)" -v`
+  → 159 passed, 4 deselected. Section 2's original baseline (Chunk 0,
+  commit range start) was 120 passed under the same filter - comfortably
+  exceeds baseline plus the net new tests added across Chunks 1-8 and the
+  four Copilot-fix commits.
+- `python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v`
+  → 2 passed.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed in 152.04s, matching the frozen reference exactly - mandatory
+  for this chunk per Section 7 (explicitly named alongside Chunks 4, 5,
+  and always before 12).
+- `git diff --check` → passed.
+- `git status` → only `python/run_anaFit.py` and `scripts/quality_check.py`
+  modified; no untracked repository-root artifacts from test execution.
+
+### Compliance review (Section 8, Verification checklist)
+
+1. Chunk 8 - a checkpoint/verification commit, not a characterization-
+   then-extraction pair; no Step A/Step B split applies (guardrail 3
+   explicitly does not apply here, per the plan's own Chunk 8 text).
+2. `run_anaFit.py` re-read top to bottom; contains only imports,
+   `run_anaFit()`, `main()`, and the `__main__` guard - confirmed by the
+   plan's own AST-based acceptance check.
+3. No dependency-direction violation: none of the seven extracted modules
+   imports back from `run_anaFit.py` (confirmed by grep, above).
+4. `python/run_anaFit.py` registered in `scripts/quality_check.py`'s
+   `python_targets`; full gate passes with zero remaining findings in the
+   coordinator itself.
+5. Every fix in this commit is either a proven-dead-code removal (grepped
+   for zero live uses before removing) or a proven byte-identical
+   reformat/wrap (verified in a Python shell before applying, or a pure
+   whitespace/import-order `black`/`ruff --fix` pass) - no behavior
+   change; confirmed by the coordinator's own 16 tests and the full
+   159-test suite passing unchanged.
+6. Only this chunk's two changed files were staged.
+7. All required Section 7 gates ran, including the mandatory integration
+   gate, which passed and matched the frozen reference (above).
+8. `git diff --check` passed; no untracked artifacts remain.
+9. This activity-log entry appended (not a rewrite of any existing
+   section).
+10. Chunks 9 through 12 remain open, listed below.
+11. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 9 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. All eight
+module-extraction and coordinator-slimming chunks (1-8) are now complete
+and verified.
