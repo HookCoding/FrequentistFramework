@@ -6070,3 +6070,39 @@ functions, per guardrail 4:
 ### Remaining open chunks
 
 Chunks 10 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open.
+
+## 2026-09-03: Correction — Chunk 9.B entry miscounted matplotlib-stubbing tests (GitHub Copilot review, PR #6)
+
+### What Copilot found
+
+The Chunk 9.B entry above (`tests/test_plot_edm.py` bullet) says "the
+two tests that actually reach `plot_minuit_edm_trace()`'s non-empty-data
+path still stub `matplotlib`/`matplotlib.pyplot` ... the other five tests
+... now run with zero stubbing." Checked directly against
+`tests/test_plot_edm.py` as committed: `_stub_matplotlib(monkeypatch)` is
+called by **three** tests
+(`test_plot_minuit_edm_trace_produces_output_file_for_non_empty_data`,
+`test_plot_minuit_continuous_produces_output_file_for_log_with_trace_lines`,
+`test_plot_minuit_continuous_produces_output_for_real_quickfit_log`), not
+two - confirmed by grepping the test file for the call site (three
+matches). The remaining **six** tests (not five) run with zero stubbing.
+Three plus six correctly sums to the file's actual nine tests; two plus
+five does not (seven), which is itself a smaller internal inconsistency
+in the original entry, also caught by this same review comment.
+
+### Correction
+
+The counts should read: **three** tests stub matplotlib (the two
+`plot_minuit_continuous(...)` tests that reach real trace data, plus
+`test_plot_minuit_edm_trace_produces_output_file_for_non_empty_data`
+directly), and the other **six** tests - both `plot_minuit_edm_trace()`/
+`plot_minuit_continuous()` empty-data paths, all three
+`parse_minuit_edm_log()` cases (success, empty, missing-file), and the
+`plot_minuit_continuous()` missing-file/`SystemExit` case - run with zero
+stubbing.
+
+This is a correction to prose in the Chunk 9.B entry's own description of
+already-committed, unchanged test code - no test or production file was
+touched to produce this finding or this correction. Per the activity
+log's append-only guardrail, the original entry is left exactly as
+written above; this section is the correction of record.
