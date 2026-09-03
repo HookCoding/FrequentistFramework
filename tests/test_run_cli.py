@@ -63,28 +63,42 @@ def test_build_arg_parser_parses_representative_j100_style_invocation() -> None:
     assert args.sysfile is None
 
 
+def test_build_arg_parser_format_help_does_not_raise() -> None:
+    # A regression test for a real bug (caught in review): the --sigwidth
+    # help text contained a bare "%", which argparse's help-string
+    # expansion (used for placeholders like "%(default)s") chokes on when
+    # rendering the *full* help output - parser.format_help()/--help
+    # raised ValueError. "%%" is the escaped literal-percent form; the
+    # rendered text must contain the original wording with a single "%".
+    parser = run_cli.build_arg_parser()
+
+    rendered = parser.format_help()
+
+    assert "Width of signal Gaussian for s+b fit (in %). If -999" in rendered
+
+
+def test_build_arg_parser_rangehigh_help_does_not_duplicate_start() -> None:
+    # A regression test for a real bug (caught in review): --rangehigh's
+    # help text read "End Start of fit range (in GeV)" - an accidental
+    # duplication/typo, apparently copied from --rangelow's own
+    # "Start of fit range (in GeV)" text.
+    parser = run_cli.build_arg_parser()
+    (rangehigh_action,) = (a for a in parser._actions if a.dest == "rangehigh")
+
+    assert rangehigh_action.help == "End of fit range (in GeV)"
+
+
 def test_build_arg_parser_description_uses_argparse_prog_placeholder() -> None:
     # A regression test for a real bug (caught in review): argparse does
     # not substitute the old optparse-style "%prog" placeholder in
     # `description` - it would appear literally in --help output.
     # "%(prog)s" is the argparse-native placeholder, and IS substituted.
-    #
-    # Rendered in isolation via the formatter's add_text()/format_help(),
-    # not parser.format_help()/print_help() directly, because a separate,
-    # pre-existing, unrelated bug in one of the --sigwidth help text
-    # (a stray literal "%" that argparse's help-string expansion chokes
-    # on) makes the *full* help output crash - out of scope for this fix
-    # per doc/TIER3_COMPLETION_PLAN.md's guardrail against fixing
-    # pre-existing issues noticed incidentally; noted in the activity log
-    # instead.
     parser = run_cli.build_arg_parser()
     assert "%prog" not in parser.description
 
-    formatter = parser._get_formatter()
-    formatter.add_text(parser.description)
-    rendered = formatter.format_help().strip()
+    rendered = parser.format_help()
 
-    assert rendered == f"{parser.prog} [options]"
+    assert f"{parser.prog} [options]" in rendered
 
 
 def test_normalize_signal_name_derives_default_for_normal_width() -> None:

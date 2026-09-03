@@ -50,9 +50,7 @@ def build_arg_parser():
         help='Initial value and range of nsig par (e.g. "0,-1E6,1E6")',
     )
     parser.add_argument("--rangelow", dest="rangelow", type=int, help="Start of fit range (in GeV)")
-    parser.add_argument(
-        "--rangehigh", dest="rangehigh", type=int, help="End Start of fit range (in GeV)"
-    )
+    parser.add_argument("--rangehigh", dest="rangehigh", type=int, help="End of fit range (in GeV)")
     parser.add_argument(
         "--dosignal",
         dest="dosignal",
@@ -75,7 +73,7 @@ def build_arg_parser():
         dest="sigwidth",
         type=float,
         default=7.0,
-        help="Width of signal Gaussian for s+b fit (in %). If -999 dealing with Zprime samples.",
+        help="Width of signal Gaussian for s+b fit (in %%). If -999 dealing with Zprime samples.",
     )
     parser.add_argument(
         "--maskthreshold",

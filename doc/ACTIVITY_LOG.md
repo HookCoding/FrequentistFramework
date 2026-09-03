@@ -5333,3 +5333,101 @@ Only `python/run_cli.py`, `tests/test_run_fit.py`, and
 finding on already-pushed Chunk 7 work, fixed immediately as its own
 commit, per this project's established practice for Copilot review
 findings.
+
+## 2026-09-03: Fix the sigwidth help-string crash and a rangehigh help typo (GitHub Copilot review, PR #6)
+
+### What Copilot found
+
+Two more findings on `python/run_cli.py`, following up on the previous
+commit (`850b35b`):
+
+1. (Medium) The `--sigwidth` help text contains a literal `%`, which
+   `argparse` treats as a format marker when rendering full `--help`
+   output; this raises `ValueError` and breaks help generation in normal
+   CLI usage. Suggested fix: escape it as `%%`.
+2. (Low) The `--rangehigh` help text reads `"End Start of fit range (in
+   GeV)"` - an apparent accidental duplication/typo, confusing in `--help`
+   output.
+
+### Correction to the previous commit's scoping decision
+
+The previous commit (`850b35b`) already found and *documented* this exact
+`--sigwidth` crash while verifying the `%prog` fix, but judged it
+out-of-scope as a "pre-existing, unrelated issue noticed incidentally"
+per `doc/TIER3_COMPLETION_PLAN.md`'s guardrail, and left it unfixed with
+a comment explaining why. Copilot has now flagged the same line directly
+as a blocking finding on this PR. Per this project's established
+practice for review findings (fix what Copilot raises on the PR, not a
+repo-wide sweep), this is the correct trigger to fix it: unlike the other
+28 occurrences of the unrelated `%prog` pattern found elsewhere in the
+repo (still correctly left untouched - a repo-wide sweep remains out of
+scope), this line lives in `run_cli.py`, a file created by this PR, and
+is directly, specifically flagged as blocking approval. The guardrail's
+purpose is to prevent scope creep into unrelated files noticed
+in passing, not to leave a confirmed, reviewer-flagged crash in the code
+this PR is introducing.
+
+### Verification performed before fixing
+
+- Confirmed the crash directly: `run_cli.build_arg_parser().print_help()`
+  raised `ValueError: unsupported format character ')' (0x29) at index
+  42` before the fix (matches the trace already captured in the previous
+  commit's activity-log entry).
+- Confirmed the `--rangehigh` typo by direct inspection - the text is
+  exactly `"End Start of fit range (in GeV)"`, evidently `"End "`
+  mistakenly prepended to a copy of `--rangelow`'s own `"Start of fit
+  range (in GeV)"` help text.
+- After fixing, confirmed `parser.format_help()` renders the full help
+  text successfully (no exception), and that the escaped `%%` renders as
+  a single literal `%` in the output: `"Width of signal Gaussian for s+b
+  fit (in %). If -999 dealing with Zprime samples."` appears verbatim in
+  the rendered text - the escaping changes only how the help string is
+  written in source, not what a user sees.
+
+### Fixes
+
+- `python/run_cli.py`:
+  - `--sigwidth`'s `help=` string: `"...(in %). If -999..."` ->
+    `"...(in %%). If -999..."`.
+  - `--rangehigh`'s `help=` string: `"End Start of fit range (in GeV)"`
+    -> `"End of fit range (in GeV)"`.
+- `tests/test_run_cli.py`:
+  - `test_build_arg_parser_format_help_does_not_raise` added - calls
+    `parser.format_help()` directly (the full render, not the isolated
+    formatter workaround the previous commit used to sidestep this exact
+    crash) and asserts the expected wording appears. Confirmed to raise
+    `ValueError` against the pre-fix `%` (not `%%`) and pass against the
+    fix.
+  - `test_build_arg_parser_rangehigh_help_does_not_duplicate_start` added
+    - asserts the exact expected help string. Confirmed to fail against
+    the pre-fix `"End Start of fit range (in GeV)"` text and pass against
+    the fix.
+  - `test_build_arg_parser_description_uses_argparse_prog_placeholder`
+    (added in the previous commit) simplified: now calls
+    `parser.format_help()` directly instead of the isolated
+    `formatter.add_text()`/`format_help()` workaround, since the full
+    render no longer crashes - the workaround and its explanatory comment
+    are no longer needed and were removed.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_cli.py -v` → 8 passed (3 new/changed
+  plus 5 unchanged).
+- `python -m pytest tests/test_run_cli.py tests/test_run_fit.py tests/test_run_anaFit.py -v`
+  → 28 passed.
+- `python scripts/quality_check.py --mode full` → 154 passed, 2
+  deselected; ruff clean; black clean (22 files unchanged) - one further
+  black reformat collapsed `--rangehigh`'s `add_argument(...)` back onto
+  a single line, now under 100 columns with the shorter help text.
+- `git diff --check` → passed.
+- The mandatory integration gate was not rerun: this fix touches only CLI
+  help text (`argparse` `help=`/`description=` strings), not the
+  fit/masking pipeline, matching the same judgment already applied to
+  Chunk 7.B and the previous Copilot-fix commit.
+
+### Scope
+
+Only `python/run_cli.py` and `tests/test_run_cli.py` touched. Not folded
+into Chunk 8 - a review finding on already-pushed Chunk 7 work, fixed
+immediately as its own commit, per this project's established practice
+for Copilot review findings.
