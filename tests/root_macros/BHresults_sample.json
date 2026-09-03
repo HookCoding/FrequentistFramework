@@ -1,0 +1,6 @@
+{
+  "global_Pval": 0.1234,
+  "significance": 2.5,
+  "MaskMin": 500.0,
+  "MaskMax": 700.0
+}

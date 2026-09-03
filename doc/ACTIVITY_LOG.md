@@ -6799,3 +6799,289 @@ below rather than assumed here.
 
 Chunk 11.B (extraction of `read_bumphunter_results`/
 `load_postfit_histograms`/`draw_residual_panel`) and Chunk 12 are open.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 11.B: extract functions from `plot_postfit.cpp`
+
+### Objective
+
+Move `plot_postfit.cpp`'s single 257-line function, characterized and
+human-verified in Step A (commit `2b7d168`), into `read_bumphunter_results()`,
+`load_postfit_histograms()`, `draw_residual_panel()`, plus a slimmed
+`plot_postfit()` orchestrator with its public entry point's exact name and
+parameter order unchanged, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 11.
+
+### What changed
+
+- `plot_postfit.cpp` restructured in place into:
+  - `struct BumpHunterInfo { float global_pval, significance, mask_min,
+    mask_max; bool available; }` and `BumpHunterInfo
+    read_bumphunter_results(string const & bh_log_name)` - the log-reading/
+    regex-parsing block moved verbatim, including its diagnostic prints
+    (`cout << bh_log_name << endl;` and the "WARNING: Could not parse
+    values..." message). `available` matches the original's
+    `bump_hunter = false` fallback exactly: `false` only when the log file
+    could not be opened, `true` otherwise - not an exception.
+  - `struct PostfitHistograms` (the ten `TH1D*` fields, renamed without
+    their `h_`/`_native`/`_masked` prefixes since they're now struct
+    members: `native`, `native_rebinned`, `native_chi2`,
+    `native_chi2_rebinned`, `masked`, `masked_rebinned`, `masked_chi2`,
+    `masked_chi2_rebinned`, `native_params`, `masked_params`) and
+    `PostfitHistograms load_postfit_histograms(TFile * native, TFile *
+    masked, TFile * native_params, TFile * masked_params)` - the
+    `Get<TH1D>` block moved verbatim, including the pre-existing
+    behavior that `native_params`/`masked_params` are dereferenced
+    unconditionally inside the `if (native)`/`if (masked)` guards, with
+    no null check of their own (see "Preserved pre-existing landmine"
+    below).
+  - `enum class ResidualPanelKind { kParams, kNative, kNativeRebinned }`
+    and `struct ResidualPanelInfo { ResidualPanelKind kind; float
+    native_chi2_ndof, native_pval, masked_chi2_ndof, masked_pval; }` -
+    **new**, not in the plan's literal table (see "A real gap in the
+    plan's stated signature" below).
+  - `void draw_residual_panel(TCanvas * can, TH1D * first, TH1D * second,
+    bool bump_hunter, BumpHunterInfo const & bh, char const * pars_str,
+    char const * out_file_name, ResidualPanelInfo const & info)` - the
+    body of the original for-loop, moved verbatim, with every `h.first ==
+    h_native_params`/`h.first == h_native`/`h.first == h_native_rebinned`
+    pointer-identity check replaced by `info.kind ==
+    ResidualPanelKind::k...`, and the scalar chi2/pval `Form(...)` calls
+    reading from `info.native_chi2_ndof`/etc. instead of outer-scope
+    variables.
+  - `void plot_postfit(char const * in_dir, char const * pars_str)`
+    (unchanged signature) - becomes the orchestrator: builds the six
+    input/output paths (unchanged), opens the four `TFile`s (unchanged),
+    calls `load_postfit_histograms()`, `read_bumphunter_results()`,
+    computes `bump_hunter = plot_masked && bh_info.available` (see
+    "Preserving `plot_masked`'s exact role" below), computes the ten
+    chi2/pval/nbkg scalars (moved verbatim, now reading from the
+    `PostfitHistograms` struct's fields instead of individually-named
+    pointers), opens the canvas/PDF, then loops over the three panels
+    (`{h.native_params, h.masked_params, kParams}`,
+    `{h.native, h.masked, kNative}`, `{h.native_rebinned,
+    h.masked_rebinned, kNativeRebinned}`) calling `draw_residual_panel()`
+    once per pair, per the plan's own "the existing loop... calls this
+    once per pair instead of repeating the body inline" instruction.
+- `tests/root_macros/BHresults_sample.json` (**new, tracked fixture**) -
+  a small, hand-written JSON with known values
+  (`global_Pval: 0.1234, significance: 2.5, MaskMin: 500.0, MaskMax: 700.0`),
+  since this repository's existing J100 canonical run has no
+  `BHresults.json` (it is unmasked). The regex `read_bumphunter_results()`
+  uses does a flat text scan, not real JSON-schema-aware parsing (verified
+  directly against `python/FindBHWindow.py`, the actual producer of real
+  `BHresults.json` files - its `global_Pval`/`significance` keys live
+  nested inside a `pyBHresult` sub-object, not top-level; the regex finds
+  them regardless of nesting depth), so a flat fixture exercises the exact
+  same code path as a real, nested production file.
+- `tests/root_macros/test_read_bumphunter_results.cpp` (**new**) - the
+  first-ever ROOT-macro unit test in this repository, per Chunk 11's own
+  instruction. `#include "../../plot_postfit.cpp"` to reach
+  `BumpHunterInfo`/`read_bumphunter_results()` directly (a fresh `root -l
+  -b -q` process per invocation, so no redefinition risk from including a
+  `.cpp` without an include guard). Calls `read_bumphunter_results()`
+  against the fixture above and asserts each `BumpHunterInfo` field
+  against the fixture's known values (tolerance `1e-4f`, matching
+  `stof`'s own float precision), then against `<fixture>.does_not_exist`
+  and asserts `available == false` and all four scalar fields stay at
+  their zero-initialized defaults. Prints `TEST_READ_BUMPHUNTER_RESULTS_OK`/
+  `_FAILED` and exits `0`/`1` accordingly - explicit `if (!...) { cout <<
+  "FAIL: ..."; ok = false; }` checks were used instead of `assert()`, to
+  avoid depending on whether this ROOT build's Cling compiles with
+  `NDEBUG` defined.
+- `tests/test_read_bumphunter_results.py` (**new**) - the thin
+  Python/pytest wrapper invoking the macro above via `subprocess.run`,
+  matching `tests/test_plot_postfit_macro.py`'s own wrapper pattern
+  exactly (same `setup_buildAndFit.sh`-sourcing probe, same two markers).
+- `tests/test_plot_postfit_macro.py`'s existing test kept unchanged - it
+  is now an end-to-end regression test of the rewritten `plot_postfit()`,
+  still valuable (per Chunk 11's own instruction to keep it, not delete
+  it).
+- No `scripts/quality_check.py` registration - it only covers Python
+  files, and Chunk 11 doesn't require registering the two new Python test
+  files either (unlike Chunks 9/10's Python production targets).
+
+### A real gap in the plan's stated `draw_residual_panel()` signature
+
+`doc/TIER3_COMPLETION_PLAN.md`'s Chunk 11 table gives
+`draw_residual_panel()` exactly seven parameters: `(TCanvas* can, TH1D*
+first, TH1D* second, bool bump_hunter, BumpHunterInfo const& bh, char
+const* pars_str, char const* out_file_name)`. Implementing this literally
+is impossible without losing real, observable behavior: the original
+loop's panel-specific content - Y-axis range, draw option ("HIST" vs
+plain), whether the zero-line and per-panel "range: ... GeV" text are
+drawn, whether the "Bump Hunter" header and global p-val/significance/
+mask-range text appear, and which of the four chi2/ndof-and-p-val text
+boxes are shown - is driven by two things neither struct nor scalar
+parameter in that seven-parameter list can express: (1) **which** of the
+three panels this call is drawing (originally `h.first ==
+h_native_params`/`h_native`/`h_native_rebinned` pointer-identity checks
+against outer-scope variables `draw_residual_panel()` no longer has
+access to), and (2) the four scalar chi2/ndof and p-value numbers each
+panel displays (`native_chi2_ndof`, `native_pval`, `masked_chi2_ndof`,
+`masked_pval`, each with a separately-computed "rebinned" variant used
+only by the rebinned panel) - values the plan's own `PostfitHistograms`
+struct doesn't carry either (they are computed in `plot_postfit()`
+*after* `load_postfit_histograms()` returns, straight from
+`GetBinContent()` calls).
+
+Corrected: added `ResidualPanelKind` (an explicit tag replacing the
+pointer-identity checks) and `ResidualPanelInfo` (bundling the tag with
+the four scalar values relevant to whichever panel is being drawn) as an
+eighth parameter. This is the smallest addition that preserves every
+originally-observable difference between the three panels; verified
+directly (see "Verification performed" below) that the rewritten macro,
+run against the same fixture Step A characterized, produces a PDF
+byte-identical to both Step A's own captured output and the already-
+committed reference `post_fit.pdf` in the tracked fixture directory - not
+just "runs and produces a plot", but the exact same plot.
+
+### Preserving `plot_masked`'s exact role
+
+The original set `bool bump_hunter{plot_masked};` (a file-scope `bool
+const plot_masked{true}`), then only ever set it to `false` in the `else`
+branch when the BumpHunter log could not be opened - meaning `bump_hunter`
+equals `plot_masked` whenever the log **can** be opened, and `false`
+otherwise. Since `read_bumphunter_results()`'s new signature takes only
+`bh_log_name` (per the plan), it cannot see `plot_masked` itself.
+`plot_postfit()` now computes `bump_hunter = plot_masked &&
+bh_info.available;` - the exact logical equivalent (`available` is
+`false` only when the file could not be opened, matching the original
+`else` branch precisely; `plot_masked && true == plot_masked`, matching
+the original `if` branch precisely), keeping `plot_masked` as a real,
+still-honored toggle rather than silently dropping its effect.
+
+### Preserved pre-existing landmine (guardrail 1: no fix, just documented)
+
+`load_postfit_histograms()` dereferences `native_params->Get<TH1D>(...)`
+unconditionally inside the `if (native)` block (and
+`masked_params->Get<TH1D>(...)` inside `if (masked)`), with no null check
+of `native_params`/`masked_params` themselves - if the native `PostFit_*`
+file opens successfully but the corresponding `FitParameters_*` file does
+not, this crashes on a null-pointer dereference. This is pre-existing
+behavior in the original, unmodified `plot_postfit()` (confirmed by
+re-reading the source before moving anything), not something this
+refactor introduced or is asked to fix (guardrail: "no scope for fixing
+pre-existing, unrelated issues noticed along the way") - moved verbatim,
+landmine included, exactly as guardrail 6 requires for the `nPars`
+double-match quirk found in Chunk 5.
+
+### Dead-code cleanup
+
+`bool is_rebinned{false};` (declared in the original loop, immediately
+before the `for` loop it was presumably meant to help control) is never
+read anywhere in the function - confirmed by `grep -n "is_rebinned"
+plot_postfit.cpp` returning only its own declaration line. Dropped as
+mechanical, zero-behavior-change cleanup, matching this project's
+established practice (e.g. Chunk 8/9's dead-import removals) for a file
+newly being reorganized.
+
+### Confirm: no scientific behavior changed
+
+`plot_postfit.cpp` produces plots, not scientific acceptance results - it
+is excluded from the frozen `analysis_reference.json` contract (Tier 1,
+"Plotting separated from scientific acceptance"), same as
+`python/plotPostFit.py`. Every ROOT call, in the same order, with the
+same arguments, was moved verbatim into its new function; the two
+additions above (`ResidualPanelKind`/`ResidualPanelInfo`, and the
+`plot_masked && bh_info.available` equivalence) are both non-scientific,
+plot-only/control-flow concerns, verified empirically, not just argued:
+run directly against a `tmp_path` copy of the real J100 fixture
+(no `BHresults.json`, exercising the no-BumpHunter fallback path), the
+rewritten macro exits `0` and produces `post_fit.pdf` at **exactly
+41589 bytes** - byte-for-byte identical to both Step A's own captured
+output and the already-committed `post_fit.pdf` sitting in the tracked
+fixture directory from an earlier real production run of the original,
+unmodified macro against this exact fixture. `guardrail 11` (no new
+external library linked) confirmed by diffing the file's `#include` list
+before and after: unchanged.
+
+The `bump_hunter == true` (masked-fit) branch inside `draw_residual_panel()`
+is **not** exercised by any automated test at this repository state - it
+was not exercised by any automated test before this refactor either (no
+masked fixture exists; the plan explicitly scopes synthetic ROOT-file-
+construction fixtures for the masked path out of this chunk, see below),
+so this refactor introduces no new risk there relative to what already
+existed. As independent evidence that this branch is at least still
+syntactically/type-correct: C++ does not skip compiling an `if` branch
+that happens not to execute at runtime, so Cling's successful compilation
+and 0-exit run of the whole macro (with `bump_hunter == false` this run)
+already exercised compiling the `if (bump_hunter) { ... }` branch's code,
+even though it did not execute it.
+
+### Deliberate scope boundary (to be restated in `doc/TIER3_SYSTEM.md`, Chunk 12)
+
+Per the plan's own instruction, `load_postfit_histograms()` is not given
+its own dedicated unit test - it is "harder to test in isolation without
+a real `TFile`", and inventing a synthetic ROOT-file-construction fixture
+for it is explicitly out of this chunk's scope. It remains covered only by
+`tests/test_plot_postfit_macro.py`'s existing end-to-end test. Likewise,
+`draw_residual_panel()`'s `bump_hunter == true` path (see above) has no
+dedicated test either - this is a slightly broader boundary than the plan
+states explicitly for `load_postfit_histograms()` alone, but follows the
+same underlying constraint (no masked/BumpHunter fixture exists in this
+repository to exercise it against). Both are deliberate, explained scope
+boundaries, not silent gaps - flagged here for Chunk 12 to restate in
+`doc/TIER3_SYSTEM.md`'s "Known Limitations" section.
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_postfit_macro.py
+  tests/test_read_bumphunter_results.py -v` → 2 passed (36.62s), run for
+  real against this host's actual CVMFS/LCG scientific runtime - the
+  exact acceptance-check command Chunk 11 specifies.
+- Direct macro invocation (`root -l -b -q "plot_postfit.cpp(\"<tmp copy
+  of the J100 fixture>\", \"six\")"`, matching the launchers exactly) →
+  exit `0`, `post_fit.pdf` created at exactly 41589 bytes - byte-
+  identical to Step A's own characterization run and to the already-
+  committed reference PDF.
+- Negative control for the new ROOT-macro unit test: re-ran
+  `test_read_bumphunter_results.cpp` against a deliberately corrupted
+  fixture copy (`global_Pval` changed from `0.1234` to `0.9999`) →
+  `FAIL: global_pval = 0.9999, expected 0.1234`,
+  `TEST_READ_BUMPHUNTER_RESULTS_FAILED`, exit `1` - confirms the test
+  actually catches a wrong value, not just "does not crash."
+- `python scripts/quality_check.py --mode full` → 172 passed, 6
+  deselected; ruff clean; black clean (27 files unchanged) - unaffected,
+  confirming the two new Python files don't touch anything already
+  gated (no registration applies to this chunk).
+- `python -m ruff check tests/test_read_bumphunter_results.py` /
+  `python -m black --check tests/test_read_bumphunter_results.py` → both
+  clean already.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` → 1 passed, 2 deselected, in
+  153.99s (run in the background per this session's established
+  practice, as an extra safety net - not one of Section 7's strictly-
+  mandatory chunks, but this chunk rewrote production code the real
+  launchers invoke) - confirms the J100/J50 authoritative workflows,
+  which both invoke `plot_postfit.cpp`, still match the frozen
+  scientific reference.
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' plot_postfit.cpp
+  tests/root_macros/test_read_bumphunter_results.cpp
+  tests/root_macros/BHresults_sample.json
+  tests/test_read_bumphunter_results.py` → no output.
+- `grep -n "#include\|#pragma" plot_postfit.cpp` (before vs. after) →
+  identical include list, confirming guardrail 11.
+
+### Compliance review (Section 8, Extraction variant)
+
+1. Step A's commit (`2b7d168`) is named above; this commit's Step A test
+   is kept unchanged as an end-to-end regression test; the new
+   `read_bumphunter_results()` unit test is new, not relocated (no prior
+   test existed to relocate).
+2. Not applicable in the usual sense: `tests/test_plot_postfit_macro.py`
+   never imported `plot_postfit.cpp` (it always ran it as a subprocess),
+   so there is no import line to diff.
+3. Production code (the three shell launchers using `plot_postfit.cpp`)
+   is unchanged, and `plot_postfit()`'s public entry point retains its
+   exact original name and parameter order - confirmed by grep, not
+   assumed.
+4. No extracted function imports from `run_anaFit.py` or any Python
+   module - this chunk is pure C++, unrelated to that module system.
+5. Required Section 7 gates ran; output captured above, including the
+   extra, non-mandatory integration-gate rerun.
+6. Activity-log entry appended (this content), not a rewrite of any
+   existing section.
+
+### Remaining open chunks
+
+Chunk 12 (`doc/TIER3_SYSTEM.md`) is the only chunk left.
