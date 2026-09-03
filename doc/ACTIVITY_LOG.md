@@ -5808,3 +5808,138 @@ boundary).
 Chunks 9 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. All eight
 module-extraction and coordinator-slimming chunks (1-8) are now complete
 and verified.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 9.A: characterization tests for `plot_minuit_continuous`
+
+### Objective
+
+Pin down the current, unmodified behavior of `plot_minuit_continuous()`
+in `plot_edm.py` (repository root) before splitting it into
+`parse_minuit_edm_log()` and `plot_minuit_edm_trace()`, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 9. `plot_edm.py` has no existing
+tests at all, so this is a first-ever characterization, not a relocation.
+
+### A discrepancy between the plan and the actual dev environment, found before writing any test
+
+The plan's Section 4.2 import-placement table lists `plot_edm.py` as
+"already ROOT-free — matplotlib only" and places its imports "top-level"
+- implicitly assuming matplotlib (and, transitively, the also-imported
+`numpy`) is available wherever this file's tests run. Checked directly:
+neither `matplotlib` nor `numpy` is installed in this repository's dev
+venv, and neither appears in `requirements-dev-lock.txt` or
+`requirements-dev.txt`. Confirmed by direct attempt:
+`python -c "import matplotlib.pyplot"` and `python -c "import numpy"`
+both raise `ModuleNotFoundError`, and `import plot_edm` itself fails at
+module level for the same reason - **the current dev venv cannot import
+this file at all**, today, regardless of any refactor.
+
+This is the same situation this plan has already handled for ROOT
+throughout Chunks 3, 5, and 6: `plot_edm.py` is only ever invoked as a
+subprocess from within the LCG/CVMFS scientific environment (see
+`run_fit.py`'s `execute("python plot_edm.py %s %s" % (logfile,
+edmplot))` call) - the same environment that provides ROOT, not the
+pytest dev venv. The plan's "top-level" placement note for this file's
+imports is therefore corrected here: **Step B will defer `import
+matplotlib.pyplot as plt` inside `plot_minuit_edm_trace()`** (the one
+function that touches it), matching the import-placement rule already
+applied to every ROOT-touching function elsewhere in this plan, not left
+top-level as the draft table said. This test file stubs
+`sys.modules["matplotlib"]`/`["matplotlib.pyplot"]`/`["matplotlib.cm"]`/
+`["numpy"]` the same way `test_run_anaFit.py`/`test_run_provenance.py`
+already stub `ROOT`, so these characterization tests exercise real,
+verifiable behavior (see below) without needing matplotlib installed.
+
+### A second discrepancy: two of the three top-level imports are already dead
+
+`import numpy as np` and `import matplotlib.cm as cm` are both present in
+`plot_edm.py` today but neither `np.` nor `cm.` appears anywhere in the
+function body - confirmed by direct grep. Only `matplotlib.pyplot` (as
+`plt`) is actually used. Noted here for Step B (removing genuinely dead
+imports on newly-registered files is this project's established
+practice, e.g. Chunk 8's `run_anaFit.py` cleanup) rather than acted on in
+this characterization-only commit.
+
+### Target function (as it exists today)
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `plot_minuit_continuous(filename, outname)` | `filename: str` (quickFit log path), `outname: str` | `None` | reads `filename`; prints "Error: The file was not found." and `sys.exit(1)` if missing; prints "No matching data found." and returns early if the log has no Minuit trace lines; otherwise builds and saves a matplotlib figure to `outname` via `plt.savefig(outname, bbox_inches="tight")` |
+
+### How the fake `matplotlib.pyplot` was built, and what it actually proves
+
+The stub module records every `savefig(outname, **kwargs)` call and
+**actually writes bytes to `outname`** (a real file, not just a recorded
+call), so file-existence/non-emptiness assertions below are testing a
+real filesystem effect, not merely "the stub was invoked." Every other
+`pyplot` function used (`figure`, `plot`, `axhline`, `yscale`, `xscale`,
+`xlabel`, `ylabel`, `title`, `grid`, `legend`) is a permissive no-op,
+since their exact call arguments are not part of this file's documented
+external contract.
+
+### Tests added (`tests/test_plot_edm.py`, new file)
+
+- `test_plot_minuit_continuous_produces_output_file_for_log_with_trace_lines` -
+  a small synthetic log with four matching `VariableMetricBuilder ... -
+  FCN = ... Edm = ... NCalls` lines (including two with internal
+  iteration `0`, to exercise the star-index branch); asserts the output
+  file exists, is non-empty, and that `savefig` was called with exactly
+  `(outname, {"bbox_inches": "tight"})`.
+- `test_plot_minuit_continuous_produces_output_for_real_quickfit_log` -
+  uses the real, already-committed
+  `run/fits/J100/run_481_3000_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`
+  fixture the plan calls out explicitly; asserts a non-empty output file
+  is produced from genuine production log data, not just a synthetic one.
+- `test_plot_minuit_continuous_no_output_when_no_matching_lines` - a log
+  with no matching trace lines; asserts no exception, no output file
+  created, `savefig` never called, and `"No matching data found."`
+  actually printed (not just "does not raise").
+- `test_plot_minuit_continuous_exits_with_status_1_for_missing_file` - a
+  nonexistent input path; asserts `SystemExit` with `.code == 1`,
+  `savefig` never called, and `"Error: The file was not found."` actually
+  printed.
+
+The regex-parsed values used in the synthetic-log test (`cumulative_x`,
+`edm_values`, `star_indices`) were verified directly in a Python shell
+against the real `pattern.search(...)` regex before being relied on in
+the fixture, rather than hand-derived (the lesson already learned the
+hard way in Chunk 5.A).
+
+### What this commit does NOT do
+
+No production file was modified. `git status --short` shows only
+`tests/test_plot_edm.py` as untracked (new); `plot_edm.py` itself is
+absent from `git diff --stat` because it was never touched. The new test
+file is **not yet** registered in `scripts/quality_check.py` - per the
+plan, that happens in Step B alongside `plot_edm.py` itself.
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_edm.py -v` → 4 passed, run against
+  the unmodified `plot_edm.py`.
+- `python scripts/quality_check.py --mode full` → 158 passed, 2
+  deselected; ruff clean; black clean (23 files unchanged) - unaffected,
+  confirming the new file doesn't touch anything already gated.
+- `python -m ruff check tests/test_plot_edm.py` /
+  `python -m black --check tests/test_plot_edm.py` → both clean already
+  (run ahead of Step B's registration, so the file starts clean).
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' tests/test_plot_edm.py` → no output.
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Chunk 9, Step A.
+2. `plot_edm.py` untouched; only `tests/test_plot_edm.py` (new, untracked)
+   added.
+3. Every new test asserts real, specific behavior (exact `savefig` call
+   arguments, exact printed messages, exact exit code) - not merely "does
+   not raise."
+4. Tests were run against the unmodified target file before any
+   production change; results reported in full above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 9.B (extraction of `parse_minuit_edm_log`/`plot_minuit_edm_trace`)
+and Chunks 10 through 12 are open.
