@@ -6106,3 +6106,129 @@ already-committed, unchanged test code - no test or production file was
 touched to produce this finding or this correction. Per the activity
 log's append-only guardrail, the original entry is left exactly as
 written above; this section is the correction of record.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 10.A: characterization tests for `python/plotPostFit.py`
+
+### Objective
+
+Pin down the current, unmodified behavior of `python/plotPostFit.py`
+before splitting it into functions, per `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 10. The file has zero functions today — the entire 79-line file is
+top-level script code (`import ROOT` at module scope, then a linear
+sequence of `argparse`/`ROOT.TFile`/`TCanvas` calls) — so, per Chunk 10's
+own instruction, Step A's characterization runs the current script
+**end-to-end as a subprocess**, since there is nothing importable to call
+directly yet.
+
+### A discrepancy between the plan and this dev environment, found before writing the test
+
+`plotPostFit.py` does `import ROOT` at module scope. Confirmed directly:
+`.venv/bin/python -c "import ROOT"` raises `ModuleNotFoundError` in this
+repository's dev venv — the same situation already documented for
+`plot_edm.py` in the Chunk 9.A entry above, except here it cannot be
+worked around with `sys.modules` stubbing, because Step A's own
+characterization strategy (per the plan) is to run the *whole script* as
+a subprocess against a real ROOT file and assert on its real output — the
+point is to exercise genuine `ROOT.TFile`/`TCanvas`/`TPad` behavior, not a
+stand-in for it. `plotPostFit.py` is only ever invoked in production
+after `scripts/setup_buildAndFit.sh` has been sourced (see
+`scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh`, both of which run
+`python "$repo_dir/python/plotPostFit.py" -i ... -o ...` after sourcing
+that script), which puts the LCG/CVMFS-provided `python` (with `ROOT`
+importable) on `PATH` — not this repository's own pytest dev venv. The
+new test therefore sources `scripts/setup_buildAndFit.sh` itself inside a
+`subprocess.run(["bash", "-lc", ...])` call before invoking the script,
+mirroring the exact probe pattern already established by
+`test_analysis_workflows_integration.py::test_authoritative_setup_provides_scientific_runtime`.
+Run directly against this host's actual CVMFS/LCG environment, it passes
+for real — this is not a mocked assertion.
+
+### Target script (as it exists today)
+
+| Entry point | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `python plotPostFit.py -i <inputFile> -o <output>` (whole script, no functions) | `-i/--inputFile: str` (a `PostFit_*.root` file), `-o/--output: str` | none (process exit code only) | opens `inputFile` via `ROOT.TFile.Open`; reads `Run3TLA/postfit`, `Run3TLA/data`, `Run3TLA/chi2`; builds a two-pad `TCanvas` (postfit-vs-data overlay + data/postfit ratio); writes `output` via `TCanvas.SaveAs`; closes `inputFile` |
+
+### Tests added (`tests/test_plot_post_fit.py`, new file)
+
+- `test_plot_post_fit_script_produces_nonempty_pdf_for_real_fixture` —
+  runs the real, unmodified script as a subprocess (via the
+  `setup_buildAndFit.sh`-sourcing probe described above) against the
+  already-committed
+  `run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root`
+  fixture, writing to a `tmp_path` output; asserts the process exits `0`
+  and the output PDF exists and is non-empty.
+
+Per the plan's own instruction, **byte-identical PDF comparison is
+deliberately not attempted**: ROOT's PDF output is not guaranteed
+bit-reproducible across environments/fonts, and Tier 1 already
+established (2026-08-20 activity-log entry, "Plotting separated from
+scientific acceptance") that PDF artifacts are excluded from strict
+scientific comparison. "Runs successfully against a real fixture and
+produces a real, non-empty plot" is the chosen, and only, characterized
+invariant — recorded here explicitly so a future reader does not expect
+stronger guarantees than this step provides.
+
+### A marker decision, recorded so Step B doesn't have to re-derive it
+
+The new test is marked `@pytest.mark.requires_root` only (not also
+`requires_analysis_dependencies`). Per `doc/TIER2_SYSTEM.md`'s own marker
+definitions, `requires_root` means "needs the configured ROOT/RooFit
+runtime" and `requires_analysis_dependencies` means "needs prepared
+external checkouts" (built `XMLReader`/`quickFit`/`pyBumpHunter`
+binaries). `plotPostFit.py` needs only a working ROOT/RooFit runtime
+(via `scripts/setup_buildAndFit.sh`) — it never invokes `XMLReader`,
+`quickFit`, or BumpHunter. `doc/TIER2_SYSTEM.md` states the ordinary gate
+("`python scripts/quality_check.py --mode full`") excludes only
+`requires_analysis_dependencies`-marked tests, not `requires_root`-marked
+ones — so, once Step B registers this file in `scripts/quality_check.py`,
+this test is expected to actually run (and pass) as part of the ordinary
+full gate on a host with the scientific runtime configured, exactly like
+every other already-registered test file in this plan. This matches the
+project's existing baseline assumption (`scripts/quality_check.py`'s own
+`REQUIRED_BASELINE_PATHS`/`_print_optional_workflow_hints` checks) that
+the J100/J50 scientific environment is present, not an optional extra.
+
+### What this commit does NOT do
+
+No production file was modified. `git status --short` shows only
+`tests/test_plot_post_fit.py` as untracked (new); `git diff --stat` is
+empty — `python/plotPostFit.py` itself was never touched. The new test
+file is **not yet** registered in `scripts/quality_check.py` — per the
+plan, that happens in Step B alongside `python/plotPostFit.py` itself.
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_post_fit.py -v` → 1 passed (run for
+  real against this host's actual CVMFS/LCG scientific runtime, in
+  13.81s).
+- `python scripts/quality_check.py --mode full` → 167 passed, 2
+  deselected; ruff clean; black clean (25 files unchanged) — unaffected,
+  confirming the new file doesn't touch anything already gated.
+- `python -m ruff check tests/test_plot_post_fit.py` /
+  `python -m black --check tests/test_plot_post_fit.py` → both clean
+  already (run ahead of Step B's registration, so the file starts clean).
+- `git diff --check` → passed.
+- `git diff --stat` → empty (no production file touched).
+- `grep -nE '[[:blank:]]+$' tests/test_plot_post_fit.py` → no output.
+
+### Compliance review (Section 8, Characterization variant)
+
+1. Chunk 10, Step A.
+2. `python/plotPostFit.py` untouched; only `tests/test_plot_post_fit.py`
+   (new, untracked) added.
+3. The new test asserts real, specific behavior (real process exit code,
+   real non-empty PDF file on disk from a real ROOT fixture) — not merely
+   "does not raise."
+4. The test was run against the unmodified target file, for real, against
+   this host's actual scientific runtime, before any production change;
+   the exact result (1 passed, 13.81s) is reported above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 10.B (extraction of `parse_args`/`load_postfit_histograms`/
+`build_ratio_histogram`/`draw_postfit_canvas`/`main`) and Chunks 11
+through 12 are open.
