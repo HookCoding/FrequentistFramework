@@ -6674,3 +6674,128 @@ Both fixes are confined to `python/plotPostFit.py` and
 guardrail, Chunk 10.A's and 10.B's entries above are left exactly as
 written - this section is the correction of record for both Copilot
 findings.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 11.A: characterization test for `plot_postfit.cpp`
+
+### Objective
+
+Pin down the current, unmodified behavior of `plot_postfit.cpp`
+(repository root) before splitting it into `read_bumphunter_results()`,
+`load_postfit_histograms()`, `draw_residual_panel()`, and a slimmed
+`plot_postfit()` orchestrator, per `doc/TIER3_COMPLETION_PLAN.md` Chunk
+11. The file has one function today, `plot_postfit(char const * in_dir,
+char const * pars_str)` - no existing function boundary to characterize
+more precisely yet, and no test harness of any kind exists for ROOT
+macros anywhere in this repository, so, per Chunk 11's own instruction,
+Step A characterizes the **whole macro's current output**, run for real
+as a subprocess.
+
+### Target function (as it exists today)
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `void plot_postfit(char const * in_dir, char const * pars_str)` | `in_dir: char const *` (a fit output directory), `pars_str: char const *` (e.g. `"six"`) | `void` | opens up to four `TFile`s under `in_dir` (native/masked PostFit + FitParameters); `exit(1)` if the native residual/chi2 histograms are missing; optionally parses `<in_dir>/BHresults.json` via regex for BumpHunter results, falling back to `bump_hunter = false` when the file is absent; draws three residual panels (params, native, native-rebinned) to a canvas; writes `<in_dir>/post_fit.pdf` via `TCanvas::Print` |
+
+### Test infrastructure decision
+
+Per Chunk 11's own instruction: a small ROOT test macro invoked via
+`root -l -b -q` from a `pytest` wrapper (`subprocess.run`), so it reports
+through the same `pytest`-based gates as everything else rather than
+inventing a second CI mechanism. `plot_postfit.cpp` needs a real ROOT
+runtime this repository's own pytest dev venv does not have (confirmed
+directly, same situation already documented for
+`python/plotPostFit.py`'s ROOT dependency and
+`tests/test_analysis_workflows_integration.py`'s scientific-runtime
+tests) - it is only ever invoked in production after
+`scripts/setup_buildAndFit.sh` has been sourced (see
+`scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh`, both of which run
+`root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\")"` after sourcing
+that script). The new test sources that same setup script itself inside
+a `subprocess.run(["bash", "-lc", ...])` call before invoking the macro,
+mirroring the exact probe pattern already established by
+`tests/test_plot_post_fit.py`'s own end-to-end test and
+`test_authoritative_setup_provides_scientific_runtime`.
+
+Marked both `@pytest.mark.requires_root` and
+`@pytest.mark.requires_analysis_dependencies` from the start this time -
+applying the lesson from the CI-failure fix earlier today (see that
+entry above): any test that actually sources
+`scripts/setup_buildAndFit.sh` needs CVMFS mounted, so it must carry both
+markers to stay out of the CVMFS-less ordinary CI gate, regardless of
+whether it also needs built `XMLReader`/`quickFit`/`pyBumpHunter`
+binaries specifically.
+
+### Test added (`tests/test_plot_postfit_macro.py`, new file)
+
+- `test_plot_postfit_macro_produces_nonempty_pdf_for_real_fixture` - runs
+  the real, unmodified macro as a subprocess (via the
+  `setup_buildAndFit.sh`-sourcing probe described above) against a
+  `tmp_path` **copy** of the already-committed
+  `run/fits/J100/run_481_3000_sixPar/` fixture directory (never written
+  into the tracked fixture itself - the macro writes `post_fit.pdf` into
+  `in_dir`), with `pars_str = "six"`. This fixture directory has no
+  `BHresults.json` and no `*_masked.root` files, confirmed by direct
+  listing - exercising the current no-BumpHunter fallback path
+  (`bump_hunter = false`) exactly as Chunk 11 specifies. Asserts the
+  process exits `0` and `post_fit.pdf` exists and is non-empty in the
+  copied directory.
+
+Per the plan's own instruction (and Tier 1's existing "Plotting separated
+from scientific acceptance" policy, already cited for
+`tests/test_plot_post_fit.py`), **byte-identical PDF comparison is
+deliberately not attempted** - "runs successfully against a real fixture
+and produces a real, non-empty plot" is the chosen, and only,
+characterized invariant. As independent, incidental corroboration (not a
+relied-upon assertion): the macro's real output PDF came back exactly
+41589 bytes in this session, byte-for-byte identical to the already-
+committed `post_fit.pdf` sitting in the tracked fixture directory from an
+earlier real production run of this exact, unmodified macro against this
+exact fixture - consistent with, though not proof of, a fully
+deterministic PDF for this specific ROOT/font/data combination.
+
+### What this commit does NOT do
+
+No production file was modified. `git status --short` shows only
+`tests/test_plot_postfit_macro.py` as untracked (new); `git diff --stat`
+is empty - `plot_postfit.cpp` itself was never touched. Per Chunk 11's
+own text, no `scripts/quality_check.py` registration applies to this
+file (it only covers Python files) - `tests/test_plot_postfit_macro.py`
+is a Python test file and could in principle be registered, but Chunk 11
+explicitly does not require it (unlike Chunks 9/10's Python production
+targets), so registration is deferred to a decision recorded in Step B
+below rather than assumed here.
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_postfit_macro.py -v` → 1 passed
+  (19.83s), run for real against this host's actual CVMFS/LCG scientific
+  runtime.
+- `python scripts/quality_check.py --mode full` → 172 passed, 6
+  deselected; ruff clean; black clean (27 files unchanged) - unaffected,
+  confirming the new file doesn't touch anything already gated.
+- `python -m ruff check tests/test_plot_postfit_macro.py` /
+  `python -m black --check tests/test_plot_postfit_macro.py` → both
+  clean already.
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' tests/test_plot_postfit_macro.py` → no
+  output.
+
+### Compliance review (Section 8, Characterization variant)
+
+1. Chunk 11, Step A.
+2. `plot_postfit.cpp` untouched; only
+   `tests/test_plot_postfit_macro.py` (new, untracked) added.
+3. The new test asserts real, specific behavior (real process exit code,
+   real non-empty PDF file on disk from a real ROOT fixture) - not merely
+   "does not raise."
+4. The test was run against the unmodified target file, for real, against
+   this host's actual scientific runtime, before any production change;
+   the exact result (1 passed, 19.83s) is reported above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made (recorded per Step B's own
+   activity-log entry once given).
+
+### Remaining open chunks
+
+Chunk 11.B (extraction of `read_bumphunter_results`/
+`load_postfit_histograms`/`draw_residual_panel`) and Chunk 12 are open.
