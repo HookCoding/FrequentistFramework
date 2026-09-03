@@ -121,6 +121,7 @@ def main() -> None:
     python_targets = [
         "python/analysis_reference.py",
         "python/repo_utils.py",
+        "python/run_cli.py",
         "python/run_execution.py",
         "python/run_fit.py",
         "python/run_manifest.py",
@@ -135,6 +136,7 @@ def main() -> None:
         "tests/test_compare_root_outputs.py",
         "tests/test_repo_utils.py",
         "tests/test_run_anaFit.py",
+        "tests/test_run_cli.py",
         "tests/test_run_execution.py",
         "tests/test_run_fit.py",
         "tests/test_run_manifest.py",

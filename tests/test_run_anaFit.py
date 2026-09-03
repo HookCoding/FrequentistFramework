@@ -97,154 +97,6 @@ def _capture_run_anafit_kwargs(module, monkeypatch: pytest.MonkeyPatch) -> dict[
     return captured
 
 
-def test_main_derives_default_signame_for_normal_width(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-    captured = _capture_run_anafit_kwargs(module, monkeypatch)
-
-    module.main(
-        [
-            "--datafile",
-            "input.root",
-            "--datahist",
-            "data",
-            "--topfile",
-            "top.xml",
-            "--categoryfile",
-            "category.xml",
-            "--wsfile",
-            "workspace.root",
-            "--outputfile",
-            "fit-result.root",
-            "--nbkg",
-            "2E8,0,3E8",
-            "--sigmean",
-            "1200",
-            "--sigwidth",
-            "8.5",
-            "--folder",
-            str(tmp_path),
-        ]
-    )
-
-    assert captured["signame"] == "mean1200_width8.5"
-
-
-def test_main_preserves_integer_valued_float_width_in_default_signame(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-    captured = _capture_run_anafit_kwargs(module, monkeypatch)
-
-    module.main(
-        [
-            "--datafile",
-            "input.root",
-            "--datahist",
-            "data",
-            "--topfile",
-            "top.xml",
-            "--categoryfile",
-            "category.xml",
-            "--wsfile",
-            "workspace.root",
-            "--outputfile",
-            "fit-result.root",
-            "--nbkg",
-            "2E8,0,3E8",
-            "--sigmean",
-            "1000",
-            # --sigwidth intentionally omitted: the default is 7. (a float),
-            # so str(sigwidth) is "7.0", not "7" -- this pins down the naive
-            # "%s"-style formatting used for the default signame, which is
-            # easy to accidentally "clean up" into "%g"-style formatting
-            # during an extraction.
-            "--folder",
-            str(tmp_path),
-        ]
-    )
-
-    assert captured["signame"] == "mean1000_width7.0"
-
-
-def test_main_uses_zprime_naming_when_sigwidth_is_minus_999(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-    captured = _capture_run_anafit_kwargs(module, monkeypatch)
-
-    module.main(
-        [
-            "--datafile",
-            "input.root",
-            "--datahist",
-            "data",
-            "--topfile",
-            "top.xml",
-            "--categoryfile",
-            "category.xml",
-            "--wsfile",
-            "workspace.root",
-            "--outputfile",
-            "fit-result.root",
-            "--nbkg",
-            "2E8,0,3E8",
-            "--sigmean",
-            "1400",
-            "--sigwidth",
-            "-999",
-            "--folder",
-            str(tmp_path),
-        ]
-    )
-
-    assert captured["signame"] == "mR1400"
-
-
-def test_main_respects_explicit_signame_override(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_run_anafit_module(monkeypatch)
-    captured = _capture_run_anafit_kwargs(module, monkeypatch)
-
-    module.main(
-        [
-            "--datafile",
-            "input.root",
-            "--datahist",
-            "data",
-            "--topfile",
-            "top.xml",
-            "--categoryfile",
-            "category.xml",
-            "--wsfile",
-            "workspace.root",
-            "--outputfile",
-            "fit-result.root",
-            "--nbkg",
-            "2E8,0,3E8",
-            "--sigmean",
-            "1200",
-            "--sigwidth",
-            "8.5",
-            "--signame",
-            "customSignal",
-            "--folder",
-            str(tmp_path),
-        ]
-    )
-
-    # An explicit --signame must survive unchanged, even though it doesn't
-    # match what the default-naming logic would have derived for the same
-    # sigmean/sigwidth.
-    assert captured["signame"] == "customSignal"
-
-
 def test_main_parses_representative_j100_style_invocation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -252,6 +104,15 @@ def test_main_parses_representative_j100_style_invocation(
     # Mirrors an actual invocation shape from scripts/run_anaFit_J100.sh:
     # backgroundfile/signalfile present, no --signame, no --dosignal/
     # --dolimit/--doprefit/--sysfile (all left at their defaults).
+    #
+    # This is now main()'s own wiring/smoke test (Tier 3 Chunk 7): argument
+    # parsing itself is build_arg_parser()'s responsibility and
+    # default-signame derivation is normalize_signal_name()'s, both unit-
+    # tested directly in tests/test_run_cli.py. What's left to check here
+    # is that main() still wires parser -> normalize_signal_name -> the
+    # kwargs passed to run_anaFit() correctly, plus the one piece of CLI
+    # logic that stays inline in main() itself: defaulting systdict to
+    # None when --sysfile isn't given.
     module = _load_run_anafit_module(monkeypatch)
     captured = _capture_run_anafit_kwargs(module, monkeypatch)
 

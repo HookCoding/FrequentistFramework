@@ -5083,3 +5083,151 @@ new tests plus one shared capture helper, 220 lines).
 ### Remaining open chunks
 
 Chunk 7.B (extraction of `run_cli.py`) and Chunks 8 through 12 are open.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 7.B: extract `run_cli.py`
+
+### Objective
+
+Move `main()`'s inline `argparse` setup and default-signame logic,
+characterized in Chunk 7.A (commit `9194c2a`), out of `python/run_anaFit.py`
+into a new `python/run_cli.py`, per `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 7 - the plan's last extraction.
+
+### What changed
+
+- `python/run_cli.py` created with two functions:
+  - `build_arg_parser()` - the 22 `parser.add_argument(...)` calls, moved
+    verbatim (same flags, dests, types, defaults, help text, including the
+    `default= None` stray-space quirk on `--signalfile`), wrapped in a
+    thin function that returns the constructed parser instead of leaving
+    it inline in `main()`.
+  - `normalize_signal_name(sigmean, sigwidth, signame)` - the
+    `if not args.signame: ...` default-naming block, moved verbatim and
+    made pure (takes/returns `signame` instead of mutating `args`).
+- `python/run_anaFit.py`: the 22-line `parser = argparse.ArgumentParser
+  (...)` block and the 5-line default-signame `if` block both removed from
+  `main()`; replaced with `parser = build_arg_parser()` and `args.signame =
+  normalize_signal_name(args.sigmean, args.sigwidth, args.signame)`.
+  `from run_cli import build_arg_parser, normalize_signal_name` added
+  (flat sibling-import style). The top-level `argparse` name in the
+  combined `import os,sys,re,argparse,subprocess,shutil` statement is now
+  dead - left in place and documented, per the established policy for
+  this not-yet-gated file's dead imports (`hashlib`/`platform`/
+  `subprocess` since Chunk 3.B, `re` since Chunk 5.B), deferred to
+  Chunk 8's coordinator slimming.
+- `tests/test_run_cli.py` created with 5 tests, **rewritten to call
+  `run_cli.build_arg_parser()`/`run_cli.normalize_signal_name()` directly**
+  rather than through `main()` (see below).
+- `scripts/quality_check.py`: added `python/run_cli.py` to
+  `python_targets` and `tests/test_run_cli.py` to `test_targets`.
+
+### Necessary test-relocation adaptation, and one deliberate non-move
+
+Chunk 7.A's 5 characterization tests called `module.main([...])` end-to-end
+(mocking `run_anaFit` and capturing its kwargs) because no standalone
+function existed yet to call directly - the same situation as Chunk 5.A.
+Now that `build_arg_parser()`/`normalize_signal_name()` exist, the 4 tests
+whose whole point is one of those two functions' own behavior were
+rewritten to call them directly and split accordingly:
+- `test_main_derives_default_signame_for_normal_width`,
+  `test_main_preserves_integer_valued_float_width_in_default_signame`,
+  `test_main_uses_zprime_naming_when_sigwidth_is_minus_999`,
+  `test_main_respects_explicit_signame_override` -> became
+  `test_normalize_signal_name_derives_default_for_normal_width`,
+  `test_normalize_signal_name_preserves_integer_valued_float_width`,
+  `test_normalize_signal_name_uses_zprime_naming_when_sigwidth_is_minus_999`,
+  `test_normalize_signal_name_respects_explicit_override` in
+  `tests/test_run_cli.py`, calling `run_cli.normalize_signal_name(sigmean,
+  sigwidth, signame)` directly - no `main()`, no module loading, no
+  `tmp_path`/`--folder` needed at all, since the pure function has no
+  filesystem side effects. Same expected values as Chunk 7.A, unchanged.
+- `test_main_parses_representative_j100_style_invocation` was **split
+  rather than moved wholesale**: its flag-parsing assertions (datafile,
+  backgroundfile, rangelow/rangehigh, dosignal/dolimit/doprefit,
+  sigmean/sigwidth, nsig default, maskthreshold, sysfile) became
+  `test_build_arg_parser_parses_representative_j100_style_invocation` in
+  `tests/test_run_cli.py`, calling `run_cli.build_arg_parser()` directly
+  and asserting `args.signame is None` (the bare parser leaves it
+  unset - deriving a default is `normalize_signal_name()`'s job, not the
+  parser's). Its `systdict` assertion belongs to neither new function -
+  loading `--sysfile` into `systdict` is separate logic that **stays
+  inline in `main()`** (out of scope for this chunk's two named target
+  functions) - so the original test **was kept in
+  `tests/test_run_anaFit.py`**, unmoved, now serving explicitly as
+  `main()`'s own wiring/smoke test: that `build_arg_parser()` ->
+  `parser.parse_args()` -> `normalize_signal_name()` -> the kwargs
+  actually passed to `run_anaFit()` are still correctly connected, plus
+  the one piece of CLI logic that remains inline. This is a documented,
+  necessary Test Relocation Rule exception, not an oversight: the test's
+  coverage spans two extracted functions and one still-inline block at
+  once, so it could not honestly become an import-line-only move into
+  either module.
+
+### Ruff/Black fixes required to register the new file (mechanical, zero behavior change)
+
+Registering `run_cli.py` in `python_targets` was the first time this
+exact code was lint-checked (it lived inline in the un-gated
+`run_anaFit.py`'s `main()` before): every `add_argument(...)` call
+exceeded the 100-column limit (up to 178 characters) and was reflowed by
+`python -m black python/run_cli.py` into one-argument-per-line or
+single-line form as each call's length required; two calls remained
+exactly at 99-100 columns after formatting and needed no further change.
+No `ruff check` findings beyond what black's reformat already resolved.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_cli.py -v` → 5 passed, in isolation.
+- `python -m pytest tests/test_run_cli.py tests/test_run_anaFit.py -v`
+  → 21 passed (5 new + 16 remaining in `test_run_anaFit.py`, matching the
+  pre-move total of 21 exactly: Chunk 7.A's 20 plus one - Chunk 7.A had
+  added 5 to a pre-existing 15, Step B nets the same 21 by moving 4 out
+  and keeping 1 as the coordinator's wiring test).
+- `python scripts/quality_check.py --mode full` → 151 passed, 2
+  deselected; ruff clean; black clean (22 files unchanged); exit code 0.
+- `git diff --stat -- python/run_anaFit.py` → 32 lines changed (4
+  insertions, 28 deletions).
+- `git diff --check` → passed (all trailing-whitespace hits are
+  pre-existing lines in `run_anaFit.py`'s untouched body).
+- The mandatory J100/J50 integration gate was **not** rerun for this
+  chunk: `build_arg_parser()`/`normalize_signal_name()` touch no real
+  branch conditions in the scientific fit/masking pipeline (pure CLI
+  parsing and string formatting), matching the precedent set by Chunk 2.B
+  (`run_manifest.py`) and Chunk 3.B (`run_provenance.py`), neither of
+  which reran it either - Section 7 reserves the mandatory rerun for
+  Chunks 4, 5, 8, and always before 12.
+
+### Compliance review (Section 8, Extraction checklist)
+
+1. Chunk 7, Step B (this entry) - the plan's last extraction chunk.
+2. Step A is committed (`9194c2a`) and referenced above.
+3. No scientific constants, references, tolerances, dependency revisions,
+   or canonical workflow arguments touched.
+4. Relocated tests' diffs are not import-line-only - the call target
+   changed from `module.main(...)` to `run_cli.build_arg_parser()`/
+   `run_cli.normalize_signal_name(...)` directly for 5 tests, and one
+   test was deliberately kept unmoved as a documented exception (its
+   coverage spans a still-inline block); no assertion or expected value
+   changed from Chunk 7.A.
+5. Both new functions are covered: `build_arg_parser()` (1 direct test
+   plus indirect coverage via `main()`'s own wiring test) and
+   `normalize_signal_name()` (4 tests covering normal width, the
+   float-formatting quirk, the Zprime branch, and explicit override).
+6. Confirmed by grep: `run_anaFit.py` actually imports and never
+   redefines `build_arg_parser`/`normalize_signal_name`; no remaining
+   `argparse.` call sites outside the dead top-level import.
+7. Only this chunk's five changed/new files were staged.
+8. All required Section 7 gates ran and passed; the mandatory integration
+   gate was correctly judged not applicable to this chunk (see above),
+   matching established precedent for non-branch-touching chunks.
+9. `git diff --check` passed.
+10. This activity-log entry appended (not a rewrite of any existing
+    section).
+11. Chunk 8 through 12 remain open, listed below.
+12. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 8 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. All seven
+module extractions (Chunks 1-7) are now complete and verified;
+`python/run_anaFit.py` is 254 lines. Chunk 8 (coordinator slimming and
+dependency-direction verification) is next.
