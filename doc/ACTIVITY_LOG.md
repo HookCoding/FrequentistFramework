@@ -6232,3 +6232,219 @@ plan, that happens in Step B alongside `python/plotPostFit.py` itself.
 Chunk 10.B (extraction of `parse_args`/`load_postfit_histograms`/
 `build_ratio_histogram`/`draw_postfit_canvas`/`main`) and Chunks 11
 through 12 are open.
+
+## 2026-09-03: Tier-3 refactoring — Chunk 10.B: extract functions from `python/plotPostFit.py`
+
+### Objective
+
+Move `python/plotPostFit.py`'s top-level script code, characterized and
+human-verified in Step A (commit `d24d5bf`), into five functions plus a
+`main()` and an `if __name__ == "__main__":` guard, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 10.
+
+### What changed
+
+- `python/plotPostFit.py` restructured in place into:
+  - `PostfitHistograms` — a `typing.NamedTuple` of `(postfit, data, chi2)`.
+  - `parse_args(argv=None)` — the two `argparse` arguments, moved verbatim
+    into a function, `parser.parse_args(argv)` instead of
+    `parser.parse_args()` so it is callable with an explicit argument list
+    in tests, matching the pattern already used for `run_cli.py`'s
+    `build_arg_parser()`.
+  - `load_postfit_histograms(input_file)` — opens `input_file`, reads
+    `Run3TLA/postfit`/`Run3TLA/data`/`Run3TLA/chi2`, applies the same
+    marker/line styling the original script applied inline, moved
+    verbatim.
+  - `build_ratio_histogram(data, postfit)` — the `h_ratio = data.Clone(...);
+    h_ratio.Divide(postfit)` block and all of its styling calls, moved
+    verbatim.
+  - `draw_postfit_canvas(data, postfit, chi2_hist, ratio_hist)` — the
+    two-pad canvas, legend, and χ²/ndof text block, moved verbatim (one
+    string-formatting rewrite, see below); returns the built `TCanvas`
+    without saving it.
+  - `main(argv=None)` — orchestrates the above: sets
+    `ROOT.gStyle.SetOptStat(0)`/`ROOT.gROOT.SetBatch(True)` (moved out of
+    module scope, see decision below), calls `parse_args`, then
+    `load_postfit_histograms`, `build_ratio_histogram`,
+    `draw_postfit_canvas` in order, then `canvas.SaveAs(args.output)` and
+    `postfit_file.Close()`.
+  - `if __name__ == "__main__": main()` guard.
+- `scripts/quality_check.py`: `python/plotPostFit.py` and
+  `tests/test_plot_post_fit.py` added to `python_targets`/`test_targets`
+  (alphabetically, next to `python/analysis_reference.py` and
+  `tests/test_plot_edm.py` respectively).
+- Step A's end-to-end test
+  (`test_plot_post_fit_script_produces_nonempty_pdf_for_real_fixture`)
+  kept, unchanged, in `tests/test_plot_post_fit.py` — it is now a
+  regression test of `main()`'s CLI contract, still valuable (the Test
+  Relocation Rule does not apply here: this test never imported the
+  production file, it always ran it as a subprocess, so there is no
+  import line to update and nothing else to change).
+- Five new tests added for the newly-introduced functions (listed below).
+
+### A real, verified bug the plan's own table would have introduced: ROOT file lifetime
+
+The plan's Section 6 target-decomposition table lists
+`load_postfit_histograms(input_file)`'s output as just the
+`PostfitHistograms` triple. Implemented and tested literally as written
+first, then verified directly against the real fixture file, in this
+host's actual scientific runtime (not simulated): once the function
+returns and its own local `TFile` reference goes out of scope with no
+other reference held, calling `.GetEntries()`/any other method on the
+returned histograms fails with `AttributeError: 'CPyCppyy_NoneType'
+object has no attribute 'GetEntries'` — the file is garbage-collected
+before the histograms are used, invalidating them. The original,
+single-scope script never hit this, because its `postfit_file` stayed
+alive as a script-level name for the entire run; splitting it into a
+function that returns only the histograms introduces a new object-
+lifetime hazard that did not exist before. **Corrected the plan's
+literal table**: `load_postfit_histograms()` returns
+`(PostfitHistograms, postfit_file)` — the still-open `TFile` alongside
+the triple — and `main()` holds that reference until after
+`canvas.SaveAs(...)`, then calls `postfit_file.Close()`, exactly
+mirroring the original script's object lifetime. This was verified two
+ways: (1) a standalone reproduction script matching the plan's literal
+signature, run for real, reproducing the crash; (2) the new
+`test_load_postfit_histograms_applies_styling_and_keeps_file_open` test
+below, confirmed to fail against the literal (unfixed) version — reverted
+locally, observed a real `ValueError: too many values to unpack` at the
+unpacking call site once `main()`'s own call was also downgraded to match
+— and to pass against the fixed version once restored.
+
+### A second decision, recorded per the plan's own instruction
+
+The plan's table asks Step B to "decide whether styling stays in
+[`load_postfit_histograms`] or moves to a separate
+`style_postfit_histograms()`, and record the decision." Decision: styling
+(`data`/`postfit`'s marker/line style) **stays inside**
+`load_postfit_histograms()`. It is applied immediately and unconditionally
+to every histogram this function loads, with no call site needing the
+unstyled objects first — unlike `run_templates.py`'s Chunk 5 decomposition
+(`_stage_xml_templates`/`_seed_prefit_parameters`), where splitting served
+a real, independent testability or reuse need, a separate
+`style_postfit_histograms()` here would only relocate four `Set*()` calls
+without changing what is tested or reused.
+
+### A third, related decision: where `ROOT.gStyle.SetOptStat(0)`/`ROOT.gROOT.SetBatch(True)` now live
+
+The original script executed these two calls at **import time**, before
+`argparse` even ran. The plan's decomposition table has no dedicated
+"setup" function for them, and logically they belong wherever `main()`'s
+orchestration begins — moved to the top of `main()`, called before
+`parse_args()`, preserving the exact original ordering relative to
+everything else. For the one real production call path (`python
+plotPostFit.py -i ... -o ...`, which always reaches `main()` via the
+`if __name__ == "__main__":` guard), behavior is unchanged bit-for-bit.
+The only behavioral difference is for a hypothetical bare `import
+plotPostFit` with `main()` never called — which nothing in this
+repository does (confirmed by `grep -rn "plotPostFit"` across the whole
+repository: only the two shell launchers invoke it, both as a
+subprocess). This is also a direct, verified testability payoff:
+`tests/test_plot_post_fit.py`'s `parse_args()` tests import the module
+with a bare, attribute-less `ROOT` stub (nothing beyond the module name
+needs to resolve) precisely because no ROOT attribute is touched at
+import time any more.
+
+### A verified byte-identical string-formatting rewrite
+
+`draw_postfit_canvas()`'s χ²/ndof text was built with implicit
+concatenation (`string = "#chi^{2}/ndof = "; string += f"{rchi2:.3f}"`);
+rewritten as a single f-string,
+`f"#chi^{{2}}/ndof = {rchi2:.3f}"`. Verified byte-identical in a live
+Python shell for a representative value (`rchi2 = 12.34567`) before
+relying on it — both forms produce `'#chi^{2}/ndof = 12.346'`.
+
+### New tests added (`tests/test_plot_post_fit.py`)
+
+- `test_parse_args_parses_required_flags`,
+  `test_parse_args_accepts_long_flags`,
+  `test_parse_args_requires_both_flags` (parametrized: no args, only
+  `-i`, only `-o`) — zero real ROOT: `parse_args()` never touches it, so
+  these import the module with a bare, attribute-less `ROOT` stub in
+  `sys.modules` (mirroring `test_run_anaFit.py`'s established stubbing
+  style) and call `parse_args()` directly.
+- `test_load_postfit_histograms_applies_styling_and_keeps_file_open` —
+  real ROOT, run as a subprocess snippet (after sourcing
+  `scripts/setup_buildAndFit.sh`, mirroring
+  `test_authoritative_setup_provides_scientific_runtime`'s probe
+  pattern) against the same real fixture Step A used; asserts every
+  styling call's exact effect (marker style/size/color, line
+  width/color) and that the returned `postfit_file` is still open with
+  usable histograms — the direct regression test for the file-lifetime
+  fix above.
+- `test_build_ratio_histogram_computes_real_ratio_and_styling` — per the
+  plan's own instruction, uses small real `ROOT.TH1D` objects built
+  in-test (no input file needed); asserts the actual computed ratio bin
+  contents (`10/5=2.0`, `20/40=0.5`) and every styling call's exact
+  effect, not just "was called."
+- `test_draw_postfit_canvas_returns_two_pad_canvas` — small real
+  `ROOT.TH1D`/`build_ratio_histogram()` output; asserts the returned
+  object `isinstance(..., ROOT.TCanvas)` and that its primitives include
+  pads named exactly `pad1`/`pad2`.
+
+All four new real-ROOT assertions (styling values, ratio bin contents,
+axis titles/divisions, marker style, pad names) were independently
+verified in a live, real-ROOT shell against this host's actual scientific
+runtime before being relied on in the tests, rather than hand-derived.
+
+### Confirm: no scientific behavior changed
+
+`plotPostFit.py` produces plots, not scientific acceptance results — it
+is excluded from the frozen `analysis_reference.json` contract (Tier 1,
+"Plotting separated from scientific acceptance"). Every ROOT call, in the
+same order, with the same arguments, was moved verbatim into its new
+function (the two deviations above — the returned `TFile` handle and the
+`gStyle`/`gROOT` call site — are both non-scientific, plot-only
+concerns, not fit/statistics logic, and both were verified empirically
+to reproduce the exact original end-to-end output: a real, non-empty
+PDF from the real J100 fixture, `python
+plotPostFit.py -i run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root
+-o <tmp>` → exit 0, `<tmp>` created and non-empty, run directly against
+this host's real scientific runtime after this commit's change, not
+just via the test suite).
+
+### Verification performed
+
+- `python -m pytest tests/test_plot_post_fit.py -v` → 9 passed (46.87s),
+  run for real against this host's actual CVMFS/LCG scientific runtime.
+- `python scripts/quality_check.py --mode full` → 176 passed, 2
+  deselected; ruff clean; black clean (27 files unchanged).
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` → 1 passed, 2 deselected, in
+  145.24s (run in the background per this session's established practice
+  for this specific command, which regularly exceeds the foreground tool
+  timeout; this chunk is not one of Section 7's chunks where this gate is
+  strictly mandatory, but it is rerun here anyway as an extra safety net,
+  since this chunk changed real ROOT object-lifetime control flow — it
+  confirms the J100/J50 authoritative workflows, which both invoke
+  `plotPostFit.py`, still match the frozen scientific reference).
+- `git diff --check` → passed.
+- `grep -nE '[[:blank:]]+$' python/plotPostFit.py tests/test_plot_post_fit.py scripts/quality_check.py` →
+  no output.
+- `grep -n "plotPostFit" scripts/run_anaFit_J100.sh scripts/run_anaFit_J50.sh` →
+  both launchers' invocations (`python "$repo_dir/python/plotPostFit.py"
+  -i ... -o ...`) unchanged, confirming the public CLI contract this
+  refactor must not break.
+
+### Compliance review (Section 8, Extraction variant)
+
+1. Step A's commit (`d24d5bf`) is named above; this commit's Step A test
+   is kept unchanged, and five new tests are added for the newly-
+   introduced functions — none of the five are relocated, all are new.
+2. `tests/test_plot_post_fit.py`'s Step A test required no diff beyond
+   its position in the file (no import line existed to change, since it
+   was always subprocess-based).
+3. Production code (the two shell launchers) is unchanged and still
+   calls the script's unchanged public CLI contract — confirmed by grep,
+   not assumed.
+4. `python/plotPostFit.py` does not import from `run_anaFit.py` or any
+   of the seven extracted `run_anaFit.py` modules — it was never part of
+   that module system; it is its own standalone script under `python/`.
+5. Required Section 7 gates ran; output captured above.
+6. Activity-log entry appended (this content), not a rewrite of any
+   existing section.
+
+### Remaining open chunks
+
+Chunk 11 (`plot_postfit.cpp`) and Chunk 12
+(`doc/TIER3_SYSTEM.md`) are open.

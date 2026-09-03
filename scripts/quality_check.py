@@ -121,6 +121,7 @@ def main() -> None:
     python_targets = [
         "plot_edm.py",
         "python/analysis_reference.py",
+        "python/plotPostFit.py",
         "python/repo_utils.py",
         "python/run_anaFit.py",
         "python/run_cli.py",
@@ -137,6 +138,7 @@ def main() -> None:
         "tests/test_analysis_reference.py",
         "tests/test_compare_root_outputs.py",
         "tests/test_plot_edm.py",
+        "tests/test_plot_post_fit.py",
         "tests/test_repo_utils.py",
         "tests/test_run_anaFit.py",
         "tests/test_run_cli.py",
