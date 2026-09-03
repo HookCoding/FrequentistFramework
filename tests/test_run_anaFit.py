@@ -80,6 +80,13 @@ def test_main_propagates_analysis_status(
             "fit-result.root",
             "--nbkg",
             "dummy",
+            # --rangelow/--rangehigh are required (Copilot review, PR #6):
+            # run_anaFit() immediately does rangehigh - rangelow arithmetic,
+            # so they can no longer be omitted from a real invocation.
+            "--rangelow",
+            "481",
+            "--rangehigh",
+            "3000",
         ]
     )
 

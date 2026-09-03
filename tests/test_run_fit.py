@@ -12,9 +12,11 @@ def test_build_fit_extract_stops_after_xmlreader_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
+    commands: list[str] = []
 
     def fail_xmlreader(cmd, description, expected_outputs=()):
         calls.append(description)
+        commands.append(cmd)
         return False
 
     # execute_required lives in a different module (run_execution.py), so
@@ -38,6 +40,14 @@ def test_build_fit_extract_stops_after_xmlreader_failure(
         )
 
     assert calls == ["XMLReader workspace generation"]
+    # A regression test for the readability fix (caught in review): the
+    # command string used to be built via implicit adjacent-string-literal
+    # concatenation with mixed quoting ("..." '...') and old-style "%s" %
+    # substitution; rewritten as a single f-string. Pin down the exact
+    # rendered command to confirm the runtime text is unchanged.
+    assert commands == [
+        'xmlAnaWSBuilder/build/bin/XMLReader -x top.xml -o "logy integral" --minimizerStrategy 0'
+    ]
 
 
 def test_build_fit_extract_stops_after_quickfit_failure(

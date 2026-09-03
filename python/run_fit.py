@@ -15,8 +15,8 @@ def build_fit_extract(
     maskrange=None,
 ):
     xmlreader_command = (
-        "xmlAnaWSBuilder/build/bin/XMLReader -x %s " '-o "logy integral" --minimizerStrategy 0'
-    ) % topfile
+        f'xmlAnaWSBuilder/build/bin/XMLReader -x {topfile} -o "logy integral" --minimizerStrategy 0'
+    )
     if not execute_required(
         xmlreader_command,
         "XMLReader workspace generation",

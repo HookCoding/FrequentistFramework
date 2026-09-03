@@ -5431,3 +5431,100 @@ Only `python/run_cli.py` and `tests/test_run_cli.py` touched. Not folded
 into Chunk 8 - a review finding on already-pushed Chunk 7 work, fixed
 immediately as its own commit, per this project's established practice
 for Copilot review findings.
+
+## 2026-09-03: Fix optional range args and ambiguous command-string concatenation (GitHub Copilot review, PR #6)
+
+### What Copilot found
+
+Two more findings on the newly introduced Chunk 6/7 modules:
+
+1. (Medium) `python/run_cli.py`: `--rangelow`/`--rangehigh` are parsed as
+   optional, but `run_anaFit.run_anaFit()` immediately does `rangehigh -
+   rangelow` arithmetic, so omitting either would parse to `None` and
+   crash later with a confusing `TypeError` instead of a clear `argparse`
+   usage error at parse time. Suggested fix: mark both `required=True`.
+2. (Low) `python/run_fit.py`: `xmlreader_command`'s construction relies on
+   implicit adjacent-string-literal concatenation with mixed quoting
+   (`"..." '...'`), which is easy to misread/edit. Suggested fix: a single
+   f-string, keeping the exact runtime command text unchanged.
+
+### Verification performed before fixing
+
+- Confirmed finding 1's premise by inspection: `run_anaFit()`'s first
+  real line of work is `nbins=rangehigh - rangelow`, unconditionally.
+  Neither flag has a `default=`.
+- Checked whether this was introduced by Tier 3 or pre-existing: it was
+  already present, verbatim, in the original `run_anaFit.py` (moved as-is
+  by Chunk 7.B). Notably, the **sibling** script
+  `python/run_injections_anaFit.py` (out of Tier 3's scope, untouched by
+  this refactor) already marks its own `--rangelow`/`--rangehigh` as
+  `required=True` for the exact same reason - confirming this is an
+  established convention elsewhere in the codebase that `run_anaFit.py`'s
+  own CLI simply never had, not a new requirement being invented here.
+- Checked real-world impact: both `scripts/run_anaFit_J100.sh` and
+  `scripts/run_anaFit_J50.sh` (the only production callers) already pass
+  `--rangelow`/`--rangehigh` unconditionally - `required=True` changes
+  nothing for the canonical workflows, it only changes what happens for
+  an invocation that omits them (a clear `argparse` error instead of a
+  crash two functions later).
+- Found one existing test that *would* break:
+  `test_main_propagates_analysis_status` in `tests/test_run_anaFit.py`
+  omits both flags (it mocks `run_anaFit` entirely, so the resulting
+  `None` values were never actually used) - updated to pass them, per the
+  same practice used for prior fixes that require a compensating test
+  update to stay green.
+- Verified finding 2's suggested rewrite is byte-identical to the
+  original by direct comparison in a Python shell: constructing the old
+  three-piece expression and the new f-string with the same `topfile`
+  value and comparing the results confirmed `old == new`.
+
+### Fixes
+
+- `python/run_cli.py`: `--rangelow` and `--rangehigh` both gained
+  `required=True` (and were reflowed to `black`'s multi-line
+  `add_argument(...)` form, since the line no longer fits one line with
+  the new keyword).
+- `python/run_fit.py`: `xmlreader_command`'s construction rewritten from
+  `("...%s " '...') % topfile` to a single f-string
+  `f'...XMLReader -x {topfile} -o "logy integral" --minimizerStrategy 0'`
+  - same runtime string, single unambiguous literal.
+- `tests/test_run_anaFit.py`: `test_main_propagates_analysis_status`'s
+  args list gained `--rangelow 481 --rangehigh 3000`.
+- `tests/test_run_cli.py`:
+  - The representative-invocation args list was pulled out into a shared
+    module-level `_REPRESENTATIVE_ARGS` constant (previously duplicated
+    inline), used by both the existing parse test and the new one below.
+  - `test_build_arg_parser_requires_range_flags` added (parametrized over
+    both flags) - builds a valid arg list, removes one flag/value pair,
+    and asserts `parser.parse_args(...)` raises `SystemExit` with the
+    missing flag named in the printed error. Confirmed to fail
+    (`DID NOT RAISE SystemExit`) against the pre-fix optional flags and
+    pass against the fix.
+- `tests/test_run_fit.py`:
+  `test_build_fit_extract_stops_after_xmlreader_failure` extended to
+  capture and assert the exact rendered `xmlreader_command` string,
+  pinning down that the f-string rewrite produces byte-identical output.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_cli.py -v` → 10 passed.
+- `python -m pytest tests/test_run_fit.py tests/test_run_cli.py tests/test_run_anaFit.py -v`
+  → 30 passed.
+- `python scripts/quality_check.py --mode full` → 156 passed, 2
+  deselected; ruff clean; black clean (22 files unchanged).
+- `git diff --check` → passed.
+- The mandatory integration gate was not rerun: `run_fit.py`'s change is
+  proven byte-identical output (verified above and pinned by the new
+  test), and `run_cli.py`'s `required=True` change does not alter the
+  canonical J100/J50 invocations at all (both already pass these flags) -
+  neither fix changes fit/masking behavior for the authoritative
+  workflows, matching the judgment already applied to the two preceding
+  Copilot-fix commits on this PR.
+
+### Scope
+
+Only `python/run_cli.py`, `python/run_fit.py`, `tests/test_run_cli.py`,
+`tests/test_run_fit.py`, and `tests/test_run_anaFit.py` touched. Not
+folded into Chunk 8 - review findings on already-pushed Chunk 6/7 work,
+fixed immediately as their own commit, per this project's established
+practice for Copilot review findings.

@@ -49,8 +49,20 @@ def build_arg_parser():
         default="0,-1E6,1E6",
         help='Initial value and range of nsig par (e.g. "0,-1E6,1E6")',
     )
-    parser.add_argument("--rangelow", dest="rangelow", type=int, help="Start of fit range (in GeV)")
-    parser.add_argument("--rangehigh", dest="rangehigh", type=int, help="End of fit range (in GeV)")
+    parser.add_argument(
+        "--rangelow",
+        dest="rangelow",
+        type=int,
+        required=True,
+        help="Start of fit range (in GeV)",
+    )
+    parser.add_argument(
+        "--rangehigh",
+        dest="rangehigh",
+        type=int,
+        required=True,
+        help="End of fit range (in GeV)",
+    )
     parser.add_argument(
         "--dosignal",
         dest="dosignal",

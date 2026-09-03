@@ -1,6 +1,41 @@
 from __future__ import annotations
 
+import pytest
+
 from python import run_cli
+
+_REPRESENTATIVE_ARGS = [
+    "--datafile",
+    "Input/data/dijetTLA/mjj_spectra_J100_dataAll.root",
+    "--datahist",
+    "mjj_Data_2018",
+    "--backgroundfile",
+    "background.xml",
+    "--signalfile",
+    "signal.xml",
+    "--categoryfile",
+    "category.xml",
+    "--topfile",
+    "top.xml",
+    "--wsfile",
+    "workspace.root",
+    "--sigmean",
+    "1200",
+    "--sigwidth",
+    "8.5",
+    "--nbkg",
+    "2E8,0,3E8",
+    "--rangelow",
+    "481",
+    "--rangehigh",
+    "3000",
+    "--outputfile",
+    "FitResult.root",
+    "--maskthreshold",
+    "0.01",
+    "--folder",
+    "run",
+]
 
 
 def test_build_arg_parser_parses_representative_j100_style_invocation() -> None:
@@ -9,40 +44,7 @@ def test_build_arg_parser_parses_representative_j100_style_invocation() -> None:
     # --dolimit/--doprefit/--sysfile (all left at their defaults).
     parser = run_cli.build_arg_parser()
 
-    args = parser.parse_args(
-        [
-            "--datafile",
-            "Input/data/dijetTLA/mjj_spectra_J100_dataAll.root",
-            "--datahist",
-            "mjj_Data_2018",
-            "--backgroundfile",
-            "background.xml",
-            "--signalfile",
-            "signal.xml",
-            "--categoryfile",
-            "category.xml",
-            "--topfile",
-            "top.xml",
-            "--wsfile",
-            "workspace.root",
-            "--sigmean",
-            "1200",
-            "--sigwidth",
-            "8.5",
-            "--nbkg",
-            "2E8,0,3E8",
-            "--rangelow",
-            "481",
-            "--rangehigh",
-            "3000",
-            "--outputfile",
-            "FitResult.root",
-            "--maskthreshold",
-            "0.01",
-            "--folder",
-            "run",
-        ]
-    )
+    args = parser.parse_args(_REPRESENTATIVE_ARGS)
 
     assert args.datafile == "Input/data/dijetTLA/mjj_spectra_J100_dataAll.root"
     assert args.backgroundfile == "background.xml"
@@ -86,6 +88,27 @@ def test_build_arg_parser_rangehigh_help_does_not_duplicate_start() -> None:
     (rangehigh_action,) = (a for a in parser._actions if a.dest == "rangehigh")
 
     assert rangehigh_action.help == "End of fit range (in GeV)"
+
+
+@pytest.mark.parametrize("missing_flag", ["--rangelow", "--rangehigh"])
+def test_build_arg_parser_requires_range_flags(
+    missing_flag: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A regression test for a real bug (caught in review): --rangelow/
+    # --rangehigh were parsed as optional, but run_anaFit() immediately
+    # does "rangehigh - rangelow" arithmetic, so omitting either would
+    # previously parse to None and crash later with a confusing
+    # TypeError instead of a clear argparse usage error at parse time.
+    parser = run_cli.build_arg_parser()
+    args = list(_REPRESENTATIVE_ARGS)
+    flag_index = args.index(missing_flag)
+    del args[flag_index : flag_index + 2]  # drop the flag and its value
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(args)
+
+    assert missing_flag in capsys.readouterr().err
 
 
 def test_build_arg_parser_description_uses_argparse_prog_placeholder() -> None:
