@@ -5528,3 +5528,108 @@ Only `python/run_cli.py`, `python/run_fit.py`, `tests/test_run_cli.py`,
 folded into Chunk 8 - review findings on already-pushed Chunk 6/7 work,
 fixed immediately as their own commit, per this project's established
 practice for Copilot review findings.
+
+## 2026-09-03: Fix silent output-file collision when fitresultfile lacks the FitResult token (GitHub Copilot review, PR #6)
+
+### What Copilot found
+
+`python/run_fit.py` (High severity): `postfitfile`/`parameterfile`/
+`logfile`/`edmplot` are all derived from `fitresultfile` via
+`fitresultfile.replace("FitResult", <other token>)` - an undocumented
+filename contract. If `fitresultfile`'s basename does not contain
+`"FitResult"` (the CLI currently accepts any string via `--outputfile`,
+with no such validation), every one of those substitutions is a no-op,
+so `postfitfile` and `parameterfile` both silently collapse back to
+`fitresultfile` itself; `PostfitExtractor`/`FitParameterExtractor` then
+both open that same path in `RECREATE` mode, overwriting the quickFit
+result twice. Separately, because the substitution operates on the
+*entire path* rather than just the filename, a parent directory
+component that happens to contain `"FitResult"` gets rewritten too.
+Copilot's ask: validate the basename before launching quickFit, and
+derive each sibling output by transforming only that basename.
+
+### Verification performed before fixing
+
+- Confirmed the collapse-to-self claim by direct reasoning through
+  `str.replace()` semantics for a non-matching input (e.g.
+  `"fit-result.root"`): every `.replace("FitResult", ...)` call is a
+  no-op, so `postfitfile == parameterfile == fitresultfile`.
+- Confirmed this predates Tier 3 - the exact same `.replace("FitResult",
+  ...)` pattern, operating on the whole `fitresultfile` path, was already
+  present in the original `run_anaFit.py`, moved verbatim into
+  `run_fit.py` by Chunk 6.B. Unlike the `%prog` pattern (found duplicated
+  in 29 unrelated files and correctly left untouched), this logic lives
+  entirely inside `run_fit.py`, a file this PR created - the same
+  reasoning already applied to the `--rangelow`/`--rangehigh` and
+  `xmlreader_command` fixes earlier on this PR justifies fixing it here,
+  not sweeping the rest of the repository.
+- Checked real-world impact: both `scripts/run_anaFit_J100.sh` and
+  `scripts/run_anaFit_J50.sh` always construct `--outputfile` as
+  `${folder}/FitResult_anaFit_...root` - the canonical workflows are
+  unaffected either way; this is a latent bug reachable only via a
+  manual invocation with a non-conforming `--outputfile`.
+- Reproduced the parent-directory-rewrite half of the bug directly: ran
+  `build_fit_extract(..., fitresultfile="run/FitResult_stage/
+  FitResult_anaFit.root")` against the pre-fix code and observed
+  `postfitfile` come back as `"run/PostFit_stage/PostFit_anaFit.root"` -
+  the `FitResult_stage` directory segment was rewritten to `PostFit_stage`
+  along with the filename, confirmed via the new regression test (below)
+  failing against the pre-fix code before the production fix was applied.
+
+### Fix
+
+`python/run_fit.py`: `os.path.split(fitresultfile)` splits the path once
+into `fitresult_dir`/`fitresult_name`. A validation check (raising
+`ValueError` if `"FitResult"` is not in `fitresult_name`) runs where
+`logfile`/`edmplot` were already being derived - after XMLReader (which
+never touches `fitresultfile`) but **before** quickFit launches, per
+Copilot's ask. All four derived filenames (`logfile`, `edmplot`,
+`postfitfile`, `parameterfile`) now transform only `fitresult_name` and
+rejoin with `fitresult_dir` via `os.path.join(...)`, instead of
+transforming the whole path. For every filename shape actually used
+today (no directory component, or a directory with no incidental
+`"FitResult"` substring), this produces byte-identical output to the
+original code - confirmed by the three pre-existing success-path tests
+passing unmodified against the fix.
+
+### Tests added
+
+- `tests/test_run_fit.py::test_build_fit_extract_rejects_fitresultfile_without_fitresult_token` -
+  asserts `ValueError` (matching `'must contain "FitResult"'`) for
+  `fitresultfile="fit-result.root"`, and that quickFit's
+  `execute_required` call is never reached. Confirmed to pass silently
+  (no exception) against the pre-fix code and raise correctly against the
+  fix.
+- `tests/test_run_fit.py::test_build_fit_extract_derives_siblings_from_basename_only` -
+  `fitresultfile="run/FitResult_stage/FitResult_anaFit.root"`; asserts
+  `postfitfile`/`parameterfile` come back as
+  `"run/FitResult_stage/PostFit_anaFit.root"`/
+  `"run/FitResult_stage/FitParameters_anaFit.root"` (directory segment
+  preserved) and that the `plot_edm.py` diagnostic command embeds the
+  correctly-derived `logfile`/`edmplot` paths too. Confirmed to fail
+  against the pre-fix code with the directory segment corrupted to
+  `"PostFit_stage"` (see above), and pass against the fix.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_fit.py -v` → 6 passed (4 pre-existing
+  plus the 2 new regression tests).
+- `python -m pytest tests/test_run_fit.py tests/test_run_cli.py tests/test_run_anaFit.py -v`
+  → 32 passed.
+- `python scripts/quality_check.py --mode full` → 158 passed, 2
+  deselected; ruff clean; black clean (22 files unchanged).
+- `git diff --check` → passed.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed in 160.02s, matching the frozen reference exactly - rerun as
+  extra confidence, since this fix changes the exact filename-derivation
+  logic inside `build_fit_extract()` (the same function Chunk 6.B's own
+  commit required the mandatory gate for), confirming the fix is
+  byte-identical for the real J100/J50 filename shapes, not just the
+  unit-test fixtures above.
+
+### Scope
+
+Only `python/run_fit.py` and `tests/test_run_fit.py` touched. Not folded
+into Chunk 8 - a review finding on already-pushed Chunk 6 work, fixed
+immediately as its own commit, per this project's established practice
+for Copilot review findings.

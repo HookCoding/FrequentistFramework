@@ -95,6 +95,43 @@ def test_build_fit_extract_stops_after_quickfit_failure(
     assert chr(38) + chr(62) not in quickfit_command
 
 
+def test_build_fit_extract_rejects_fitresultfile_without_fitresult_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A regression test for a real bug (caught in review, High severity):
+    # postfitfile/parameterfile/logfile/edmplot are all derived from
+    # fitresultfile by substituting "FitResult" for another token in its
+    # basename - an undocumented contract. If the basename doesn't
+    # contain "FitResult" at all, every substitution below used to be a
+    # no-op, so postfitfile and parameterfile both silently collapsed
+    # back to fitresultfile itself, and PostfitExtractor's/
+    # FitParameterExtractor's RECREATE-mode writes would overwrite the
+    # quickFit result twice. Must now fail fast, before quickFit runs.
+    calls: list[str] = []
+
+    def fake_execute_required(cmd, description, expected_outputs=()):
+        calls.append(description)
+        return True
+
+    monkeypatch.setattr(run_fit, "execute_required", fake_execute_required)
+
+    with pytest.raises(ValueError, match='must contain "FitResult"'):
+        run_fit.build_fit_extract(
+            topfile="top.xml",
+            datafile="input.root",
+            datahist="data",
+            rangelow=481,
+            rangehigh=3000,
+            wsfile="workspace.root",
+            fitresultfile="fit-result.root",  # no "FitResult" token
+        )
+
+    # XMLReader may have already run (it never touches fitresultfile), but
+    # quickFit - which would otherwise overwrite its own output via the
+    # collapsed sibling filenames - must never be reached.
+    assert "quickFit background or signal fit" not in calls
+
+
 class _FakeHist:
     def __init__(self, first_bin: int) -> None:
         self._first_bin = first_bin
@@ -262,3 +299,41 @@ def test_build_fit_extract_succeeds_for_masked_fit(
     # Masking a bkg-only fit means the p-value must come from the
     # correctly-renormalized postfit distribution, not the plain one.
     assert pfe.written == [("PostFit.root", True)]
+
+
+def test_build_fit_extract_derives_siblings_from_basename_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A regression test for a real bug (caught in review): the sibling
+    # output paths used to be derived by substituting "FitResult" across
+    # the *entire* path, which could also rewrite a parent directory
+    # component that happens to contain that token - here,
+    # "FitResult_stage" - not just the filename itself. Only the basename
+    # may change; the directory must survive untouched.
+    executed_commands = _prepare_build_fit_extract_success_doubles(monkeypatch)
+
+    result = run_fit.build_fit_extract(
+        topfile="top.xml",
+        datafile="input.root",
+        datahist="data",
+        rangelow=481,
+        rangehigh=3000,
+        wsfile="workspace.root",
+        fitresultfile="run/FitResult_stage/FitResult_anaFit.root",
+    )
+
+    assert result == (
+        0.42,
+        "run/FitResult_stage/PostFit_anaFit.root",
+        "run/FitResult_stage/FitParameters_anaFit.root",
+    )
+
+    (pfe,) = _FakePostfitExtractor.instances
+    assert pfe.written == [("run/FitResult_stage/PostFit_anaFit.root", True)]
+
+    (fpe,) = _FakeFitParameterExtractor.instances
+    assert fpe.written == ["run/FitResult_stage/FitParameters_anaFit.root"]
+
+    (plot_edm_command,) = (cmd for cmd in executed_commands if "plot_edm.py" in cmd)
+    assert "run/FitResult_stage/quickFitLog_anaFit.log" in plot_edm_command
+    assert "run/FitResult_stage/edm_anaFit.pdf" in plot_edm_command
