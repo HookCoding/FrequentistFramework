@@ -123,6 +123,7 @@ def main() -> None:
         "python/repo_utils.py",
         "python/run_execution.py",
         "python/run_manifest.py",
+        "python/run_masking.py",
         "python/run_provenance.py",
         "scripts/compare_root_outputs.py",
         "scripts/quality_check.py",
@@ -134,6 +135,7 @@ def main() -> None:
         "tests/test_run_anaFit.py",
         "tests/test_run_execution.py",
         "tests/test_run_manifest.py",
+        "tests/test_run_masking.py",
         "tests/test_run_provenance.py",
     ]
 

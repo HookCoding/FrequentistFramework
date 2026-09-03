@@ -4205,3 +4205,131 @@ touched (two new tests, 38 lines).
 
 Chunk 4.B (extraction of `run_masking.py`) and Chunks 5 through 12 are
 open.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 4.B: extract `run_masking.py`
+
+### Objective
+
+Move `load_bumphunter_results()` and `run_bumphunter()`, characterized in
+Chunk 4.A (commit `4930636`), out of `python/run_anaFit.py` into a new
+`python/run_masking.py`, add the new `should_mask(p_value, threshold)`
+predicate, and replace all three coordinator-level `> maskthreshold`
+comparisons with calls to it, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 4.
+
+### What changed
+
+- `python/run_masking.py` created, containing `load_bumphunter_results()`
+  and `run_bumphunter()` moved verbatim, plus the new
+  `should_mask(p_value, threshold)`, returning `p_value <= threshold` -
+  `True` exactly when the coordinator's original `if pval_global >
+  maskthreshold` branch would **not** be taken, matching its existing `>`
+  convention precisely.
+- `python/run_anaFit.py`: both function definitions removed; replaced
+  with `from run_masking import run_bumphunter, should_mask` (flat
+  sibling-import style; `load_bumphunter_results` is not imported here -
+  it is called only internally by `run_bumphunter`, confirmed by
+  `grep -n "load_bumphunter_results(\|run_bumphunter(" python/run_anaFit.py`
+  before the move). All **three** `> maskthreshold` call sites rewritten,
+  per Chunk 4.A's finding:
+  - `if pval_global > maskthreshold` -> `if not should_mask(pval_global, maskthreshold)`
+  - `if pval_masked > maskthreshold` -> `if not should_mask(pval_masked, maskthreshold)`
+  - `if dolimit and dosignal and pval_global > maskthreshold` -> `if dolimit and dosignal and not should_mask(pval_global, maskthreshold)`
+  Each preserves the exact original control flow (`p > t` is logically
+  `not (p <= t)`, i.e. `not should_mask(p, t)`).
+- `tests/test_run_masking.py` created: the ten relocated test functions
+  (13 cases) plus the new `test_should_mask_matches_coordinator_convention_at_exact_threshold`
+  (parametrized: exact threshold, clearly below, clearly above), using
+  the plain `from python import run_masking` style.
+- `scripts/quality_check.py`: added `python/run_masking.py` to
+  `python_targets` and `tests/test_run_masking.py` to `test_targets`.
+
+### The anticipated Test Relocation Rule exception, confirmed
+
+`run_bumphunter`'s four tests patch `execute_required` - as flagged in
+Chunk 4.A, this now targets `run_masking.execute_required` (the name
+bound in `run_masking`'s own namespace via its own `from run_execution
+import execute_required`), not the old `module.execute_required`. Same
+pattern as Chunk 1.B and Chunk 3.B: a necessary consequence of
+`execute_required` living in a different module from where it is called,
+not a hidden behavior change. `run_bumphunter`'s own intra-module call to
+`load_bumphunter_results` needed no such change - both moved into
+`run_masking.py` together.
+
+### A second dead-import discovery, fixed immediately this time (unlike Chunk 3.B's deferral)
+
+`python scripts/quality_check.py --mode full` failed ruff (`F401 'json'
+imported but unused`) on `tests/test_run_anaFit.py`: relocating all six
+`load_bumphunter_results` tests removed every remaining use of `json.` in
+that file. Unlike Chunk 3.B's `hashlib`/`platform`/`subprocess` dead
+imports in `python/run_anaFit.py` (deliberately deferred to Chunk 8,
+because that file is not yet registered with the quality gate at all),
+`tests/test_run_anaFit.py` **is already** in `test_targets` - ruff runs
+against it on every gate today, so this was not a "some later chunk will
+clean it up" situation but a real, immediate gate failure caused directly
+by this chunk's own test relocation. Fixed by removing the now-unused
+`import json` line. Re-ran the full gate afterward: clean.
+
+### Confirm: scientific behavior preserved, including the newly-discovered third call site
+
+Both `load_bumphunter_results()` and `run_bumphunter()`'s bodies are
+byte-for-byte identical to before the move. The three rewritten
+comparisons are logically equivalent to the originals (confirmed by
+inspection, not just by test result). Ran the full targeted acceptance
+check plus the **mandatory** integration gate (per Section 7, this chunk
+changes real branch conditions):
+`test_run_anafit_quicklimit_failure_prevents_success_manifest`
+(`dosignal=True, dolimit=True, pval_global=0.25 mocked, maskthreshold=0.01`)
+passed unchanged, directly exercising the third call site's rewrite. The
+real, authoritative J100/J50 pipeline also passed, matching the frozen
+reference exactly - both canonical workflows still take the unmasked
+accept path through all three rewritten conditions.
+
+### Verification performed
+
+- `grep -n "maskthreshold" python/run_anaFit.py` → confirms all three
+  comparisons now call `should_mask()`; the other five matches are the
+  argparse definition, kwarg passthroughs, and a print statement,
+  unaffected.
+- `python -m pytest tests/test_run_masking.py tests/test_run_anaFit.py -v`
+  → 33 passed (16 cases in `test_run_masking.py` + 17 remaining in
+  `test_run_anaFit.py` = 33, matching the pre-move total of 30 plus the 3
+  new `should_mask` cases exactly).
+- `python scripts/quality_check.py --mode full` → 137 passed, 2
+  deselected; ruff clean (after the `json` import fix); black clean (16
+  files unchanged); exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed in 150.66s - the real J100/J50 authoritative pipeline run,
+  **mandatory** for this chunk per Section 7, matched against the frozen
+  reference exactly.
+- `git diff --check` → passed.
+
+### Compliance review (Section 8, Extraction checklist)
+
+1. Chunk 4, Step B (this entry).
+2. Step A is committed (`4930636`) and referenced above.
+3. No scientific constants, references, tolerances, dependency revisions,
+   or canonical workflow arguments touched. The three rewritten branch
+   conditions are logically equivalent to the originals, verified by both
+   unit and integration tests.
+4. Relocated tests' diffs are import-statement-and-call-site-only except
+   the one documented, anticipated `execute_required` patch-target
+   change.
+5. `should_mask()` (the one new function) is covered by three cases
+   (exact threshold, clearly below, clearly above), per the plan's
+   explicit requirement.
+6. Confirmed by grep: `run_anaFit.py` actually imports and never
+   redefines `run_bumphunter`/`should_mask`; all three comparisons now
+   call `should_mask()`.
+7. Only this chunk's five changed/new files were staged.
+8. All required Section 7 gates ran and passed, including the mandatory
+   integration gate, output captured above.
+9. `git diff --check` passed.
+10. This activity-log entry appended (not a rewrite of any existing
+    section).
+11. Chunks 5 through 12 remain open, listed below.
+12. No other branch's Tier 3 work was consulted.
+
+### Remaining open chunks
+
+Chunks 5 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 4
+(both Step A and Step B) is complete and verified.

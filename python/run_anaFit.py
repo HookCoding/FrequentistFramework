@@ -11,91 +11,9 @@ from ExtractFitParameters import FitParameterExtractor
 from PreFit import PreFitter
 from run_execution import execute, execute_required
 from run_manifest import write_analysis_results
+from run_masking import run_bumphunter, should_mask
 from run_provenance import build_analysis_provenance
 import ROOT
-
-
-def load_bumphunter_results(results_file):
-    try:
-        with open(results_file) as file:
-            results = json.load(file)
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(
-            "Could not read valid BumpHunter results from {}: {}".format(
-                results_file,
-                error,
-            )
-        ) from error
-
-    if not isinstance(results, dict):
-        raise ValueError(
-            "BumpHunter results in {} must be a JSON object".format(results_file)
-        )
-
-    required_keys = ("BlindRange", "MaskMin", "MaskMax")
-    missing_keys = [key for key in required_keys if key not in results]
-    if missing_keys:
-        raise ValueError(
-            "BumpHunter results in {} are missing required keys: {}".format(
-                results_file,
-                ", ".join(missing_keys),
-            )
-        )
-
-    try:
-        mask_min = int(results["MaskMin"])
-        mask_max = int(results["MaskMax"])
-    except (TypeError, ValueError) as error:
-        raise ValueError(
-            "BumpHunter MaskMin and MaskMax must be integer-compatible values"
-        ) from error
-
-    if mask_min >= mask_max:
-        raise ValueError(
-            "BumpHunter MaskMin must be smaller than MaskMax"
-        )
-
-    blind_range = results["BlindRange"]
-    if not isinstance(blind_range, str) or not blind_range.strip():
-        raise ValueError(
-            "BumpHunter BlindRange must be a non-empty string"
-        )
-
-    return {
-        "BlindRange": blind_range,
-        "MaskMin": mask_min,
-        "MaskMax": mask_max,
-    }
-
-
-def run_bumphunter(postfitfile, folder):
-    bhresults_file = "{}/BHresults.json".format(folder)
-
-    if os.path.exists(bhresults_file):
-        os.remove(bhresults_file)
-
-    bumphunter_command = (
-        "pyBumpHunter/pyBH_env/bin/python3 "
-        "python/FindBHWindow.py "
-        "--inputfile %s "
-        "--bkghist %s "
-        "--datahist %s "
-        "--outputjson %s"
-    ) % (
-        postfitfile,
-        "Run3TLA_rebinned/postfit",
-        "Run3TLA_rebinned/data",
-        bhresults_file,
-    )
-
-    if not execute_required(
-        bumphunter_command,
-        "BumpHunter masking-window calculation",
-        expected_outputs=[bhresults_file],
-    ):
-        raise RuntimeError("BumpHunter masking-window calculation failed")
-
-    return load_bumphunter_results(bhresults_file)
 
 
 def replaceinfile(f, old_new_list):
@@ -456,7 +374,7 @@ def run_anaFit(datafile,
     final_p_chi2 = pval_global
     fit_was_masked = False
 
-    if pval_global > maskthreshold : #or True:
+    if not should_mask(pval_global, maskthreshold): #or True:
         print("p(chi2) threshold passed. Exiting with succesful fit.")
     else:
         print("p(chi2) threshold not passed.")
@@ -514,7 +432,7 @@ def run_anaFit(datafile,
 
         print("Masked fit p(chi2)=%.3f" % pval_masked)
 
-        if pval_masked > maskthreshold:
+        if not should_mask(pval_masked, maskthreshold):
             print("p(chi2) threshold passed. Continuing with successful (window-excluded) fit.")
             wsfile=wsfilemasked
             final_p_chi2 = pval_masked
@@ -527,7 +445,7 @@ def run_anaFit(datafile,
     print()
 
     # blindrange not yet implemented with quickLimit
-    if dolimit and dosignal and pval_global > maskthreshold:
+    if dolimit and dosignal and not should_mask(pval_global, maskthreshold):
         print("Now running quickLimit")
         #rtv=execute("timeout --foreground 1800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-8 --muScanPoints 20 --minStrat 1 --nllOffset 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
         rtv=execute("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-06 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
