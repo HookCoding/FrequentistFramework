@@ -82,4 +82,11 @@ def run_bumphunter(postfitfile, folder):
 
 
 def should_mask(p_value, threshold):
-    return p_value <= threshold
+    # Not simply "p_value <= threshold": that is equivalent to
+    # "not (p_value > threshold)" for ordinary floats, but not for NaN,
+    # where both "p_value > threshold" and "p_value <= threshold" are
+    # False under IEEE 754 comparison rules. The coordinator's original
+    # gating was "if p_value > threshold: <success>", so a NaN p-value
+    # (a real possibility from a degenerate fit) took the masking branch.
+    # Writing the negation explicitly preserves that for NaN inputs too.
+    return not (p_value > threshold)

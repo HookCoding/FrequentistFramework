@@ -255,3 +255,14 @@ def test_should_mask_matches_coordinator_convention_at_exact_threshold(
     expected: bool,
 ) -> None:
     assert run_masking.should_mask(p_value, threshold) is expected
+
+
+def test_should_mask_treats_nan_p_value_as_requiring_masking() -> None:
+    # A regression test for a real bug (caught in review): "p_value <=
+    # threshold" looks equivalent to "not (p_value > threshold)" for
+    # ordinary floats, but is not for NaN - under IEEE 754 comparison
+    # rules, both "nan > threshold" and "nan <= threshold" are False. The
+    # coordinator's original gating was "if p_value > threshold:
+    # <success>", so a NaN p-value (a real possibility from a degenerate
+    # fit) took the masking branch; should_mask() must agree.
+    assert run_masking.should_mask(float("nan"), 0.01) is True

@@ -4665,3 +4665,73 @@ the un-gated `run_anaFit.py`:
 Chunks 6 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 5
 (both Step A and Step B) is complete and verified - the plan's riskiest
 single extraction is done.
+
+## 2026-09-02: Fix should_mask() to preserve NaN behavior (GitHub Copilot review, PR #6)
+
+### What Copilot found
+
+On Chunk 4.B's `should_mask(p_value, threshold)`, implemented as
+`return p_value <= threshold`: this looks equivalent to the coordinator's
+original `not (p_value > threshold)` gating for ordinary floats, but is
+not equivalent for NaN. Under IEEE 754 comparison rules, both
+`nan > threshold` and `nan <= threshold` are `False`. So the original
+code (`if pval_global > maskthreshold: <success> else: <masking>`) would
+take the masking branch for a NaN p-value (a real possibility from a
+degenerate fit), while `not should_mask(nan, threshold)` (`not (nan <=
+threshold)` = `not False` = `True`) would take the *success* branch
+instead - silently skipping masking/BumpHunter for a NaN fit result.
+
+### Verification performed before fixing
+
+Confirmed directly in Python rather than taking the claim on faith:
+`nan > 0.01` is `False` and `nan <= 0.01` is `False` too - so the two
+candidate implementations of `should_mask()` genuinely disagree for a
+NaN input: the buggy `p_value <= threshold` gives `False` (so `not
+should_mask(nan, t)` is `True`, taking the coordinator's success
+branch), while the correct `not (p_value > threshold)` gives `True` (so
+`not should_mask(nan, t)` is `False`, taking the masking branch) -
+matching what the original inline `if pval_global > maskthreshold:`
+would have done before Chunk 4 extracted it. Traced through
+`run_anaFit()`'s three call sites (`not should_mask(pval_global, ...)`,
+`not should_mask(pval_masked, ...)`, `dolimit and dosignal and not
+should_mask(pval_global, ...)`) to confirm all three would be affected
+identically by a NaN p-value with the buggy implementation.
+
+### Fix
+
+`python/run_masking.py`: `should_mask()` changed from `p_value <=
+threshold` to `not (p_value > threshold)` - byte-for-byte the
+coordinator's original gating condition, negated, with a comment
+explaining why the two forms are not interchangeable. This is not a
+convention change (both forms give identical results for every ordinary
+float); it only changes behavior for NaN, which is exactly the point.
+
+`tests/test_run_masking.py`:
+`test_should_mask_treats_nan_p_value_as_requiring_masking` added -
+asserts `should_mask(float("nan"), 0.01) is True`, which fails against
+the old `p_value <= threshold` implementation (confirmed by the Python
+check above) and passes against the fix.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_masking.py -v -k should_mask` → 4
+  passed (3 pre-existing cases plus the new NaN case).
+- `python -m pytest tests/test_run_masking.py tests/test_run_anaFit.py -v`
+  → 34 passed (33 + 1 new test).
+- `python scripts/quality_check.py --mode full` → 143 passed, 2
+  deselected; ruff clean; black clean (18 files unchanged).
+- `python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v`
+  → 1 passed in 117.12s - the real J100/J50 pipeline, rerun as
+  supplementary confirmation since this touches the exact masking
+  predicate at the heart of the coordinator's branch logic (matching the
+  same judgment call made for Chunk 1.B and Chunk 3.B); the canonical
+  workflows produce well-behaved, non-NaN p-values, so this confirms the
+  non-NaN path is unaffected by the fix, as expected.
+- `git diff --check` → passed.
+
+### Scope
+
+Only `python/run_masking.py` and `tests/test_run_masking.py` touched.
+Not folded into any later chunk's work - a review finding on already-
+pushed Chunk 4 work, fixed immediately as its own commit, per this
+project's established practice for Copilot review findings.
