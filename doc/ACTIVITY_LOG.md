@@ -4333,3 +4333,155 @@ accept path through all three rewritten conditions.
 
 Chunks 5 through 12 in `doc/TIER3_COMPLETION_PLAN.md` are open. Chunk 4
 (both Step A and Step B) is complete and verified.
+
+## 2026-09-02: Tier-3 refactoring — Chunk 5.A: first-ever characterization tests for the templating/prefit block
+
+### Objective
+
+Write the **first direct tests ever** for `replaceinfile()` and the
+~150-line inline templating/prefit block inside `run_anaFit()`, before
+extracting them into `python/run_templates.py`, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 5. Per the plan's own framing, this
+is a genuine characterization step, not a formality: this logic has never
+been pinned down at the unit level before, only indirectly through the
+full J100/J50 integration gate.
+
+### Finalizing `prepare_run_templates(...)`'s exact signature (the plan's own draft table needed correction)
+
+The plan's Chunk 5 module table listed a draft input list explicitly
+flagged "finalize the exact set while reading the current block." Doing
+that reading directly against the source (not the draft) found:
+
+- `nbkg` and `nsig` are **missing from the plan's draft input list** but
+  are genuinely required: `nbkg` is read and conditionally reassigned
+  (by the `doprefit` branch) before being substituted into the category
+  file; `nsig` is read as a substitution value. Both must be parameters.
+- `nbkg`'s prefit-reassignment does **not** need to be returned to the
+  coordinator: `grep -n "\bnbkg\b" python/run_anaFit.py` confirms it is
+  never read again after the block's own final `replaceinfile` call.
+- `signame` never changes inside the block - it is a pass-through
+  substitution value, not something the block "derives." No output
+  needed for it, contrary to the draft table's "any poi/signame derived
+  values" phrasing.
+- `poi` is decided by a **separate**, unrelated piece of coordinator
+  logic (`if dosignal: poi = ... else: poi = None`) immediately after the
+  block, which touches no template file and calls neither
+  `replaceinfile` nor `PreFitter`. It is out of this chunk's scope
+  (Chunk 6's concern, since it only feeds `build_fit_extract`), not part
+  of `prepare_run_templates`.
+- `tmptopfile`, `tmpcategoryfile`, `xml_categoryfile`, and `xml_wsfile`
+  **are** read again after the block (in the masking branch, to stage the
+  masked-refit XML copies) - confirmed by
+  `grep -n "tmpcategoryfile\|xml_categoryfile\|xml_wsfile" python/run_anaFit.py`.
+  These four must be the function's return value.
+- `covariancedict` is a `run_anaFit()` parameter but is **entirely
+  unused** in live code today - every reference to it is inside a
+  commented-out block. It will not be threaded into
+  `prepare_run_templates` in Step B; there is no live behavior depending
+  on it.
+
+Final signature for Step B:
+`prepare_run_templates(folder, topfile, categoryfile, backgroundfile,
+signalfile, signame, wsfile, sigmean, sigwidth, datafile, datahist,
+rangelow, rangehigh, nbkg, nsig, doprefit, systdict)` returning
+`(tmptopfile, tmpcategoryfile, xml_categoryfile, xml_wsfile)`.
+
+### A real, previously-undocumented quirk found while hand-verifying the prefit test
+
+Writing `test_run_anafit_prefit_seeds_background_file_from_fitted_parameters`
+first assumed the PAR-substitution loop replaces each whole `[PARn,lo,hi]`
+range annotation with the fitted value. Running the test against the
+unmodified file disproved this: the loop is a plain
+`replaceinfile(tmpbackgroundfile, [("PAR%d" % (i+1), str(initPars[i]))])`
+per parameter - a naive substring/regex swap of the literal text `PARn`,
+not a replacement of the surrounding annotation. The `[...,lo,hi]`
+brackets survive in the output file with only the `PARn` token inside
+them replaced (e.g. `[PAR1,-5,5]` becomes `[11.0,-5,5]`, not `11.0`) -
+and because `replaceinfile` operates over the whole file text, this
+happens even inside HTML/XML comments (`<!-- ... [PAR1,-99,99] ... -->`
+becomes `<!-- ... [11.0,-99,99] ... -->`). This is real, current,
+unrelated-to-doprefit-testing-before-now behavior; the test now pins it
+down exactly as observed rather than as originally assumed. Step B must
+preserve it exactly - it is exactly the kind of thing an implementer
+"fixes" by accident while moving code.
+
+### Target functions — inputs and outputs
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `replaceinfile(f, old_new_list)` | `f: str`, `old_new_list: list[tuple[str,str]]` | `None` | rewrites `f` in place, applying each `re.sub` in order (substitutions chain against the already-modified text) |
+| `prepare_run_templates(...)` (new in Step B) | see finalized signature above | `(tmptopfile, tmpcategoryfile, xml_categoryfile, xml_wsfile)` | copies/edits XML template files on disk; runs `PreFitter` when `doprefit` is set |
+
+### Tests added (all new — this block had zero direct tests before)
+
+- `test_replaceinfile_applies_ordered_regex_substitutions` — chains
+  `PLACEHOLDER_A -> PLACEHOLDER_B -> final_value` to prove substitutions
+  apply in order against the already-modified text, not independently
+  against the original.
+- `test_run_anafit_stages_templates_for_a_representative_case` —
+  `doprefit=False`, `signalfile=None`; asserts the exact generated
+  `tmptopfile`/`tmpcategoryfile` content, including that the
+  `SIGNALFILE` placeholder is substituted with a computed path even
+  though no signal file was provided (confirmed real: `tmpsignalfile`/
+  `xml_signalfile` are computed unconditionally in production).
+- `test_run_anafit_prefit_seeds_background_file_from_fitted_parameters` —
+  `doprefit=True`, a background file name containing "six" (nPars=6), a
+  background file with two real `[PARn,lo,hi]` `<ModelItem>` lines (one
+  commented out, correctly excluded from range parsing) and a
+  `FakePreFitter` test double; asserts the exact `parRangeLow`/
+  `parRangeHigh` passed to `PreFitter`, the exact seeded background-file
+  content (including the quirk above), and the exact `NBKG` string
+  format derived from the fitted value.
+- `test_run_anafit_prefit_npars_detection_matching_both_three_and_four_resolves_to_four` —
+  the plan's required regression test: a background file path containing
+  both `"three"` and `"four"`; asserts `PreFitter` is constructed with
+  `nPars=4`, pinning down the standalone-`if`-then-separate-`elif`-chain
+  quirk exactly as it exists today.
+- `test_run_anafit_stages_signal_template_with_systematic_placeholders` —
+  a populated `systdict`; asserts the exact seeded signal-file content,
+  including both named systematic sources substituted and an unlisted
+  `[MAG_SCALE_UNLISTED]` placeholder caught by the catch-all pattern and
+  replaced with `[0]`.
+
+### What this commit does NOT do
+
+No production file was modified. `git diff --stat -- python/run_anaFit.py`
+was empty throughout this change — only `tests/test_run_anaFit.py` was
+touched (five new tests, 402 lines).
+
+### Verification performed
+
+- `python -m pytest tests/test_run_anaFit.py -v -k "replaceinfile or
+  stages_templates or prefit_seeds or npars_detection or
+  systematic_placeholders"` → 5 passed, run against the unmodified
+  `python/run_anaFit.py`. One assertion (the PAR-substitution content)
+  was corrected after the first run disproved the initial hand-derived
+  expectation, per the quirk documented above — a real characterization
+  correction, not a retrofit to make a test pass.
+- `python -m pytest tests/test_run_anaFit.py -v` → 22 passed (full-file
+  regression check).
+- `python scripts/quality_check.py --mode full` → 142 passed, 2
+  deselected; ruff clean; black clean after one whitespace/quote-style
+  reformat (`python -m black tests/test_run_anaFit.py`, no logic change).
+- `git diff --stat` → only `tests/test_run_anaFit.py` touched.
+- `git diff --check` → passed.
+
+### Compliance review (Section 8, Characterization checklist)
+
+1. Chunk 5, Step A.
+2. `git diff --stat` shows only `tests/test_run_anaFit.py` — zero
+   production files touched.
+3. Every new test asserts exact generated file content or exact
+   `PreFitter` constructor arguments, not merely "does not raise."
+4. Tests were run against the unmodified target file before any
+   production change; results (including the corrected assertion)
+   reported in full above for review.
+5. Human-verification checkpoint: presented to the user in session for
+   confirmation before Step B's commit is made, with the extra weight the
+   plan calls for given these are first-ever tests, not a relocation —
+   recorded per Step B's own activity-log entry once given.
+
+### Remaining open chunks
+
+Chunk 5.B (extraction and internal decomposition of `run_templates.py`)
+and Chunks 6 through 12 are open.
