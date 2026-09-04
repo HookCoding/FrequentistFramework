@@ -18,13 +18,15 @@ _FIXTURE_DATAFILE = _REPO_ROOT / "Input" / "data" / "dijetTLA" / "mjj_spectra_J1
 _FIXTURE_DATAHIST = "hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj"
 _FIXTURE_REBINFILE = _REPO_ROOT / "Input" / "data" / "dijetisrTLA" / "mjjResolutionBinning_481.root"
 
-# python/ExtractPostfitFromWS.py does `import ROOT` and `from ROOT import
-# *` at module scope, unconditionally - like Chunk 15's
-# ExtractFitParameters.py, this file is not being restructured to defer
-# those imports (Chunk 16's own Rationale: the primary decomposition
-# target is Extract()'s internal structure, not its import shape). Every
-# function/method here - getNPars(), expHist(), getChi2(), and every
-# PostfitExtractor method - needs a real ROOT/RooFit object to do
+# python/ExtractPostfitFromWS.py does `import ROOT` at module scope,
+# unconditionally - like Chunk 15's ExtractFitParameters.py, this file's
+# imports are not deferred (Chunk 16's own Rationale: the primary
+# decomposition target is Extract()'s internal structure, not its
+# import shape). Every function/method here - getNPars(), expHist(),
+# getChi2(), and every PostfitExtractor method, including the four new
+# private helpers Chunk 16.B extracted (_open_workspace_and_data,
+# _build_channel_postfit_histogram, _build_bkgonly_variant,
+# _apply_external_rebinning) - needs a real ROOT/RooFit object to do
 # anything meaningful, so there is no ROOT-free "fast" fragment to test
 # with a stub, unlike createBinning.py's resolve_bin_edges() or
 # FindBHWindow.py's compute_mask_window(). Every test below runs as a
@@ -79,7 +81,7 @@ def _assert_snippet_ok(completed: subprocess.CompletedProcess[str]) -> None:
     assert "SNIPPET_OK" in completed.stdout, completed.stdout
 
 
-_CONSTRUCT_EXTRACTOR = f"""
+_CONSTRUCT_EXTRACTOR_ONLY = f"""
 import sys
 sys.path.insert(0, "python")
 import ROOT
@@ -101,8 +103,9 @@ pfe = PostfitExtractor(
     maskmax=-1,
     bkgonly=True,
 )
-pfe.Extract()
 """
+
+_CONSTRUCT_EXTRACTOR = _CONSTRUCT_EXTRACTOR_ONLY + "pfe.Extract()\n"
 
 
 @pytest.mark.requires_root
@@ -224,3 +227,72 @@ f.Close()
 print("SNIPPET_OK")
 """
     _assert_snippet_ok(_run_real_root_snippet(verify_snippet))
+
+
+# --- The four new private helpers (Chunk 16.B extraction) -----------------
+#
+# Each gets its own real-ROOT call and assertions below - not just reused
+# coverage from Extract()'s own end-to-end test above - per guardrail 4
+# (a genuinely new test for every newly-introduced function).
+
+
+@pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
+def test_open_workspace_and_data_returns_expected_handles() -> None:
+    snippet = _CONSTRUCT_EXTRACTOR_ONLY + """
+result = pfe._open_workspace_and_data()
+f_handle, fd_handle, w, pdf, cat, data, dataList, nChan = result
+
+assert nChan == 1, nChan
+assert w.ClassName() == "RooWorkspace", w.ClassName()
+assert data.sumEntries() > 0
+assert pfe.h_data is not None
+assert pfe.h_data.GetNbinsX() > 0
+
+f_handle.Close()
+fd_handle.Close()
+print("SNIPPET_OK")
+"""
+    _assert_snippet_ok(_run_real_root_snippet(snippet))
+
+
+@pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
+def test_build_channel_postfit_bkgonly_and_rebinning_helpers_populate_expected_state() -> None:
+    # Manually drives the same per-channel sequence Extract() drives, one
+    # call at a time, asserting each new private helper's own contract
+    # directly - not merely observing Extract()'s combined end result.
+    snippet = _CONSTRUCT_EXTRACTOR_ONLY + """
+from ExtractPostfitFromWS import getNPars
+
+f_handle, fd_handle, w, pdf, cat, data, dataList, nChan = pfe._open_workspace_and_data()
+
+datai = dataList.At(0)
+channelname = cat.getLabel()
+pdfi = pdf.getPdf(channelname)
+x = pdfi.getObservables(datai).first()
+npars = getNPars(pdfi, x, exclSyst=True)
+
+nBins, binEdges, hpdf = pfe._build_channel_postfit_histogram(pdfi, x, channelname, npars, data)
+assert nBins == 2519, nBins
+assert len(binEdges) == nBins + 1
+assert channelname in pfe.channel_hpostfit
+assert channelname in pfe.channel_hdata
+assert channelname in pfe.channel_chi2  # getChi2() already fired inside this helper
+
+channelname_bkg = pfe._build_bkgonly_variant(w, channelname, x, hpdf, nBins, binEdges, npars)
+assert channelname_bkg == channelname + "_bkgonly", channelname_bkg
+assert channelname_bkg in pfe.channel_hpostfit
+assert channelname_bkg in pfe.channel_chi2
+
+pfe._apply_external_rebinning(channelname, channelname_bkg, npars)
+assert (channelname + "_rebinned") in pfe.channel_hpostfit
+assert (channelname_bkg + "_rebinned") in pfe.channel_hpostfit
+assert (channelname + "_rebinned") in pfe.channel_chi2
+assert (channelname_bkg + "_rebinned") in pfe.channel_chi2
+
+f_handle.Close()
+fd_handle.Close()
+print("SNIPPET_OK")
+"""
+    _assert_snippet_ok(_run_real_root_snippet(snippet))

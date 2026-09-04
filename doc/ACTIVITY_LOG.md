@@ -8888,3 +8888,146 @@ activity-log entry appear).
   `pytest.approx` bug, once confirming the fix), and reviewed directly.
 - [x] Human-verification checkpoint: reviewed and confirmed in this same
   session before Step B's commit follows.
+
+## Chunk 16.B — Extract python/ExtractPostfitFromWS.py into named helpers
+
+### Objective
+
+Decompose `Extract()` (137 lines, the largest method across all nine
+files this plan touches) into four private helper methods, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 16, with `Extract()` becoming the
+orchestrator. `getNPars`/`expHist`/`getChi2` stay free functions,
+unchanged; `WriteRoot()`/the 8 accessors/`GetCategories()` stay
+undecomposed one-liners, unchanged — matching the plan's own scope
+exactly.
+
+### What changed
+
+- `python/ExtractPostfitFromWS.py` restructured: `Extract()` now calls
+  `_open_workspace_and_data(self)` (opens `wsfile`/`datafile`, builds
+  `w`/`pdf`/`cat`/`data`/`dataList`/`nChan`, sets `self.h_data`),
+  `_build_channel_postfit_histogram(self, pdfi, x, channelname, npars,
+  data)` (builds the main postfit histogram, populates
+  `channel_hdata`/`channel_hpostfit`, calls `getChi2`), conditionally
+  `_build_bkgonly_variant(self, w, channelname, x, hpdf, nBins,
+  binEdges, npars)` (builds the bkg-only variant, calls `getChi2`
+  again), and `_apply_external_rebinning(self, channelname,
+  channelname_bkg, npars)` (both the main and, if `bkgonly`, the
+  bkg-only rebinned variants, calling `getChi2` for each) — the exact
+  call shape and per-channel loop structure preserved unchanged.
+- Confirmed-dead `import json` (per the plan's own grep finding, `json.`
+  has no hits beyond the import line) removed, explicitly noted here
+  rather than silently dropped. Also removed: dead `re`/`os` (confirmed
+  via `grep -n '\bre\.\|\bos\.'`, zero hits for either), matching the
+  same dead-import precedent already established for
+  `FindBHWindow.py`/`ExtractFitParameters.py`.
+- `import sys, re, os, math, argparse` split into individually-sorted
+  imports; `from ROOT import *` removed, its three resolved names
+  (`TH1D`, `RooArgSet`, `RooStats`) rewritten to explicit
+  `ROOT.TH1D`/`ROOT.RooArgSet`/`ROOT.RooStats` — behavior-identical,
+  same reasoning already verified for `ExtractFitParameters.py`'s own
+  follow-up lint fix. Done proactively in this same commit, not a
+  separate follow-up: having just fixed the CI gap this exact omission
+  caused for Chunk 15, this chunk's own newly-registered production
+  file was linted and fixed *before* committing, not after a CI
+  failure.
+- **Two real, pre-existing quirks preserved verbatim, not "cleaned up"
+  by the refactor** — caught by close reading while extracting, not
+  silently carried over unnoticed:
+  - The `try: hpdf.Scale(...) except: pass` bare-except blocks (both the
+    main-channel and bkgonly-channel Scale calls) keep their bare
+    `except:` exactly as written, with `# noqa: E722` added rather than
+    "fixing" the style finding into `except Exception:` — a genuine
+    behavior difference (bare `except` also catches
+    `SystemExit`/`KeyboardInterrupt`/`GeneratorExit`) that this
+    extraction must not introduce. (Caught during this chunk's own
+    work: the first draft of the extraction silently converted these to
+    `except Exception:` to satisfy Ruff automatically — reverted before
+    committing once noticed, per the "preserve quirks verbatim" rule.)
+  - **A newly-found, real dormant bug in `_build_bkgonly_variant`**
+    (pre-existing in the original script, not introduced by this
+    extraction): its `try/except` block calls `hpdf.Scale(...)` — the
+    **main** channel's already-fully-consumed histogram object — not
+    `hpdf_bkg.Scale(...)` as the adjacent commented-out line
+    (`# hpdf_bkg.Scale(expectedEvents_bkg/hpdf_bkg.Integral())`)
+    suggests was intended. Because `hpdf`'s content was already copied
+    into `h_postfit` earlier and is never read again, this typo means
+    `hpdf_bkg` is in practice **never actually scaled** by
+    `expectedEvents_bkg` — the bkg-only postfit histogram's
+    normalization may not be what its neighboring comment implies.
+    Preserved exactly as-is (out of scope for Chunk 16/16a/16b's
+    explicitly-listed bugs), with an explicit code comment added at the
+    call site pointing to this note and this activity-log entry — not
+    silently fixed, not silently left uncommented either.
+  - `pdf_bkg_unscaled`/`yield_bkg` (assigned via `w.obj(...)`, never
+    read) preserved verbatim inside `_build_bkgonly_variant`, with
+    `# noqa: F841` — not removed, since a `RooWorkspace.obj()` call may
+    have a caching/registration side effect beyond its return value,
+    and removing an unread-but-possibly-side-effecting call is exactly
+    the kind of "fix" this plan's guardrails forbid absent a
+    separately-scoped bug-fix chunk.
+
+### Tests added
+
+`tests/test_extract_postfit_from_ws.py` gained 2 new tests (4 total,
+all real-ROOT, all against the same committed J100 fixtures as Step A):
+`test_open_workspace_and_data_returns_expected_handles` (calls
+`_open_workspace_and_data()` directly, asserts the real returned handle
+types/values and that `self.h_data` is populated) and
+`test_build_channel_postfit_bkgonly_and_rebinning_helpers_populate_expected_state`
+(manually unrolls `Extract()`'s own per-channel loop header, then calls
+`_build_channel_postfit_histogram`/`_build_bkgonly_variant`/
+`_apply_external_rebinning` directly in sequence, asserting each one's
+own real return value and dict-population contract individually — not
+merely re-observing `Extract()`'s already-tested combined result).
+Step A's 2 tests (`Extract()`+accessors characterization, `WriteRoot()`
+end-to-end) kept unchanged per the Test Relocation Rule — no move was
+needed, Step A already wrote them into this chunk's final file name,
+matching Chunk 15's own precedent.
+
+### What this commit does NOT do
+
+`WriteRoot()`'s `dirPerCategory=False` branch (Chunk 16a's own,
+separately-scoped concern — a real Python-3 `TypeError` today) and the
+6-of-8 accessors' key-vs-value fallback bug (Chunk 16b's own concern)
+are both untouched. `run_fit.py`'s call site is confirmed unchanged via
+`git diff python/run_fit.py` (empty).
+
+### Verification performed
+
+- `python -m pytest tests/test_extract_postfit_from_ws.py -v` (under
+  `scripts/setup_buildAndFit.sh`'s ambient interpreter) -> **4 passed,
+  30.91s**.
+- `python scripts/quality_check.py --mode full` -> **194 passed, 17
+  deselected**, Ruff clean, Black clean (**37 files unchanged** —
+  confirming `python/ExtractPostfitFromWS.py`'s own lint/format issues
+  were fixed proactively in this same commit, not deferred to a
+  follow-up), exit code 0.
+- `git diff python/run_fit.py`: empty.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, Extraction variant)
+
+- [x] Step A's commit (`9dd0ccd`) named above; no test relocation was
+  needed (Step A's tests already live in the chunk's final file).
+- [x] No scientific constant, reference, tolerance, dependency revision,
+  or canonical workflow argument touched.
+- [x] Every newly-introduced function has a dedicated, genuinely new
+  test exercising it directly (not copied from Step A).
+- [x] `run_fit.py` still constructs `PostfitExtractor` the same way —
+  confirmed by `git diff` returning empty.
+- [x] Both of today's dormant bugs (the 6-accessor fallback, the
+  `dirPerCategory=False` indexing) remain untouched, exactly as Step A
+  characterized them; the newly-found `hpdf`-vs-`hpdf_bkg` Scale quirk
+  is also preserved, documented in place and here, not fixed.
+- [x] A real, unintentional behavior change caught and reverted before
+  committing: the first draft's bare-`except:` -> `except Exception:`
+  "cleanup," undone once noticed.
+- [x] `scripts/quality_check.py` registration done in this same commit
+  (guardrail 5), and the newly-registered production file's own lint
+  findings fixed proactively, not left for a later CI failure.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] This entry names Chunk 16 as now resolved; optional Chunks
+  16a/16b, Chunk 17, and Chunk 18 remain explicitly open.
