@@ -7888,3 +7888,80 @@ surfaced by the previous entry's discovery.
    not left dangling.
 4. Activity-log entry appended (this content), not a rewrite of any
    existing section.
+
+## Chunk 13.A — Characterization tests for python/createBinning.py
+
+### Objective
+
+Pin down the current, unmodified behavior of `python/createBinning.py`
+(a flat 32-line top-level script, zero functions, no `main()`, no
+`__main__` guard) before any extraction, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 13.
+
+### Target functions — inputs and outputs (as they exist today)
+
+There are no functions to characterize individually - the whole file is
+one top-to-bottom script body, run only ever as a subprocess in
+production (`run_fit.py`'s `execute("python3 python/createBinning.py
+-s {rangelow} -e {rangehigh} -o {binningFileName}")`). Characterized as
+a single whole-script unit, mirroring Chunk 10.A's own precedent for
+`plotPostFit.py` before its extraction:
+
+| Unit | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| whole script | `-s/--start`, `-e/--end`, `-o/--output` CLI args; a `resolutionFits.root` file at the hardcoded path `Input/data/dijetisrTLA/resolutionFits.root`, containing a `"gsc_mjj_reso_fit"` object exposing `.Eval(x)` | writes a `TH1F` named `"mjjBinning"` to `-o`'s path | opens/reads the hardcoded input file; raises `OSError`/`KeyError` if it's missing or the key isn't found |
+
+### Tests added
+
+- `test_createBinning_script_produces_expected_binning_for_real_fixture`
+  — builds a synthetic `resolutionFits.root` (a flat 5%-resolution `TF1`
+  named `"gsc_mjj_reso_fit"`) at the real, hardcoded input path (this
+  repository commits no real one - confirmed via `find`, and recorded in
+  `doc/TIER3_EXECUTION_TRACE.md` Section 5), runs the unmodified script
+  for real against range `[481, 3000]`, and asserts the output file
+  contains a `mjjBinning` `TH1F` with exactly **38 bins spanning
+  `[481, 3000]`** - the same result already observed once this session
+  during the syntax-bug fix, so this test both pins current behavior and
+  cross-checks that prior observation. The synthetic input file is
+  removed in a `finally` block regardless of outcome, and the test
+  refuses to run at all (asserts first) if a real `resolutionFits.root`
+  ever exists, to never risk overwriting one.
+
+### What this commit does NOT do
+
+No production file is modified. `python/createBinning.py` is unchanged
+byte-for-byte in this diff - confirmed with `git diff --stat` (only
+`tests/test_create_binning.py` and this activity-log entry appear).
+
+### Verification performed
+
+- `python -m pytest tests/test_create_binning.py -v` -> **1 passed,
+  98.02s** (real ROOT/RooFit runtime, sourced
+  `scripts/setup_buildAndFit.sh`), rerun a second time after a
+  Black-reformat of the test file itself (whitespace only) to confirm
+  the reformat changed nothing observable - both runs passed.
+- `python -m ruff check tests/test_create_binning.py` /
+  `python -m black --check tests/test_create_binning.py`: clean (one
+  line-length finding was fixed via Black before this commit).
+- `git diff --stat` (before staging): only `tests/test_create_binning.py`
+  - confirms no production file touched.
+- `python scripts/quality_check.py --mode full`: 172 passed, 8
+  deselected, Ruff clean, Black clean, exit code 0 - unaffected, since
+  the new file is not yet registered (Step B's job).
+- `git status --short Input/`: clean after the test run - the synthetic
+  fixture was removed as intended.
+
+### Compliance review (Section 8, Characterization variant)
+
+- [x] Base commit for these tests: `bdccd29` (this branch's tip
+  immediately before this commit) - `python/createBinning.py` is
+  identical to its state as fixed and verified in the earlier
+  `d66a73c` commit.
+- [x] The new test asserts a real output (histogram bin count and exact
+  bin edges), not merely "does not raise."
+- [x] `git diff --stat` shows no production file touched.
+- [x] The test was run for real, twice, and its output reviewed directly
+  (not only reported) - confirming both the exit code and the exact
+  bin-count/edge assertions against the real subprocess output.
+- [x] Human-verification checkpoint: reviewed and confirmed in this same
+  session before Step B's commit follows.
