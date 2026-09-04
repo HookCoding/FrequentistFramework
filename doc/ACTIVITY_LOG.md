@@ -7759,3 +7759,67 @@ suggests (confirmed directly from `run_fit.py:114-168`).
    done - only a small, accurate forward-pointer was added to each.
 4. Activity-log entry appended (this content), not a rewrite of any
    existing section.
+
+## 2026-09-04: Resolve Chunks 13/14's two open pre-Step-A verification items
+
+### Objective
+
+Chunks 13 and 14 of `doc/TIER3_COMPLETION_PLAN.md` (added earlier today)
+each flagged one fact that needed direct confirmation before their real
+Step A could be written: Chunk 13's `.Get(...)` key name, and Chunk 14's
+committed-fixture directory-structure requirement. Both are resolved here
+by direct verification - closing out the last open items in the planning
+stage - with one significant, unplanned discovery surfaced along the way.
+
+### What changed
+
+- `doc/TIER3_COMPLETION_PLAN.md` Chunk 13: replaced the "confirm this
+  directly" hedge with the confirmed key name (`"gsc_mjj_reso_fit"`, read
+  directly from `python/createBinning.py`'s own `.Get(...)` call - matches
+  what was already assumed).
+- `doc/TIER3_COMPLETION_PLAN.md` Chunk 14: replaced the "not yet verified"
+  paragraph with a confirmed fact - the committed
+  `run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root`
+  does carry both `Run3TLA_bkgonly_rebinned/postfit` and
+  `Run3TLA_rebinned/data` (confirmed by opening it and walking its
+  `TDirectory` structure with ROOT directly) - no synthetic fixture
+  needed for Chunk 14 either, same as Chunks 15/16.
+- Added a new paragraph to Chunk 14 recording an unplanned discovery made
+  while resolving the above: `run/fits/run_135_1000_sixPar/` and
+  `run/fits/run_135_1000_sevenPar/` are real, committed, tracked masked-
+  fit fixtures (`PostFit_*_masked.root`, `FitParameters_*_masked.root`,
+  and a real `BHresults.json`, confirmed via `git ls-files`) - not
+  produced by either current launcher script, not referenced by any test
+  today. This directly contradicts `doc/TIER3_SYSTEM.md`'s existing Known
+  Limitations claim that "No masked-fit fixture... exists in this
+  repository" (written for `plot_postfit.cpp`'s Chunk 11). Left as an
+  explicitly open decision for whoever picks up Chunk 14 - not acted on
+  in this pass, since neither correcting that claim nor changing Chunk
+  14's design was what this pass was asked to do.
+
+### Verification performed
+
+- `grep -n '\.Get(' python/createBinning.py` - confirms the key name.
+- Opened `run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root`
+  directly with ROOT and walked its full `TDirectory` tree - confirms
+  both required category subdirectories are present.
+- `git ls-files run/fits/run_135_1000_sixPar/ run/fits/run_135_1000_sevenPar/`
+  - confirms the masked fixtures are real and tracked, not local-only
+  artifacts.
+- `grep -rln "run_135_1000" tests/` - confirms no test references them.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_COMPLETION_PLAN.md` and
+  `git diff --check`: clean.
+- `python scripts/quality_check.py --mode full`: 172 passed, 8
+  deselected, Ruff clean, Black clean, exit code 0 (unaffected - no
+  production code changed).
+
+### Compliance review
+
+1. Both resolved items are read-only verification, not chunk execution -
+   still within the planning stage the user asked about, not a start of
+   Chunks 13/14's actual work.
+2. The masked-fixture discovery is recorded plainly, not silently
+   dropped or acted on unilaterally - it touches an already-committed
+   doc's claim and a chunk's own design, both left for explicit decision.
+3. Activity-log entry appended (this content), not a rewrite of any
+   existing section.

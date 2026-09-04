@@ -1366,7 +1366,7 @@ what an extraction chunk authorizes).
 | Function | Inputs | Outputs | Side effects |
 |---|---|---|---|
 | `parse_args(argv=None)` | `argv: list[str] \| None` | `argparse.Namespace` (`start`, `end`, `output`) | none |
-| `load_resolution_fit(input_path="Input/data/dijetisrTLA/resolutionFits.root")` | `input_path: str` | a ROOT object exposing `.Eval(x)` (read from the key the current source's `.Get(...)` call names — confirm this directly before writing Step A, do not assume it from `doc/TIER3_EXECUTION_TRACE.md`) | opens `input_path` via `ROOT.TFile.Open`; raises `OSError` if the file can't be opened, `KeyError` if the key is missing — both exactly as today |
+| `load_resolution_fit(input_path="Input/data/dijetisrTLA/resolutionFits.root")` | `input_path: str` | a ROOT object exposing `.Eval(x)`, read from the key `"gsc_mjj_reso_fit"` (confirmed directly via `grep -n '\.Get(' python/createBinning.py` — the source's own literal, unchanged) | opens `input_path` via `ROOT.TFile.Open`; raises `OSError` if the file can't be opened, `KeyError` if the key is missing — both exactly as today |
 | `resolve_bin_edges(reso_fit, rangelow, rangehigh)` | `reso_fit` (anything exposing `.Eval(x)`), `rangelow: int`, `rangehigh: int` | `list[float]` | none — pure computation once given an evaluable object |
 | `build_binning_histogram(bin_edges)` | `bin_edges: list[float]` | a ROOT `TH1F` named `"mjjBinning"` | none |
 | `main(argv=None)` (**new**, replaces the file's current top-to-bottom script body) | `argv` | `None` | writes `args.output` via the four functions above |
@@ -1470,11 +1470,32 @@ existing import statements (guardrail 11), and it is what makes
 `compute_mask_window` testable with only a `numpy` stub instead of four
 heavy ones.
 
-**Before writing Step A**: confirm directly whether a committed
-`PostFit_*.root` fixture actually has the `Run3TLA_bkgonly_rebinned/postfit`
-and `Run3TLA_rebinned/data` category subdirectories `run_masking.py`'s
-hardcoded `--bkghist`/`--datahist` flags require — not yet verified as of
-this plan's writing.
+**Fixture, confirmed**: the already-committed
+`run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root`
+does have both `Run3TLA_bkgonly_rebinned/postfit` and
+`Run3TLA_rebinned/data` (confirmed directly by opening it and walking its
+`TDirectory` structure) — `run_masking.py`'s hardcoded
+`--bkghist`/`--datahist` flags resolve against it with no synthetic
+fixture needed, same as Chunks 15/16.
+
+**A related discovery, not yet acted on**: this repository also has
+real, committed, tracked masked-fit fixtures —
+`run/fits/run_135_1000_sixPar/` and `run/fits/run_135_1000_sevenPar/`
+each carry `PostFit_*_masked.root`, `FitParameters_*_masked.root`, and a
+real `BHresults.json` alongside their unmasked siblings (confirmed via
+`git ls-files`). Neither directory is produced by the current
+`scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh` launchers (their
+`rangelow=135` matches neither script's own value), and no test in this
+repository references them today. This directly contradicts
+`doc/TIER3_SYSTEM.md`'s existing Known Limitations claim that "No
+masked-fit fixture... exists in this repository" (written for
+`plot_postfit.cpp`'s untested `bump_hunter == true` branch, Chunk 11) —
+that claim predates this discovery and is now known to be inaccurate.
+Whether to (a) correct that claim, and (b) have Chunk 14's Step A also
+exercise `FindBHWindow.py` against a genuinely masked case using this
+fixture, are both left as open decisions for whoever picks up Chunk 14 -
+not resolved here, since they were not part of what this planning pass
+was asked to do.
 
 **Step A — characterization**: nothing has moved yet, so simply importing
 this file to characterize `NpEncoder` in isolation still needs stubs for
