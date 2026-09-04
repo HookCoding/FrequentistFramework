@@ -1478,24 +1478,23 @@ does have both `Run3TLA_bkgonly_rebinned/postfit` and
 `--bkghist`/`--datahist` flags resolve against it with no synthetic
 fixture needed, same as Chunks 15/16.
 
-**A related discovery, not yet acted on**: this repository also has
-real, committed, tracked masked-fit fixtures —
-`run/fits/run_135_1000_sixPar/` and `run/fits/run_135_1000_sevenPar/`
-each carry `PostFit_*_masked.root`, `FitParameters_*_masked.root`, and a
-real `BHresults.json` alongside their unmasked siblings (confirmed via
-`git ls-files`). Neither directory is produced by the current
-`scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh` launchers (their
-`rangelow=135` matches neither script's own value), and no test in this
-repository references them today. This directly contradicts
-`doc/TIER3_SYSTEM.md`'s existing Known Limitations claim that "No
-masked-fit fixture... exists in this repository" (written for
-`plot_postfit.cpp`'s untested `bump_hunter == true` branch, Chunk 11) —
-that claim predates this discovery and is now known to be inaccurate.
-Whether to (a) correct that claim, and (b) have Chunk 14's Step A also
-exercise `FindBHWindow.py` against a genuinely masked case using this
-fixture, are both left as open decisions for whoever picks up Chunk 14 -
-not resolved here, since they were not part of what this planning pass
-was asked to do.
+**A related discovery, since resolved**: this repository briefly turned
+out to also have real, committed masked-fit fixtures —
+`run/fits/run_135_1000_sixPar/` and `run/fits/run_135_1000_sevenPar/`,
+carrying `PostFit_*_masked.root`, `FitParameters_*_masked.root`, and a
+real `BHresults.json`. Neither directory was produced by either current
+launcher script (`rangelow=135` matches neither script's own value), and
+no test referenced them. Per the repository's own analysis-output
+tracking policy (outputs are not tracked unless needed for Tier 1/2
+comparison, a documented Tier 1 output contract, or a real test fixture
+loaded by path — none of which applied here), both directories were
+removed from git tracking entirely (`git rm`, same day this was found) —
+`doc/TIER3_SYSTEM.md`'s existing Known Limitations claim, "No masked-fit
+fixture... exists in this repository," is accurate again as a result.
+`FindBHWindow.py`'s masked path remains untested by any committed
+fixture; Chunk 14's own text above already states plainly that this
+chunk's dedicated-interpreter subprocess test is the only real proof of
+its correctness, on the unmasked case.
 
 **Step A — characterization**: nothing has moved yet, so simply importing
 this file to characterize `NpEncoder` in isolation still needs stubs for

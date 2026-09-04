@@ -7823,3 +7823,68 @@ stage - with one significant, unplanned discovery surfaced along the way.
    doc's claim and a chunk's own design, both left for explicit decision.
 3. Activity-log entry appended (this content), not a rewrite of any
    existing section.
+
+## 2026-09-04: Untrack non-canonical analysis output (run/fits/run_135_1000_*)
+
+### Objective
+
+The user stated a repository policy: analysis-run outputs should
+generally not be tracked in git unless needed for Tier 1/2 comparison.
+Applied directly to `run/fits/run_135_1000_sixPar/` and
+`run/fits/run_135_1000_sevenPar/` - the masked-fit fixture directories
+surfaced by the previous entry's discovery.
+
+### What changed
+
+- `git rm` both directories (51 tracked files total: `PostFit_*.root`,
+  `FitResult_*.root`, `FitParameters_*.root`, both masked and unmasked,
+  `BHresults.json`, XML templates, PDFs, logs, `AnaWSBuilder.dtd`) -
+  removed from both the git index and the working tree.
+- `doc/TIER3_COMPLETION_PLAN.md` Chunk 14's "related discovery" paragraph
+  (added in the previous entry) rewritten from "not yet acted on" to
+  "since resolved" - records that the removal restores
+  `doc/TIER3_SYSTEM.md`'s existing Known Limitations claim ("No
+  masked-fit fixture... exists in this repository") to being accurate
+  again, and that `FindBHWindow.py`'s masked path remains untested by any
+  committed fixture (Chunk 14's own dedicated-interpreter subprocess test
+  is still the only real proof of its correctness, on the unmasked case).
+- Saved the underlying policy as a persistent project memory (this
+  session's memory store), including the nuance found while
+  investigating: J100/J50's own tracked non-JSON output files
+  (`PostFit_anaFit_sixPar_bkgOnly.root` etc.) are legitimately tracked
+  despite going beyond `analysis_results.json` - they match
+  `doc/TIER1_SYSTEM.md`'s own documented canonical output contract and
+  are real, load-bearing fixtures `tests/test_plot_post_fit.py` reads by
+  path directly. `run_135_1000_*` matched none of those three criteria.
+
+### Verification performed
+
+- `grep -rln "run_135_1000" tests/`: confirmed zero references before
+  removal.
+- Confirmed neither current launcher script (`scripts/run_anaFit_J100.sh`/
+  `run_anaFit_J50.sh`) uses `rangelow=135`.
+- Confirmed via `.gitignore`'s `run/*`/`run/**` rules (with only
+  `!run/fits/J100/...`/`!run/fits/J50/...` re-including the canonical two
+  directories) that these files were never meant to be tracked in the
+  first place.
+- `git status --short` after `git rm`: only the expected deletions.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_COMPLETION_PLAN.md` and
+  `git diff --check`: clean.
+- `python scripts/quality_check.py --mode full`: 172 passed, 8
+  deselected, Ruff clean, Black clean, exit code 0 - confirms no test
+  depended on the removed files. The scientific gate was not rerun for
+  this change: it generates its own fresh run in a `tmp_path` and does
+  not read `run/fits/run_135_1000_*` at all, and no production code was
+  touched.
+
+### Compliance review
+
+1. Action taken only after explicit user confirmation (asked via a
+   direct yes/no choice before removing tracked files).
+2. Verified via grep that nothing depended on the removed files before
+   removing them, not assumed.
+3. The stale plan-document paragraph referencing these files as a
+   reusable fixture was corrected in the same commit as their removal,
+   not left dangling.
+4. Activity-log entry appended (this content), not a rewrite of any
+   existing section.
