@@ -110,14 +110,18 @@ _CONSTRUCT_EXTRACTOR = _CONSTRUCT_EXTRACTOR_ONLY + "pfe.Extract()\n"
 
 @pytest.mark.requires_root
 @pytest.mark.requires_analysis_dependencies
-def test_extract_and_accessors_characterize_todays_real_and_buggy_behavior() -> None:
-    # Pins down, in one real run against the committed J100 fixture, both
-    # today's correct behavior and today's two dormant bugs - exactly
-    # as they exist now, so Step B's extraction cannot accidentally
-    # "clean up" either bug (Chunk 5's own precedent). Real values below
-    # were independently observed by running this exact construction
-    # twice and confirming bit-identical results before writing these
-    # assertions, not guessed.
+def test_extract_and_accessors_produce_consistent_real_values() -> None:
+    # Pins down, in one real run against the committed J100 fixture,
+    # Extract()'s real output and all 8 accessors' real return values -
+    # originally written (Chunk 16.A) to characterize two dormant bugs
+    # verbatim, both since fixed: WriteRoot(dirPerCategory=False)'s
+    # Python-2 indexing (Chunk 16a) and the 6-of-8 accessors' no-
+    # channelname fallback using dict keys instead of values (Chunk
+    # 16b, fixed in this same commit - see the two blocks below, now
+    # asserting real values instead of a channel-name string). Real
+    # values below were independently observed by running this exact
+    # construction twice and confirming bit-identical results before
+    # writing these assertions, not guessed.
     assert _FIXTURE_WSFILE.exists(), f"expected committed fixture missing: {_FIXTURE_WSFILE}"
     assert _FIXTURE_DATAFILE.exists(), f"expected committed fixture missing: {_FIXTURE_DATAFILE}"
     assert _FIXTURE_REBINFILE.exists(), f"expected committed fixture missing: {_FIXTURE_REBINFILE}"
@@ -160,29 +164,28 @@ assert approx(pfe.GetChi2("Run3TLA"), 2513.0871912425)
 assert approx(pfe.GetPval("Run3TLA"), 0.4957578521660618)
 
 # GetNbins()/GetNpars()/GetNdof()/GetH1Chi2()/GetH1Postfit()/
-# GetH1Residuals() incorrectly use next(iter(dict)) (dict KEYS, not
-# values) in their no-channelname fallback - today's real, dormant bug,
-# pinned exactly as observed (a channel-name string instead of the
-# real int/histogram), not fixed here. Six accessors, not five: this
-# plan's original design pass undercounted GetNdof as unaffected -
-# corrected after a real run showed it has the identical bug.
-assert pfe.GetNbins() == "Run3TLA"
-assert pfe.GetNpars() == "Run3TLA"
-assert pfe.GetNdof() == "Run3TLA"
-assert pfe.GetH1Chi2() == "Run3TLA"
-assert pfe.GetH1Postfit() == "Run3TLA"
-assert pfe.GetH1Residuals() == "Run3TLA"
+# GetH1Residuals() now correctly use next(iter(dict.values())) in their
+# no-channelname fallback, matching GetChi2()/GetPval() above (Chunk
+# 16b fix) - previously returned the channel-name string "Run3TLA"
+# instead of the real int/histogram (Chunk 16.A's own characterization
+# of that bug, now resolved).
+assert pfe.GetNbins() == 2519
+assert pfe.GetNpars() == 6
+assert pfe.GetNdof() == 2513
+assert pfe.GetH1Chi2().GetNbinsX() == 6
+assert pfe.GetH1Postfit().GetNbinsX() == 2519
+assert pfe.GetH1Residuals().GetNbinsX() == 2519
 
-# The same six accessors work correctly when channelname IS supplied -
-# proving the bug is specific to the omitted-argument fallback, not a
-# general break (this is exactly the call shape run_fit.py's own real
-# call sites always use, so production is unaffected).
-assert pfe.GetNbins("Run3TLA") == 2519
-assert pfe.GetNpars("Run3TLA") == 6
-assert pfe.GetNdof("Run3TLA") == 2513
-assert pfe.GetH1Chi2("Run3TLA").GetNbinsX() == 6
-assert pfe.GetH1Postfit("Run3TLA").GetNbinsX() == 2519
-assert pfe.GetH1Residuals("Run3TLA").GetNbinsX() == 2519
+# All 8 accessors are now behaviorally consistent: the no-channelname
+# fallback returns the exact same value an explicit channelname call
+# does, for every one of them (proving Chunk 16b's fix, not just that
+# it no longer returns the wrong type).
+assert pfe.GetNbins() == pfe.GetNbins("Run3TLA")
+assert pfe.GetNpars() == pfe.GetNpars("Run3TLA")
+assert pfe.GetNdof() == pfe.GetNdof("Run3TLA")
+assert pfe.GetH1Chi2().GetNbinsX() == pfe.GetH1Chi2("Run3TLA").GetNbinsX()
+assert pfe.GetH1Postfit().GetNbinsX() == pfe.GetH1Postfit("Run3TLA").GetNbinsX()
+assert pfe.GetH1Residuals().GetNbinsX() == pfe.GetH1Residuals("Run3TLA").GetNbinsX()
 
 print("SNIPPET_OK")
 """

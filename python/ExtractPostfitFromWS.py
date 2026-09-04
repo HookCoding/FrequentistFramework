@@ -428,6 +428,11 @@ class PostfitExtractor:
 
         fout.Close()
 
+    # GetChi2()/GetPval() below have always used next(iter(dict.values()))
+    # in their no-channelname fallback - the pattern Chunk 16b
+    # (doc/TIER3_COMPLETION_PLAN.md / doc/ACTIVITY_LOG.md) made the other
+    # six accessors below match, having previously used
+    # next(iter(dict)) (dict keys) instead.
     def GetChi2(self, channelname=None):
         if not self.channel_chi2:
             self.Extract()
@@ -442,7 +447,7 @@ class PostfitExtractor:
         if channelname:
             return self.channel_nbins[channelname]
         else:
-            return next(iter(self.channel_nbins))
+            return next(iter(self.channel_nbins.values()))
 
     def GetNpars(self, channelname=None):
         if not self.channel_npars:
@@ -450,7 +455,7 @@ class PostfitExtractor:
         if channelname:
             return self.channel_npars[channelname]
         else:
-            return next(iter(self.channel_npars))
+            return next(iter(self.channel_npars.values()))
 
     def GetNdof(self, channelname=None):
         if not self.channel_ndof:
@@ -458,7 +463,7 @@ class PostfitExtractor:
         if channelname:
             return self.channel_ndof[channelname]
         else:
-            return next(iter(self.channel_ndof))
+            return next(iter(self.channel_ndof.values()))
 
     def GetPval(self, channelname=None):
         if not self.channel_pval:
@@ -474,7 +479,7 @@ class PostfitExtractor:
         if channelname:
             return self.channel_hchi2[channelname]
         else:
-            return next(iter(self.channel_hchi2))
+            return next(iter(self.channel_hchi2.values()))
 
     def GetH1Postfit(self, channelname=None):
         if not self.channel_hpostfit:
@@ -482,7 +487,7 @@ class PostfitExtractor:
         if channelname:
             return self.channel_hpostfit[channelname]
         else:
-            return next(iter(self.channel_hpostfit))
+            return next(iter(self.channel_hpostfit.values()))
 
     def GetH1Residuals(self, channelname=None):
         if not self.channel_hresiduals:
@@ -490,7 +495,7 @@ class PostfitExtractor:
         if channelname:
             return self.channel_hresiduals[channelname]
         else:
-            return next(iter(self.channel_hresiduals))
+            return next(iter(self.channel_hresiduals.values()))
 
     def GetCategories(self):
         if not self.channel_chi2:

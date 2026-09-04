@@ -9317,3 +9317,82 @@ edit.
 - [x] All required gates ran and passed, output captured above.
 - [x] `git diff --check` passes.
 - [x] Activity-log entry appended (this content).
+
+## Chunk 16b — Fix the 6-of-8 accessors' key-vs-value fallback bug
+
+### Objective
+
+Fix the second dormant bug Chunk 16.A characterized:
+`GetNbins`/`GetNpars`/`GetNdof`/`GetH1Chi2`/`GetH1Postfit`/
+`GetH1Residuals`'s no-`channelname` fallback did `next(iter(self.channel_X))`
+(dict **keys**), unlike `GetChi2`/`GetPval`'s already-correct
+`next(iter(self.channel_X.values()))`. Per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 16b — optional, run after Chunk 16
+(and Chunk 16a) landed. No new characterization commit was needed:
+Chunk 16.A's own test already pinned this exact wrong-type-return
+behavior; this commit fixes the production code and updates those same
+reused assertions in one commit, per the plan's own text for this
+chunk.
+
+### What changed
+
+- `python/ExtractPostfitFromWS.py`: all 6 affected accessors' fallback
+  changed from `next(iter(self.channel_X))` to
+  `next(iter(self.channel_X.values()))`, matching `GetChi2`/`GetPval`'s
+  pattern exactly. A short comment added above `GetChi2` pointing to
+  this fix for the block below it.
+- `tests/test_extract_postfit_from_ws.py`:
+  `test_extract_and_accessors_characterize_todays_real_and_buggy_behavior`
+  renamed to `test_extract_and_accessors_produce_consistent_real_values`
+  (it no longer characterizes any buggy behavior — both bugs Chunk 16.A
+  found are now fixed, Chunk 16a's in the prior commit, Chunk 16b's in
+  this one). The 6 reused assertions changed from asserting the
+  channel-name string `"Run3TLA"` to asserting the real values
+  (`2519`/`6`/`2513`/histogram bin counts); 6 new assertions added
+  confirming each no-`channelname` call now returns exactly what the
+  same accessor returns when `channelname="Run3TLA"` is supplied
+  explicitly — proving all 8 accessors are now behaviorally consistent,
+  not just that the wrong-type bug is gone.
+
+### Confirm: no scientific behavior changed
+
+Explicitly safe by construction, stated in the plan's own text: the
+only production call site (`run_fit.py:160/162`,
+`pfe.GetPval("Run3TLA_bkgonly_rebinned")`/
+`pfe.GetPval("Run3TLA_rebinned")`) always supplies `channelname`
+explicitly, so this fix cannot change any value that call site — or the
+scientific gate, or any other currently-passing test — observes.
+Confirmed via `git diff python/run_fit.py` returning empty.
+
+### Verification performed
+
+- Under `scripts/setup_buildAndFit.sh`'s ambient interpreter, the full
+  test file (all 5 tests): **5 passed, 29.21s** — no regression to any
+  already-passing test, and the new consistency assertions themselves
+  passed.
+- Full lightweight suite: **195 passed, 20 deselected** — identical
+  count to the post-16a.B baseline (this commit only edits existing
+  test assertions, no test added or removed).
+- Ruff/Black clean on both changed files.
+- `git diff python/run_fit.py`: empty.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, general fix variant)
+
+- [x] Characterization already existed (Chunk 16.A, commit `9dd0ccd`);
+  this commit's own text states explicitly why no new characterization
+  commit was needed, per the plan's own instruction for this chunk.
+- [x] Fix is minimal: 6 `next(iter(dict))` -> `next(iter(dict.values()))`
+  substitutions, nothing else touched.
+- [x] `run_fit.py`'s call site confirmed unchanged (`git diff` empty),
+  so this fix cannot affect any behavior the scientific gate exercises
+  — stated explicitly, matching the plan's own safety argument for
+  fixing this post-hoc.
+- [x] The updated test proves full 8-accessor consistency (no-arg call
+  == explicit-channelname call), not just "no longer wrong type."
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] This entry names both optional Chunks 16a and 16b as now
+  resolved; Chunk 17 (`PreFit.py`) and Chunk 18 (final documentation)
+  remain the only open items in `doc/TIER3_COMPLETION_PLAN.md`.
