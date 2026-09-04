@@ -139,6 +139,8 @@ def main() -> None:
         "tests/test_compare_root_outputs.py",
         "tests/test_plot_edm.py",
         "tests/test_plot_post_fit.py",
+        "tests/test_plot_postfit_macro.py",
+        "tests/test_read_bumphunter_results.py",
         "tests/test_repo_utils.py",
         "tests/test_run_anaFit.py",
         "tests/test_run_cli.py",

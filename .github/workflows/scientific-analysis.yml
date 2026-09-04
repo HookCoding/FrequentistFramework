@@ -268,3 +268,33 @@ jobs:
 
             exit "$characterization_status"
           fi
+
+      - name: Run plotting-layer real-ROOT regression gates
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          set +u
+          source scripts/setup_buildAndFit.sh
+          setup_status=$?
+          set -e
+
+          if (( setup_status != 0 )); then
+            echo "::error title=Scientific environment setup failed::scripts/setup_buildAndFit.sh exited with status $setup_status."
+            exit "$setup_status"
+          fi
+
+          # The plotting-layer tests (python/plotPostFit.py's real-ROOT
+          # tests, plot_postfit.cpp's whole-macro end-to-end test, and
+          # plot_postfit.cpp's read_bumphunter_results() ROOT-macro unit
+          # test) all carry requires_analysis_dependencies, so the
+          # lightweight gate above deselects every one of them. Without
+          # this step they would run in no CI job at all (GitHub Copilot
+          # review, PR #6). Selecting on the marker here is deliberate:
+          # it runs exactly the tests the lightweight gate cannot.
+          python -m pytest \
+            tests/test_plot_post_fit.py \
+            tests/test_plot_postfit_macro.py \
+            tests/test_read_bumphunter_results.py \
+            -m "requires_analysis_dependencies" \
+            -v

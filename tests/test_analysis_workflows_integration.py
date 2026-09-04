@@ -138,6 +138,7 @@ def _run_workflow(
 
 @pytest.mark.integration
 @pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
 def test_authoritative_j100_j50_workflows_match_frozen_reference(
     tmp_path: Path,
 ) -> None:

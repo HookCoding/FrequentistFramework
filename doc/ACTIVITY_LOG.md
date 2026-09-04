@@ -7208,3 +7208,182 @@ Chunk 12's own required-contents list:
 ### Remaining open chunks
 
 None. All twelve chunks of `doc/TIER3_COMPLETION_PLAN.md` are complete.
+
+## 2026-09-04: Wire the ROOT regression tests into CI and correct the paired-pointer contract (GitHub Copilot review, PR #6)
+
+### Objective
+
+Resolve the two findings from GitHub Copilot's review of PR #6, both
+raised against the Chunk 11/Chunk 12 work:
+
+1. (Medium) `tests/test_plot_postfit_macro.py` and
+   `tests/test_read_bumphunter_results.py` are absent from
+   `scripts/quality_check.py`'s `test_targets`, and the hosted scientific
+   workflow only invokes `tests/test_analysis_workflows_integration.py`.
+   Neither new ROOT regression test therefore ran in any CI job, and both
+   Python wrappers also escaped Ruff/Black.
+2. (Low) `plot_postfit.cpp`'s `load_postfit_histograms()` comment claims
+   all four `TFile *` parameters "may be null", but `native_params`/
+   `masked_params` are dereferenced unconditionally inside their
+   partner's guard, so a caller following the stated contract crashes.
+
+Both were verified against the repository before any change, not taken at
+face value:
+
+- `grep -n "pytest" .github/workflows/scientific-analysis.yml` shows the
+  only three pytest invocations in the hosted job are
+  `tests/test_repo_utils.py -m "requires_analysis_dependencies"`,
+  `tests/test_analysis_workflows_integration.py -k
+  authoritative_setup_provides_scientific_runtime`, and
+  `tests/test_analysis_workflows_integration.py -m "integration and
+  requires_root"`. `.github/workflows/tier1-root-comparison.yml` runs
+  `scripts/quality_check.py`, whose `test_targets` did not list either
+  file. Finding 1 confirmed: neither file ran anywhere in CI.
+- Reading `load_postfit_histograms()` directly confirms
+  `native_params->Get<TH1D>("postfit_params")` sits inside
+  `if (native) { ... }` with no null check of `native_params` itself
+  (same for the masked pair). Finding 2 confirmed as a documentation
+  defect; the code behavior itself is the pre-existing landmine this plan
+  deliberately preserved, and is not changed here.
+
+### What changed
+
+- `scripts/quality_check.py`: added `tests/test_plot_postfit_macro.py`
+  and `tests/test_read_bumphunter_results.py` to `test_targets`, in
+  alphabetical position. This buys Ruff/Black coverage only - every test
+  in both files carries `requires_analysis_dependencies`, so the ordinary
+  gate's pytest phase still deselects all of them, which is exactly the
+  behavior Copilot's comment described as acceptable ("the existing
+  marker can still keep them out of the lightweight pytest phase").
+- `.github/workflows/scientific-analysis.yml`: added a final step, "Run
+  plotting-layer real-ROOT regression gates", which sources
+  `scripts/setup_buildAndFit.sh` (same preamble and same failure
+  annotation as every other scientific step in that job) and then runs
+  `python -m pytest tests/test_plot_post_fit.py
+  tests/test_plot_postfit_macro.py tests/test_read_bumphunter_results.py
+  -m "requires_analysis_dependencies" -v`. The step is placed in this job
+  specifically because it is the only one with CVMFS: it mounts
+  `atlas.cern.ch`/`sft.cern.ch` via the `cvmfs-contrib/github-action-cvmfs`
+  step and verifies the mounts before use.
+  Scope note: Copilot named only the two new wrapper files, but
+  `tests/test_plot_post_fit.py`'s four real-ROOT tests were in exactly
+  the same position - registered for linting, but marker-deselected
+  everywhere and run by no CI job. Fixing only the two named files would
+  have left two thirds of the plotting layer's real-ROOT coverage still
+  unreachable in CI, so all three files are included.
+- `plot_postfit.cpp`: rewrote `load_postfit_histograms()`'s leading
+  comment to state the paired-pointer requirement explicitly
+  (`native_params` must be non-null whenever `native` is; likewise for
+  the masked pair; passing a null params pointer alongside a non-null
+  partner crashes), replacing the previous "any of which may be null"
+  wording. Comment-only: no statement, signature, or behavior changed.
+- `doc/TIER3_SYSTEM.md`: brought in line with the above, and corrected
+  three claims found to be wrong when this branch was reviewed end to
+  end:
+  - the `run_masking.py` row said `should_mask()` was "fixed post-hoc to
+    treat `NaN` as 'not maskable' rather than raising". Both halves are
+    backwards: verified directly that `should_mask(float("nan"), 0.01)`
+    returns `True` (NaN *does* require masking, matching the original
+    coordinator's `if p_value > threshold:` gating), and the pre-fix
+    version returned `False` rather than raising. Rewritten to state the
+    `not (p_value > threshold)` vs `p_value <= threshold` distinction and
+    cite the proving test.
+  - the "Gate commands" closing paragraph claimed the scientific gate
+    exercises all four Tier-3 refactor targets "for real". Verified
+    false: `tests/test_analysis_workflows_integration.py` sets
+    `ANAFIT_SKIP_PLOTS=1`, and `scripts/run_anaFit_J100.sh`/
+    `run_anaFit_J50.sh` gate both plotting invocations on that variable,
+    so the gate covers `run_anaFit.py` and `plot_edm.py` (invoked
+    unconditionally from `build_fit_extract()`) but not
+    `python/plotPostFit.py` or `plot_postfit.cpp`. Rewritten as a
+    three-bullet split stating which gate covers what, and why the
+    plotting layer needed its own CI step.
+  - the test-file map said `tests/test_plot_postfit_macro.py` runs "via
+    `tests/root_macros/`"; it invokes `plot_postfit.cpp` directly.
+  - the `quality_check.py` registration paragraph (which said the two
+    wrapper files are deliberately unregistered) and the plotting-layer
+    gate section were updated to match the new registration and CI step;
+    lightweight-gate numbers refreshed from 172 passed / 6 deselected /
+    27 files to 172 passed / 8 deselected / 29 files.
+
+### Verification performed
+
+- `python scripts/quality_check.py --mode full` → 172 passed, 8
+  deselected, ruff clean, black clean (29 files unchanged), exit code 0.
+  Both newly-registered files are visibly present in the echoed ruff and
+  black command lines.
+- `python -m pytest tests/test_plot_post_fit.py
+  tests/test_plot_postfit_macro.py tests/test_read_bumphunter_results.py
+  -m "requires_analysis_dependencies" --collect-only -q` → 6/11
+  collected, 5 deselected, listing exactly the four `test_plot_post_fit`
+  real-ROOT tests plus the two macro wrappers. This is the precise
+  selection the new CI step will make.
+- `python -m pytest <the same three files> -m
+  "requires_analysis_dependencies"` run for real against this host's
+  CVMFS/LCG runtime → 6 passed, confirming `plot_postfit.cpp` still
+  compiles and behaves identically after the comment rewrite.
+- The workflow file was parsed with `yaml.safe_load` to confirm it is
+  still valid YAML and that the new step is the 15th and last step of
+  `complete-analysis-test-suite`, with its backslash continuations
+  surviving the block scalar intact.
+- `grep -nE '[[:blank:]]+$'` over every changed file and `git diff
+  --check` → both clean.
+- No integration-gate rerun in this commit: no analysis-affecting
+  production code changed (the only `.cpp` change is a comment), so the
+  scientific gate result recorded for Chunk 11.B (`b026efd`, 1 passed,
+  153.99 s) remains the current citation. It was, however, independently
+  re-run at this branch's HEAD during the review that preceded this
+  commit (`pytest -m "not requires_analysis_dependencies" tests/` → 174
+  passed in 153.75 s, which selects it) and still matched the frozen
+  reference.
+
+### Compliance review
+
+1. Only the two verified findings were acted on, plus the documentation
+   claims that the CI change itself made stale and three factual errors
+   found by direct verification against the repository. No unrelated
+   cleanup.
+2. No production behavior changed anywhere: the `.cpp` edit is a comment,
+   `quality_check.py` gains two list entries, and the workflow gains a
+   step. `run_anaFit.py` and the seven extracted modules are untouched.
+3. No new dependency or tool was introduced; the new CI step reuses the
+   existing setup preamble, the existing markers, and the existing
+   pytest invocation style verbatim. The one marker change in this
+   commit (see below) applies an existing, already-defined marker to one
+   more test - it does not define a new one.
+4. Activity-log entry appended (this content), not a rewrite of any
+   existing section - except the "Known follow-up" subsection below,
+   which was rewritten from "not done here" to "done here" before this
+   entry was ever committed, per the append-only rule's own scope (it
+   protects committed history, not a still-uncommitted draft of the
+   entry describing the commit currently being prepared).
+
+### Additional one-line fix folded into this commit
+
+`tests/test_analysis_workflows_integration.py::test_authoritative_j100_j50_workflows_match_frozen_reference`
+carried `integration` and `requires_root` but not
+`requires_analysis_dependencies`, so it was the one real-ROOT test this
+plan's own stated rule ("any test that sources
+`scripts/setup_buildAndFit.sh` carries both markers") did not cover.
+Measured consequence before the fix: `pytest -m "not
+requires_analysis_dependencies" tests/` selected it and ran a real
+154-second fit, and would fail outright on a machine with no CVMFS - the
+same failure mode fixed for the plotting tests in `6745188`. This was
+raised during the same-branch review as a follow-up rather than acted on
+immediately (it touches the scientific gate's own test file and is
+outside both Copilot findings), and is now applied at the user's explicit
+request alongside the two Copilot fixes above, in this same commit.
+
+Added `@pytest.mark.requires_analysis_dependencies` to that one test.
+Verified both CI selectors are unaffected: `pytest
+tests/test_analysis_workflows_integration.py -m "not
+requires_analysis_dependencies" --collect-only` now deselects it (1/3
+collected, was 2/3); `pytest tests/test_analysis_workflows_integration.py
+-m "integration and requires_root" --collect-only` still selects exactly
+it (1/3 collected) - the hosted scientific job's own selector is
+unchanged. `scripts/quality_check.py` never listed this file in
+`test_targets` at all, so it was never affected either way. Reran
+`python scripts/quality_check.py --mode full` after this addition - 172
+passed, 8 deselected, ruff/black clean (29 files unchanged), exit code 0,
+unchanged from the pre-marker run - confirming the fix is inert to every
+existing selector except the one it was meant to change.

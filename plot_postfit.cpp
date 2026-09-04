@@ -94,14 +94,21 @@ struct PostfitHistograms {
     * masked_params{nullptr};
 };
 
-// Reads the ten residual/chi2/params histograms out of up to four input
-// files (any of which may be null - Get<TH1D> is simply never called for
-// a null TFile*, matching the original's `if (in_file_native)`/
-// `if (in_file_masked)` guards). Moved verbatim from plot_postfit()'s own
-// body, including the pre-existing behavior that in_file_native_params/
-// in_file_masked_params are dereferenced unconditionally inside those
-// same guards, without their own null check - see doc/ACTIVITY_LOG.md's
-// Tier 3 Chunk 11.B entry for why this is preserved, not "fixed", here.
+// Reads the ten residual/chi2/params histograms out of four input files,
+// which must be supplied in pairs. `native` and `masked` may each be null
+// - a null one is skipped entirely, matching the original's
+// `if (in_file_native)`/`if (in_file_masked)` guards - but `native_params`
+// must be non-null whenever `native` is, and `masked_params` whenever
+// `masked` is: each params pointer is dereferenced unconditionally inside
+// its partner's guard, with no null check of its own, so passing a null
+// params pointer alongside a non-null partner crashes. That unconditional
+// dereference is pre-existing behavior, moved verbatim from
+// plot_postfit()'s own body and deliberately preserved rather than
+// "fixed" here - see doc/ACTIVITY_LOG.md's Tier 3 Chunk 11.B entry. The
+// paired-pointer requirement is stated explicitly because the earlier
+// wording of this comment ("any of which may be null") described a
+// contract the function does not actually honor (GitHub Copilot review,
+// PR #6).
 //
 // Decision (Chunk 11's own "record the decision" point): the
 // "exit(1) if native histograms missing" check stays inside this

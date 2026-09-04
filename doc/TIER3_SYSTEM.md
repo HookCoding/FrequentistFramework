@@ -34,7 +34,7 @@ of independently-tested functions. `plot_postfit.cpp` went from one
 parameter order unchanged.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 172 passed, 6 deselected, Ruff clean, Black clean (27 files
+full`): 172 passed, 8 deselected, Ruff clean, Black clean (29 files
 unchanged), exit code 0. Latest scientific gate (`python -m pytest
 tests/test_analysis_workflows_integration.py -m "integration and
 requires_root" -v`, run for Chunk 11.B, commit `b026efd`): 1 passed, 2
@@ -87,7 +87,7 @@ directory (`python/`) to `sys.path[0]`.
 | `run_execution.py` | `execute(cmd)`; `execute_required(cmd, description, expected_outputs=())` | No | top-level |
 | `run_manifest.py` | `write_analysis_results(folder, p_chi2, masked, provenance)` | No | top-level |
 | `run_provenance.py` | `get_repository_root()`; `resolve_analysis_path(path, repository_root=None)`; `calculate_file_sha256(path)`; `build_file_provenance(path, repository_root=None)`; `get_git_revision(repository_path)`; `collect_scientific_runtime()`; `build_analysis_provenance(datafile, datahist, topfile, categoryfile, backgroundfile, signalfile, rangelow, rangehigh, dosignal, dolimit, doprefit, maskthreshold)` | Only `collect_scientific_runtime()` | `import ROOT` deferred inside that one function; `get_repository_root()` calls `repo_utils.find_repo_root()` for the base path, layering the `.git` existence check on top locally (Chunk 3.B) |
-| `run_masking.py` | `load_bumphunter_results(results_file)`; `run_bumphunter(postfitfile, folder)`; `should_mask(p_value, threshold)` (new - a shared predicate extracting the previously-duplicated `p_value <= threshold` comparison; fixed post-hoc to treat `NaN` as "not maskable" rather than raising, per a GitHub Copilot review finding) | No | top-level |
+| `run_masking.py` | `load_bumphunter_results(results_file)`; `run_bumphunter(postfitfile, folder)`; `should_mask(p_value, threshold)` (new - a shared predicate extracting the masking rule the coordinator previously wrote out inline at two call sites as `p_value > threshold`; implemented as `not (p_value > threshold)`, not the tempting `p_value <= threshold`, after a GitHub Copilot review finding: the two agree for ordinary floats but not for `NaN`, where both `>` and `<=` are False, so only the explicit negation reproduces the original's behavior of sending a `NaN` p-value down the masking branch. Proven by `tests/test_run_masking.py::test_should_mask_treats_nan_p_value_as_requiring_masking`) | No | top-level |
 | `run_templates.py` | `replaceinfile(f, old_new_list)`; `_seed_prefit_parameters(datafile, datahist, rangelow, rangehigh, backgroundfile, tmpbackgroundfile, nbkg)` (private); `_stage_xml_templates(folder, topfile, categoryfile, backgroundfile, signalfile, signame, wsfile, sigmean, sigwidth, datafile, datahist, rangelow, rangehigh, nbkg, nsig, doprefit, systdict)` (private); `prepare_run_templates(...)` (public entry point, same parameters as `_stage_xml_templates`, thin wrapper) | Only the `doprefit` branch | `from PreFit import PreFitter` deferred inside `_seed_prefit_parameters()` |
 | `run_fit.py` | `build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, fitresultfile, poi=None, maskrange=None)` | The whole function | `import ROOT`, `from ExtractPostfitFromWS import PostfitExtractor`, `from ExtractFitParameters import FitParameterExtractor` deferred inside the function, placed immediately before the first `ROOT.TFile(...)` use (after both `execute_required` calls) |
 | `run_cli.py` | `build_arg_parser()`; `normalize_signal_name(sigmean, sigwidth, signame)` | No | top-level |
@@ -192,7 +192,7 @@ Step A's characterization run and the already-committed reference PDF.
 | `run_anaFit.py` | `tests/test_run_anaFit.py` | No (stubs `ROOT`/`ExtractPostfitFromWS`/`ExtractFitParameters`/`PreFit` for module loading) |
 | `plot_edm.py` | `tests/test_plot_edm.py` | Only tests reaching `plot_minuit_edm_trace()`'s non-empty-data path (stub `sys.modules["matplotlib"]`/`["matplotlib.pyplot"]`) |
 | `python/plotPostFit.py` | `tests/test_plot_post_fit.py` | Only `load_postfit_histograms()`/`build_ratio_histogram()`/`draw_postfit_canvas()`/end-to-end tests (real subprocess against sourced `scripts/setup_buildAndFit.sh`); `parse_args()` tests need none |
-| `plot_postfit.cpp` | `tests/test_plot_postfit_macro.py` (end-to-end, via `tests/root_macros/` invoked through `root -l -b -q`) | Yes, always (whole-macro subprocess) |
+| `plot_postfit.cpp` | `tests/test_plot_postfit_macro.py` (end-to-end: invokes `plot_postfit.cpp` itself through `root -l -b -q`, not via `tests/root_macros/`) | Yes, always (whole-macro subprocess) |
 | `plot_postfit.cpp`'s `read_bumphunter_results()` | `tests/test_read_bumphunter_results.py` (thin wrapper) + `tests/root_macros/test_read_bumphunter_results.cpp` (the actual ROOT-macro unit test) + `tests/root_macros/BHresults_sample.json` (tracked fixture) | Yes, always |
 
 Every real-ROOT/CVMFS-needing test above is marked both
@@ -207,13 +207,17 @@ the second marker, matching `test_authoritative_setup_provides_scientific_runtim
 own pre-existing markers).
 
 `scripts/quality_check.py`'s `python_targets`/`test_targets` cover every
-Python production module and its unit-test file from this plan except
-the ROOT-macro-only test files
-(`tests/test_plot_postfit_macro.py`/`tests/test_read_bumphunter_results.py`),
-which Chunk 11 does not require registering there (only Python files are
-covered by `python_targets`; the two new Python wrapper files are still
-run directly via their own `pytest` invocation, not through the ordinary
-gate, since they need CVMFS).
+Python production module and test file from this plan, including the two
+ROOT-macro wrapper test files
+(`tests/test_plot_postfit_macro.py`/`tests/test_read_bumphunter_results.py`).
+Registering them buys Ruff/Black coverage only: every test they contain
+carries `requires_analysis_dependencies`, so the ordinary gate's pytest
+phase (`-m "not requires_analysis_dependencies"`) deselects all of them,
+which is why they were originally left unregistered. A GitHub Copilot
+review of PR #6 pointed out that leaving them out meant both files
+escaped Ruff/Black entirely and that neither ROOT-macro regression test
+ran in any CI job at all; both halves of that gap are now closed - see
+the plotting-layer gate below, which the hosted scientific workflow runs.
 
 ## Gate commands
 
@@ -223,18 +227,33 @@ gate, since they need CVMFS).
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 172 passed, 6 deselected, Ruff clean, Black clean
-(27 files unchanged), exit code 0.
+Latest verified result: 172 passed, 8 deselected, Ruff clean, Black clean
+(29 files unchanged), exit code 0. (The deselected count rose from 6 to 8,
+and the formatted-file count from 27 to 29, when the two ROOT-macro
+wrapper test files were registered - see the paragraph above.)
 
-### Plotting-layer real-ROOT gates (not part of the ordinary ­gate above)
+### Plotting-layer real-ROOT gate (not part of the ordinary ­gate above)
 
 ```bash
-python -m pytest tests/test_plot_post_fit.py -v
-python -m pytest tests/test_plot_postfit_macro.py tests/test_read_bumphunter_results.py -v
+python -m pytest \
+  tests/test_plot_post_fit.py \
+  tests/test_plot_postfit_macro.py \
+  tests/test_read_bumphunter_results.py \
+  -m "requires_analysis_dependencies" -v
 ```
 
-Latest verified result: 11 passed (9 + 2), 87.29 seconds combined, exit
-code 0, run against this host's actual CVMFS/LCG scientific runtime.
+This is the command `.github/workflows/scientific-analysis.yml`'s "Run
+plotting-layer real-ROOT regression gates" step runs, after sourcing
+`scripts/setup_buildAndFit.sh` on its CVMFS-mounted runner. It selects
+exactly the 6 tests the lightweight gate deselects; the other 5
+(`parse_args()`'s) need no ROOT and already run there. Dropping the `-m`
+filter runs all 11 and is equivalent on a CVMFS host.
+
+Latest verified result on this host: 11 passed, 92.21 seconds, exit code
+0 (and 6 selected / 5 deselected under the marker filter above), run
+against this host's actual CVMFS/LCG scientific runtime. The hosted
+runner's first execution of this step is its own first verification -
+`plot_postfit.cpp` had never been compiled in CI before it was added.
 
 ### Scientific gate
 
@@ -246,15 +265,24 @@ python -m pytest tests/test_analysis_workflows_integration.py \
 Latest verified result (Chunk 11.B, commit `b026efd`): 1 passed, 2
 deselected, 153.99 seconds, exit code 0.
 
-These gates still cover every module this plan touched: the lightweight
-gate runs every extracted Python module's unit tests; the plotting-layer
-commands cover `python/plotPostFit.py` and `plot_postfit.cpp`, neither of
-which the lightweight gate can reach without CVMFS; the scientific gate
-reruns the real J100/J50 launchers end-to-end, which invoke
-`python/run_anaFit.py` (and, transitively, every one of its seven
-modules), `plot_edm.py` (via `run_fit.py`'s `build_fit_extract()`),
-`python/plotPostFit.py`, and `plot_postfit.cpp` - all four Tier-3 refactor
-targets - for real.
+These gates together cover every module this plan touched, but each
+covers a different part, and the scientific gate deliberately does not
+cover the plotting layer:
+
+- the lightweight gate runs every extracted Python module's unit tests;
+- the scientific gate reruns the real J100/J50 launchers end-to-end,
+  exercising `python/run_anaFit.py` (and, transitively, all seven of its
+  modules) plus `plot_edm.py`, which `run_fit.py`'s `build_fit_extract()`
+  invokes unconditionally. It does **not** exercise
+  `python/plotPostFit.py` or `plot_postfit.cpp`: the gate sets
+  `ANAFIT_SKIP_PLOTS=1`
+  (`tests/test_analysis_workflows_integration.py`), and
+  `scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh` gate both plotting
+  invocations on that variable - by design, per Tier 1's "plotting
+  separated from scientific acceptance" decision;
+- the plotting-layer gate is therefore the only gate covering
+  `python/plotPostFit.py` and `plot_postfit.cpp` at all, which is why it
+  needed its own CI step.
 
 ## Pytest markers
 
@@ -298,7 +326,9 @@ Unchanged from `doc/TIER2_SYSTEM.md`:
   not fixed, per this plan's guardrail against fixing pre-existing,
   unrelated issues found incidentally. If a `PostFit_*` file ever opens
   successfully while its corresponding `FitParameters_*` file does not,
-  this will crash.
+  this will crash. The function's own comment now states this
+  paired-pointer requirement explicitly, rather than describing the four
+  pointers as independently nullable (GitHub Copilot review, PR #6).
 - **The `nPars` detection quirk in `run_templates.py`'s
   `_seed_prefit_parameters()`** (a standalone `if "three" in
   backgroundfile` followed by a separate `elif` chain for `"four"`
