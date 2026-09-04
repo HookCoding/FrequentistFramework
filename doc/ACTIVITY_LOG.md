@@ -8404,3 +8404,76 @@ appear).
   than assumed away.
 - [x] Human-verification checkpoint: reviewed and confirmed in this same
   session before Step B's commit follows.
+
+## Chunk 15.B — Register python/ExtractFitParameters.py (no restructuring)
+
+### Objective
+
+Complete Chunk 15 per `doc/TIER3_COMPLETION_PLAN.md`'s own explicit
+Rationale: `Extract()` (42 lines) is one cohesive block, and forcing a
+3-way split would relocate, not reduce, its complexity, unlike Chunk
+16's genuinely tangled 137-line `Extract()`. This chunk's entire value
+is the file's first-ever direct test of its real behavior (Step A,
+commit `f17de07`) plus registration — no production-code restructuring
+is proposed or performed.
+
+### What changed
+
+- `python/ExtractFitParameters.py`: **unchanged, byte-for-byte** —
+  confirmed via `git diff python/ExtractFitParameters.py` returning
+  empty immediately before this commit. Step A's tests already exercise
+  the file's real, existing structure directly; nothing in Step A's
+  tests required any restructuring to pass.
+- `tests/test_extract_fit_parameters.py`: no change needed — Step A
+  already wrote its tests directly into this chunk's final file name (no
+  interim characterization-only filename existed to move from, unlike
+  Chunks 13/14's Test Relocation Rule), matching this chunk's
+  no-decomposition design.
+- `scripts/quality_check.py`: `python/ExtractFitParameters.py` and
+  `tests/test_extract_fit_parameters.py` registered in
+  `python_targets`/`test_targets` (inserted alphabetically:
+  `createBinning.py` < `ExtractFitParameters.py` < `FindBHWindow.py`
+  case-insensitively; same ordering for the paired test file).
+
+### Confirm: no scientific behavior changed
+
+`python/ExtractFitParameters.py` is byte-for-byte unchanged, so there is
+no extracted code path to re-verify beyond what Step A's real-fixture
+test already exercises directly (`Extract()`, all 5 accessors,
+`WriteRoot()`, against the real, already-committed
+`FitResult_anaFit_sixPar_bkgOnly.root`). `run_fit.py`'s call site
+(`fpe = FitParameterExtractor(wsfile=fitresultfile)` at line 168) is
+untouched — confirmed by `git diff python/run_fit.py` returning empty.
+
+### Verification performed
+
+- `git diff python/ExtractFitParameters.py`: empty, confirming no
+  production restructuring occurred.
+- `python -m pytest tests/test_extract_fit_parameters.py -v` -> **3
+  passed** (2 fast, 1 real-ROOT end-to-end, run together under the
+  ambient interpreter from `scripts/setup_buildAndFit.sh`).
+- `python scripts/quality_check.py --mode full` -> lightweight suite
+  **194 passed, 15 deselected**, Ruff clean, Black clean, exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` (mandatory scientific gate,
+  unchanged canonical J100/J50 workflows) -> **1 passed, 2 deselected,
+  135.10s, exit code 0**.
+- `git diff --check`: clean.
+- `git status --short` after all real-fixture runs: clean.
+
+### Compliance review (Section 8, Extraction variant)
+
+- [x] Step A's commit (`f17de07`) named above; no test relocation was
+  needed (Step A's tests already live in the chunk's final file).
+- [x] No scientific constant, reference, tolerance, dependency revision,
+  or canonical workflow argument touched.
+- [x] No new function was introduced (this chunk's own Rationale states
+  why), so there is no new-function-needs-a-new-test obligation beyond
+  what Step A already added.
+- [x] `run_fit.py` still constructs `FitParameterExtractor` the same
+  way — confirmed by `git diff python/run_fit.py` returning empty.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] This entry names Chunk 15 as now resolved; Chunks 16 (+ optional
+  16a/16b), 17, and 18 remain explicitly open.
