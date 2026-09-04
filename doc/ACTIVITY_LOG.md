@@ -7965,3 +7965,128 @@ byte-for-byte in this diff - confirmed with `git diff --stat` (only
   bin-count/edge assertions against the real subprocess output.
 - [x] Human-verification checkpoint: reviewed and confirmed in this same
   session before Step B's commit follows.
+
+## Chunk 13.B — Extract python/createBinning.py into named functions
+
+### Objective
+
+Move the whole-script logic characterized in Step A (commit `e77724f`)
+into named, individually-tested functions plus a `main()` and a new
+`if __name__ == "__main__":` guard, per `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 13.
+
+### What changed
+
+- `python/createBinning.py` restructured from a flat 32-line top-level
+  script into `parse_args(argv=None)`, `load_resolution_fit(input_path=...)`,
+  `resolve_bin_edges(reso_fit, rangelow, rangehigh)`,
+  `build_binning_histogram(bin_edges)`, `main(argv=None)`, and a new
+  `if __name__ == "__main__": main()` guard this file previously lacked
+  (matching Chunk 10's `plotPostFit.py` precedent exactly).
+- `import ROOT` deferred from module scope into the three functions that
+  actually touch it (`load_resolution_fit`, `build_binning_histogram`,
+  `main`) - **not explicitly in the plan's original text**, added after
+  confirming directly that a module-level `import ROOT` would have broken
+  the plan's own stated goal ("both need zero ROOT" for `parse_args()`/
+  `resolve_bin_edges()`): `.venv/bin/python -c "from python import
+  createBinning"` failed with `ModuleNotFoundError: No module named
+  'ROOT'` before this fix, and succeeded after. Matches every other
+  deferred-import module in this plan (`run_fit.py`, `run_provenance.py`,
+  `run_templates.py`).
+- The hardcoded input path and `from array import array`'s deferred
+  placement (now inside `build_binning_histogram`) preserved verbatim,
+  per the plan.
+- `tests/test_create_binning.py` gained 7 new tests: 3 for `parse_args()`,
+  3 for `resolve_bin_edges()` (against a hand-written `_FakeResolutionFit`
+  exposing only `.Eval(x)` - zero ROOT, one cross-checking the real
+  fixture's own 38-bin/[481,3000] result via an independently-verified
+  edge list, one with a different resolution/range, one confirming the
+  `rangehigh` clamp), and 2 for `load_resolution_fit()`'s failure paths
+  (both real ROOT, marked). Step A's end-to-end test kept unchanged
+  (Test Relocation Rule - it was already written directly into its final
+  file, so nothing needed moving), now exercising the extracted `main()`
+  instead of the original inline script.
+- `scripts/quality_check.py`: `python/createBinning.py` and
+  `tests/test_create_binning.py` registered in
+  `python_targets`/`test_targets`.
+
+### A real finding, verified and preserved, not fixed
+
+While testing `load_resolution_fit()`'s failure paths directly, found
+that on this repository's own installed PyROOT, `ROOT.TFile.Open()`
+itself raises its own `OSError` for a missing file - a different message
+than the function's own `if not tfile or tfile.IsZombie(): raise
+OSError("Could not open Input/data/dijetisrTLA/resolutionFits.root")`
+guard, which is therefore currently unreachable in practice here. This
+is pre-existing behavior from the original single-scope script (the
+check is unchanged), not something this extraction introduced, and it is
+not dead code on every PyROOT build (some return a null `TFile` instead
+of raising, which is exactly what the guard defends against) - preserved
+verbatim, documented in a new source comment, not removed or "fixed."
+The `KeyError` path (a valid, openable file simply missing the expected
+key) **is** genuinely reached by this function's own code - confirmed
+separately and given its own passing test.
+
+Also verified directly, mirroring Chunk 10.B's own file-lifetime check:
+unlike `plotPostFit.py`'s `TH1` objects, a ROOT `TF1` read back via
+`TFile::Get()` stays evaluable after its owning `TFile` is closed (tested
+both after the file object merely fell out of scope with `gc.collect()`
+forced, and after an explicit `.Close()` call - both still returned the
+correct value). `load_resolution_fit()` therefore safely returns only
+the fit object and closes the file itself, rather than needing to hand
+the file back to the caller the way `plotPostFit.py`'s
+`load_postfit_histograms()` must.
+
+### Confirm: no scientific behavior changed
+
+`run_fit.py`'s call site (`execute(f"python3 python/createBinning.py -s
+{rangelow} -e {rangehigh} -o {binningFileName}")`) is unchanged -
+confirmed by `grep -n "createBinning" python/run_fit.py`. The extracted
+script was run for real, exactly as `run_fit.py` invokes it, against a
+synthetic fixture, and produced the identical 38-bin
+`[481, 3000]` result already verified twice before (once during the
+syntax-bug fix, once in Chunk 13.A). The integration-gate rerun below
+confirms zero regression to the real J100/J50 workflows, though - as
+already stated in Chunk 13's own plan text - that gate never exercises
+this branch at all (both committed binning fixtures already exist), so
+it proves no regression to the always-taken existence check, not this
+chunk's own correctness; the real proof is the direct script run above
+plus the 11 passing tests.
+
+### Verification performed
+
+- `python -m pytest tests/test_create_binning.py -v` -> **11 passed,
+  63.51s** (8 fast/unmarked in 0.06s, 3 real-ROOT in the remainder).
+- Ran the extracted script directly, exactly as `run_fit.py` invokes it,
+  against a synthetic fixture: exit 0, produced a real 38-bin
+  `mjjBinning` histogram spanning `[481, 3000]`, confirmed by reading it
+  back; `git status --short Input/` clean afterward.
+- `python scripts/quality_check.py --mode full` -> **180 passed, 11
+  deselected**, Ruff clean, Black clean (31 files unchanged), exit code
+  0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` -> **1 passed, 2 deselected,
+  159.63 seconds, exit code 0**.
+- `git diff --check`: clean.
+- `grep -n "createBinning" python/run_fit.py`: confirms the call site is
+  byte-for-byte unchanged.
+
+### Compliance review (Section 8, Extraction variant)
+
+- [x] Step A's commit (`e77724f`) named above; this commit's relocated
+  test is unchanged from it (nothing needed moving - it was already
+  written into its final file).
+- [x] No scientific constant, reference, tolerance, dependency revision,
+  or canonical workflow argument touched.
+- [x] `resolve_bin_edges()`'s two new fake-based tests are genuinely new,
+  independently-verified assertions, not copied from Step A.
+- [x] Every newly-introduced function has a dedicated test (success path
+  for all four; failure path for `load_resolution_fit()` and
+  `parse_args()`'s required-flag rejection).
+- [x] `run_fit.py` still calls `python/createBinning.py` by the same
+  subprocess command - confirmed by grep, not assumed.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] This entry names Chunk 13 as now resolved; Chunks 14-18 remain
+  explicitly open.
