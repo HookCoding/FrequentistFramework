@@ -8654,3 +8654,108 @@ symlink-creation call site is untouched.
 - [x] All required gates ran and passed, output captured above.
 - [x] `git diff --check` passes.
 - [x] Activity-log entry appended (this content).
+
+### 2026-09-04: Mandatory git-native pre-commit gate
+
+#### Objective
+
+At the user's explicit request ("i would like a way to have a mandatory
+check of the analysis and linting before a document is allowed to be
+commited"), add a mechanism that blocks a local `git commit` unless the
+lightweight quality gate passes, and — when the ROOT-dependent
+scientific runtime is actually available locally — the mandatory J100/
+J50 scientific integration gate too. Clarified with the user beforehand
+(AskUserQuestion) that the integration gate should run whenever
+available and be skipped, not block, when it isn't (e.g. no CVMFS
+mount) — this was chosen over always-mandatory (would hard-block
+commits on any machine without CVMFS) and over lint-only (would miss
+scientific regressions locally, catching them only in CI).
+
+#### Reconciling with the existing Tier-2 pre-commit policy
+
+`doc/TIER2_SYSTEM.md` already documents a deliberate policy: the
+third-party `pre-commit` framework (`.pre-commit-config.yaml`) is
+optional, unpinned, and not required — with a machine-verifiable test
+(`test_precommit_is_not_a_locked_development_dependency`) confirming
+the `pre-commit` PyPI package is absent from both dependency manifests.
+This new mechanism is a **different thing that happens to share a
+name**: a plain git-native hook (`.githooks/pre-commit`), not the
+third-party framework, adding no new dependency and requiring no
+pinned version — it simply wires the two commands already authoritative
+elsewhere in this repository (`python scripts/quality_check.py --mode
+full`, and the same `"integration and requires_root"` scientific gate
+every Tier 3 chunk runs before committing) into a mandatory local
+check. `doc/TIER2_SYSTEM.md`'s "Optional pre-commit configuration"
+section now has a new subsection making this distinction explicit,
+rather than silently appearing to reverse the existing policy.
+
+#### What changed
+
+- `.githooks/pre-commit` (new): runs `python scripts/quality_check.py
+  --mode full` unconditionally (blocks on failure); then attempts
+  `source scripts/setup_buildAndFit.sh` in a login-shell subshell — if
+  it succeeds (CVMFS/ROOT genuinely available here), also runs `python
+  -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` and blocks on failure; if setup
+  fails, prints the setup failure output as a warning and skips the
+  scientific half without blocking the commit (still runs in CI).
+  Prefers `.venv/bin/python` when present, matching this repository's
+  own documented dev-environment convention.
+- `scripts/install_git_hooks.sh` (new): one-time-per-checkout installer
+  — `chmod +x .githooks/pre-commit` and `git config core.hooksPath
+  .githooks`. Run once locally in this checkout as part of this change.
+- `tests/test_repo_utils.py`: new
+  `test_git_hook_pre_commit_gate_matches_authoritative_commands`,
+  matching the existing policy-test pattern
+  (`test_ci_runs_locked_lightweight_full_gate`,
+  `test_precommit_is_not_a_locked_development_dependency`) — pins that
+  the hook and its installer exist, are executable, and reference the
+  exact authoritative commands, not the wording of a human-readable
+  doc.
+- `README.md`: new "Mandatory pre-commit gate" subsection under
+  "Tier 1 and Tier 2 validation", pointing at the installer and noting
+  the `--no-verify` bypass and its limits (CI still runs the same
+  gates).
+- `doc/TIER2_SYSTEM.md`: new subsection under "Optional pre-commit
+  configuration" documenting the distinction above.
+
+#### Verification performed
+
+- Ran `.githooks/pre-commit` directly against a clean staged state:
+  lightweight gate passed, ROOT runtime detected, scientific
+  integration gate ran and **passed (1 passed, 2 deselected, 143.45s)**,
+  hook exited 0.
+- Deliberately introduced a trailing-whitespace Ruff violation and
+  re-ran the hook directly: **blocked correctly (exit 1)**, printed the
+  Ruff finding, reverted the test change afterward.
+- Repeated the same deliberate-violation test through a **real `git
+  commit`** (not just direct script invocation), confirming
+  `core.hooksPath` wiring actually intercepts commits: `git commit`
+  exited 1, no commit was created, `git reset --hard HEAD` confirmed a
+  clean working tree afterward.
+- `shellcheck .githooks/pre-commit scripts/install_git_hooks.sh`:
+  clean (one style finding, SC2002 "useless cat", fixed before this
+  check).
+- `bash -n` syntax check on both scripts: clean.
+- `python scripts/quality_check.py --mode full` -> **194 passed, 13
+  deselected**, Ruff clean, Black clean (35 files unchanged), exit code
+  0.
+- `git diff --check`: clean.
+- Installed locally in this checkout: `git config --get
+  core.hooksPath` -> `.githooks`.
+
+#### Compliance review
+
+- [x] No new Python dependency added; `pre-commit==` still absent from
+  both `requirements-dev.txt` and `requirements-dev-lock.txt` (the
+  existing policy test for this still passes).
+- [x] Existing Tier-2 "optional pre-commit framework" policy is
+  preserved verbatim, not silently reversed — the new mechanism is
+  explicitly distinguished from it in both `doc/TIER2_SYSTEM.md` and
+  the hook script's own header comment.
+- [x] Both the blocking path and the passing path were exercised for
+  real, including through an actual `git commit` invocation, not just
+  read.
+- [x] No production analysis code touched.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).

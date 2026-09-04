@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Mandatory pre-commit gate.
+#
+# Runs the same lightweight quality gate CI runs (python
+# scripts/quality_check.py --mode full: pytest, Ruff, Black - see
+# doc/TIER2_SYSTEM.md's "Optional pre-commit configuration" section for
+# why this is a plain git-native hook and not the third-party
+# `pre-commit` framework/.pre-commit-config.yaml, which stays optional
+# and unpinned), then - only when the ROOT-dependent scientific runtime
+# is actually available here (scripts/setup_buildAndFit.sh succeeds,
+# i.e. CVMFS is mounted) - the mandatory scientific integration gate
+# too (tests/test_analysis_workflows_integration.py, the same
+# "integration and requires_root" command every Tier 3 chunk in
+# doc/TIER3_COMPLETION_PLAN.md runs before committing). Blocks the
+# commit on failure; skips the scientific half with a clear warning
+# where ROOT isn't available, rather than blocking commits outright.
+#
+# Installed via `bash scripts/install_git_hooks.sh` (see README.md).
+# Bypass for a single commit with `git commit --no-verify` - use
+# sparingly, and never to skip a real failure.
+
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root" || exit 1
+
+python_bin="python"
+if [[ -x "$repo_root/.venv/bin/python" ]]; then
+    python_bin="$repo_root/.venv/bin/python"
+fi
+
+echo "[pre-commit] Running the lightweight quality gate (pytest, Ruff, Black)..."
+if ! "$python_bin" scripts/quality_check.py --mode full; then
+    echo "[pre-commit] BLOCKED: the lightweight quality gate failed (see above)."
+    echo "[pre-commit] Fix the failures and retry, or 'git commit --no-verify' to bypass (not recommended)."
+    exit 1
+fi
+
+echo "[pre-commit] Checking whether the ROOT-dependent scientific runtime is available here..."
+if bash -lc 'source scripts/setup_buildAndFit.sh' >/tmp/pre-commit-setup-check.$$.log 2>&1; then
+    rm -f "/tmp/pre-commit-setup-check.$$.log"
+    echo "[pre-commit] ROOT runtime available - running the mandatory scientific integration gate (~2-3 minutes)..."
+    if ! bash -lc '
+        source scripts/setup_buildAndFit.sh >/dev/null
+        python -m pytest tests/test_analysis_workflows_integration.py -m "integration and requires_root" -v
+    '; then
+        echo "[pre-commit] BLOCKED: the J100/J50 scientific integration gate failed (see above)."
+        echo "[pre-commit] Fix the failures and retry, or 'git commit --no-verify' to bypass (not recommended)."
+        exit 1
+    fi
+else
+    echo "[pre-commit] WARNING: scripts/setup_buildAndFit.sh could not provide a ROOT runtime here"
+    echo "[pre-commit] (no CVMFS mount, or the scientific dependencies are not built - see:"
+    sed 's/^/[pre-commit]   /' "/tmp/pre-commit-setup-check.$$.log" 2>/dev/null
+    rm -f "/tmp/pre-commit-setup-check.$$.log"
+    echo "[pre-commit] ). Skipping the scientific integration gate for this commit - it still runs in CI."
+fi
+
+echo "[pre-commit] All mandatory checks passed."
+exit 0

@@ -219,6 +219,36 @@ def test_precommit_is_not_a_locked_development_dependency() -> None:
     assert "pre-commit==" not in locked_dependencies
 
 
+def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
+    # .githooks/pre-commit is a plain git-native hook, not the
+    # third-party `pre-commit` framework the test above confirms is
+    # absent - it wires the two already-authoritative commands
+    # (scripts/quality_check.py --mode full, and the same "integration
+    # and requires_root" scientific gate every Tier 3 chunk runs before
+    # committing) into a mandatory local check, per
+    # doc/TIER2_SYSTEM.md's "Optional pre-commit configuration" section.
+    repo_root = Path(__file__).resolve().parents[1]
+
+    hook_path = repo_root / ".githooks" / "pre-commit"
+    installer_path = repo_root / "scripts" / "install_git_hooks.sh"
+
+    assert hook_path.is_file(), "Missing .githooks/pre-commit"
+    assert hook_path.stat().st_mode & 0o111, "the pre-commit hook must be executable"
+    assert installer_path.is_file(), "Missing scripts/install_git_hooks.sh"
+    assert installer_path.stat().st_mode & 0o111, "the hook installer must be executable"
+
+    hook_text = hook_path.read_text(encoding="utf-8")
+    installer_text = installer_path.read_text(encoding="utf-8")
+
+    assert "scripts/quality_check.py --mode full" in hook_text
+    assert "setup_buildAndFit.sh" in hook_text
+    assert "tests/test_analysis_workflows_integration.py" in hook_text
+    assert '"integration and requires_root"' in hook_text
+
+    assert "core.hooksPath" in installer_text
+    assert ".githooks" in installer_text
+
+
 def test_authoritative_analysis_launchers_are_executable() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 

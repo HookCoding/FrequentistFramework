@@ -66,6 +66,16 @@ python scripts/quality_check.py --mode full
 
 This command runs the approved lightweight pytest suite and the configured Ruff and Black checks. Scientific tests that require ROOT and the prepared analysis dependencies are separate from the lightweight gate.
 
+### Mandatory pre-commit gate
+
+Install a local git hook that runs the same lightweight quality gate as CI, plus the ROOT-dependent J100/J50 scientific integration gate whenever `scripts/setup_buildAndFit.sh` can actually provide a ROOT runtime here (skipped with a warning otherwise, not blocked):
+
+```bash
+bash scripts/install_git_hooks.sh
+```
+
+This is a plain git-native hook (`.githooks/pre-commit`), not the third-party `pre-commit` framework — see [Tier 2 system](doc/TIER2_SYSTEM.md) for why that framework stays optional. Bypass for a single commit with `git commit --no-verify` if you must, but a bypassed commit still has to pass both gates in CI.
+
 For complete operating and validation details, see:
 
 - [Tier 1 system](doc/TIER1_SYSTEM.md)

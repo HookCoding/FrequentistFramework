@@ -178,13 +178,40 @@ The hosted lightweight quality gate has been exercised successfully on GitHub Ac
 
 ## Optional pre-commit configuration
 
-`.pre-commit-config.yaml` is an optional convenience only.
+`.pre-commit-config.yaml` (the third-party `pre-commit` framework) is an optional convenience only.
 
 - The runner is not installed or pinned.
 - Contributors are not required to install hooks.
 - The authoritative command is `python scripts/quality_check.py --mode full`.
 - The Ruff hook version differs from the pinned Tier-2 Ruff version.
 - Hook behavior is not yet aligned with the authoritative lightweight quality gate.
+
+### Mandatory git-native pre-commit gate (distinct from the above)
+
+`.githooks/pre-commit`, installed via `bash scripts/install_git_hooks.sh`
+(see README.md), is a **separate, plain git hook** — not the
+`pre-commit` framework above, and it does not change the policy in this
+section: it adds no dependency (`pre-commit` stays absent from both
+`requirements-dev.txt` and `requirements-dev-lock.txt`, confirmed by
+`tests/test_repo_utils.py::test_precommit_is_not_a_locked_development_dependency`),
+requires no pinned version, and calls the same already-authoritative
+commands directly:
+
+- `python scripts/quality_check.py --mode full` (always) — the same
+  lightweight gate CI runs.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` (only when
+  `scripts/setup_buildAndFit.sh` succeeds here, i.e. CVMFS/ROOT is
+  actually available locally — skipped with a warning otherwise, never
+  blocking a commit on an environment that legitimately lacks CVMFS).
+
+Installing it is opt-in (`bash scripts/install_git_hooks.sh`, one time
+per checkout) and any single commit can still bypass it with
+`git commit --no-verify` — the gate a bypassed commit ultimately has to
+pass is still CI's own `python scripts/quality_check.py --mode full`,
+unchanged. `tests/test_repo_utils.py::test_git_hook_pre_commit_gate_matches_authoritative_commands`
+pins that the hook and its installer exist, are executable, and
+reference these exact commands.
 
 ## Retired modular tier-check framework
 
