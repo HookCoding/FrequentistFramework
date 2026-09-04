@@ -8559,3 +8559,98 @@ untouched (this commit only touches
 - [x] All required gates ran and passed, output captured above.
 - [x] `git diff --check` passes.
 - [x] Activity-log entry appended (this content).
+
+## Materialize the two broken AnaWSBuilder.dtd fixture symlinks
+
+### Objective
+
+Fix a real, pre-existing, previously-undetected CI failure surfaced for
+the first time by this session's own earlier CI fix (`6855d4a`, "Wire
+the ROOT regression tests into CI"): before that commit,
+`tests/test_plot_postfit_macro.py` — marked `requires_analysis_dependencies`
+— had never actually been executed by any CI job since it was created
+in Chunk 11.A/11.B, so its failure had stayed invisible.
+
+### Root cause
+
+`run/fits/J100/run_481_3000_sixPar/AnaWSBuilder.dtd` and
+`run/fits/J50/run_344_2079_sixPar/AnaWSBuilder.dtd` were git-tracked
+**symlinks** (mode `120000`) pointing to an absolute path on this
+specific AFS-mounted machine:
+`/afs/cern.ch/user/h/hhook/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd`.
+This is exactly what `python/run_templates.py:140` creates at runtime
+(`ln -sf `realpath config/dijetisrTLA/AnaWSBuilder.dtd` ...`) — genuine,
+intentional behavior for a live run on this machine, that happened to be
+captured verbatim when these fixture directories were committed. In
+GitHub Actions (no AFS mount, no such path), `shutil.copytree()` inside
+`test_plot_postfit_macro.py` fails trying to resolve the broken symlink,
+producing the `shutil.Error` observed in CI.
+
+Confirmed via the GitHub API that this specific check has been failing
+since `6855d4a` first ran it — every commit before that (including
+Chunk 11's own `b026efd`/`ea824a7`) shows CI "success" only because the
+test was never selected/run at all, not because it ever passed for
+real.
+
+### What changed
+
+- Both symlinks replaced with plain regular files (git `T` /
+  typechange), mode `100755` matching the source file's own tracked
+  mode. Content confirmed byte-identical to
+  `config/dijetisrTLA/AnaWSBuilder.dtd` via `sha1sum` before and after
+  the change (`90cf5e852fc3288f01239d231ddfb49d7df472f1` in all three
+  locations).
+- `python/run_templates.py`'s own runtime symlink-creation logic
+  (`ln -sf `realpath ...``) is completely untouched — this fix only
+  touches the two already-committed fixture copies, making them
+  self-contained/portable, not the live-run behavior that creates
+  fresh symlinks in a real fit's own output directory.
+- Confirmed via grep that no test or production code checks
+  `os.path.islink()`/`os.readlink()` on this path anywhere in the
+  repository — nothing depends on it being a symlink specifically, only
+  on the DTD content being present and readable.
+- `git add -f` was required: `.gitignore`'s `run/**` blanket-ignore only
+  explicitly re-includes `analysis_results.json` for these two fixture
+  directories, not `AnaWSBuilder.dtd` — these files were originally
+  force-added, and re-adding them after `git rm` needed the same `-f`.
+
+### Confirm: no scientific behavior changed
+
+This is a fixture-portability fix, not a scientific-content change — the
+DTD content is byte-identical to what was already being read (via the
+symlink) on this machine. `python/run_templates.py`'s real, live
+symlink-creation call site is untouched.
+
+### Verification performed
+
+- `diff config/dijetisrTLA/AnaWSBuilder.dtd
+  run/fits/{J100/run_481_3000_sixPar,J50/run_344_2079_sixPar}/AnaWSBuilder.dtd`:
+  identical in both cases.
+- `python -m pytest tests/test_plot_post_fit.py
+  tests/test_plot_postfit_macro.py tests/test_read_bumphunter_results.py
+  -m "requires_analysis_dependencies" -v` -> **6 passed, 5 deselected,
+  38.08s** — including
+  `test_plot_postfit_macro_produces_nonempty_pdf_for_real_fixture`,
+  which was the test failing in CI.
+- `python scripts/quality_check.py --mode full` -> **193 passed, 13
+  deselected**, Ruff clean, Black clean (35 files unchanged), exit code
+  0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` (mandatory scientific gate) ->
+  **1 passed, 2 deselected, 145.94s, exit code 0**.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, general fix variant)
+
+- [x] Root cause identified with direct evidence (GitHub API check-run
+  history across multiple prior commits), not assumed.
+- [x] Fix is minimal and content-preserving: same bytes, same mode
+  family (executable), only the git object type changed
+  (symlink -> regular file).
+- [x] No production code touched — confirmed via `git diff --stat`
+  showing only the two fixture files and this activity-log entry.
+- [x] Real-ROOT test that was failing in CI re-run locally and
+  confirmed passing.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
