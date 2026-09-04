@@ -8759,3 +8759,132 @@ rather than silently appearing to reverse the existing policy.
 - [x] No production analysis code touched.
 - [x] `git diff --check` passes.
 - [x] Activity-log entry appended (this content).
+
+## Chunk 16.A — Characterization tests for python/ExtractPostfitFromWS.py
+
+### Objective
+
+Pin down the current, unmodified behavior of
+`python/ExtractPostfitFromWS.py` (137-line `Extract()`, the single
+largest method across all nine files this plan touches) before Chunk
+16's Step B extraction, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 16 —
+including its two currently-dormant bugs, pinned exactly as they exist
+today so Step B cannot accidentally "clean them up" (Chunk 5's own
+precedent).
+
+### A real correction to the plan, found before writing this chunk's tests
+
+While designing this chunk's assertions, ran the real extractor once
+against the fixture below and found the plan's own design table
+undercounted the accessors affected by the key-vs-value fallback bug:
+it listed 5 (`GetNbins`/`GetNpars`/`GetH1Chi2`/`GetH1Postfit`/
+`GetH1Residuals`), omitting `GetNdof`, which has the byte-identical
+`next(iter(self.channel_ndof))` pattern — confirmed by direct source
+reading (`grep -n "GetNdof" python/ExtractPostfitFromWS.py`) and by a
+real `.GetNdof()` call returning `'Run3TLA'` (a channel-name string)
+instead of `2513` (the real ndof value). `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 16 and Chunk 16b corrected in place ("5" → "6" throughout, the
+omitted accessor named explicitly) before this chunk's tests were
+written against the corrected list.
+
+### Target functions/classes — inputs and outputs (as they exist today)
+
+| Unit | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `getNPars(pdf, obs, exclSyst)` | real RooFit objects | int | none |
+| `expHist(h)` | a `TH1` | — | mutates `h` in place |
+| `getChi2(extractor, channelname, npars, useSumW2=False)` | a `PostfitExtractor` instance + args | — | **mutates the passed `extractor`'s `channel_chi2`/`channel_nbins`/`channel_npars`/`channel_ndof`/`channel_pval`/`channel_hresiduals`/`channel_hchi2` dicts directly** |
+| `PostfitExtractor.Extract(self)` | — | populates 8 per-channel dicts across up to 4 real categories per run (base/bkgonly/rebinned/bkgonly\_rebinned) | opens `wsfile`/`datafile`/`rebinfile`, calls `getChi2` once per category |
+| `GetChi2`/`GetNbins`/`GetNpars`/`GetNdof`/`GetPval`/`GetH1Chi2`/`GetH1Postfit`/`GetH1Residuals` | optional `channelname` | real value (with `channelname`); **6 of 8 return a channel-name string instead of the real value when `channelname` is omitted** (`GetChi2`/`GetPval` are the two that correctly return the real value) | lazily call `self.Extract()` if not yet run |
+| `WriteRoot(self, outfile, dirPerCategory=False)` | — | writes categorized histograms | `dirPerCategory=True` (the only branch `run_fit.py` ever calls) writes one directory per real category |
+
+### Tests added
+
+- `test_extract_and_accessors_characterize_todays_real_and_buggy_behavior`
+  — real ROOT, constructs `PostfitExtractor` against the already-committed
+  `run/fits/J100/run_481_3000_sixPar/FitResult_anaFit_sixPar_bkgOnly.root`
+  as `wsfile` (confirmed directly: this single file contains both the
+  `fitResult` `RooFitResult` Chunk 15 reads and the `combWS`
+  `RooWorkspace`/`ModelConfig` this file reads), the committed J100
+  `datafile`/`datahist`, and the committed
+  `Input/data/dijetisrTLA/mjjResolutionBinning_481.root` as `rebinfile`
+  — matching `run_fit.py:130–166` exactly, no synthetic fixture needed
+  for any of the three. Calls `Extract()`, asserts the real 4-category
+  list (`Run3TLA`/`Run3TLA_bkgonly`/`Run3TLA_rebinned`/
+  `Run3TLA_bkgonly_rebinned`), asserts `getChi2()`'s real mutation of
+  `channel_chi2`/`channel_nbins`/`channel_npars`/`channel_ndof`/
+  `channel_pval`/`channel_hresiduals`/`channel_hchi2`, asserts all 8
+  accessors' no-`channelname` fallback (2 correct, 6 buggy — pinned
+  exactly as observed), and asserts the same 6 accessors return the
+  real value when `channelname` is supplied (proving the bug is
+  specific to the omitted-argument fallback, the call shape
+  `run_fit.py` never uses).
+- `test_writeroot_dirpercategory_true_produces_expected_output_for_real_fixture`
+  — the same fixtures, calls `WriteRoot(tmp_path/"out.root",
+  dirPerCategory=True)` (the only branch `run_fit.py:165` ever calls)
+  and verifies all 4 categories' `data`/`postfit`/`residuals`/`chi2`
+  keys are present and non-empty in the output file.
+  `dirPerCategory=False` is Chunk 16a's own, separately-scoped concern
+  (a real Python-3 `TypeError` today).
+
+Both real-ROOT determinism-checked before writing assertions: ran the
+same construction twice independently, confirmed bit-identical
+`chi2`/`pval`/`nbins`/`npars`/`ndof` values before hardcoding them.
+
+### A real bug in the test itself, found and fixed before this commit
+
+The first draft used `pytest.approx(...)` for float comparisons inside
+the bare `python - <<'INNER_PY'` subprocess snippet — but `pytest` is
+never imported there (it runs under the ambient LCG interpreter as a
+standalone script, not inside this test process), so the snippet raised
+`NameError: name 'pytest' is not defined`. Fixed by replacing
+`pytest.approx()` with a small manual-tolerance `approx()` helper
+defined inline in the snippet itself. Caught by actually running the
+test against real ROOT before considering Step A done, not assumed
+correct from a syntax read.
+
+### What this commit does NOT do
+
+No production file is modified. `python/ExtractPostfitFromWS.py` is
+unchanged byte-for-byte in this diff — confirmed with `git diff --stat`
+(only `tests/test_extract_postfit_from_ws.py`,
+`doc/TIER3_COMPLETION_PLAN.md`'s accessor-count correction, and this
+activity-log entry appear).
+
+### Verification performed
+
+- `python -m pytest tests/test_extract_postfit_from_ws.py -v -m "not
+  requires_analysis_dependencies"` -> **0 selected, 2 deselected**
+  (every test in this file needs real ROOT — no ROOT-free fragment
+  exists anywhere in this module, unlike `createBinning.py`/
+  `FindBHWindow.py`).
+- Under `scripts/setup_buildAndFit.sh`'s ambient interpreter:
+  `python -m pytest tests/test_extract_postfit_from_ws.py -v -m
+  "requires_root and requires_analysis_dependencies"` -> **2 passed,
+  67.21s** (after fixing the `pytest.approx` bug above; the first
+  attempt failed for that reason, not a real defect in the
+  characterization itself).
+- Full lightweight suite: **195 passed, 17 deselected** (was 194/15
+  before this commit — +0 fast, +2 deselected, matching this file's 2
+  new tests, both real-ROOT-only).
+- Ruff/Black clean on the new test file.
+- `git status --short` after both real-fixture test runs: clean.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, Characterization variant)
+
+- [x] Base commit for these tests: this branch's tip immediately before
+  this commit (`9d7d1d0`) — `python/ExtractPostfitFromWS.py` is
+  unchanged from its state there.
+- [x] Every new test asserts a real output (real category names, real
+  populated dict state, real accessor return values — both the correct
+  and the buggy ones — real non-empty output-file content), not merely
+  "does not raise."
+- [x] Both of today's dormant bugs pinned exactly as observed, including
+  the accessor-count correction (6, not 5) found and verified before
+  writing the tests, not silently absorbed without comment.
+- [x] `git diff --stat` shows no production file touched.
+- [x] The tests were run for real, twice (once revealing the
+  `pytest.approx` bug, once confirming the fix), and reviewed directly.
+- [x] Human-verification checkpoint: reviewed and confirmed in this same
+  session before Step B's commit follows.

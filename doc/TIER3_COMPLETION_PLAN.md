@@ -1705,15 +1705,22 @@ no synthetic fixture needed. Mark
 `@pytest.mark.requires_root @pytest.mark.requires_analysis_dependencies`.
 Construct a real extractor against these, call `.Extract()`, then call
 every one of the 8 accessors **with no `channelname` argument** and
-assert on **today's actual return value** for each — including the 5
-(`GetNbins`/`GetNpars`/`GetH1Chi2`/`GetH1Postfit`/`GetH1Residuals`) that
-currently return a channel-name string instead of the real histogram/int,
-because their fallback iterates `next(iter(self.channel_X))` (dict keys)
-rather than `next(iter(self.channel_X.values()))` like `GetChi2`/`GetPval`
-correctly do. This is exactly Chunk 5's own precedent: pin the quirk down
-exactly as-is so Step B cannot accidentally "clean it up." Also
-characterize `getChi2()`'s external-mutation side effect directly:
-assert `extractor.channel_chi2[channelname]` etc. are populated correctly
+assert on **today's actual return value** for each — including the
+**6** (`GetNbins`/`GetNpars`/`GetNdof`/`GetH1Chi2`/`GetH1Postfit`/
+`GetH1Residuals`) that currently return a channel-name string instead of
+the real histogram/int, because their fallback iterates
+`next(iter(self.channel_X))` (dict keys) rather than
+`next(iter(self.channel_X.values()))` like `GetChi2`/`GetPval` correctly
+do. (Corrected during Chunk 16's own execution, verified by direct
+source reading and a real run against the fixture below: this plan's
+original design pass undercounted the affected accessors as 5, omitting
+`GetNdof`, which has the identical `next(iter(self.channel_ndof))`
+pattern — confirmed with `grep -n "GetNdof" python/ExtractPostfitFromWS.py`
+and a real `.GetNdof()` call returning `'Run3TLA'` instead of `2513`.)
+This is exactly Chunk 5's own precedent: pin the quirk down exactly
+as-is so Step B cannot accidentally "clean it up." Also characterize
+`getChi2()`'s external-mutation side effect directly: assert
+`extractor.channel_chi2[channelname]` etc. are populated correctly
 after a direct call.
 
 **Step B**:
@@ -1790,16 +1797,20 @@ behavior the gate exercises.
 
 ---
 
-### Chunk 16b — (OPTIONAL) fix the 5-of-8 accessors' key-vs-value fallback inconsistency
+### Chunk 16b — (OPTIONAL) fix the 6-of-8 accessors' key-vs-value fallback inconsistency
 
 Run only after Chunk 16 (and, if done, 16a) lands. Never bundled into
 Chunk 16's own commit.
 
-**Target**: `GetNbins`/`GetNpars`/`GetH1Chi2`/`GetH1Postfit`/
+**Target**: `GetNbins`/`GetNpars`/`GetNdof`/`GetH1Chi2`/`GetH1Postfit`/
 `GetH1Residuals`'s no-`channelname` fallback currently does
 `next(iter(self.channel_X))`, iterating dict **keys**, unlike
 `GetChi2`/`GetPval` which correctly do
-`next(iter(self.channel_X.values()))`. Currently dead-in-practice:
+`next(iter(self.channel_X.values()))`. (Corrected during Chunk 16's own
+execution: this list was originally undercounted as 5 accessors,
+omitting `GetNdof` — confirmed by direct source reading and a real
+`.GetNdof()` call against the fixture below, which returns `'Run3TLA'`
+instead of the real ndof value.) Currently dead-in-practice:
 `run_fit.py`'s only call site (`pfe.GetPval("Run3TLA_bkgonly_rebinned")`
 / `pfe.GetPval("Run3TLA_rebinned")`, `run_fit.py:160/162`) always supplies
 `channelname` explicitly, so this fallback path is never exercised in
@@ -1807,15 +1818,15 @@ production.
 
 **Step A**: Chunk 16's own Step A already characterized and pinned this
 exact wrong-type-return behavior (its 8-accessor no-`channelname` test) —
-reuse those five assertions as this chunk's characterization; no new
+reuse those six assertions as this chunk's characterization; no new
 characterization test is needed beyond confirming they still pass
 unmodified immediately before this chunk's fix.
 
-**Fix**: change the 5 affected methods' fallback from
+**Fix**: change the 6 affected methods' fallback from
 `next(iter(self.channel_X))` to `next(iter(self.channel_X.values()))`,
 matching `GetChi2`/`GetPval`'s already-correct pattern exactly.
 
-**Step B**: update the 5 reused assertions from "returns a channel-name
+**Step B**: update the 6 reused assertions from "returns a channel-name
 string" to "returns the real histogram/int value," and add one assertion
 per accessor confirming the returned value now matches what an explicit
 `channelname` call returns for the same (single-channel) fixture — proving
