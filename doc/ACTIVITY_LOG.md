@@ -8090,3 +8090,108 @@ plus the 11 passing tests.
 - [x] Activity-log entry appended (this content).
 - [x] This entry names Chunk 13 as now resolved; Chunks 14-18 remain
   explicitly open.
+
+## Chunk 14.A — Characterization tests for python/FindBHWindow.py
+
+### Objective
+
+Pin down the current, unmodified behavior of `python/FindBHWindow.py`
+(a 113-line script: one clean `NpEncoder` class plus a `main(args)` that
+holds the entire real workflow) before any extraction, per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 14.
+
+### Target functions/classes — inputs and outputs (as they exist today)
+
+| Unit | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `NpEncoder.default(obj)` | any object `json.dumps` can't natively serialize | `int`/`float`/`list`, or delegates to `super().default()` | none |
+| `main(args)` (whole workflow) | CLI args (`--inputfile`, `--bkghist`, `--datahist`, `--outputjson`, `--usebinnumbers`, plus unused `--inputxmlcard`/`--outputxmlcard`) | writes `outputjson` (`MaskMin`/`MaskMax`/`BlindRange`/`pyBHresult`); prints the blind range | opens `inputfile` via `uproot`; runs a `pyBumpHunter.BumpHunter1D` scan; writes hardcoded `bump.png`/`BH_statistics.png` to the current directory |
+
+### Tests added
+
+- `test_npencoder_serializes_numpy_integer` /
+  `_floating` / `_ndarray` / `_falls_back_to_default_for_unknown_types` —
+  characterize `NpEncoder.default()` directly, using a fake `numpy`
+  module (real, instantiable `integer`/`floating`/`ndarray` classes) plus
+  trivial empty fakes for `matplotlib`/`matplotlib.pyplot`/`uproot`/
+  `pyBumpHunter` - the first use of a `numpy` module-name stub in this
+  plan, since real `numpy` is not importable in this repository's own
+  pytest dev venv either (confirmed directly).
+- `test_findbhwindow_script_computes_expected_mask_window_for_real_fixture`
+  — runs the real, unmodified script against the already-committed J100
+  `PostFit_anaFit_sixPar_bkgOnly.root` fixture (confirmed to have both
+  `Run3TLA_rebinned/postfit` and `Run3TLA_rebinned/data` -
+  `run_masking.py`'s own hardcoded flag values), and asserts the exact,
+  deterministic result (`seed=666` is fixed): `MaskMin=595.0`,
+  `MaskMax=691.0`, `BlindRange="595,691"`, `pyBHresult` present, both
+  plot files created. Confirmed deterministic by running the real script
+  twice independently before writing this assertion.
+
+### A real environment finding, verified and documented, not fixed
+
+While writing the whole-script test, found that
+`python/FindBHWindow.py`'s own production interpreter,
+`pyBumpHunter/pyBH_env/bin/python3`, is broken in this environment: its
+`pyvenv.cfg` sets `include-system-site-packages = false`, and neither
+`uproot` nor `matplotlib` was ever installed into its own
+`site-packages` (only `pyBumpHunter` itself, as an egg) -
+`pyBumpHunter/pyBH_env/bin/python3 -c "import uproot"` fails with
+`ModuleNotFoundError` before even reaching `pyBumpHunter`'s own import.
+This means `run_masking.py`'s real subprocess command cannot run at all
+in this environment. Pre-existing, not caused by this chunk, out of
+scope to fix (mirrors `createBinning.py`'s missing-`resolutionFits.root`
+gap) - `run_masking.py`'s call site is untouched.
+
+Found and verified a working alternative instead: the ambient `python`
+`scripts/setup_buildAndFit.sh` already puts on `PATH` (the same
+LCG_102a interpreter `test_plot_post_fit.py`'s real-ROOT tests use) has
+`numpy`/`matplotlib`/`uproot` all genuinely importable. It resolves
+`pyBumpHunter` to this repository's own top-level submodule directory as
+an empty namespace package (`BH.__file__ is None`,
+`hasattr(BH, "BumpHunter1D") is False`) unless the submodule's own
+package directory is explicitly **appended** to the *existing*
+`PYTHONPATH` (replacing it was tried first and broke `matplotlib`, since
+the LCG view's own setup already populates `PYTHONPATH` with the entries
+`matplotlib`/`uproot` resolve from). With that append, all four
+dependencies resolve correctly together - no new package installs, no
+production-code change. This becomes this chunk's real-proof mechanism,
+documented in `doc/TIER3_COMPLETION_PLAN.md` Chunk 14 alongside this
+entry.
+
+### What this commit does NOT do
+
+No production file is modified. `python/FindBHWindow.py` is unchanged
+byte-for-byte in this diff - confirmed with `git diff --stat` (only
+`tests/test_find_bh_window.py`, this activity-log entry, and
+`doc/TIER3_COMPLETION_PLAN.md`'s documentation of the environment finding
+above appear).
+
+### Verification performed
+
+- `python -m pytest tests/test_find_bh_window.py -v` -> **5 passed,
+  20.48s** (4 fast/unmarked NpEncoder tests, 1 real end-to-end test using
+  the working ambient-interpreter combination).
+- `python -m ruff check` / `python -m black --check` on the new test
+  file: clean (one line-length finding fixed via Black before this
+  commit).
+- `git diff --stat` (before staging): `doc/TIER3_COMPLETION_PLAN.md` and
+  the new test file only - no production file touched.
+- `git status --short` after the real-fixture test run: clean - the
+  probe's `cd` into `tmp_path` before invoking the script kept
+  `bump.png`/`BH_statistics.png` out of the repository entirely.
+
+### Compliance review (Section 8, Characterization variant)
+
+- [x] Base commit for these tests: this branch's tip immediately before
+  this commit (`9727e28`) - `python/FindBHWindow.py` is unchanged from
+  its state there.
+- [x] Every new test asserts a real output (exact serialized values for
+  `NpEncoder`; exact deterministic `MaskMin`/`MaskMax`/`BlindRange` and
+  real plot-file creation for the end-to-end test), not merely "does not
+  raise."
+- [x] `git diff --stat` shows no production file touched.
+- [x] The tests were run for real, twice for the end-to-end case (once
+  manually to confirm determinism before writing the assertion, once as
+  the committed test itself), and reviewed directly.
+- [x] Human-verification checkpoint: reviewed and confirmed in this same
+  session before Step B's commit follows.

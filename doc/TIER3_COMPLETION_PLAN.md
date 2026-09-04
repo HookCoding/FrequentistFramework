@@ -1505,10 +1505,11 @@ checks) plus trivial empty fakes for `matplotlib`/`matplotlib.pyplot`/
 `uproot`/`pyBumpHunter` — the same `ModuleType`-fake convention already
 used for `ROOT`/`PreFit`/`ExtractPostfitFromWS`/`ExtractFitParameters`,
 applied to a `numpy` module name for the first time in this plan.
-Separately, characterize `main()`'s full real workflow via a
-subprocess run under the **actual dedicated interpreter**
-(`pyBumpHunter/pyBH_env/bin/python3`, not the ambient `python3`), against
-real `--bkghist`/`--datahist` inputs from the fixture confirmed above.
+Separately, characterize `main()`'s full real workflow via a subprocess
+run against real `--bkghist`/`--datahist` inputs from the fixture
+confirmed above, using the working ambient-interpreter combination found
+below (not `pyBumpHunter/pyBH_env/bin/python3`, confirmed broken in this
+environment - see "A further discovery" below).
 The two new pure fragments (`crop_data_to_background_range`,
 `compute_mask_window`) have no prior behavior to characterize — per
 Chunks 4/5's own precedent for genuinely new logic, they get fresh tests
@@ -1538,6 +1539,45 @@ documents `plot_postfit.cpp`'s untested masked-fit branch.
   unified; `write_mask_window_json()` exercising `NpEncoder` end to end.
 - Register `python/FindBHWindow.py` and `tests/test_find_bh_window.py`.
 
+**A further discovery, materially changing this chunk's real-proof
+mechanism**: `pyBumpHunter/pyBH_env` — the dedicated interpreter
+`run_masking.py` actually invokes in production — is itself broken in
+this environment: its `pyvenv.cfg` sets
+`include-system-site-packages = false`, and neither `uproot` nor
+`matplotlib` was ever installed into its own `site-packages` (only the
+`pyBumpHunter` package itself, as an egg). Confirmed directly:
+`pyBumpHunter/pyBH_env/bin/python3 -c "import uproot"` fails with
+`ModuleNotFoundError` before even reaching `pyBumpHunter`'s own import.
+This means `run_masking.py`'s actual, real subprocess command cannot run
+at all in this environment — a separate, pre-existing environment gap,
+out of this chunk's scope to fix (matching `createBinning.py`'s own
+missing-`resolutionFits.root` precedent), and **not** something this
+chunk's extraction caused.
+
+A working alternative was found and verified instead: the ambient
+`python` that `scripts/setup_buildAndFit.sh` already puts on `PATH`
+(`/cvmfs/sft.cern.ch/lcg/views/LCG_102a/.../bin/python`, the same one
+`test_plot_post_fit.py`'s real-ROOT tests already use) has `numpy`,
+`matplotlib`, and `uproot` all genuinely importable directly. It does
+**not** have a genuine `pyBumpHunter` (importing it there resolves to
+this repository's own top-level `pyBumpHunter/` submodule directory as
+an empty namespace package — confirmed via `BH.__file__ is None` and
+`hasattr(BH, "BumpHunter1D") is False`) **unless** the submodule's own
+package directory, `pyBumpHunter/pyBumpHunter/`, is explicitly
+**appended** to the existing `PYTHONPATH` (not replacing it — replacing
+it was tried first and broke `matplotlib`, since the LCG view's own
+setup already populates `PYTHONPATH` with entries `matplotlib`/`uproot`
+resolve from). With that append, all four third-party dependencies
+resolve correctly together, using only the ambient interpreter and the
+already-vendored submodule — no new package installs, no production-code
+change. Verified end to end against the real, already-committed J100
+fixture: exit 0 in ~19 seconds real time, and — since `seed=666` is
+fixed — a fully deterministic result across two separate runs
+(`MaskMin=595.0`, `MaskMax=691.0`, `BlindRange="595,691"`).
+
+This becomes the real acceptance-check mechanism for this chunk, in
+place of the plan's original (broken) `pyBH_env` invocation:
+
 **Acceptance check**:
 ```bash
 python -m pytest tests/test_find_bh_window.py -v
@@ -1545,9 +1585,14 @@ python scripts/quality_check.py --mode full
 python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 # Real proof for this chunk (the gate above only confirms no regression
-# to the unmasked path — see this chunk's own Rationale):
+# to the unmasked path — see this chunk's own Rationale). Uses the
+# working ambient-interpreter combination above, not the broken
+# pyBumpHunter/pyBH_env this repository's production code still invokes
+# (a separate, pre-existing, undocumented-until-now environment gap):
+repo_dir="$PWD"
 source scripts/setup_buildAndFit.sh
-pyBumpHunter/pyBH_env/bin/python3 python/FindBHWindow.py \
+export PYTHONPATH="$repo_dir/pyBumpHunter:$PYTHONPATH"
+python3 python/FindBHWindow.py \
   --inputfile <a real PostFit_*.root> \
   --bkghist Run3TLA_rebinned/postfit --datahist Run3TLA_rebinned/data \
   --outputjson <tmp path>
@@ -1930,10 +1975,16 @@ python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v
 
 # Chunk 14 only — the standard scientific gate above never exercises
 # FindBHWindow.py's real behavior (both committed J100/J50 fixtures are
-# unmasked); this dedicated-interpreter subprocess run is the only real
-# proof of that chunk's own correctness
+# unmasked); this subprocess run is the only real proof of that chunk's
+# own correctness. Uses the working ambient-interpreter + PYTHONPATH
+# combination Chunk 14 found (pyBumpHunter/pyBH_env is confirmed broken
+# in this environment - missing uproot and matplotlib in its own
+# site-packages), not the broken dedicated venv this repository's
+# production code still invokes unchanged.
+repo_dir="$PWD"
 source scripts/setup_buildAndFit.sh
-pyBumpHunter/pyBH_env/bin/python3 python/FindBHWindow.py \
+export PYTHONPATH="$repo_dir/pyBumpHunter:$PYTHONPATH"
+python3 python/FindBHWindow.py \
   --inputfile <a real PostFit_*.root> \
   --bkghist Run3TLA_rebinned/postfit --datahist Run3TLA_rebinned/data \
   --outputjson <tmp path>
