@@ -21,6 +21,14 @@ go", "what does module Y depend on", and "which test file exercises this"
 without needing to replay the full chunk-by-chunk history in
 `doc/ACTIVITY_LOG.md`.
 
+For how these seven modules and the plotting layer sit inside a real,
+complete run - and which non-Tier-3 files (`python/PreFit.py`,
+`ExtractPostfitFromWS.py`, `ExtractFitParameters.py`, `createBinning.py`,
+`FindBHWindow.py`) a real J100/J50 run actually calls along the way - see
+`doc/TIER3_EXECUTION_TRACE.md`, which traces `scripts/run_anaFit_J100.sh`
+end to end and records one defect (`python/createBinning.py`'s
+`IndentationError`) found and fixed while doing so.
+
 ## Current status
 
 All twelve chunks (`doc/TIER3_COMPLETION_PLAN.md` Chunks 0-12) are

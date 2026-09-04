@@ -7538,3 +7538,124 @@ changed" below.
 3. No new dependency, tool, or marker was introduced.
 4. Activity-log entry appended (this content), not a rewrite of any
    existing section.
+
+## 2026-09-04: End-to-end execution trace of the J100 launcher, and a fixed finding (`python/createBinning.py`)
+
+### Objective
+
+Trace `scripts/run_anaFit_J100.sh` from invocation to its final output
+artifacts, listing every file it executes along the way, and document
+which of those files do not follow the Tier 3 decomposition-and-testing
+system (`doc/TIER3_SYSTEM.md`). The trace surfaced one real defect
+(`python/createBinning.py` fails to parse); the user then asked for it to
+be fixed and tested by rerunning the analysis, folded into this same
+entry rather than a separate one, since nothing from the trace-only work
+had been committed yet.
+
+### What changed
+
+- Added `doc/TIER3_EXECUTION_TRACE.md`: a full call-graph trace of one
+  real J100 run (`FIT_PARS=six`, `sigmean=400`, `dosignal=0`, `dolimit=0`,
+  `doprefit=1`), from `scripts/run_anaFit_J100.sh` through
+  `scripts/setup_buildAndFit.sh`, `python/run_anaFit.py` and its seven
+  Tier 3 modules, into the external XMLReader/quickFit submodule binaries,
+  the plotting layer, and back out to the final output files. Classifies
+  every file the trace touches into three categories: part of the Tier 3
+  system (cites `doc/TIER3_SYSTEM.md` directly rather than repeating it),
+  legitimately outside Tier 3's documented scope but still on this repo's
+  own code (`python/PreFit.py`, `ExtractPostfitFromWS.py`,
+  `ExtractFitParameters.py`, `createBinning.py`, `FindBHWindow.py`,
+  `scripts/setup_buildAndFit.sh`), and a different category entirely -
+  third-party code in external Git submodules (`xmlAnaWSBuilder`,
+  `quickFit`, `pyBumpHunter`, `workspaceCombiner`, confirmed via
+  `.gitmodules`).
+- Added a cross-reference from `doc/TIER3_SYSTEM.md`'s "Purpose and
+  audience" section to the new trace document.
+- **Found, while tracing, that `python/createBinning.py` did not
+  parse**: `python3 -c "import ast; ast.parse(open('python/createBinning.py').read())"`
+  raised `IndentationError: unexpected indent` at line 11. Root-caused to
+  a stray one-space indent on the `tfile`/`IsZombie`/`reso_fit` null-check
+  block, introduced in commit `e6bfd96` (2026-07-30). Confirmed this was
+  dormant: `run_fit.py`'s `build_fit_extract()` only calls this script
+  when `Input/data/dijetisrTLA/mjjResolutionBinning_<rangelow>.root` is
+  missing, and both fixtures this repository's tests actually use
+  (`mjjResolutionBinning_481.root` for J100, `mjjResolutionBinning_344.root`
+  for J50) are already committed, so that branch had never fired in the
+  scientific gate or CI.
+- **Fixed** `python/createBinning.py`: dedented the five affected lines
+  back to column 0, matching every other top-level statement in the
+  file. Pure whitespace change - no other line touched, no logic altered.
+  Documented in `doc/TIER3_EXECUTION_TRACE.md`'s Section 5 (rewritten
+  from "found, not fixed" to "found and fixed", with the fix's own
+  verification recorded there); the earlier "Purpose and audience"
+  cross-reference in `doc/TIER3_SYSTEM.md` updated to match. Explicitly
+  out of scope for this fix: `createBinning.py` is still not decomposed
+  into functions, still has no dedicated test file, and is still
+  unregistered in `scripts/quality_check.py` - it remains outside the
+  Tier 3 system, just no longer syntactically broken. Also out of scope:
+  this repository has no committed `Input/data/dijetisrTLA/resolutionFits.root`
+  at all (the file this script's own logic reads) - a separate,
+  pre-existing gap, noted but not addressed here.
+
+### Verification performed
+
+- Every file in the trace was read directly (`run_anaFit.py`,
+  `run_masking.py`, `run_fit.py`, `run_templates.py`,
+  `scripts/setup_buildAndFit.sh`, `python/PreFit.py`,
+  `ExtractPostfitFromWS.py`, `ExtractFitParameters.py`,
+  `createBinning.py`, `FindBHWindow.py`), not inferred from
+  `doc/TIER3_SYSTEM.md`'s existing descriptions.
+- `grep -rn` across `tests/` for each of the five out-of-scope files'
+  class/module names, confirming every match is a `ModuleType` stub used
+  to isolate a Tier 3 module under test, or a subprocess command-string
+  assertion in the integration test - never a direct unit test of that
+  file's own logic.
+- `python3 -c "import ast; ast.parse(...)"` run individually against all
+  five out-of-scope Python files at trace time; only `createBinning.py`
+  failed.
+- Confirmed both `mjjResolutionBinning_481.root`/`mjjResolutionBinning_344.root`
+  are tracked and present, and that 481/344 match J100's/J50's own
+  `rangelow` values in the two launcher scripts.
+- Confirmed via `.gitmodules` and `git submodule status` that
+  `xmlAnaWSBuilder`, `quickFit`, `pyBumpHunter`, `workspaceCombiner` are
+  external submodules, not this repository's own code.
+- Fix verification: `python3 -c "import ast; ast.parse(...)"` now
+  succeeds on `createBinning.py`. Ran the fixed script for real, exactly
+  as `run_fit.py` invokes it (`python3 python/createBinning.py -s 481 -e
+  3000 -o <path>`), against a synthetic `resolutionFits.root` built on
+  the fly with a trivial `TF1` named `gsc_mjj_reso_fit` (a real one isn't
+  committed to this repository at all - noted above, not addressed
+  here): exit 0, and the resulting file contained a real `mjjBinning`
+  `TH1F` with 38 bins spanning exactly `[481, 3000]`, confirmed by
+  reading it back with `ROOT.TFile.Open(...)`. Both the synthetic input
+  and the scratch output were deleted afterward; `git status` on
+  `Input/` came back clean.
+- Reran the scientific gate
+  (`tests/test_analysis_workflows_integration.py -m "integration and
+  requires_root"`) end to end against the fix: **1 passed, 2 deselected,
+  289.19 seconds, exit code 0** - `ps aux` confirmed mid-run it was
+  genuinely executing the real J100 `run_anaFit.py --doprefit` process,
+  not passing coincidentally.
+- Reran `python scripts/quality_check.py --mode full`: 172 passed, 8
+  deselected, Ruff clean, Black clean (29 files unchanged), exit code 0.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check` on all changed files:
+  clean.
+
+### Compliance review
+
+1. The trace itself changed no production code (pure documentation),
+   matching the original request; the one production-code change in this
+   entry (`python/createBinning.py`'s dedent) was made only after the
+   user explicitly asked for it, and is a one-line whitespace fix with no
+   logic change.
+2. The defect found is reported *and* fixed, with both the fix and its
+   verification recorded plainly - root cause, why it was dormant, the
+   fix itself, and the two-gate + direct-execution verification that
+   proves it now works and regresses nothing.
+3. No new dependency, tool, or marker introduced. `createBinning.py`
+   remains unregistered in `quality_check.py` and undecomposed -
+   explicitly not brought into Tier 3 compliance by this fix, since that
+   was never asked for.
+4. Activity-log entry appended and edited in place while still
+   uncommitted (this content), not a rewrite of any already-committed
+   entry.
