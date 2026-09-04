@@ -9396,3 +9396,192 @@ Confirmed via `git diff python/run_fit.py` returning empty.
 - [x] This entry names both optional Chunks 16a and 16b as now
   resolved; Chunk 17 (`PreFit.py`) and Chunk 18 (final documentation)
   remain the only open items in `doc/TIER3_COMPLETION_PLAN.md`.
+
+## Chunk 17.A — Characterization tests for python/PreFit.py
+
+### Objective
+
+Add `PreFitter`'s first-ever direct test, per `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 17, before any restructuring. The only existing test today
+(`tests/test_run_templates.py::_install_fake_prefitter`) fakes the whole
+class to exercise `run_templates.py`'s caller logic instead of
+`PreFitter`'s own real behavior. Zero production code changed in this
+commit.
+
+### What changed
+
+- New `tests/test_pre_fit.py`, following the same real-ROOT
+  subprocess-snippet pattern already established for
+  `ExtractFitParameters.py`/`ExtractPostfitFromWS.py` (`PreFit.py` also
+  does `import ROOT` at module scope, unconditionally — no ROOT-free
+  fragment exists yet).
+- `test_fit_returns_expected_shape_and_is_deterministic_for_real_fixture`:
+  real ROOT `TH1::Fit`, real `seed=42` determinism, against the
+  already-committed `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root`
+  fixture (the same fixture `run_templates.py`'s own `PreFitter` call
+  site passes). `nPars`/`nRetries1`/`nRetries2` deliberately scaled
+  down to `3`/`50`/`3` (vs. production's up-to-`10`/`2000*nPars`/
+  `2*nPars`) purely for test speed — a characterization-strategy choice
+  stated explicitly, not a synthetic substitute (this fixture is real
+  and committed, distinct from Chunk 13's need for a wholly synthetic
+  one). Pins down real, empirically-verified `(bestPars, nbkg)` values
+  and proves two independent `PreFitter` instances built with the same
+  seed reproduce an identical result.
+- `test_fit_raises_indexerror_for_npars_above_seven_with_default_ranges`:
+  characterizes, without fixing, `PreFitter.__init__`'s `parRangeLow`/
+  `parRangeHigh` defaulting to 7-element lists while `nPars` can be
+  requested up to 10 (`run_templates.py` already works around this by
+  building its own longer lists when `nPars > 7` — see
+  `run_templates.py:62-63`). Confirmed empirically that `nPars=8` with
+  the default ranges raises `IndexError` partway through `Fit()`'s
+  first `RandomizeParameters()` call.
+
+### What this commit does NOT do
+
+`python/PreFit.py` itself is untouched; `python/PreFit.py` and
+`tests/test_pre_fit.py` are not yet registered in
+`scripts/quality_check.py` — deferred to Chunk 17's Step B commit once
+the production file's extraction lands, matching this plan's own
+established Step A/Step B split for every prior chunk.
+
+### Verification performed
+
+- `python -m pytest tests/test_pre_fit.py -v` (under
+  `scripts/setup_buildAndFit.sh`'s ambient interpreter) — **2 passed**,
+  run twice to confirm stability (~37-50s per run).
+- Ruff/Black clean on `tests/test_pre_fit.py`.
+- `grep -nE '[[:blank:]]+$'` / `git diff --check`: clean.
+
+### Compliance review (Section 8, Characterization variant)
+
+- [x] Zero production code changed in this commit.
+- [x] Both new tests run against real ROOT and a real, already-committed
+  fixture — no synthetic substitute needed.
+- [x] Today's real `IndexError` fragility for `nPars > 7` with default
+  ranges is characterized, not fixed — matching Chunk 5's own
+  precedent for pinning down a quirk exactly as-is.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] Chunk 17's Step B (extraction, registration) remains the next
+  open item; Chunk 18 (final documentation) remains open after that.
+
+## Chunk 17.B — Extract PreFitter's candidate-building and sampling logic
+
+### Objective
+
+Decompose `PreFitter.Fit()` (130 lines, this file's only large method)
+into two new private helper methods, per `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 17's Section 4.4 target table, with `Fit()` becoming the
+orchestrator, then register `python/PreFit.py` and
+`tests/test_pre_fit.py` in `scripts/quality_check.py`.
+
+### What changed
+
+- `_build_candidate_functions(self)`: builds the 10 linear-mode and 10
+  log-mode candidate `TF1`s (`NParFunction[1..10]`,
+  `LogNParFunction[1..10]`). Moved out as a named block only — every
+  formula/range is byte-for-byte unchanged from today's `Fit()`.
+- `_select_best_parameter_sets(self, fitFunction, integral, score_fn,
+  nRetries1, nRetries2)`: isolates the randomize/score/array-bisect
+  bookkeeping that used to live directly inside `Fit()`'s own sampling
+  loop. Takes a `score_fn` callable (`Fit()` passes a
+  `lambda fn: h.Chisquare(fn)` closure) rather than the data histogram
+  itself, so it has no ROOT calls of its own beyond scoring the
+  candidate function it's handed — this is what makes it independently
+  testable below without a live ROOT histogram, going further than the
+  plan's own "if achievable" bar for this chunk.
+- `Fit()` is now the orchestrator: reads/log-transforms the data
+  histogram, calls the two new helpers, refits the survivors with
+  `TH1::Fit` exactly as before. The two-phase `TStopwatch` is split into
+  two separate instances (one now local to `_select_best_parameter_sets`,
+  one for the refit phase in `Fit()`) instead of one object reused via
+  `.Reset()` — same measurement windows, same stdout print order, no
+  observable change.
+- Lint debt fixed proactively in this same commit (same root cause as
+  Chunk 15's follow-up lint fix — never linted until registration):
+  `import math, array, bisect` / `import sys, argparse` split into
+  one-per-line, sorted; the dead `math` import removed (only
+  `ROOT.TMath` was ever used); `# noqa: E501` added to the
+  pre-existing, unsplittable long `TF1` formula-string literals,
+  matching the existing pattern already used elsewhere in this repo
+  (`python/run_anaFit.py`, `python/ExtractPostfitFromWS.py`).
+
+### Tests added
+
+`tests/test_pre_fit.py` gained 2 new fast, ROOT-free unit tests — this
+repository's first stub-free unit test of any piece of `PreFit.py`'s own
+logic, achievable here (unlike Chunk 15/16's extractor classes) because
+`_select_best_parameter_sets()` takes an already-built candidate and a
+plain scoring callable instead of reaching into a live ROOT histogram
+itself:
+- `test_build_candidate_functions_returns_ten_linear_and_ten_log_candidates`:
+  asserts all 20 candidates exist with the documented
+  `{n}ParFunction`/`Log{n}ParFunction` names and `xMin`/`xMax`, with
+  exact formula-text spot checks on the simplest and most complex
+  candidate in each family (the remaining 16 forms are exercised for
+  real by the existing real-ROOT `Fit()` test, which selects
+  `NParFunction[3]`/`LogNParFunction[3]` via `nPars=3`).
+- `test_select_best_parameter_sets_ranks_and_bounds_output_and_is_deterministic`:
+  against a hand-built fake `TF1` candidate and a plain
+  summed-abs-params scoring callable, asserts the returned list is
+  exactly `nRetries2` long, every entry finite (the initial
+  `(inf, [])` sentinel is provably evicted whenever
+  `nRetries1 >= nRetries2`), sorted ascending by chi2, and that two
+  independent runs with the same `seed=42` reproduce an identical
+  ranked result.
+
+Both new fast tests stub `sys.modules["ROOT"]` with a minimal fake
+module (`_FakeTRandom3` wraps Python's own seeded `random.Random` so
+`RandomizeParameters`' draw sequence stays deterministic;
+`_FakeTStopwatch`/`_FakeTMath`/`_FakeMinimizerOptions`/`_FakeGROOT` are
+inert), the same `sys.modules`-stub convention Chunk 15's
+`GetNsig`/`GetNsigErr` regression tests already established. Step A's 2
+real-ROOT subprocess tests are unchanged and re-verified to still pass
+against this decomposed structure with the exact same pinned values —
+no Test Relocation Rule move was needed since Step A already created
+`tests/test_pre_fit.py` in its final location.
+
+### What this commit does NOT do
+
+The `parRangeLow`/`parRangeHigh` 7-vs-10-element `IndexError` fragility
+is left exactly as Step A characterized it, not fixed — out of this
+chunk's explicitly-listed scope. `run_templates.py`'s call site is
+unchanged.
+
+### Verification performed
+
+- `python -m pytest tests/test_pre_fit.py -v` (under
+  `scripts/setup_buildAndFit.sh`'s ambient interpreter) -> **4 passed**
+  (2 real-ROOT subprocess tests re-verified against the decomposed file
+  with identical pinned values; 2 new fast ROOT-free tests).
+- `python scripts/quality_check.py --mode full` -> **196 passed, 20
+  deselected** (up from 194/18 — the 2 new fast tests now included),
+  Ruff clean, Black clean, exit code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` (via the mandatory pre-commit
+  hook) -> **1 passed, 2 deselected, 182.11s** — no regression.
+- `grep -nE '[[:blank:]]+$'` / `git diff --check`: clean.
+
+### Compliance review (Section 8, Extraction variant)
+
+- [x] Step A's commit (`83d3f7a`) named above; no test relocation was
+  needed.
+- [x] No scientific constant, reference, tolerance, dependency revision,
+  or canonical workflow argument touched.
+- [x] Every newly-introduced function has a dedicated, genuinely new
+  test exercising it directly (not copied from Step A) — and both are
+  ROOT-free, a first for this file's own logic.
+- [x] `run_templates.py` still constructs `PreFitter` the same way —
+  no changes to that file in this commit.
+- [x] The `parRangeLow`/`parRangeHigh` 7-vs-10 `IndexError` fragility
+  remains untouched, exactly as Step A characterized it.
+- [x] `scripts/quality_check.py` registration done in this same commit
+  (guardrail 5), and the newly-registered production file's own lint
+  findings fixed proactively, not left for a later CI failure.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] This entry names Chunk 17 as now resolved; Chunk 18 (final
+  documentation) remains the only open item in
+  `doc/TIER3_COMPLETION_PLAN.md`.
