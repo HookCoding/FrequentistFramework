@@ -9094,3 +9094,89 @@ entry appear).
   commit.
 - [x] Human-verification checkpoint: reviewed and confirmed in this
   same session before Step B's commit (the actual fix) follows.
+
+## Chunk 16a.B — Fix WriteRoot(dirPerCategory=False)'s Python-2 indexing
+
+### Objective
+
+Fix the real, characterized crash from Step A (commit `caa33e6`):
+`self.channel_hpostfit.values()[-1]` (and the two other `.values()[-1]`
+calls beside it, on `channel_hresiduals`/`channel_hchi2`) is Python-2-only
+dict-values indexing, raising `TypeError` under Python 3. Per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 16a — optional, scoped to this one
+bug only, run after Chunk 16 (`0732473`) landed against the
+already-decomposed structure.
+
+### What changed
+
+- `python/ExtractPostfitFromWS.py`'s `WriteRoot(self, outfile,
+  dirPerCategory=False)`: all three `.values()[-1]` calls in the
+  `dirPerCategory=False` branch changed to `list(...values())[-1]` —
+  the Python-3-correct equivalent of the original Python-2 indexing.
+  Confirmed directly (not assumed from reading the source) which
+  channel this selects: `channel_hpostfit`/`channel_hresiduals`/
+  `channel_hchi2` are all populated in the exact same insertion order
+  `Extract()` builds them (base channel, bkgonly variant, rebinned
+  variant, bkgonly\_rebinned variant), so `list(...)[-1]` selects
+  `"Run3TLA_bkgonly_rebinned"` against this fixture — the *same*
+  "last" convention the branch's own comment and the `dirPerCategory=
+  True` branch's category iteration both already implied, not changed
+  to "first" despite the (pre-existing, inconsistent, untouched)
+  comment saying "just take first (and hopefully only) channel."
+  A short code comment added at the fix site pointing to this entry.
+
+### Test updated
+
+`tests/test_extract_postfit_from_ws.py`'s
+`test_writeroot_dirpercategory_false_currently_raises_typeerror`
+replaced with
+`test_writeroot_dirpercategory_false_now_matches_last_category_content`:
+writes both `dirPerCategory=False` and `dirPerCategory=True` outputs
+from the same extractor, then asserts the `False` branch's top-level
+`postfit`/`residuals`/`chi2` histograms are bin-for-bin identical to
+the `True` branch's `Run3TLA_bkgonly_rebinned` directory's same three
+histograms — proving the fix produces the *same real content*, not
+merely that it no longer crashes.
+
+### Confirm: no scientific behavior changed
+
+`dirPerCategory=False` remains dead-in-practice: `run_fit.py:165`
+always calls `WriteRoot` with `dirPerCategory=True`, so this fix cannot
+change any behavior the scientific gate or any other currently-passing
+test exercises — confirmed by `git diff python/run_fit.py` returning
+empty. The integration-gate rerun below is a no-regression check only.
+
+### Verification performed
+
+- Under `scripts/setup_buildAndFit.sh`'s ambient interpreter, the fixed
+  test alone: **1 passed, 6.91s**.
+- The full test file (all 5 tests, including the 3 kept unchanged from
+  Chunk 16.A/16.B): **5 passed, 23.62s** — no regression to any
+  already-passing test.
+- Full lightweight suite: **195 passed, 20 deselected** — identical
+  count to the post-16a.A baseline (this commit replaces one test with
+  another, no net test-count change).
+- Ruff/Black clean on both changed files.
+- `git diff python/run_fit.py`: empty.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, general fix variant)
+
+- [x] Step A's commit (`caa33e6`) named above; Step A's own
+  characterization test is the one this commit replaces, per the plan's
+  own Step B instruction (not left alongside as dead coverage).
+- [x] Fix is minimal: 3 `.values()[-1]` -> `list(...values())[-1]`
+  substitutions, nothing else touched.
+- [x] Which channel is selected was confirmed empirically, not guessed
+  — `list(...)[-1]` preserves the same "last inserted" convention the
+  original indexing already followed.
+- [x] `run_fit.py`'s call site confirmed unchanged (`git diff` empty),
+  so this fix cannot affect any behavior the scientific gate exercises.
+- [x] The updated test proves real content equivalence with the
+  already-tested `dirPerCategory=True` branch, not just "does not
+  raise."
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] This entry names Chunk 16a as now resolved; optional Chunk 16b,
+  Chunk 17, and Chunk 18 remain explicitly open.

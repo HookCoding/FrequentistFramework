@@ -410,11 +410,21 @@ class PostfitExtractor:
                 self.channel_hchi2[channelname].Write("chi2")
         else:
             # just take first (and hopefully only) channel
+            #
+            # Chunk 16a fix (doc/TIER3_COMPLETION_PLAN.md /
+            # doc/ACTIVITY_LOG.md): `.values()[-1]` was Python-2-only
+            # dict-values indexing - a real TypeError under Python 3.
+            # `list(...)[-1]` is the Python-3-correct equivalent,
+            # selecting the same "last" channel this branch's own
+            # comment and the dirPerCategory=True branch's channel
+            # iteration both already treat as this method's one
+            # long-standing convention - not changed to "first" despite
+            # the comment above, per the original code's own indexing.
             self.h_data.Write("data")
-            self.channel_hpostfit.values()[-1].Write("postfit")
-            self.channel_hresiduals.values()[-1].Write("residuals")
+            list(self.channel_hpostfit.values())[-1].Write("postfit")
+            list(self.channel_hresiduals.values())[-1].Write("residuals")
             # self.channel_hresiduals.values()[-1].Write("postFitSigma")
-            self.channel_hchi2.values()[-1].Write("chi2")
+            list(self.channel_hchi2.values())[-1].Write("chi2")
 
         fout.Close()
 

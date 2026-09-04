@@ -299,35 +299,75 @@ print("SNIPPET_OK")
 
 
 # --- Chunk 16a: WriteRoot(dirPerCategory=False)'s Python-2-only dict
-# indexing - characterization of the current crash ------------------------
+# indexing - now fixed, proven against the dirPerCategory=True branch ------
 #
 # `self.channel_hpostfit.values()[-1]` (and the two other `.values()[-1]`
-# calls alongside it) is Python-2-only dict-values indexing - a real
-# TypeError under Python 3. Dead-in-practice: run_fit.py always calls
-# WriteRoot with dirPerCategory=True (run_fit.py:165), so this branch has
-# never executed in the scientific gate, in CI, or (as far as this
-# repository's history shows) in any verified run.
+# calls alongside it) was Python-2-only dict-values indexing - a real
+# TypeError under Python 3 (Chunk 16a.A's own characterization, commit
+# caa33e6, confirmed this crash for real before the fix below). Fixed to
+# `list(self.channel_hpostfit.values())[-1]`, still dead-in-practice:
+# run_fit.py always calls WriteRoot with dirPerCategory=True
+# (run_fit.py:165), so this branch still never executes in the
+# scientific gate, in CI, or in any verified production run - this test
+# is the only real proof of its correctness.
 
 
 @pytest.mark.requires_root
 @pytest.mark.requires_analysis_dependencies
-def test_writeroot_dirpercategory_false_currently_raises_typeerror() -> None:
-    snippet = _CONSTRUCT_EXTRACTOR + """
-import tempfile
-import os
-
-outfile = tempfile.mktemp(suffix=".root")
-try:
-    raised = False
-    try:
-        pfe.WriteRoot(outfile, dirPerCategory=False)
-    except TypeError:
-        raised = True
-    assert raised, "expected WriteRoot(dirPerCategory=False) to raise TypeError today"
-finally:
-    if os.path.exists(outfile):
-        os.remove(outfile)
-
+def test_writeroot_dirpercategory_false_now_matches_last_category_content(
+    tmp_path: Path,
+) -> None:
+    # Confirmed directly (not assumed from reading the source alone):
+    # channel_hpostfit/channel_hresiduals/channel_hchi2 are all
+    # populated in the exact same insertion order Extract() builds
+    # them - base channel, bkgonly variant, rebinned variant,
+    # bkgonly_rebinned variant - so `list(...)[-1]` selects
+    # "Run3TLA_bkgonly_rebinned" for this fixture, the same channel
+    # dirPerCategory=True's own per-category loop also writes under
+    # that name.
+    outfile_false = tmp_path / "out_dirpercategory_false.root"
+    outfile_true = tmp_path / "out_dirpercategory_true.root"
+    snippet = _CONSTRUCT_EXTRACTOR + f"""
+pfe.WriteRoot({str(outfile_false)!r}, dirPerCategory=False)
+pfe.WriteRoot({str(outfile_true)!r}, dirPerCategory=True)
 print("SNIPPET_OK")
 """
     _assert_snippet_ok(_run_real_root_snippet(snippet))
+
+    assert outfile_false.exists()
+    assert outfile_true.exists()
+
+    verify_snippet = f"""
+import ROOT
+
+f_false = ROOT.TFile.Open({str(outfile_false)!r})
+postfit_false = f_false.Get("postfit")
+residuals_false = f_false.Get("residuals")
+chi2_false = f_false.Get("chi2")
+assert postfit_false, "missing postfit in dirPerCategory=False output"
+assert residuals_false, "missing residuals in dirPerCategory=False output"
+assert chi2_false, "missing chi2 in dirPerCategory=False output"
+
+f_true = ROOT.TFile.Open({str(outfile_true)!r})
+d = f_true.Get("Run3TLA_bkgonly_rebinned")
+assert d, "expected Run3TLA_bkgonly_rebinned directory in dirPerCategory=True output"
+postfit_true = d.Get("postfit")
+residuals_true = d.Get("residuals")
+chi2_true = d.Get("chi2")
+
+# Proving the fix selects the same real content dirPerCategory=True
+# already writes for the same channel - not just "does not crash."
+for h_false, h_true, label in (
+    (postfit_false, postfit_true, "postfit"),
+    (residuals_false, residuals_true, "residuals"),
+    (chi2_false, chi2_true, "chi2"),
+):
+    assert h_false.GetNbinsX() == h_true.GetNbinsX(), label
+    for ibin in range(1, h_false.GetNbinsX() + 1):
+        assert h_false.GetBinContent(ibin) == h_true.GetBinContent(ibin), (label, ibin)
+
+f_false.Close()
+f_true.Close()
+print("SNIPPET_OK")
+"""
+    _assert_snippet_ok(_run_real_root_snippet(verify_snippet))
