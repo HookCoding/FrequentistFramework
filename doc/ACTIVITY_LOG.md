@@ -8477,3 +8477,85 @@ untouched — confirmed by `git diff python/run_fit.py` returning empty.
 - [x] Activity-log entry appended (this content).
 - [x] This entry names Chunk 15 as now resolved; Chunks 16 (+ optional
   16a/16b), 17, and 18 remain explicitly open.
+
+## Fix ruff/black findings on python/ExtractFitParameters.py (CI, Chunk 15 follow-up)
+
+### Objective
+
+CI's `python scripts/quality_check.py --mode full` failed after Chunk
+15.B (`f0745ff`) registered `python/ExtractFitParameters.py` in
+`python_targets`: 26 pre-existing Ruff findings (18 auto-fixable) that
+had never been surfaced before, because this file was never linted
+until this chunk registered it — Chunk 15's own Rationale explicitly
+left the file byte-for-byte unchanged, so these findings were never
+seen locally against the exact target list CI runs. A real gap in this
+chunk's own verification: the local Step B check ran Ruff/Black only
+against the new test file and `scripts/quality_check.py`, not against
+`python/ExtractFitParameters.py` itself once it joined the registered
+target list.
+
+### What changed
+
+- `import ROOT` / `import sys, re, os, math, argparse` / `from ROOT
+  import *` (three lines, one wildcard import, one combined import)
+  replaced with individually-sorted `import argparse` / `import sys` /
+  `import ROOT` — confirmed dead via `ruff`'s own F401 findings: `re`,
+  `os`, and `math` are unused anywhere in the file (matches the same
+  explicit, separately-noted dead-import-removal precedent already
+  established for `python/FindBHWindow.py`'s dead `re`/`os` in Chunk
+  14.B).
+- `from ROOT import *`'s two wildcard-resolved names, `TH1D`/`TH2D`
+  (3 call sites), rewritten to explicit `ROOT.TH1D`/`ROOT.TH2D` —
+  behavior-identical (the wildcard import made these names aliases of
+  the same `ROOT` module attributes; `ROOT` was already imported
+  separately and used elsewhere in the same method), and resolves
+  Ruff's F403/F405 (undetectable-star-import) findings, which are not
+  auto-fixable.
+- Two long `argparse.add_argument(...)` calls and the two `TH2D(...)`
+  calls wrapped across multiple lines (Ruff E501, line length) —
+  formatting only, no argument values changed.
+- All whitespace findings (`W291`/`W293` — trailing whitespace, blank
+  lines containing whitespace) and import sorting (`I001`/`E401`)
+  applied via `ruff check --fix` then `black`, both purely mechanical.
+- No other line changed: no method signature, no control flow, no
+  attribute name, no default value, no accessor logic touched.
+
+### Confirm: no scientific behavior changed
+
+Re-ran the real-ROOT end-to-end test
+(`test_extract_and_accessors_and_writeroot_against_real_fixture`)
+against this now-reformatted file — still **1 passed** — confirming
+`ROOT.TH1D`/`ROOT.TH2D` produce identical output to the previous
+wildcard-imported `TH1D`/`TH2D` names. `run_fit.py`'s call site is
+untouched (this commit only touches
+`python/ExtractFitParameters.py`/`doc/ACTIVITY_LOG.md`).
+
+### Verification performed
+
+- `python -m pytest tests/test_extract_fit_parameters.py -v -m "not
+  requires_analysis_dependencies"` -> **2 passed**.
+- Under `scripts/setup_buildAndFit.sh`'s ambient interpreter:
+  `python -m pytest tests/test_extract_fit_parameters.py -v -m
+  "requires_root and requires_analysis_dependencies"` -> **1 passed,
+  4.24s**.
+- `python scripts/quality_check.py --mode full` -> **193 passed, 13
+  deselected**, Ruff clean, Black clean (35 files unchanged), exit
+  code 0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` (mandatory scientific gate) ->
+  **1 passed, 2 deselected, 137.00s, exit code 0**.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, general fix variant)
+
+- [x] Root cause identified and stated explicitly (registration without
+  linting the newly-registered production file itself).
+- [x] Every change is either a confirmed-dead-import removal (matching
+  established precedent) or a behavior-identical rewrite
+  (`ROOT.TH1D`/`ROOT.TH2D` vs. wildcard-imported `TH1D`/`TH2D`) or pure
+  formatting — no method signature, control flow, or numeric value
+  changed.
+- [x] Real-ROOT test re-run and passed against the reformatted file.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
