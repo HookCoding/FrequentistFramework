@@ -8305,3 +8305,102 @@ one.
 - [x] Activity-log entry appended (this content).
 - [x] This entry names Chunk 14 as now resolved; Chunks 15-18 remain
   explicitly open.
+
+## Chunk 15.A — Characterization tests for python/ExtractFitParameters.py
+
+### Objective
+
+Pin down the current, unmodified behavior of
+`python/ExtractFitParameters.py` (a 109-line script: one class,
+`FitParameterExtractor`, whose `Extract()` — 42 lines — does the entire
+real workflow, plus a thin `main()`) before Chunk 15's Step B, which
+adds no new decomposition — this is the honest minimal-decomposition
+case stated in `doc/TIER3_COMPLETION_PLAN.md` Chunk 15's own Rationale.
+
+### Target functions/classes — inputs and outputs (as they exist today)
+
+| Unit | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `FitParameterExtractor.__init__(self, wsfile)` | `wsfile: str` (in production, the fit-result file, despite the name — see below) | — | none |
+| `Extract(self)` | — | populates `h1_params`/`h2_cov`/`h2_cor`/`nsig`/`nsigErr` | opens `wsfile`, reads the `fitResult` `RooFitResult` |
+| `GetH1Params`/`GetH2Cov`/`GetH2Cor`/`GetNsig`/`GetNsigErr` | — | ROOT-typed values | lazily call `self.Extract()` if the corresponding attribute is falsy |
+| `WriteRoot(self, outfile)` | `outfile: str` | — | writes the three histograms to a new file |
+
+### Tests added
+
+- `test_extract_and_accessors_and_writeroot_against_real_fixture` — real
+  ROOT, constructs `FitParameterExtractor` against the already-committed
+  `run/fits/J100/run_481_3000_sixPar/FitResult_anaFit_sixPar_bkgOnly.root`
+  (exactly what `run_fit.py:168` passes as `wsfile` in production — the
+  lowest fixture-sourcing risk of all five files in this plan, no
+  synthetic fixture needed), calls `Extract()`, all 5 accessors, and
+  `WriteRoot(tmp_path/"out.root")`, then re-opens that output file and
+  asserts its three histograms are genuinely non-empty.
+- `test_getnsig_and_getnsigerr_refire_extract_when_zero` /
+  `_do_not_refire_extract_when_nonzero` — fast tests (no real ROOT call),
+  stubbing `sys.modules["ROOT"]` with a trivial empty `ModuleType` purely
+  so the module-level `import ROOT`/`from ROOT import *` resolves. Pin
+  down the `if not self.nsig:` / `if not self.nsigErr:` falsiness quirk
+  exactly as it exists today (preserve, not fix — matching Chunk 5's own
+  precedent): a falsy (zero) cached value re-triggers `Extract()` on
+  every single call; a truthy (non-zero) one does not.
+
+### A real finding from the real fixture, characterized not assumed
+
+The committed fixture is a bkg-only fit
+(`FitResult_anaFit_sixPar_bkgOnly.root`) — confirmed directly by dumping
+`floatParsFinal()`: its six parameters are `nbkg`/`p2`/`p3`/`p4`/`p5`/
+`p6`, none containing the substring `"nsig"`. `GetNsig()`/`GetNsigErr()`
+therefore genuinely return `None` against this real fixture, not a gap
+in the test — asserted as the real observed behavior.
+
+### Documented, not fixed: the shared `wsfile` name
+
+`ExtractFitParameters.FitParameterExtractor`'s `wsfile` parameter and
+`ExtractPostfitFromWS.PostfitExtractor`'s same-named parameter mean the
+same thing in production (both receive the fit-result file, never the
+workspace file either name suggests). Recorded here and will be recorded
+again in Chunk 18's Known Limitations; not renamed, per Chunk 15's own
+plan text.
+
+### What this commit does NOT do
+
+No production file is modified. `python/ExtractFitParameters.py` is
+unchanged byte-for-byte in this diff — confirmed with `git diff --stat`
+(only `tests/test_extract_fit_parameters.py` and this activity-log entry
+appear).
+
+### Verification performed
+
+- `python -m pytest tests/test_extract_fit_parameters.py -v -m "not
+  requires_analysis_dependencies"` -> **2 passed**.
+- Under `scripts/setup_buildAndFit.sh`'s ambient interpreter:
+  `python -m pytest tests/test_extract_fit_parameters.py -v -m
+  "requires_root and requires_analysis_dependencies"` -> **1 passed,
+  4.61s**.
+- Full lightweight suite (`pytest -m "not requires_analysis_dependencies"
+  tests/`): **194 passed, 15 deselected** (was 192 passed, 14 deselected
+  immediately before this commit — +2 fast, +1 deselected, matching this
+  file's 3 new tests exactly).
+- `python -m ruff check` / `python -m black --check` on the new test
+  file: clean (one formatting fix applied via Black before this commit).
+- `git diff --stat` (before staging): the new test file and this
+  activity-log entry only — no production file touched.
+- `git status --short`: clean.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, Characterization variant)
+
+- [x] Base commit for these tests: this branch's tip immediately before
+  this commit (`058243b`) — `python/ExtractFitParameters.py` is
+  unchanged from its state there.
+- [x] Every new test asserts a real output (non-empty histograms and a
+  real written file for the end-to-end test; exact call-count behavior
+  for the falsiness-quirk tests), not merely "does not raise."
+- [x] `git diff --stat` shows no production file touched.
+- [x] The end-to-end test was run for real against the real committed
+  fixture and reviewed directly; its unexpected-but-real `nsig is None`
+  result was investigated (by dumping `floatParsFinal()` directly) rather
+  than assumed away.
+- [x] Human-verification checkpoint: reviewed and confirmed in this same
+  session before Step B's commit follows.
