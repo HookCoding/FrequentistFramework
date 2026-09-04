@@ -106,7 +106,10 @@ def test_build_fit_extract_rejects_fitresultfile_without_fitresult_token(
     # no-op, so postfitfile and parameterfile both silently collapsed
     # back to fitresultfile itself, and PostfitExtractor's/
     # FitParameterExtractor's RECREATE-mode writes would overwrite the
-    # quickFit result twice. Must now fail fast, before quickFit runs.
+    # quickFit result twice. Must now fail fast, before XMLReader or
+    # quickFit runs at all (moved ahead of the XMLReader call in this
+    # same review pass, so a bad fitresultfile no longer pays for an
+    # already-doomed workspace build first).
     calls: list[str] = []
 
     def fake_execute_required(cmd, description, expected_outputs=()):
@@ -126,10 +129,9 @@ def test_build_fit_extract_rejects_fitresultfile_without_fitresult_token(
             fitresultfile="fit-result.root",  # no "FitResult" token
         )
 
-    # XMLReader may have already run (it never touches fitresultfile), but
-    # quickFit - which would otherwise overwrite its own output via the
-    # collapsed sibling filenames - must never be reached.
-    assert "quickFit background or signal fit" not in calls
+    # Neither XMLReader nor quickFit must be reached: the fitresultfile
+    # basename is checked before either subprocess call is made.
+    assert calls == []
 
 
 class _FakeHist:

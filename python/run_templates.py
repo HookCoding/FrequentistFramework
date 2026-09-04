@@ -29,8 +29,15 @@ def _seed_prefit_parameters(
     rangehigh,
     backgroundfile,
     tmpbackgroundfile,
-    nbkg,
 ):
+    # No incoming nbkg parameter: the value this function returns is
+    # always computed fresh from the PreFitter's own background-count
+    # estimate (see "nbkg = ..." below) and never reads whatever nbkg the
+    # caller currently holds - matching the original single-scope script,
+    # where the "nbkg" local was likewise unconditionally overwritten by
+    # this same computation with no prior use. Passing an unused nbkg in
+    # here across the Chunk 5 extraction was dead-parameter noise, not a
+    # behavior difference (GitHub Copilot-style review finding).
     from PreFit import PreFitter
 
     nPars = 5
@@ -182,7 +189,6 @@ def _stage_xml_templates(
                 rangehigh=rangehigh,
                 backgroundfile=backgroundfile,
                 tmpbackgroundfile=tmpbackgroundfile,
-                nbkg=nbkg,
             )
 
     replaceinfile(

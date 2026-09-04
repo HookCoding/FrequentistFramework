@@ -37,8 +37,9 @@ Latest full lightweight gate (`python scripts/quality_check.py --mode
 full`): 172 passed, 8 deselected, Ruff clean, Black clean (29 files
 unchanged), exit code 0. Latest scientific gate (`python -m pytest
 tests/test_analysis_workflows_integration.py -m "integration and
-requires_root" -v`, run for Chunk 11.B, commit `b026efd`): 1 passed, 2
-deselected, 153.99 seconds, exit code 0 - `test_authoritative_j100_j50_workflows_match_frozen_reference`
+requires_root" -v`, rerun against `run_fit.py`/`run_templates.py`'s
+fail-fast-ordering and dead-parameter fixes): 1 passed, 2 deselected,
+172.97 seconds, exit code 0 - `test_authoritative_j100_j50_workflows_match_frozen_reference`
 still matches the frozen `tests/references/analysis_reference.json`
 exactly, confirming this entire refactor moved no science.
 
@@ -88,7 +89,7 @@ directory (`python/`) to `sys.path[0]`.
 | `run_manifest.py` | `write_analysis_results(folder, p_chi2, masked, provenance)` | No | top-level |
 | `run_provenance.py` | `get_repository_root()`; `resolve_analysis_path(path, repository_root=None)`; `calculate_file_sha256(path)`; `build_file_provenance(path, repository_root=None)`; `get_git_revision(repository_path)`; `collect_scientific_runtime()`; `build_analysis_provenance(datafile, datahist, topfile, categoryfile, backgroundfile, signalfile, rangelow, rangehigh, dosignal, dolimit, doprefit, maskthreshold)` | Only `collect_scientific_runtime()` | `import ROOT` deferred inside that one function; `get_repository_root()` calls `repo_utils.find_repo_root()` for the base path, layering the `.git` existence check on top locally (Chunk 3.B) |
 | `run_masking.py` | `load_bumphunter_results(results_file)`; `run_bumphunter(postfitfile, folder)`; `should_mask(p_value, threshold)` (new - a shared predicate extracting the masking rule the coordinator previously wrote out inline at two call sites as `p_value > threshold`; implemented as `not (p_value > threshold)`, not the tempting `p_value <= threshold`, after a GitHub Copilot review finding: the two agree for ordinary floats but not for `NaN`, where both `>` and `<=` are False, so only the explicit negation reproduces the original's behavior of sending a `NaN` p-value down the masking branch. Proven by `tests/test_run_masking.py::test_should_mask_treats_nan_p_value_as_requiring_masking`) | No | top-level |
-| `run_templates.py` | `replaceinfile(f, old_new_list)`; `_seed_prefit_parameters(datafile, datahist, rangelow, rangehigh, backgroundfile, tmpbackgroundfile, nbkg)` (private); `_stage_xml_templates(folder, topfile, categoryfile, backgroundfile, signalfile, signame, wsfile, sigmean, sigwidth, datafile, datahist, rangelow, rangehigh, nbkg, nsig, doprefit, systdict)` (private); `prepare_run_templates(...)` (public entry point, same parameters as `_stage_xml_templates`, thin wrapper) | Only the `doprefit` branch | `from PreFit import PreFitter` deferred inside `_seed_prefit_parameters()` |
+| `run_templates.py` | `replaceinfile(f, old_new_list)`; `_seed_prefit_parameters(datafile, datahist, rangelow, rangehigh, backgroundfile, tmpbackgroundfile)` (private; an unused `nbkg` parameter present through Chunk 12 was dropped later - see "Decisions recorded during extraction" below); `_stage_xml_templates(folder, topfile, categoryfile, backgroundfile, signalfile, signame, wsfile, sigmean, sigwidth, datafile, datahist, rangelow, rangehigh, nbkg, nsig, doprefit, systdict)` (private); `prepare_run_templates(...)` (public entry point, same parameters as `_stage_xml_templates`, thin wrapper) | Only the `doprefit` branch | `from PreFit import PreFitter` deferred inside `_seed_prefit_parameters()` |
 | `run_fit.py` | `build_fit_extract(topfile, datafile, datahist, rangelow, rangehigh, wsfile, fitresultfile, poi=None, maskrange=None)` | The whole function | `import ROOT`, `from ExtractPostfitFromWS import PostfitExtractor`, `from ExtractFitParameters import FitParameterExtractor` deferred inside the function, placed immediately before the first `ROOT.TFile(...)` use (after both `execute_required` calls) |
 | `run_cli.py` | `build_arg_parser()`; `normalize_signal_name(sigmean, sigwidth, signame)` | No | top-level |
 | `run_anaFit.py` (coordinator) | `run_anaFit(datafile, datahist, topfile, categoryfile, wsfile, outputfile, nbkg, nsig, rangelow, rangehigh, signame, backgroundfile=None, signalfile=None, dosignal=False, dolimit=False, sigmean=1000, sigwidth=7.0, maskthreshold=0.01, doprefit=False, folder="run/", systdict=None, covariancedict=None)`; `main(args)` | No (delegates to the modules above) | n/a |
@@ -123,7 +124,16 @@ standalone `if "three" in backgroundfile: nPars = 3` followed by a
 `if/elif` ladder, meaning a filename matching both `"three"` and
 `"four"` resolves to `nPars = 4`) was copied exactly, including this
 quirk - existing behavior, not something this refactor may "clean up".
-Proven by `tests/test_run_templates.py`.
+Proven by `tests/test_run_templates.py`. `_seed_prefit_parameters()`'s
+original signature carried an `nbkg` parameter through Chunk 12, matching
+`_stage_xml_templates()`'s own `nbkg` (which the `doprefit` branch's
+result then overwrites in its caller). Found later, by direct reading,
+to be dead: the parameter is never referenced before being unconditionally
+reassigned from the `PreFitter`'s own fitted background count - true of
+the original single-scope script's identical local-variable reassignment
+too, so this was inert parameter-passing noise introduced by the
+extraction, not a behavior difference. Removed; no caller outside
+`_stage_xml_templates()` referenced it.
 
 **Chunk 9 (`plot_edm.py`'s `parse_minuit_edm_log()` error handling)**: the
 original function caught `FileNotFoundError` and called `sys.exit(1)`
@@ -173,10 +183,18 @@ displays) beyond the plan's literal signature - the original loop
 dispatched panel-specific content (Y-axis range, draw option, which text
 boxes appear) on pointer identity against outer-scope variables the
 extracted function has no access to, and on scalar values no struct in
-the plan's table carries. Proven end-to-end by
+the plan's table carries. The automated test,
 `tests/test_plot_postfit_macro.py::test_plot_postfit_macro_produces_nonempty_pdf_for_real_fixture`,
-which produces a `post_fit.pdf` byte-identical (41589 bytes) to both
-Step A's characterization run and the already-committed reference PDF.
+proves the rewritten macro runs to exit `0` and produces a real,
+non-empty `post_fit.pdf` - it deliberately does not assert byte-identical
+output (same documented policy as `tests/test_plot_post_fit.py`: ROOT's
+PDF output is not guaranteed bit-reproducible across environments/fonts).
+The byte-identical claim itself - `post_fit.pdf` at exactly 41589 bytes,
+matching both Step A's characterization run and the already-committed
+reference PDF - was a one-time manual verification performed during this
+chunk's development (a direct macro invocation outside pytest), recorded
+in `doc/ACTIVITY_LOG.md`'s Chunk 11.B entry; it is not an assertion the
+automated test repeats or enforces on every run.
 
 ## Test-file map
 
@@ -262,8 +280,9 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest verified result (Chunk 11.B, commit `b026efd`): 1 passed, 2
-deselected, 153.99 seconds, exit code 0.
+Latest verified result: 1 passed, 2 deselected, 172.97 seconds, exit code
+0 (rerun against `run_fit.py`/`run_templates.py`'s fail-fast-ordering and
+dead-parameter fixes; see `doc/ACTIVITY_LOG.md`'s corresponding entry).
 
 These gates together cover every module this plan touched, but each
 covers a different part, and the scientific gate deliberately does not
@@ -339,6 +358,35 @@ Unchanged from `doc/TIER2_SYSTEM.md`:
   script under `python/` (signal injection, limit-setting, toy studies,
   `python/run_injections_anaFit.py`'s own internals, etc.) was touched,
   per Section 3's explicit out-of-scope list.
+- **`analysis_results.json`'s `repository_dirty` field was added under
+  the existing `schema_version: 2`, not a new version.** This is a
+  repeat of an established, already-precedented pattern in this
+  repository (an earlier 2026-08-27 schema change made the identical
+  choice), not something this plan introduced or is in scope to revisit:
+  each such addition ships with a full regeneration of the two tracked
+  canonical manifests in the same commit, so no `schema_version: 2`
+  manifest with the old field set is left committed anywhere in this
+  repository. A manifest written by code *predating* `a83e888` and kept
+  outside this repository would fail `_validate_analysis_provenance()`'s
+  now-required-key check; that risk is pre-existing to this plan and
+  unchanged by it.
+- **`pyproject.toml`'s `pythonpath = [".", "python"]` makes some modules
+  importable two ways** - `import run_execution` (from `python/`'s own
+  auto-prepended directory, mirroring production) and `import
+  python.run_execution` (via the `"."` entry) load two distinct module
+  objects in the same interpreter, confirmed directly
+  (`python.run_execution is not run_execution`). Harmless today - every
+  test that monkeypatches a sibling module's attribute does so on the
+  same module object it imported the function-under-test through, so no
+  test currently straddles both import styles for the same module - but
+  latent: a future test that patches `python.run_execution.execute` and
+  expects a sibling module reached via the flat style to observe it would
+  silently fail. Left as a documented risk rather than changed, since
+  removing either `pythonpath` entry would break real, currently-passing
+  tests that rely on it (the flat-style entry is required by
+  `tests/test_run_anaFit.py`'s own module-loading helper; the dotted
+  entry is required by every other test file's `from python.<module>
+  import ...` style).
 
 ## Authoritative files
 

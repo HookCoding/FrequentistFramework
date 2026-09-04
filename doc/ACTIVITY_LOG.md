@@ -7387,3 +7387,154 @@ unchanged. `scripts/quality_check.py` never listed this file in
 passed, 8 deselected, ruff/black clean (29 files unchanged), exit code 0,
 unchanged from the pre-marker run - confirming the fix is inert to every
 existing selector except the one it was meant to change.
+
+## 2026-09-04: Fail-fast validation ordering, a dead parameter, and two documentation-accuracy fixes (same-branch review follow-up)
+
+### Objective
+
+Continue resolving the remaining, non-Copilot items raised during the
+same-branch review that preceded the previous commit (`6855d4a`), at the
+user's explicit request to "fix the rest of the issues found":
+
+1. `run_fit.py`'s `fitresultfile` basename validation ran after the
+   XMLReader subprocess, so a bad `fitresultfile` still paid for a full
+   (expensive) workspace build before failing.
+2. `run_templates.py`'s `_seed_prefit_parameters()` took an `nbkg`
+   parameter that is unconditionally overwritten before any use inside
+   the function - dead parameter-passing, not a behavior difference.
+3. `doc/TIER3_SYSTEM.md`'s Chunk 11 decision paragraph credited the
+   Chunk 11.B byte-identical-PDF verification (41589 bytes) to
+   `tests/test_plot_postfit_macro.py`'s automated test, which
+   deliberately does not assert byte-identical output (its own comment
+   says so, matching `tests/test_plot_post_fit.py`'s documented policy).
+
+Two other items surfaced in the same review - `repository_dirty` added to
+provenance without a `schema_version` bump, and the latent dual-module
+hazard from `pyproject.toml`'s `pythonpath = [".", "python"]` - were
+looked at again and deliberately left alone; see "Considered and not
+changed" below.
+
+### What changed
+
+- `python/run_fit.py`: the `fitresultfile` basename check (added by an
+  earlier Copilot-fix commit, `9f1956a`) moved from between the XMLReader
+  and quickFit calls to the very top of `build_fit_extract()`, before
+  `xmlreader_command` is even constructed. Comment updated from "before
+  quickFit launches" to "before either XMLReader or quickFit launches",
+  with the fail-fast rationale stated explicitly. Pure code motion of a
+  stateless check that only reads `fitresultfile` - no other statement
+  before it in the function depended on anything the check itself
+  produces beyond `fitresult_dir`/`fitresult_name`, both of which move
+  with it.
+- `tests/test_run_fit.py`::`test_build_fit_extract_rejects_fitresultfile_without_fitresult_token`
+  strengthened to match: the comment explaining the ordering change, and
+  the trailing assertion tightened from "quickFit never reached" (`assert
+  "quickFit background or signal fit" not in calls`) to "neither
+  subprocess reached at all" (`assert calls == []`) - the test now
+  actually proves the new fail-fast behavior, not just its weaker,
+  pre-existing guarantee.
+- `python/run_templates.py`: removed `_seed_prefit_parameters()`'s
+  `nbkg` parameter and the corresponding `nbkg=nbkg` keyword argument at
+  its one call site inside `_stage_xml_templates()`. Verified dead by
+  direct reading: the parameter is declared, never read anywhere in the
+  function body, then unconditionally reassigned from the `PreFitter`'s
+  own fitted background count (`nbkg = "%.1E, 0, %.1E" % (_nbkg, 2 *
+  _nbkg)`) before its only use (the `return nbkg` at the end). True of
+  the original single-scope script's identical local-variable
+  reassignment too - this was inert noise introduced by the Chunk 5
+  extraction, not a preserved behavior difference. No test called
+  `_seed_prefit_parameters()` directly with an `nbkg=` keyword (confirmed
+  by grep), so no test needed updating.
+- `doc/TIER3_SYSTEM.md`:
+  - `run_templates.py`'s module-map row and the Chunk 5 decision
+    paragraph updated for the new `_seed_prefit_parameters()` signature,
+    with the removed-parameter history and reasoning recorded inline.
+  - the Chunk 11 decision paragraph rewritten: the automated test is now
+    credited only with what it actually proves (exit `0`, real non-empty
+    `post_fit.pdf`); the byte-identical 41589-byte claim is now
+    attributed to the one-time manual verification recorded in this same
+    file's Chunk 11.B entry, with an explicit note that the automated
+    test does not repeat or enforce it on every run.
+
+### Verification performed
+
+- `python -m pytest tests/test_run_fit.py tests/test_run_templates.py -v`
+  → 11 passed. The strengthened assertion (`calls == []`) passing
+  confirms XMLReader is genuinely never invoked once the check moved
+  ahead of it, not just that quickFit is skipped.
+- `grep -n "_seed_prefit_parameters(" tests/test_run_templates.py` →
+  no direct calls (only through `prepare_run_templates`/
+  `_stage_xml_templates`, both of which keep their own `nbkg` parameter
+  unchanged), confirming the signature change had no test blast radius.
+- `python scripts/quality_check.py --mode full` (rerun fresh after both
+  code changes) → 172 passed, 8 deselected, ruff clean, black clean (29
+  files unchanged), exit code 0 - identical to the pre-fix run, showing
+  neither change touched anything the lightweight gate exercises beyond
+  the two files edited.
+- `grep -nE '[[:blank:]]+$'` over every changed file and `git diff
+  --check` → both clean.
+- Scientific gate rerun (`python -m pytest
+  tests/test_analysis_workflows_integration.py -m "integration and
+  requires_root" -v`) - see result recorded below; `build_fit_extract()`
+  and `prepare_run_templates()` are both on this gate's real,
+  authoritative code path, so a rerun (not just the lightweight gate) is
+  the correct verification for behavior-affecting production changes,
+  unlike the previous, comment-only commit. Result: **1 passed, 2
+  deselected, 172.97 seconds, exit code 0** -
+  `test_authoritative_j100_j50_workflows_match_frozen_reference` still
+  matches the frozen `tests/references/analysis_reference.json` exactly.
+  This run happened to exercise both edits for real, not just in
+  isolation: it was observed mid-run (`ps aux`) actually executing
+  `python/run_anaFit.py --doprefit` against the real J100 fixture, which
+  drives `run_templates.py`'s `doprefit` branch (and therefore
+  `_seed_prefit_parameters()`, whose `nbkg` parameter was just removed)
+  and `run_fit.py`'s `build_fit_extract()` (whose validation check was
+  just reordered ahead of the real XMLReader subprocess call it now
+  precedes) on the authoritative code path, not a stub.
+
+### Considered and not changed
+
+- **`analysis_results.json`'s `repository_dirty` field was added under
+  `schema_version: 2` rather than a new version** (`a83e888`, prior to
+  this session). Checked against repository history before deciding not
+  to act: this repeats an already-established, precedented pattern in
+  this repository (an earlier 2026-08-27 schema change made the
+  identical choice - see `doc/ACTIVITY_LOG.md`'s own schema-version-2
+  entries from that date), and both times shipped with a full
+  regeneration of the two tracked canonical manifests in the same
+  commit, so no stale `schema_version: 2` manifest missing the new field
+  is left committed in this repository. Not a Tier 3 concern (it
+  predates this plan's own commits) and not something this branch's
+  review is the right place to relitigate unilaterally. Documented as a
+  Known Limitation in `doc/TIER3_SYSTEM.md` instead of changed.
+- **The latent dual-module-import hazard from `pyproject.toml`'s
+  `pythonpath = [".", "python"]`** - confirmed directly
+  (`python.run_execution is not run_execution` inside one interpreter)
+  that a module is reachable two ways with two distinct module objects.
+  Not changed: removing either `pythonpath` entry would break real,
+  currently-passing tests that depend on it (the flat-style entry for
+  `tests/test_run_anaFit.py`'s own module-loading helper; the dotted
+  entry for every other test file's `from python.<module> import ...`
+  style), and no test in this repository currently straddles both styles
+  for the same module, so there is no live bug to fix, only a documented
+  risk for future test-writing. Documented as a Known Limitation in
+  `doc/TIER3_SYSTEM.md` instead of changed.
+
+### Compliance review
+
+1. Every change traces to a specific, verified finding from the review
+   that preceded this commit - two real code fixes (fail-fast ordering,
+   dead parameter) and two documentation-accuracy fixes - plus two items
+   deliberately left alone and recorded as Known Limitations rather than
+   silently dropped.
+2. Both code changes are pure refactors with no change to any success
+   path's output: `run_fit.py`'s check is relocated, not altered, and
+   still raises the identical `ValueError` with the identical message;
+   `run_templates.py`'s removed parameter was provably dead (never read
+   before being overwritten), so nothing observable changed. The
+   scientific gate rerun (not just the lightweight gate) confirms this
+   for the real J100 workflow, including the exact `doprefit` and
+   XMLReader code paths touched.
+3. No new dependency, tool, or marker was introduced.
+4. Activity-log entry appended (this content), not a rewrite of any
+   existing section.

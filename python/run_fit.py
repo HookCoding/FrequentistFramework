@@ -14,6 +14,30 @@ def build_fit_extract(
     poi=None,
     maskrange=None,
 ):
+    # postfitfile/parameterfile/logfile/edmplot are all derived from
+    # fitresultfile by substituting "FitResult" for another token in its
+    # basename - an undocumented filename contract. Validated first, before
+    # either XMLReader or quickFit launches, because silently skipping it
+    # would mean: (a) if the basename doesn't contain "FitResult" at all,
+    # every substitution below is a no-op, so postfitfile and
+    # parameterfile both collapse back to fitresultfile itself, and
+    # PostfitExtractor/FitParameterExtractor's RECREATE-mode writes
+    # overwrite the quickFit result twice; (b) operating on the *whole
+    # path* (as the original code did) would also rewrite any parent
+    # directory component that happens to contain "FitResult", not just
+    # the filename. Checked before XMLReader runs, not just before
+    # quickFit, so a bad fitresultfile fails immediately instead of after
+    # the (expensive) workspace build has already happened.
+    fitresult_dir, fitresult_name = os.path.split(fitresultfile)
+    if "FitResult" not in fitresult_name:
+        raise ValueError(
+            'fitresultfile\'s basename must contain "FitResult" (e.g. '
+            '"FitResult_anaFit.root"): the quickFit log, edm plot, '
+            "postfit file, and parameter file are all derived from it by "
+            "substituting that token, and would otherwise silently "
+            "collide with fitresultfile itself. Got: %r" % (fitresultfile,)
+        )
+
     xmlreader_command = (
         f'xmlAnaWSBuilder/build/bin/XMLReader -x {topfile} -o "logy integral" --minimizerStrategy 0'
     )
@@ -44,27 +68,6 @@ def build_fit_extract(
         print(
             ">>>>>>>>>>>>>>>>>>>>>>>>>> no BH mask range: setting to -1 both maskmin "
             "and maskmax!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        )
-
-    # postfitfile/parameterfile/logfile/edmplot are all derived from
-    # fitresultfile by substituting "FitResult" for another token in its
-    # basename - an undocumented filename contract. Validated here, before
-    # quickFit launches, because silently skipping it would mean: (a) if
-    # the basename doesn't contain "FitResult" at all, every substitution
-    # below is a no-op, so postfitfile and parameterfile both collapse
-    # back to fitresultfile itself, and PostfitExtractor/
-    # FitParameterExtractor's RECREATE-mode writes overwrite the quickFit
-    # result twice; (b) operating on the *whole path* (as the original
-    # code did) would also rewrite any parent directory component that
-    # happens to contain "FitResult", not just the filename.
-    fitresult_dir, fitresult_name = os.path.split(fitresultfile)
-    if "FitResult" not in fitresult_name:
-        raise ValueError(
-            'fitresultfile\'s basename must contain "FitResult" (e.g. '
-            '"FitResult_anaFit.root"): the quickFit log, edm plot, '
-            "postfit file, and parameter file are all derived from it by "
-            "substituting that token, and would otherwise silently "
-            "collide with fitresultfile itself. Got: %r" % (fitresultfile,)
         )
 
     logfile = os.path.join(
