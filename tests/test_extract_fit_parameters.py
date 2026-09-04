@@ -17,18 +17,22 @@ _FIXTURE_FITRESULT_FILE = (
     / "FitResult_anaFit_sixPar_bkgOnly.root"
 )
 
-# python/ExtractFitParameters.py does `import ROOT` and `from ROOT import
-# *` at module scope, unconditionally - unlike every deferred-import
-# module elsewhere in this plan, this file is not being restructured
-# (Chunk 15's own Rationale: forcing a decomposition here would relocate,
-# not reduce, its complexity). Two different testing strategies are
-# needed as a result: the real-ROOT end-to-end test below runs as a
-# subprocess snippet (this repository's own pytest dev venv cannot import
-# ROOT at all, real or fake, for a module-scope `import ROOT`), while the
-# fast GetNsig()/GetNsigErr() regression test stubs sys.modules["ROOT"]
-# with a trivial empty ModuleType purely so the module-level `import
-# ROOT`/`from ROOT import *` resolves - it constructs the extractor and
-# sets its state directly, never calling the real Extract().
+# python/ExtractFitParameters.py does `import ROOT` at module scope,
+# unconditionally - unlike every deferred-import module elsewhere in
+# this plan, this file is not being restructured (Chunk 15's own
+# Rationale: forcing a decomposition here would relocate, not reduce,
+# its complexity). Two different testing strategies are needed as a
+# result: the real-ROOT end-to-end test below runs as a subprocess
+# snippet (this repository's own pytest dev venv cannot import ROOT at
+# all, real or fake, for a module-scope `import ROOT`), while the fast
+# GetNsig()/GetNsigErr() regression test stubs sys.modules["ROOT"] with
+# a trivial empty ModuleType purely so the module-level `import ROOT`
+# resolves - it constructs the extractor and sets its state directly,
+# never calling the real Extract(). (The follow-up lint-fix commit for
+# this chunk also removed the file's original `from ROOT import *`,
+# replacing its two wildcard-resolved names with explicit
+# `ROOT.TH1D`/`ROOT.TH2D` - this module-level `import ROOT` is
+# unaffected either way.)
 
 
 def _run_real_root_snippet(snippet: str) -> subprocess.CompletedProcess[str]:

@@ -285,16 +285,25 @@ jobs:
           fi
 
           # The plotting-layer tests (python/plotPostFit.py's real-ROOT
-          # tests, plot_postfit.cpp's whole-macro end-to-end test, and
+          # tests, plot_postfit.cpp's whole-macro end-to-end test,
           # plot_postfit.cpp's read_bumphunter_results() ROOT-macro unit
-          # test) all carry requires_analysis_dependencies, so the
-          # lightweight gate above deselects every one of them. Without
-          # this step they would run in no CI job at all (GitHub Copilot
-          # review, PR #6). Selecting on the marker here is deliberate:
-          # it runs exactly the tests the lightweight gate cannot.
+          # test) and the Chunk 13-16 hot-path-support tests
+          # (createBinning.py/ExtractFitParameters.py/
+          # ExtractPostfitFromWS.py/FindBHWindow.py's own real-ROOT/
+          # real-dependency tests) all carry requires_analysis_dependencies,
+          # so the lightweight gate above deselects every one of them.
+          # Without this step they would run in no CI job at all (GitHub
+          # Copilot review, PR #6 for the first three files; PR #7 for
+          # the four Chunk 13-16 files below - the same gap, found
+          # again). Selecting on the marker here is deliberate: it runs
+          # exactly the tests the lightweight gate cannot.
           python -m pytest \
             tests/test_plot_post_fit.py \
             tests/test_plot_postfit_macro.py \
             tests/test_read_bumphunter_results.py \
+            tests/test_create_binning.py \
+            tests/test_extract_fit_parameters.py \
+            tests/test_extract_postfit_from_ws.py \
+            tests/test_find_bh_window.py \
             -m "requires_analysis_dependencies" \
             -v

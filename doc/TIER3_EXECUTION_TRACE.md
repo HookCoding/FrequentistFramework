@@ -48,19 +48,19 @@ scripts/run_anaFit_J100.sh
         |     +-- execute_required: quickFit/build/quickFit                <-- submodule binary
         |     +-- execute: python plot_edm.py <quickFitLog> <edm>.pdf      <-- Tier 3 (plotting layer)
         |     +-- [only if Input/data/dijetisrTLA/mjjResolutionBinning_481.root is missing:]
-        |     |     execute: python3 python/createBinning.py -s 481 ...    <-- python/createBinning.py (*)(!)
+        |     |     execute: python3 python/createBinning.py -s 481 ...    <-- python/createBinning.py (!)
         |     +-- deferred: import ROOT, ExtractPostfitFromWS, ExtractFitParameters
         |     +-- ExtractPostfitFromWS.PostfitExtractor(...).GetPval(...) / .WriteRoot(postfitfile)
-        |     |                                                            <-- python/ExtractPostfitFromWS.py (*)
+        |     |                                                            <-- python/ExtractPostfitFromWS.py
         |     +-- ExtractFitParameters.FitParameterExtractor(...).WriteRoot(parameterfile)
-        |                                                                  <-- python/ExtractFitParameters.py (*)
+        |                                                                  <-- python/ExtractFitParameters.py
         |
         +-- run_masking.should_mask(pval_global, maskthreshold)            [Tier 3; NaN-safe predicate]
         |     |
         |     +-- [only if the real fit's p(chi2) requires masking - not knowable statically]
         |           run_masking.run_bumphunter(postfitfile, folder)
         |             +-- execute_required: pyBumpHunter/pyBH_env/bin/python3 python/FindBHWindow.py
-        |             |                                                    <-- python/FindBHWindow.py (*)
+        |             |                                                    <-- python/FindBHWindow.py
         |             |     (the bump-hunting algorithm itself lives in the external
         |             |      pyBumpHunter submodule, invoked *by* FindBHWindow.py)
         |             +-- run_masking.load_bumphunter_results(...)         [Tier 3]
@@ -80,9 +80,13 @@ scripts/run_anaFit_J100.sh
         (reads PostFit_*.root / FitParameters_*.root, writes post_fit.pdf)
 ```
 
-`(*)` marks a file that does not follow the Tier 3 system (Section 3
-below). `(!)` marks the one defect found and fixed while tracing
-(Section 5).
+`(*)` marks a file that does not (yet) follow the Tier 3 system
+(Section 3 below) — as of this update, only `python/PreFit.py` still
+carries this marker; `python/createBinning.py`, `ExtractFitParameters.py`,
+`ExtractPostfitFromWS.py`, and `FindBHWindow.py` were brought into the
+Tier 3 system by Chunks 13–16 (`doc/TIER3_COMPLETION_PLAN.md`) and moved
+to Section 2 below. `(!)` marks the one defect found and fixed while
+tracing (Section 5).
 
 **Output artifacts of one unmasked sixPar/bkgOnly J100 run**, all under
 `$out_dir/J100/run_481_3000_sixPar/`:
@@ -105,47 +109,56 @@ small single-responsibility functions, each has a dedicated test file,
 and each is registered in `scripts/quality_check.py`'s `python_targets`/
 `test_targets`. Not repeated here - see `doc/TIER3_SYSTEM.md` directly.
 
+Also part of the system as of Chunks 13–16
+(`doc/TIER3_COMPLETION_PLAN.md`, 2026-09-04): `python/createBinning.py`
+(Chunk 13), `python/FindBHWindow.py` (Chunk 14),
+`python/ExtractFitParameters.py` (Chunk 15), and
+`python/ExtractPostfitFromWS.py` (Chunk 16). Each has a dedicated test
+file (`tests/test_create_binning.py`, `tests/test_find_bh_window.py`,
+`tests/test_extract_fit_parameters.py`,
+`tests/test_extract_postfit_from_ws.py` respectively) and is registered
+in `scripts/quality_check.py`. `createBinning.py` and `FindBHWindow.py`
+also defer their heavy imports (`ROOT`; `matplotlib`/`uproot`/
+`pyBumpHunter`) into the specific functions that need them, matching
+Section 4.5 of the completion plan; `ExtractFitParameters.py` and
+`ExtractPostfitFromWS.py` keep a module-level `import ROOT` (no ROOT-free
+subset was worth isolating in either). See `doc/TIER3_COMPLETION_PLAN.md`
+Chunks 13–16 and `doc/ACTIVITY_LOG.md`'s corresponding entries for the
+full detail not repeated here.
+
 ## 3. Files in this trace that do NOT follow the Tier 3 system
 
-`doc/TIER3_SYSTEM.md`'s own Scope section already states this boundary
-explicitly: Tier 3 covers exactly four files
-(`run_anaFit.py`/`plot_edm.py`/`plotPostFit.py`/`plot_postfit.cpp`), and
-"every other script under `python/`... remain[s] untouched, as they were
-before Tier 3." What follows is the concrete list of which untouched
-files actually sit on this specific hot path, with what "untouched"
-means for each in practice:
+`doc/TIER3_SYSTEM.md`'s own Scope section originally stated this
+boundary as covering exactly four files
+(`run_anaFit.py`/`plot_edm.py`/`plotPostFit.py`/`plot_postfit.cpp`), with
+"every other script under `python/`... remain[s] untouched." Chunks
+13-16 (`doc/TIER3_COMPLETION_PLAN.md`, 2026-09-04) closed that boundary
+for four of the five files this section originally listed - see Section
+2 above for where they moved. **One file on this hot path still sits
+outside the Tier 3 system**, per Chunk 17 (`PreFit.py`) not yet having
+executed:
 
 | File | Lines | Decomposition | Dedicated test file | Registered in `quality_check.py`? | Module-level `import ROOT`? |
 |---|---|---|---|---|---|
 | `python/PreFit.py` | 208 | One `PreFitter` class + a `main()` CLI wrapper (unused from this call path) | None | No | Yes |
-| `python/ExtractPostfitFromWS.py` | 460 | 3 free helper functions + one large `PostfitExtractor` class + `main()` | None | No | Yes (`import ROOT` and `from ROOT import *`) |
-| `python/ExtractFitParameters.py` | 108 | One `FitParameterExtractor` class + `main()` | None | No | Yes (`import ROOT` and `from ROOT import *`) |
-| `python/createBinning.py` | 32 | No functions at all - a flat top-level script | None | No | Yes - **and it does not parse** (Section 5) |
-| `python/FindBHWindow.py` | 113 | One `NpEncoder` helper class + `main()` | None | No | No (delegates to the external `pyBumpHunter` submodule) |
 | `scripts/setup_buildAndFit.sh` | - | Shell, not Python - out of `quality_check.py`'s Python-only scope entirely | None of its own (only exercised indirectly, by being sourced inside other tests) | N/A (shell) | N/A |
 
 "No dedicated test file" is verified, not assumed: every mention of
-`PreFit`/`PreFitter`, `ExtractPostfitFromWS`/`PostfitExtractor`,
-`ExtractFitParameters`/`FitParameterExtractor`, `createBinning`, or
-`FindBHWindow` inside `tests/` is either (a) a `ModuleType`-stub
+`PreFit`/`PreFitter` inside `tests/` is either (a) a `ModuleType`-stub
 monkeypatch used to isolate the Tier 3 module actually under test (e.g.
-`tests/test_run_fit.py`, `tests/test_run_anaFit.py`,
 `tests/test_run_templates.py`), or (b) a literal command-string
 assertion inside `tests/test_analysis_workflows_integration.py`'s
-end-to-end integration test, which exercises these five files' real
-behavior only as an opaque subprocess, not as a unit under test. None of
-the five has a `tests/test_<name>.py` of its own the way every Tier 3
-module does.
+end-to-end integration test, which exercises this file's real behavior
+only as an opaque subprocess, not as a unit under test. `PreFit.py` has
+no `tests/test_pre_fit.py` of its own the way every Tier 3 module does.
 
 This was a documented, deliberate scope boundary from
 `doc/TIER3_COMPLETION_PLAN.md`'s original Chunks 0-12 - not a surprise.
-As of 2026-09-04, that same document's Chunks 13-18 now propose closing
-this exact boundary, bringing all five files into the Tier 3 system -
-not yet executed; this table and the `(*)` markers on the trace diagram
-above still describe the current, as-implemented state and will be
-updated once that work lands. It's recorded here so the boundary is
-visible against the *actual* call graph of a real run, not just as an
-abstract "everything else is untouched" statement.
+Chunk 18 (final documentation) is the step that will retire this section
+entirely once Chunk 17 also lands, leaving nothing on this hot path
+outside the Tier 3 system except the shell setup script above (which is
+not Python, and out of `quality_check.py`'s scope by design, not by
+omission).
 
 ## 4. Different category: third-party code (not this repository's)
 

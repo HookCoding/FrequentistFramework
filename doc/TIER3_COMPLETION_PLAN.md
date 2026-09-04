@@ -392,16 +392,24 @@ on each other; they are sequenced by ascending design risk instead (Chunk
 
 ### 4.5 Import placement and testing tiers for the five hot-path files
 
-Four of the five (`PreFit.py`, `ExtractFitParameters.py`,
-`ExtractPostfitFromWS.py`, `createBinning.py`) already do a module-level
-`import ROOT` today and stay that way — unlike `run_fit.py`'s deferred
-`import ROOT`, there is no ROOT-free subset of these four files worth
-isolating by deferring the import (confirmed directly: `PreFit.py`'s
-`__init__` already touches `ROOT.Math.MinimizerOptions`/`ROOT.TRandom3`
-immediately; the other three's only ROOT-free code is trivial attribute
-storage). `FindBHWindow.py` is the one exception and the one file this
-plan defers imports in (Chunk 14, `matplotlib`/`uproot`/`pyBumpHunter`
-each deferred into the one function that needs it).
+**Corrected after Chunks 13–16 actually landed** (this paragraph
+originally undercounted the deferred-import files as one; GitHub
+Copilot review, PR #7, caught the discrepancy against the shipped
+code): two of the five, `createBinning.py` (Chunk 13) and
+`FindBHWindow.py` (Chunk 14), defer their heavy imports into the
+specific functions that need them —
+`createBinning.py`'s `import ROOT` moves into `load_resolution_fit()`/
+`build_binning_histogram()`/`main()`, leaving `parse_args()`/
+`resolve_bin_edges()` ROOT-free at both module and call scope, exactly
+like `FindBHWindow.py`'s own `matplotlib`/`uproot`/`pyBumpHunter`
+deferrals (Chunk 14). The remaining three — `ExtractFitParameters.py`
+(Chunk 15), `ExtractPostfitFromWS.py` (Chunk 16), and `PreFit.py`
+(Chunk 17, not yet executed) — keep a module-level `import ROOT` today,
+unlike `run_fit.py`'s own deferred `import ROOT`: there is no ROOT-free
+subset of these three files worth isolating by deferring the import
+(confirmed directly: `PreFit.py`'s `__init__` already touches
+`ROOT.Math.MinimizerOptions`/`ROOT.TRandom3` immediately; the other
+two's only ROOT-free code is trivial attribute storage).
 
 This repository's own dev venv (`.venv/bin/python`, used for
 `scripts/quality_check.py --mode full` and all fast/unmarked tests)

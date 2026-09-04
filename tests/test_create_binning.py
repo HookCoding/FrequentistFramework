@@ -273,8 +273,8 @@ def test_createBinning_script_produces_expected_binning_for_real_fixture(
     ), "a real resolutionFits.root already exists - refusing to overwrite it"
     outfile = tmp_path / "mjjResolutionBinning_481.root"
 
-    _write_synthetic_resolution_fit()
     try:
+        _write_synthetic_resolution_fit()
         probe = f"""
 repo_dir="$PWD"
 source "$repo_dir/scripts/setup_buildAndFit.sh" >/dev/null

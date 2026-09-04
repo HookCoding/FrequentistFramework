@@ -22,21 +22,28 @@ without needing to replay the full chunk-by-chunk history in
 `doc/ACTIVITY_LOG.md`.
 
 For how these seven modules and the plotting layer sit inside a real,
-complete run - and which non-Tier-3 files (`python/PreFit.py`,
-`ExtractPostfitFromWS.py`, `ExtractFitParameters.py`, `createBinning.py`,
-`FindBHWindow.py`) a real J100/J50 run actually calls along the way - see
+complete run - and which file (`python/PreFit.py`, as of the update
+below) a real J100/J50 run still calls outside the Tier 3 system - see
 `doc/TIER3_EXECUTION_TRACE.md`, which traces `scripts/run_anaFit_J100.sh`
 end to end and records one defect (`python/createBinning.py`'s
 `IndentationError`) found and fixed while doing so.
 
 As of 2026-09-04, `doc/TIER3_COMPLETION_PLAN.md` also defines Chunks
 13-18 to bring those same five files into this system, using this
-document's own Step A/Step B methodology unchanged - **not yet
-executed**. This document describes only what has actually happened
-(per its own opening sentence's citation requirement), so it is not
-updated to reflect that extension until Chunks 13-17 actually land;
-Chunk 18 of that plan is exactly the "update this document" step, once
-they do.
+document's own Step A/Step B methodology unchanged. **Update
+(2026-09-04, same day): Chunks 13-16 have since landed** —
+`python/createBinning.py`, `FindBHWindow.py`, `ExtractFitParameters.py`,
+and `ExtractPostfitFromWS.py` are now part of the Tier 3 system (each
+decomposed, each with a dedicated test file, each registered in
+`scripts/quality_check.py`); see `doc/TIER3_EXECUTION_TRACE.md` Section
+2 for the concrete per-file detail this document doesn't repeat.
+`python/PreFit.py` (Chunk 17) is the one file of the original five still
+outside this system - not yet executed. Chunk 18, the "update this
+document" step for the remaining "Current status"/module-map sections
+below, still applies once Chunk 17 lands; this note is a same-day
+correction to a claim GitHub Copilot review (PR #7) caught going stale
+within the same change that introduced it, not the deferred Chunk 18
+update itself.
 
 ## Current status
 

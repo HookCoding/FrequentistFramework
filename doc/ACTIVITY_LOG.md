@@ -9180,3 +9180,140 @@ empty. The integration-gate rerun below is a no-regression check only.
 - [x] Activity-log entry appended (this content).
 - [x] This entry names Chunk 16a as now resolved; optional Chunk 16b,
   Chunk 17, and Chunk 18 remain explicitly open.
+
+## Resolve GitHub Copilot PR review findings (Chunks 13-16 pull request)
+
+### Objective
+
+Address the 8 findings from GitHub Copilot's review of the Chunks
+13-16 pull request (backend initialization, CI coverage, cleanup
+reliability, and documentation consistency) before requesting another
+review, per the review's own closing instruction.
+
+### Findings and fixes
+
+1. **`python/FindBHWindow.py` (medium, real regression) —
+   `matplotlib.use("Agg")` was called too late.** `run_bump_hunter()`
+   imports `pyBumpHunter`, whose own `BumpHunter1D` implementation
+   imports `matplotlib.pyplot` at module load - by the time
+   `save_bump_plots()` later called `matplotlib.use("Agg")`, a backend
+   had already been selected. Confirmed by reading the original,
+   pre-Tier-3 script directly (`git show 604b5cd~1:python/FindBHWindow.py`):
+   it called `matplotlib.use("Agg")` **before** `import pyBumpHunter as
+   BH`, at module scope - Chunk 14's own deferred-import split reversed
+   that ordering. **Fixed**: moved `import matplotlib;
+   matplotlib.use("Agg")` into `run_bump_hunter()`, immediately before
+   `import pyBumpHunter as BH` - restoring the original ordering exactly,
+   while keeping the deferred-import structure. `save_bump_plots()`'s own
+   `matplotlib.use("Agg")` call is left in place (a harmless no-op once
+   Agg is already active). Verified: the real end-to-end test
+   (`test_findbhwindow_script_computes_expected_mask_window_for_real_fixture`)
+   still passes with the exact same deterministic values.
+2. **`python/createBinning.py` (medium) — error messages hardcoded the
+   default filename instead of the actual `input_path` argument.** Both
+   `raise OSError(...)` and `raise KeyError(...)` in
+   `load_resolution_fit()` now interpolate the real `input_path` (`f"Could
+   not open {input_path}"` / `f"ROOT object gsc_mjj_reso_fit not found in
+   {input_path}"`), so a caller passing a non-default path gets an
+   accurate error. The existing `test_load_resolution_fit_raises_keyerror_when_key_missing`
+   test's assertion (`"gsc_mjj_reso_fit" in str(error)`) still passes
+   unmodified - verified for real.
+3. **`scripts/quality_check.py` / `.github/workflows/scientific-analysis.yml`
+   (medium, real CI gap) — none of the four new test files' real-ROOT/
+   real-dependency tests ever ran in CI.** Every test in
+   `tests/test_create_binning.py`, `tests/test_extract_fit_parameters.py`,
+   `tests/test_extract_postfit_from_ws.py`'s marked tests, and
+   `tests/test_find_bh_window.py`'s real end-to-end test carry
+   `requires_analysis_dependencies`, which the lightweight gate's `-m
+   "not requires_analysis_dependencies"` filter always excludes; the
+   scientific workflow's own dedicated real-ROOT step only ever selected
+   three older files (`test_plot_post_fit.py`/`test_plot_postfit_macro.py`/
+   `test_read_bumphunter_results.py`) - the exact same gap this session
+   already fixed once for those three (Copilot review, PR #6), now found
+   again for four more files. **Fixed**: added all four new test files to
+   the "Run plotting-layer real-ROOT regression gates" step's `pytest`
+   invocation. Confirmed `tests/test_find_bh_window.py`'s real test needs
+   no additional CI-level environment setup - its own subprocess probe
+   already sources `scripts/setup_buildAndFit.sh` and exports
+   `PYTHONPATH` itself. Verified `.github/workflows/scientific-analysis.yml`
+   still parses as valid YAML after the edit.
+4. **`tests/test_create_binning.py` (medium) — the cleanup guard did not
+   cover fixture-creation failures.** `_write_synthetic_resolution_fit()`
+   was called *before* the `try:` block in
+   `test_createBinning_script_produces_expected_binning_for_real_fixture`;
+   if it created the file and then raised, the `finally:` cleanup never
+   ran, leaving a generated fixture in the repository. **Fixed**: moved
+   the call inside the `try:` block, so `finally:` covers every outcome.
+5. **`doc/TIER3_COMPLETION_PLAN.md` (low, documentation) — Section 4.5
+   miscounted the deferred-import files.** It claimed 4 of 5 files kept a
+   module-level `import ROOT`, with `FindBHWindow.py` as "the one
+   exception" - contradicting `createBinning.py`'s own shipped extraction
+   (ROOT deferred into `load_resolution_fit()`/`build_binning_histogram()`/
+   `main()`). **Fixed**: corrected the paragraph to name both
+   `createBinning.py` and `FindBHWindow.py` as the two deferred-import
+   files, with `ExtractFitParameters.py`/`ExtractPostfitFromWS.py`/
+   `PreFit.py` (the last not yet executed) as the three that keep
+   module-level `import ROOT`.
+6. **`doc/TIER3_EXECUTION_TRACE.md` (low, documentation) — Section 3's
+   table and the diagram's `(*)` markers still described pre-Chunk-13-16
+   state.** `createBinning.py`/`ExtractFitParameters.py`/
+   `ExtractPostfitFromWS.py`/`FindBHWindow.py` had all since been
+   decomposed, tested, and registered, but the table still said "None"/
+   "No" for each, and `createBinning.py` was still marked "does not
+   parse." **Fixed**: removed the `(*)` markers for these four files from
+   the trace diagram (kept `(!)` on `createBinning.py`'s historical
+   defect note), updated the legend, moved the four files into Section
+   2's "ARE part of the Tier 3 system" list with their real test-file
+   names, and trimmed Section 3's table to the one file still outside the
+   system (`python/PreFit.py`, Chunk 17) plus the shell setup script.
+7. **`doc/TIER3_SYSTEM.md` (low, documentation) — the "not yet executed"
+   status for Chunks 13-18 was already false within the same change that
+   added it.** **Fixed**: added a same-day, explicitly-dated correction
+   noting Chunks 13-16 have since landed (four files now part of the
+   system), with `PreFit.py`/Chunk 17 as the one still-open item and
+   Chunk 18 (the deferred "Current status"/module-map rewrite) still
+   pending - a targeted correction, not the full Chunk 18 update itself.
+   Also corrected the "Purpose and audience" section's now-stale
+   "non-Tier-3 files" list to name only `PreFit.py`.
+8. **`tests/test_extract_fit_parameters.py` (low, documentation) — a
+   stale comment.** Said the module does `import ROOT` and `from ROOT
+   import *`, but the same PR's earlier follow-up commit (`5bb6c09`)
+   already removed the wildcard import. **Fixed**: corrected the comment
+   to describe only `import ROOT`, with a note about the wildcard-import
+   removal for context.
+
+The one suppressed comment (`python/createBinning.py:37`, the `KeyError`
+message) is the same finding as item 2 above and was fixed by the same
+edit.
+
+### Verification performed
+
+- `python -m pytest tests/test_create_binning.py
+  tests/test_extract_fit_parameters.py -v -m
+  "requires_analysis_dependencies"` (ambient interpreter) -> **4 passed,
+  19.70s**.
+- `python -m pytest tests/test_find_bh_window.py -v -m
+  "requires_analysis_dependencies"` (ambient interpreter) -> **1 passed,
+  15.00s** - confirms the matplotlib-ordering fix still produces the
+  exact same deterministic `MaskMin`/`MaskMax`/`BlindRange` values.
+- `python3 -c "import yaml; yaml.safe_load(...)"` on the edited workflow
+  file: valid YAML.
+- `python scripts/quality_check.py --mode full` -> **194 passed, 18
+  deselected**, Ruff clean, Black clean (37 files unchanged), exit code
+  0.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, general fix variant)
+
+- [x] Every finding traced to its root cause and fixed directly, not
+  worked around.
+- [x] Item 1 is a real regression this session introduced (Chunk 14) -
+  confirmed against the actual pre-refactor script via `git show`, not
+  assumed from the review comment alone.
+- [x] Item 3 closes a real CI coverage gap - the same category of gap
+  already fixed once this session (PR #6) for three other files.
+- [x] No scientific constant, reference, tolerance, or canonical
+  workflow argument touched.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).

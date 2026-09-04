@@ -31,10 +31,10 @@ def load_resolution_fit(input_path="Input/data/dijetisrTLA/resolutionFits.root")
     # what this check guards against.
     tfile = ROOT.TFile.Open(input_path, "READ")
     if not tfile or tfile.IsZombie():
-        raise OSError("Could not open Input/data/dijetisrTLA/resolutionFits.root")
+        raise OSError(f"Could not open {input_path}")
     reso_fit = tfile.Get("gsc_mjj_reso_fit")
     if not reso_fit:
-        raise KeyError("ROOT object gsc_mjj_reso_fit not found in resolutionFits.root")
+        raise KeyError(f"ROOT object gsc_mjj_reso_fit not found in {input_path}")
     # Closing here rather than at the very end of the script (as the
     # original single-scope version did) is a verified-harmless reorder,
     # not a behavior change: a ROOT TF1 read back via TFile::Get() stays

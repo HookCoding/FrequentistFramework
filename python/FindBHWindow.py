@@ -98,6 +98,21 @@ def run_bump_hunter(data, bkg, bins):
     # import it at all - confirmed directly.
     from datetime import datetime
 
+    # pyBumpHunter's own BumpHunter1D implementation imports
+    # matplotlib.pyplot at module load, which locks in whatever
+    # backend is active at that moment. The original, pre-refactor
+    # script called matplotlib.use("Agg") before importing pyBumpHunter
+    # for exactly this reason (confirmed by reading its own module-
+    # level import order) - selecting Agg here, before the import
+    # below, preserves that ordering exactly (GitHub Copilot review,
+    # PR #7). save_bump_plots()'s own matplotlib.use("Agg") call stays
+    # too - a harmless no-op once Agg is already active - so this
+    # function still needs no matplotlib import of its own beyond
+    # this one, defensive line.
+    import matplotlib
+
+    matplotlib.use("Agg")
+
     import pyBumpHunter as BH
 
     # Hardcoded scan parameters preserved exactly, not promoted to CLI
