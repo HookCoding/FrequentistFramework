@@ -7659,3 +7659,103 @@ had been committed yet.
 4. Activity-log entry appended and edited in place while still
    uncommitted (this content), not a rewrite of any already-committed
    entry.
+
+## 2026-09-04: Extend the Tier 3 plan to the five hot-path support files (Chunks 13-18, planning only)
+
+### Objective
+
+The user asked for `doc/TIER3_COMPLETION_PLAN.md` to be updated so the
+five hot-path support files `doc/TIER3_EXECUTION_TRACE.md` found outside
+Tier 3 (`python/PreFit.py`, `python/ExtractFitParameters.py`,
+`python/ExtractPostfitFromWS.py`, `python/createBinning.py`,
+`python/FindBHWindow.py`) get decomposed and tested with the same
+formula as Chunks 0-12. This entry covers **planning only**: writing
+Chunks 13-18 into the plan document. Actually executing them (real
+characterization tests, real extraction, real gates) is separate,
+substantial follow-on work, explicitly not done here.
+
+Two decisions were confirmed with the user before drafting: (1) reopen
+`doc/TIER3_COMPLETION_PLAN.md` itself rather than start a new Tier 4
+document; (2) for two dormant bugs found in `ExtractPostfitFromWS.py`
+during design research, add two separate, optional, explicitly-scoped
+fix chunks (16a/16b) rather than only document-and-preserve them (the
+plan's default for every other quirk found).
+
+### What changed
+
+- `doc/TIER3_COMPLETION_PLAN.md`: Section 0 and Section 3 updated to
+  describe the extended, nine-file scope (the original four-file scope
+  is preserved as a dated historical statement, not silently rewritten).
+  Section 4 gained subsections 4.4/4.5 (target decomposition tables and
+  import/testing-tier notes for the five files). Section 6 gained Chunks
+  13 (`createBinning.py`), 14 (`FindBHWindow.py`), 15
+  (`ExtractFitParameters.py`), 16 (`ExtractPostfitFromWS.py`, the primary
+  decomposition target) plus optional Chunks 16a/16b (the two dormant-bug
+  fixes), 17 (`PreFit.py`), and 18 (a single-commit documentation update,
+  to run only once Chunks 13-17 land) - each using the exact Step A/Step
+  B table/prose template Chunks 1-11 already established. Section 7
+  gained the `FindBHWindow.py` dedicated-interpreter gate command.
+  Section 9's completion definition extended to "Chunks 0 through 18"
+  with new bullets, including an explicit caveat that the standard
+  scientific gate does not by itself prove `FindBHWindow.py`'s or fully
+  `createBinning.py`'s correctness. Section 10's scope boundary updated
+  "four" to "nine."
+- `doc/TIER3_SYSTEM.md` and `doc/TIER3_EXECUTION_TRACE.md`: one small,
+  accurate pointer added/revised in each, noting Chunks 13-18 now exist
+  as a plan but are **not yet executed** - deliberately not rewriting
+  either document's actual-status claims, since none of the five files'
+  real decomposition/testing has happened yet. `doc/TIER3_SYSTEM.md`
+  describes only what has actually happened (its own opening sentence's
+  citation requirement) and is not updated further until Chunk 18 itself
+  runs.
+
+### Research performed before drafting
+
+Two Explore agents read `doc/TIER3_COMPLETION_PLAN.md`/`doc/TIER3_SYSTEM.md`
+in full (exact section structure, chunk template, guardrails, every
+"Tier 3 is complete" claim with line numbers) and all five target files
+plus their real call sites and existing test-stub patterns in full. A
+Plan agent then designed the concrete per-file decomposition against
+that fact base. Two corrections to initial assumptions were found by
+direct verification during that research, both recorded in the plan
+itself: `numpy` is not importable in `.venv/bin/python` (affects Chunk
+14's test design); and `ExtractFitParameters`/`ExtractPostfitFromWS`'s
+shared `wsfile` constructor parameter is actually the fit-result file in
+production for both classes, not the workspace file either name
+suggests (confirmed directly from `run_fit.py:114-168`).
+
+### Verification performed
+
+- `grep -nE '[[:blank:]]+$'` across all three changed docs: clean.
+- `git diff --check`: clean.
+- `grep -n "the four named\|four files\|Chunks 0-12\|Chunks 0 through 12\|no other file is in scope" doc/TIER3_COMPLETION_PLAN.md`:
+  the four remaining hits are all legitimate local/historical references
+  (Chunk 12's own "as it stood at Chunk 12's completion" framing; Chunk
+  17's "these four files" meaning four of the *five new* files that keep
+  a module-level `import ROOT`; Chunk 15's "the other four files" meaning
+  the other four of the five new files; Chunk 18's own acceptance-check
+  text) - none is a stale document-wide scope claim.
+- Confirmed all 8 new/optional chunk headers (13, 14, 15, 16, 16a, 16b,
+  17, 18) present, in order, via `grep -n "^### Chunk 1[3-8]"`.
+- `python scripts/quality_check.py --mode full`: 172 passed, 8
+  deselected, Ruff clean, Black clean (29 files unchanged), exit code 0 -
+  unaffected, since no production code changed.
+
+### Compliance review
+
+1. This is a planning-document change only - no production code, no
+   test file, no `scripts/quality_check.py` registration change (there is
+   nothing new to register yet; the five target files' real test files
+   don't exist until Chunks 13-17 are actually executed).
+2. Every quirk/bug found in the five target files during design research
+   is preserved in the plan text with an explicit preserve-or-fix
+   decision and rationale, matching this repository's established
+   "characterize and preserve, never silently clean up" principle -
+   including the two dormant bugs the user explicitly chose to schedule
+   fix chunks for (16a/16b), each kept separate from Chunk 16's own
+   extraction commit.
+3. `doc/TIER3_SYSTEM.md`'s and `doc/TIER3_EXECUTION_TRACE.md`'s
+   actual-status claims were not rewritten to describe unexecuted work as
+   done - only a small, accurate forward-pointer was added to each.
+4. Activity-log entry appended (this content), not a rewrite of any
+   existing section.

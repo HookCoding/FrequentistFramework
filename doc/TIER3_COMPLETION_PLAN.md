@@ -10,8 +10,19 @@ It covers the **complete pipeline invoked by the launcher scripts**, from
 `scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh` through to the production
 of diagnostic plots: `python/run_anaFit.py` (the coordinator being split
 into modules, Chunks 1–8), `plot_edm.py` (Chunk 9), `python/plotPostFit.py`
-(Chunk 10), and `plot_postfit.cpp` (Chunk 11). No other file is in scope —
-see Section 3.
+(Chunk 10), and `plot_postfit.cpp` (Chunk 11). Chunks 0–12 covered exactly
+these four files — see Section 3 as it stood at Chunk 12's completion.
+
+**Scope extended 2026-09-04** (Chunks 13–18): `doc/TIER3_EXECUTION_TRACE.md`
+traced a real `scripts/run_anaFit_J100.sh` run end to end and found five
+more files sitting directly on that same hot path that Chunks 0–12
+deliberately left untouched: `python/PreFit.py`,
+`python/ExtractFitParameters.py`, `python/ExtractPostfitFromWS.py`,
+`python/createBinning.py`, `python/FindBHWindow.py`. Chunks 13–18 bring
+these five into the same system, using this document's own established
+Step A/Step B methodology unchanged. Section 3's in/out-of-scope lists
+below describe the current, extended scope — not the original four-file
+scope Chunks 0–12 executed against.
 
 It is written from a from-scratch analysis of this branch's own state and
 was **not** written by consulting, importing, or adapting any other
@@ -247,6 +258,17 @@ correction in a new activity-log entry rather than editing this section.
   function.
 - Registering every new source and test file in `scripts/quality_check.py`.
 - Creating `doc/TIER3_SYSTEM.md` (Chunk 12).
+- **(Chunks 13–18, added 2026-09-04)** Decomposing the five additional
+  hot-path support files identified by `doc/TIER3_EXECUTION_TRACE.md`:
+  `python/createBinning.py` (Chunk 13), `python/FindBHWindow.py`
+  (Chunk 14), `python/ExtractFitParameters.py` (Chunk 15),
+  `python/ExtractPostfitFromWS.py` (Chunk 16, plus two optional,
+  separately-scoped bug-fix chunks 16a/16b), `python/PreFit.py`
+  (Chunk 17), each with the same characterization-first Step A/Step B
+  model, new tests, and `scripts/quality_check.py` registration as
+  Chunks 1–11; and revising this document's and `doc/TIER3_SYSTEM.md`'s/
+  `doc/TIER3_EXECUTION_TRACE.md`'s scope-closure language to reflect the
+  larger scope (Chunk 18).
 
 ### Out of scope
 
@@ -256,12 +278,18 @@ correction in a new activity-log entry rather than editing this section.
 - Repository-wide Ruff/Black formatting, or any repository-wide C++
   reformatting.
 - Unrelated installer, CI, or dependency changes.
-- Any structural extraction of files other than the four named in Section
-  0 — not `python/analysis_reference.py`, `python/repo_utils.py`,
+- Any structural extraction of files other than the nine named across
+  Section 0 and the Chunk 13–18 addition above — not
+  `python/analysis_reference.py`, `python/repo_utils.py`,
   `python/run_injections_anaFit.py`'s own internals, nor any other script
   under `python/` (signal injection, limit-setting, toy studies, and the
-  many other scripts there remain untouched — they are not part of the
-  background-only J100/J50 canonical path this plan follows).
+  ~40 other scripts there remain untouched — they are not part of the
+  background-only J100/J50 canonical path this plan follows, per
+  `doc/TIER3_EXECUTION_TRACE.md`'s own trace of that path).
+- Fixing `python/ExtractPostfitFromWS.py`'s two dormant bugs (Chunk 16's
+  own text) anywhere other than the two dedicated, explicitly-optional
+  bug-fix chunks 16a/16b — never silently bundled into Chunk 16's own
+  extraction commit.
 - Changing the ROOT/C++ build system, adding a new C++ test framework, or
   introducing any C++ library beyond what `plot_postfit.cpp` already links
   (ROOT itself and the repository's existing `atlasstyle-00-04-02` macros).
@@ -341,6 +369,62 @@ Therefore:
 | `plot_edm.py` | `parse_minuit_edm_log(filename) -> (cumulative_x, edm_values, star_indices)` (**new**); `plot_minuit_edm_trace(cumulative_x, edm_values, star_indices, outname) -> None` (**new**); `plot_minuit_continuous(filename, outname)` (existing, becomes a thin orchestrator calling the two above) | Separates log parsing (pure, trivially unit-testable) from matplotlib rendering. |
 | `python/plotPostFit.py` | `parse_args(argv=None) -> argparse.Namespace` (**new**); `load_postfit_histograms(input_file) -> PostfitHistograms` (**new**, a small namedtuple of `postfit`/`data`/`chi2`); `build_ratio_histogram(data, postfit) -> TH1` (**new**); `draw_postfit_canvas(data, postfit, chi2_hist, ratio_hist) -> TCanvas` (**new**); `main(argv=None) -> None` (**new**, orchestrates the above, then `canvas.SaveAs(...)`); `if __name__ == "__main__": main()` (**new**) | Currently zero functions exist; this chunk introduces the file's first `main()`/`__main__` guard, which is itself the textbook motivating case for this refactor. |
 | `plot_postfit.cpp` | `BumpHunterInfo read_bumphunter_results(std::string const& bh_log_name)` (**new** struct + free function, replaces the inline lambda + loose locals); `PostfitHistograms load_postfit_histograms(TFile*, TFile*, TFile*, TFile*)` (**new** struct + free function); `void draw_residual_panel(TCanvas*, TH1D* first, TH1D* second, bool bump_hunter, BumpHunterInfo const&, char const* pars_str, char const* out_file_name)` (**new**, the loop body parameterized so the existing loop calls it 3×); `void plot_postfit(char const* in_dir, char const* pars_str)` (**existing signature preserved exactly** — the shell launcher invokes this by name, do not rename or reorder its parameters) | First C++ decomposition; Chunk 11 also introduces the first ROOT-macro test in this repository. |
+
+### 4.4 Five hot-path support files → decomposed, tested, registered (Chunks 13–17, added 2026-09-04)
+
+All five are ROOT- or heavy-dependency-coupled end to end, or nearly so —
+unlike Chunks 1–8's mostly ROOT-free orchestration code, the decomposition
+value here is smaller and more variable per file; each chunk states
+honestly how much genuine decomposition exists rather than forcing a
+uniform split. None of the five imports another one of the five, or is
+imported by another — each is reachable only through a single, already
+Tier-3 caller module, so the five chunks below have no ordering dependency
+on each other; they are sequenced by ascending design risk instead (Chunk
+13 first, Chunk 17 last — see each chunk's own text).
+
+| File | New/renamed functions | Notes |
+|---|---|---|
+| `python/createBinning.py` (Chunk 13) | `parse_args(argv=None)` (**new**); `load_resolution_fit(input_path=...)` (**new**); `resolve_bin_edges(reso_fit, rangelow, rangehigh)` (**new** — the one fragment testable with zero ROOT, since it only needs an object exposing `.Eval(x)`); `build_binning_histogram(bin_edges)` (**new**); `main(argv=None)` (**new**) plus a **new** `if __name__ == "__main__":` guard | Direct structural clone of Chunk 10's `plotPostFit.py` precedent: zero functions today, no `main()`, no `__main__` guard — this file always executes top-to-bottom on import today, which this chunk fixes as a side effect of the same transform, not a separate goal. |
+| `python/FindBHWindow.py` (Chunk 14) | `NpEncoder` (unchanged); `parse_args(argv=None)` (**new**); `load_histograms(input_file)` (**new**); `crop_data_to_background_range(data_edges, data_counts, bkg_edges)` (**new** — the one fragment testable with only a `numpy` stub, once given plain arrays); `run_bump_hunter(data_counts, data_edges, bkg_counts, bkg_edges)` (**new**); `compute_mask_window(bump_hunter, use_bin_numbers)` (**new** — keeps the `--usebinnumbers` vs. default formulas as two distinct branches, not merged); `save_bump_plots(bump_hunter)` (**new**); `write_mask_window_json(out_dict, outputjson)` (**new**); `main(argv=None)` (existing, becomes the orchestrator — stays the real, only entry point, since this file is always invoked as a whole subprocess under its own dedicated interpreter, never imported) | Mirrors Chunk 9's `plot_edm.py` parse/plot split. Also defers `matplotlib`/`uproot`/`pyBumpHunter`'s currently-module-level imports into the specific functions that need them, keeping only `numpy`+stdlib at module scope — see Chunk 14's own "Decisions recorded during extraction" entry once written (mirroring Chunks 9–11's pattern) for why. |
+| `python/ExtractFitParameters.py` (Chunk 15) | No new decomposition of `Extract()`/`WriteRoot()`/the 5 accessors — stated explicitly in Chunk 15 as an honest minimal-decomposition case: `Extract()` (42 lines) is one cohesive block, and forcing a 3-way split would relocate, not reduce, its complexity | This chunk's value is the file's first-ever direct test of its real behavior, plus registration — not restructuring. |
+| `python/ExtractPostfitFromWS.py` (Chunk 16) | `getNPars`/`expHist`/`getChi2` stay free functions (`getChi2`'s external mutation of the `extractor` object passed to it is preserved exactly, not converted into a method); `PostfitExtractor.Extract()` (137 lines, the largest method across all nine files) decomposes into new private methods `_open_workspace_and_data`, `_build_channel_postfit_histogram`, `_build_bkgonly_variant`, `_apply_external_rebinning`, with `Extract()` becoming the orchestrator; `WriteRoot()`/the 8 accessors/`GetCategories()` stay undecomposed one-liners | The primary decomposition target of the five files. Two dormant, currently-unreachable bugs found by direct reading are characterized and preserved by Chunk 16 itself, then optionally fixed by separate, dedicated Chunks 16a/16b — never inside Chunk 16's own extraction commit. |
+| `python/PreFit.py` (Chunk 17) | `RandomizeParameters` (unchanged); `_build_candidate_functions(self, ...)` (**new**, private); `_select_best_parameter_sets(self, ...)` (**new**, private — the one piece of this file that becomes independently testable once separated from the surrounding ROOT calls); `Fit(self)` (existing, becomes the orchestrator) | Zero existing test coverage of `PreFitter`'s own real behavior anywhere today (the only existing test fakes the whole class, to test `run_templates.py`'s caller logic). |
+
+### 4.5 Import placement and testing tiers for the five hot-path files
+
+Four of the five (`PreFit.py`, `ExtractFitParameters.py`,
+`ExtractPostfitFromWS.py`, `createBinning.py`) already do a module-level
+`import ROOT` today and stay that way — unlike `run_fit.py`'s deferred
+`import ROOT`, there is no ROOT-free subset of these four files worth
+isolating by deferring the import (confirmed directly: `PreFit.py`'s
+`__init__` already touches `ROOT.Math.MinimizerOptions`/`ROOT.TRandom3`
+immediately; the other three's only ROOT-free code is trivial attribute
+storage). `FindBHWindow.py` is the one exception and the one file this
+plan defers imports in (Chunk 14, `matplotlib`/`uproot`/`pyBumpHunter`
+each deferred into the one function that needs it).
+
+This repository's own dev venv (`.venv/bin/python`, used for
+`scripts/quality_check.py --mode full` and all fast/unmarked tests)
+cannot import `ROOT`, `matplotlib`, `numpy`, or `uproot` at all — a false
+positive for `import pyBumpHunter` resolves to this repository's own
+top-level `pyBumpHunter/` directory as a namespace package, not the real
+library, and still fails on `import pyBumpHunter.BH`. All five chunks
+therefore reuse this plan's own established two-tier testing approach
+(Section 4.2's payoff paragraph, already applied to
+`run_provenance.py`'s `collect_scientific_runtime()` and
+`run_templates.py`'s `doprefit` path): a `sys.modules`-stubbed
+(`ModuleType`) fast tier for whatever each file's own logic doesn't
+actually need a real dependency for, and a real, marked
+(`requires_root`+`requires_analysis_dependencies`) subprocess/fixture
+tier — reusing already-committed J100 fixtures wherever production
+actually points at one (Chunks 15 and 16), or a small synthetic fixture
+built on the fly where none is committed (Chunk 13; Chunk 17 uses real
+committed data but a deliberately reduced scale for speed) — for what
+can only be proven against the real dependency. `FindBHWindow.py`
+additionally needs a `numpy` `ModuleType` stub (a **new** stub target for
+this plan, `numpy` was not previously stubbed anywhere in Chunks 0–12)
+for its fast tier, since even `numpy` itself is unavailable in the dev
+venv.
 
 ---
 
@@ -1243,6 +1327,567 @@ git diff --check
 
 ---
 
+## Chunks 13–18 (added 2026-09-04): the five hot-path support files
+
+`doc/TIER3_EXECUTION_TRACE.md` traced a real `scripts/run_anaFit_J100.sh`
+run end to end and found five files that sit directly on that hot path
+but were explicitly out of scope for Chunks 0–12: `python/PreFit.py`,
+`python/ExtractFitParameters.py`, `python/ExtractPostfitFromWS.py`,
+`python/createBinning.py`, `python/FindBHWindow.py`. Chunks 13–18 below
+bring these five into the same system, using Section 5's Step A/Step B
+model unchanged — no new process, only new targets. There is no ordering
+dependency between the five files themselves (each is reachable only
+through a single, separate, already-Tier-3 caller module); they are
+sequenced by ascending design risk: the file whose transform is a direct
+structural clone of an already-executed Chunk 10 precedent first, the
+file with zero existing test coverage of any kind last.
+
+Two corrections to this plan's working assumptions, found by direct
+verification while designing these chunks, recorded here so a later
+reader does not have to rediscover them: `numpy` is **not** importable in
+`.venv/bin/python` (affects Chunk 14's test design — see Section 4.5);
+and `ExtractFitParameters.FitParameterExtractor`'s and
+`ExtractPostfitFromWS.PostfitExtractor`'s shared `wsfile` constructor
+parameter name is misleading — production (`run_fit.py:114–168`) passes
+`wsfile=fitresultfile` to **both**, i.e. the quickFit *fit-result* file
+(`FitResult_anaFit_sixPar_bkgOnly.root`), never the XMLReader *workspace*
+file (`dijetisrTLA_combWS_sixPar.root`) either class's parameter name
+suggests. Chunk 15 records this as a Known Limitation rather than
+renaming the parameter (renaming a public constructor argument on a class
+still invoked by its own `main()` CLI wrapper is a behavior change beyond
+what an extraction chunk authorizes).
+
+---
+
+### Chunk 13 — `python/createBinning.py`
+
+**Target functions**:
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `parse_args(argv=None)` | `argv: list[str] \| None` | `argparse.Namespace` (`start`, `end`, `output`) | none |
+| `load_resolution_fit(input_path="Input/data/dijetisrTLA/resolutionFits.root")` | `input_path: str` | a ROOT object exposing `.Eval(x)` (read from the key the current source's `.Get(...)` call names — confirm this directly before writing Step A, do not assume it from `doc/TIER3_EXECUTION_TRACE.md`) | opens `input_path` via `ROOT.TFile.Open`; raises `OSError` if the file can't be opened, `KeyError` if the key is missing — both exactly as today |
+| `resolve_bin_edges(reso_fit, rangelow, rangehigh)` | `reso_fit` (anything exposing `.Eval(x)`), `rangelow: int`, `rangehigh: int` | `list[float]` | none — pure computation once given an evaluable object |
+| `build_binning_histogram(bin_edges)` | `bin_edges: list[float]` | a ROOT `TH1F` named `"mjjBinning"` | none |
+| `main(argv=None)` (**new**, replaces the file's current top-to-bottom script body) | `argv` | `None` | writes `args.output` via the four functions above |
+
+**Rationale**: this file has no functions at all today — it always
+executes top-to-bottom on import or execution, the exact starting state
+Chunk 10 found `python/plotPostFit.py` in. This chunk applies that same
+transform: parse/validate/compute/write split into named functions plus
+a `main()` and a **new** `if __name__ == "__main__":` guard this file
+currently lacks. Preserve verbatim: the hardcoded input path (not
+promoted to a new CLI flag — guardrail 11 forbids adding capability not
+already present); the `from array import array` import's current
+mid-script deferred placement (move it, do not promote it to top-level —
+moving an existing deferred import into a new function is a
+reorganization, not new code).
+
+**Step A — characterization**: this repository commits no real
+`Input/data/dijetisrTLA/resolutionFits.root` fixture at all (confirmed
+directly — `find` over `Input/` and `run/` finds none), so Step A must
+build a synthetic one, exactly reproducing the verification already
+performed for this session's earlier syntax-bug fix
+(`doc/TIER3_EXECUTION_TRACE.md` Section 5): a trivial `TF1` at the real
+key name the script's `.Get(...)` call reads. Since the input path is
+hardcoded, not injectable, the test must write the synthetic fixture to
+the real relative path, run the unmodified script as a subprocess, and
+delete the synthetic file in a `finally` block — leaving nothing under
+`Input/` changed, matching the manual verification's own care. Mark
+`@pytest.mark.requires_root @pytest.mark.requires_analysis_dependencies`,
+reusing the sourced-`scripts/setup_buildAndFit.sh` subprocess pattern
+already established in `tests/test_plot_post_fit.py`. Assert: exit 0; a
+`TH1F` named `mjjBinning` with **38 bins spanning exactly `[481, 3000]`**
+— the same result already observed once during the syntax-bug
+verification, so this test both pins current behavior and cross-checks
+that prior observation.
+
+State plainly in this chunk's own activity-log entry: the standard
+scientific gate (`test_authoritative_j100_j50_workflows_match_frozen_reference`)
+never exercises this branch — both committed J100/J50 binning fixtures
+already exist, so `if not os.path.exists(binningFileName):` is always
+False in that gate. Running it here proves no regression to the
+always-taken branch (the existence check itself), nothing about the
+refactored script's own correctness — Step A's own subprocess test above
+is the only real proof of that.
+
+**Step B**:
+- Create the four functions + `main()` + the new `__main__` guard in
+  `python/createBinning.py`. `run_fit.py`'s call site
+  (`execute(f"python3 python/createBinning.py -s {rangelow} -e {rangehigh} -o {binningFileName}")`)
+  is unchanged by this chunk — its `execute()`-not-`execute_required()`
+  unchecked-return-code behavior stays a separately-documented, unfixed
+  finding (`doc/TIER3_EXECUTION_TRACE.md` Section 5), not touched here.
+- Move Step A's test into `tests/test_create_binning.py` per the Test
+  Relocation Rule.
+- New tests (guardrail 4) for `parse_args()` and `resolve_bin_edges()`
+  against a hand-written fake object exposing `.Eval()` — both need zero
+  ROOT and become this file's first fast, unmarked tests.
+- Register `python/createBinning.py` and `tests/test_create_binning.py`
+  in `scripts/quality_check.py`'s `python_targets`/`test_targets`.
+
+**Acceptance check**:
+```bash
+python -m pytest tests/test_create_binning.py -v
+python scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+The integration-gate run here is a no-regression check only, per the
+coverage-gap caveat above — not proof of this chunk's own correctness.
+
+---
+
+### Chunk 14 — `python/FindBHWindow.py`
+
+**Target functions**:
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `class NpEncoder(json.JSONEncoder)` | unchanged | unchanged | none |
+| `parse_args(argv=None)` | `argv` | `argparse.Namespace` | none |
+| `load_histograms(input_file)` | `input_file: str` | `(bkg_np, data_np)` — the `uproot` `.to_numpy()` results | opens `input_file` via `uproot` |
+| `crop_data_to_background_range(data_edges, data_counts, bkg_edges)` | plain arrays/lists | cropped `(edges, counts)` | none — **numpy-only** once called with plain sequences, no `uproot`/`pyBumpHunter` needed |
+| `run_bump_hunter(data_counts, data_edges, bkg_counts, bkg_edges)` | arrays | a scanned `pyBumpHunter.BumpHunter1D` instance | hardcoded scan params (`width_min=2, width_max=3, width_step=1, scan_step=1, npe=10000, nworker=1, seed=666`) preserved exactly, not promoted to CLI flags |
+| `compute_mask_window(bump_hunter, use_bin_numbers)` | bump-hunter result state, `bool` | `dict{MaskMin, MaskMax, BlindRange}` | numpy-only; **the `use_bin_numbers=True`/`False` formulas stay two distinct branches**, not merged |
+| `save_bump_plots(bump_hunter)` | — | `None` | writes hardcoded `bump.png`/`BH_statistics.png`, filenames preserved exactly |
+| `write_mask_window_json(out_dict, outputjson)` | `dict`, `str` | `None` | `json.dump(..., cls=NpEncoder)` |
+| `main(argv=None)` (existing, becomes the orchestrator) | `argv` | `None` | calls the above in sequence — **stays the sole, real entry point**: this file is always invoked as a whole subprocess under its own dedicated interpreter (`pyBumpHunter/pyBH_env/bin/python3`), never imported; this chunk must not change that CLI contract |
+
+**Rationale**: mirrors Chunk 9's `plot_edm.py` parse/plot split — one
+pure, cheaply-testable fragment (`crop_data_to_background_range`,
+`compute_mask_window`) separated from the heavy-dependency I/O
+surrounding it.
+
+**Decision recorded during extraction** (mirroring Chunks 9–11's "Decisions
+recorded during extraction" precedent, to be written up alongside Chunk
+18): defer `matplotlib`, `uproot`, and `pyBumpHunter`'s currently
+module-level imports into the one function each actually needs
+(`save_bump_plots`, `load_histograms`, `run_bump_hunter` respectively),
+keeping only `numpy`+stdlib at module scope. This is a reorganization of
+existing import statements (guardrail 11), and it is what makes
+`NpEncoder`/`parse_args`/`crop_data_to_background_range`/
+`compute_mask_window` testable with only a `numpy` stub instead of four
+heavy ones.
+
+**Before writing Step A**: confirm directly whether a committed
+`PostFit_*.root` fixture actually has the `Run3TLA_bkgonly_rebinned/postfit`
+and `Run3TLA_rebinned/data` category subdirectories `run_masking.py`'s
+hardcoded `--bkghist`/`--datahist` flags require — not yet verified as of
+this plan's writing.
+
+**Step A — characterization**: nothing has moved yet, so simply importing
+this file to characterize `NpEncoder` in isolation still needs stubs for
+all four currently-module-level heavy imports. Write a minimal fake
+`numpy` `ModuleType` exposing real, instantiable `integer`/`floating`/
+`ndarray` classes (enough for `NpEncoder.default()`'s `isinstance`
+checks) plus trivial empty fakes for `matplotlib`/`matplotlib.pyplot`/
+`uproot`/`pyBumpHunter` — the same `ModuleType`-fake convention already
+used for `ROOT`/`PreFit`/`ExtractPostfitFromWS`/`ExtractFitParameters`,
+applied to a `numpy` module name for the first time in this plan.
+Separately, characterize `main()`'s full real workflow via a
+subprocess run under the **actual dedicated interpreter**
+(`pyBumpHunter/pyBH_env/bin/python3`, not the ambient `python3`), against
+real `--bkghist`/`--datahist` inputs from the fixture confirmed above.
+The two new pure fragments (`crop_data_to_background_range`,
+`compute_mask_window`) have no prior behavior to characterize — per
+Chunks 4/5's own precedent for genuinely new logic, they get fresh tests
+under guardrail 4 in Step B instead.
+
+State plainly in this chunk's own activity-log entry, and record as a new
+Known Limitations entry in Chunk 18: the standard scientific gate's
+committed J100/J50 runs are unmasked (no `BHresults.json` in either
+fixture directory), so it **never exercises this file's real behavior at
+all** — running it here only proves `should_mask()`/`run_bumphunter()`
+are still correctly not invoked on the unmasked path. The dedicated-
+interpreter subprocess test above is the only real proof of this file's
+own correctness, mirroring exactly how `doc/TIER3_SYSTEM.md` already
+documents `plot_postfit.cpp`'s untested masked-fit branch.
+
+**Step B**:
+- Extract the functions in the table above.
+- Test Relocation Rule, **with an explicit, called-out exception**
+  (no precedent for this yet in Chunks 0–12, so state it plainly rather
+  than silently changing a stub list under cover of "import line only"):
+  the relocated `NpEncoder` test drops three of its four Step A stubs,
+  since only `numpy` remains module-level post-extraction.
+- New tests: `parse_args()` (zero stub); `crop_data_to_background_range()`
+  (numpy-stub or real numpy, plain-list inputs); `compute_mask_window()`
+  as **two separate test functions**, one per `use_bin_numbers` branch,
+  pinning both formulas independently so neither can later be silently
+  unified; `write_mask_window_json()` exercising `NpEncoder` end to end.
+- Register `python/FindBHWindow.py` and `tests/test_find_bh_window.py`.
+
+**Acceptance check**:
+```bash
+python -m pytest tests/test_find_bh_window.py -v
+python scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+# Real proof for this chunk (the gate above only confirms no regression
+# to the unmasked path — see this chunk's own Rationale):
+source scripts/setup_buildAndFit.sh
+pyBumpHunter/pyBH_env/bin/python3 python/FindBHWindow.py \
+  --inputfile <a real PostFit_*.root> \
+  --bkghist Run3TLA_rebinned/postfit --datahist Run3TLA_rebinned/data \
+  --outputjson <tmp path>
+```
+
+---
+
+### Chunk 15 — `python/ExtractFitParameters.py`
+
+**Target functions**: no new decomposition of `Extract()`, `WriteRoot()`,
+or the 5 accessors is proposed — stated here explicitly, not silently
+assumed uniform with the other four files.
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `FitParameterExtractor.__init__(self, wsfile)` | `wsfile: str` | — | none (unchanged) |
+| `Extract(self)` | — | populates `h1_params`/`h2_cov`/`h2_cor`/`nsig`/`nsigErr` | opens `wsfile`, reads the `fitResult` `RooFitResult` (unchanged) |
+| `GetH1Params`/`GetH2Cov`/`GetH2Cor`/`GetNsig`/`GetNsigErr` | — | ROOT-typed values | lazily call `self.Extract()` if not yet run (unchanged) |
+| `WriteRoot(self, outfile)` | `outfile: str` | — | writes the three histograms (unchanged) |
+
+**Rationale, stated honestly**: `Extract()` (42 lines) is one cohesive
+block — open file, build three histograms from one `RooFitResult`,
+extract `nsig`/`nsigErr`. Forcing a 3-way split here would relocate, not
+reduce, its complexity, unlike Chunk 16's genuinely tangled 137-line
+`Extract()`. This chunk's entire value is the file's first-ever direct
+test of its real behavior, plus registration.
+
+**Step A — characterization**: read directly from `run_fit.py:168`
+(`fpe = FitParameterExtractor(wsfile=fitresultfile)`) — production passes
+the already-committed
+`run/fits/J100/run_481_3000_sixPar/FitResult_anaFit_sixPar_bkgOnly.root`
+directly as `wsfile`. Reuse it as-is; no synthetic fixture needed, the
+lowest fixture-sourcing risk of all five chunks. Mark
+`@pytest.mark.requires_root @pytest.mark.requires_analysis_dependencies`,
+same sourced-env subprocess-snippet pattern as
+`tests/test_plot_post_fit.py`. Construct the real extractor, call
+`.Extract()`, assert real, non-null values on all 5 accessors, and that
+`.WriteRoot(tmp_path/"out.root")` produces a file whose three histograms
+read back non-empty.
+
+Add a dedicated, **fast** regression test (no real ROOT call needed) for
+the `if not self.nsig:` falsiness quirk in `GetNsig`/`GetNsigErr`
+(preserve, do not fix — a genuinely-zero `nsig` would currently re-trigger
+`Extract()` every call): stub `sys.modules["ROOT"]` with a trivial empty
+`ModuleType` (only needed so the module-level `import ROOT`/`from ROOT
+import *` resolves), construct `FitParameterExtractor(wsfile="unused")`,
+set `.nsig = 0.0` directly, monkeypatch `.Extract` with a call-counting
+stub, call `.GetNsig()` twice, assert `Extract` fired both times;
+contrast with `.nsig = 5.0`, where it must fire zero times.
+
+**Step B**:
+- No production-code restructuring beyond what Step A's tests require.
+- Move Step A's tests into `tests/test_extract_fit_parameters.py`.
+- Register `python/ExtractFitParameters.py` and
+  `tests/test_extract_fit_parameters.py`.
+- Record in this chunk's activity-log entry, and again in Chunk 18's
+  Known Limitations: `ExtractFitParameters.FitParameterExtractor`'s
+  `wsfile` parameter and `ExtractPostfitFromWS.PostfitExtractor`'s
+  same-named `wsfile` parameter mean the same thing in production (both
+  receive the fit-result file, never the workspace file either name
+  suggests) — documented, not renamed (Chunk 16's own header note above
+  explains why a rename is out of scope).
+
+**Acceptance check**:
+```bash
+python -m pytest tests/test_extract_fit_parameters.py -v
+python scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+
+---
+
+### Chunk 16 — `python/ExtractPostfitFromWS.py`
+
+**Target functions**:
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `getNPars(pdf, obs, exclSyst)` | unchanged | unchanged | unchanged — **stays a free function** |
+| `expHist(h)` | unchanged | unchanged | unchanged |
+| `getChi2(extractor, channelname, npars, useSumW2=False)` | unchanged | unchanged | unchanged — **stays a free function that mutates the `extractor` instance passed to it directly**, not converted into a method; this coupling is preserved exactly, the same "preserve the quirk" principle already applied to `run_templates.py`'s `nPars` if/elif chain |
+| `PostfitExtractor._open_workspace_and_data(self)` (**new**, private) | — | opened `wsfile`/`datafile` handles | ROOT file I/O |
+| `PostfitExtractor._build_channel_postfit_histogram(self, ...)` (**new**, private) | per-channel state | a postfit `TH1` | preserves the `try/except: pass` `Scale()`-failure swallowing exactly (~current lines 223–227) — no logging, no re-raise added |
+| `PostfitExtractor._build_bkgonly_variant(self, ...)` (**new**, private) | per-channel state | a bkg-only postfit `TH1` | same silent-swallow preservation (~current lines 259–263) |
+| `PostfitExtractor._apply_external_rebinning(self, ...)` (**new**, private) | per-channel state, `rebinfile`/`rebinhist` | rebinned histograms | ROOT file I/O |
+| `PostfitExtractor.Extract(self)` (existing, becomes the orchestrator) | — | as today | calls the four new private methods above plus `getChi2(self, ...)`, unchanged call shape |
+| `WriteRoot()`, the 8 `Get*` accessors, `GetCategories()` | unchanged | unchanged | unchanged — **no decomposition**, already minimal one-liners |
+
+**Rationale**: `Extract()` (137 lines) is the single largest method
+across all nine files this plan (Chunks 0–18) touches — the primary
+decomposition target. The three free functions and the accessors are
+already minimal or intentionally-coupled (see above) and are left as-is.
+The dead `import json` (confirmed via `grep -n 'json\.'
+python/ExtractPostfitFromWS.py` finding no hits beyond the import line
+itself) gets an **explicit, separately-noted removal** in this chunk's
+Step B activity-log entry — not a silent drop bundled into the
+extraction.
+
+**Step A — characterization, including today's two dormant bugs,
+pinned exactly as-is**: this file has no existing direct test of its own
+real behavior (only a hand-written fake stands in for it in
+`tests/test_run_fit.py`, testing `run_fit.py`'s caller logic, not this
+file). Read directly from `run_fit.py:130–166` and
+`scripts/run_anaFit_J100.sh`: reuse the already-committed
+`run/fits/J100/run_481_3000_sixPar/FitResult_anaFit_sixPar_bkgOnly.root`
+as `wsfile`, the committed J100 `datafile`/`datahist`, and the committed
+`Input/data/dijetisrTLA/mjjResolutionBinning_481.root` as `rebinfile` —
+no synthetic fixture needed. Mark
+`@pytest.mark.requires_root @pytest.mark.requires_analysis_dependencies`.
+Construct a real extractor against these, call `.Extract()`, then call
+every one of the 8 accessors **with no `channelname` argument** and
+assert on **today's actual return value** for each — including the 5
+(`GetNbins`/`GetNpars`/`GetH1Chi2`/`GetH1Postfit`/`GetH1Residuals`) that
+currently return a channel-name string instead of the real histogram/int,
+because their fallback iterates `next(iter(self.channel_X))` (dict keys)
+rather than `next(iter(self.channel_X.values()))` like `GetChi2`/`GetPval`
+correctly do. This is exactly Chunk 5's own precedent: pin the quirk down
+exactly as-is so Step B cannot accidentally "clean it up." Also
+characterize `getChi2()`'s external-mutation side effect directly:
+assert `extractor.channel_chi2[channelname]` etc. are populated correctly
+after a direct call.
+
+**Step B**:
+- Extract the four new private methods; `Extract()` becomes the
+  orchestrator, calling them plus `getChi2(self, ...)` exactly as today.
+- Remove the confirmed-dead `import json`, noted explicitly in the
+  activity-log entry.
+- Test Relocation Rule for the 8-accessor + `getChi2` characterization
+  tests (including the two-buggy-and-preserved accessor assertions —
+  these move with **no change to their assertions**, since Chunk 16 itself
+  does not fix the bugs; see Chunks 16a/16b below for that).
+- New tests for each new private helper (guardrail 4).
+- Register `python/ExtractPostfitFromWS.py` and
+  `tests/test_extract_postfit_from_ws.py`.
+
+**Acceptance check**:
+```bash
+python -m pytest tests/test_extract_postfit_from_ws.py -v
+python scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+
+---
+
+### Chunk 16a — (OPTIONAL) fix `WriteRoot(dirPerCategory=False)`'s Python-2-only dict indexing
+
+Run only after Chunk 16 lands, against the newly-decomposed structure.
+Never bundled into Chunk 16's own commit.
+
+**Target**: `PostfitExtractor.WriteRoot(self, outfile, dirPerCategory=False)`'s
+`dirPerCategory=False` branch, which currently does
+`self.channel_hpostfit.values()[-1]` — Python-2-only dict-values
+indexing, a real `TypeError` under Python 3. Currently dead-in-practice:
+`run_fit.py` always calls `WriteRoot` with `dirPerCategory=True`
+(`run_fit.py:165`), so this branch has never executed in the scientific
+gate, in CI, or (as far as this repository's history shows) in any
+verified run — the same dormancy pattern already verified once this
+session for `createBinning.py`'s syntax error.
+
+**Step A — characterization of the current bug**: a real-ROOT test
+(reusing Chunk 16's fixture) that calls `WriteRoot(tmp_path/"out.root",
+dirPerCategory=False)` and asserts it currently raises `TypeError` —
+pinning the bug's existence before fixing it, exactly like this session's
+`createBinning.py` fix confirmed the `IndentationError` first via
+`ast.parse` before touching the file.
+
+**Fix**: correct the Python-2 dict-values indexing to Python-3-correct
+form (e.g. `list(self.channel_hpostfit.values())[-1]`, or an equivalent
+that selects "the last channel's postfit histogram," matching the
+existing variable's own documented intent — read the surrounding code
+directly before choosing the exact replacement, do not guess a form that
+changes *which* channel is selected).
+
+**Step B**: replace Step A's `pytest.raises(TypeError)` assertion with an
+assertion that `WriteRoot(dirPerCategory=False)` now succeeds and writes
+the same *histogram content* the already-tested `dirPerCategory=True`
+branch writes for the same input channel (both branches should select
+the same "last" channel's data, just via different file-organization
+strategies) — proving the fix, not just the absence of a crash. Register
+no new files (this chunk only edits `python/ExtractPostfitFromWS.py` and
+its already-registered test file).
+
+**Acceptance check**:
+```bash
+python -m pytest tests/test_extract_postfit_from_ws.py -v
+python scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+The gate above is a no-regression check: since `dirPerCategory=False` is
+never reached from any production call site, this fix cannot change any
+behavior the gate exercises.
+
+---
+
+### Chunk 16b — (OPTIONAL) fix the 5-of-8 accessors' key-vs-value fallback inconsistency
+
+Run only after Chunk 16 (and, if done, 16a) lands. Never bundled into
+Chunk 16's own commit.
+
+**Target**: `GetNbins`/`GetNpars`/`GetH1Chi2`/`GetH1Postfit`/
+`GetH1Residuals`'s no-`channelname` fallback currently does
+`next(iter(self.channel_X))`, iterating dict **keys**, unlike
+`GetChi2`/`GetPval` which correctly do
+`next(iter(self.channel_X.values()))`. Currently dead-in-practice:
+`run_fit.py`'s only call site (`pfe.GetPval("Run3TLA_bkgonly_rebinned")`
+/ `pfe.GetPval("Run3TLA_rebinned")`, `run_fit.py:160/162`) always supplies
+`channelname` explicitly, so this fallback path is never exercised in
+production.
+
+**Step A**: Chunk 16's own Step A already characterized and pinned this
+exact wrong-type-return behavior (its 8-accessor no-`channelname` test) —
+reuse those five assertions as this chunk's characterization; no new
+characterization test is needed beyond confirming they still pass
+unmodified immediately before this chunk's fix.
+
+**Fix**: change the 5 affected methods' fallback from
+`next(iter(self.channel_X))` to `next(iter(self.channel_X.values()))`,
+matching `GetChi2`/`GetPval`'s already-correct pattern exactly.
+
+**Step B**: update the 5 reused assertions from "returns a channel-name
+string" to "returns the real histogram/int value," and add one assertion
+per accessor confirming the returned value now matches what an explicit
+`channelname` call returns for the same (single-channel) fixture — proving
+all 8 accessors are now behaviorally consistent. State explicitly in the
+activity-log entry, as the safety argument for fixing this post-hoc
+rather than leaving it per Chunk 16's own "preserve, don't fix" default:
+since the only production call site always passes `channelname`
+explicitly, this fix cannot change any behavior the scientific gate (or
+any other currently-passing test) exercises.
+
+**Acceptance check**:
+```bash
+python -m pytest tests/test_extract_postfit_from_ws.py -v
+python scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+
+---
+
+### Chunk 17 — `python/PreFit.py`
+
+**Target functions**:
+
+| Function | Inputs | Outputs | Side effects |
+|---|---|---|---|
+| `PreFitter.__init__` | unchanged | — | unchanged |
+| `RandomizeParameters(self, function)` | unchanged | unchanged | unchanged |
+| `_build_candidate_functions(self, ...)` (**new**, private) | current histogram-range/log-mode state | the 10 hardcoded `TF1` candidates (`NParFunction[1..10]`, `LogNParFunction[1..10]`) | none beyond `TF1` construction — values unchanged |
+| `_select_best_parameter_sets(self, ...)` (**new**, private) | candidate functions, `nRetries1`, `nRetries2` | the ranked best-`nRetries2` parameter sets by chi2 | isolates the array/bisect bookkeeping (current ~lines 127–132); no ROOT calls of its own beyond scoring the candidates it's handed |
+| `Fit(self)` (existing, becomes the orchestrator) | — | `(bestPars, nbkg)`, unchanged | reads/log-transforms the data histogram, calls the two new helpers above, refits the survivors with `TH1::Fit` |
+| `main(args)` | unchanged | unchanged | unchanged — still unused from the pipeline |
+
+**Rationale**: `PreFitter.Fit()` (130 lines) is this file's only large
+method, and this file has **zero existing test coverage of its own real
+behavior anywhere** — the only existing test
+(`tests/test_run_templates.py::_install_fake_prefitter`) fakes the whole
+class to test `run_templates.py`'s caller logic instead. `_select_best_parameter_sets`
+is the one piece of this file that becomes independently testable once
+separated from the ROOT calls surrounding it.
+
+**Latent fragility documented, not fixed**: `parRangeLow`/`parRangeHigh`
+default to 7-element lists while `nPars` can be requested up to 10 —
+callers must supply longer lists themselves (as `run_templates.py`
+already does). Add a regression test asserting today's `IndexError`
+for `nPars > 7` under the default ranges, characterizing the risk rather
+than closing it.
+
+**Step A — characterization**: use the real, committed J100 `datafile`/
+`datahist` with `xMin=481, xMax=3000` — real data, real ROOT `TH1::Fit`,
+real `seed=42` determinism — but **deliberately scale down**
+`nPars`/`nRetries1`/`nRetries2` (e.g. `nPars=3, nRetries1=50,
+nRetries2=3`) purely for test speed, stated explicitly as a
+characterization-strategy choice (real data and fit machinery, reduced
+scale), distinct from Chunk 13's need for a wholly synthetic fixture.
+Mark `@pytest.mark.requires_root @pytest.mark.requires_analysis_dependencies`.
+Assert on the `(bestPars, nbkg)` return shape and that two runs with the
+same `seed=42` reproduce the same result (a determinism check, not a
+physics-correctness check).
+
+**Step B**:
+- Extract `_build_candidate_functions`/`_select_best_parameter_sets`;
+  `Fit()` becomes the orchestrator.
+- Test Relocation Rule for Step A's test.
+- New tests: `_build_candidate_functions()` (assert the 20 `TF1`s are
+  built with the documented names/forms) and
+  `_select_best_parameter_sets()` written, if its signature allows,
+  against a plain scoring callable + candidate list rather than a live
+  ROOT histogram — this repository's first stub-free, fast unit test of
+  any piece of `PreFit.py`'s own logic, if achievable; if the separation
+  cannot be made ROOT-free without changing `Fit()`'s external behavior,
+  state that explicitly rather than forcing it.
+- Register `python/PreFit.py` and `tests/test_pre_fit.py`.
+
+**Acceptance check**:
+```bash
+python -m pytest tests/test_pre_fit.py -v
+python scripts/quality_check.py --mode full
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" -v
+```
+
+---
+
+### Chunk 18 — Documentation update for the extended scope (single commit)
+
+**Objective**: once Chunks 13–17 (and, if done, 16a/16b) are merged,
+revise the three documents this extension touches so none of them still
+claims a narrower or "finished" scope than the repository actually has.
+
+**Required contents at minimum**:
+- `doc/TIER3_COMPLETION_PLAN.md` (this document): confirm Section 0/3's
+  extended-scope language (already added alongside Chunks 13–17
+  themselves) matches the final, as-implemented state; extend Section 9's
+  completion definition to "Chunks 0 through 18" plus new bullets for the
+  five files' final decomposition/test/registration state, including the
+  explicit caveat that the standard scientific gate does not prove
+  `FindBHWindow.py`'s (Chunk 14) or fully `createBinning.py`'s (Chunk 13)
+  correctness — name the gates that do instead; update Section 10's "four
+  named in Section 0" to "nine."
+- `doc/TIER3_SYSTEM.md`: add a new, dated note **superseding, not
+  silently rewriting**, the existing "all twelve chunks are complete"
+  status line (matching the activity log's own append-only spirit even in
+  a document without that formal rule) — the original line stays, dated,
+  describing Chunks 0–12 as they stood at Chunk 12's own commit; a new
+  paragraph states Chunks 13–18 extended the system on 2026-09-04. Add a
+  new "Module map: hot-path support scripts" table (5 rows, matching the
+  existing two module-map tables' format) and 5 new test-file-map rows.
+  New Known Limitations entries: the `ExtractPostfitFromWS` bugs' final
+  status (fixed, if 16a/16b landed, or preserved-and-documented if not);
+  `FindBHWindow.py`'s masked-path gate-coverage gap, mirroring the
+  existing `plot_postfit.cpp` entry; the `wsfile` double-meaning across
+  the two extractor classes; `PreFit.py`'s 7-vs-10-element fragility;
+  `createBinning.py`'s still-unchecked `execute()` return code (unfixed,
+  cross-referenced to `doc/TIER3_EXECUTION_TRACE.md`); the new
+  `numpy`-stub testing technique and why it was needed. Add the new
+  `FindBHWindow.py` dedicated-interpreter gate command. Extend
+  "Authoritative files" and "Completion definition."
+- `doc/TIER3_EXECUTION_TRACE.md`: move the five files from Section 3's
+  "does NOT follow the Tier 3 system" table into Section 2's "ARE part
+  of"; remove the `(*)` markers from Section 1's call-graph diagram for
+  all five and update the legend; revise the sentence declaring this a
+  boundary "not something this document is proposing to change" — it has
+  now changed.
+
+**Acceptance check**: manual review — re-read all three documents against
+the actual, final state of the five files and their tests, confirming
+every claim has a citation, no stale "four files"/"Chunks 0–12 only"
+claim survives unedited outside of a clearly-dated historical reference.
+Then:
+```bash
+grep -nE '[[:blank:]]+$' doc/TIER3_COMPLETION_PLAN.md doc/TIER3_SYSTEM.md doc/TIER3_EXECUTION_TRACE.md
+git diff --check
+```
+
+---
+
 ## 7. Gates to run
 
 Use exactly these commands. Do not invent alternative invocations.
@@ -1262,6 +1907,16 @@ python -m pytest tests/test_analysis_workflows_integration.py \
 
 # After any chunk touching dependency-facing code paths, if in doubt
 python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v
+
+# Chunk 14 only — the standard scientific gate above never exercises
+# FindBHWindow.py's real behavior (both committed J100/J50 fixtures are
+# unmasked); this dedicated-interpreter subprocess run is the only real
+# proof of that chunk's own correctness
+source scripts/setup_buildAndFit.sh
+pyBumpHunter/pyBH_env/bin/python3 python/FindBHWindow.py \
+  --inputfile <a real PostFit_*.root> \
+  --bkghist Run3TLA_rebinned/postfit --datahist Run3TLA_rebinned/data \
+  --outputjson <tmp path>
 
 # Before any commit is marked ready
 git status -sb
@@ -1328,8 +1983,9 @@ ready.
 
 Tier 3 is complete only when:
 
-- Every chunk in Section 6 (0 through 12) has both its steps' commits (or
-  single commit, for Chunks 0, 8, 12) made, each with a corresponding
+- Every chunk in Section 6 (0 through 18, including any of the optional
+  16a/16b that were undertaken) has both its steps' commits (or single
+  commit, for Chunks 0, 8, 12, 18) made, each with a corresponding
   activity-log entry recording passing gate output.
 - `run_anaFit.py` contains only `run_anaFit()`, `main()`, and the
   `__main__` guard (Chunk 8's acceptance check).
@@ -1337,13 +1993,23 @@ Tier 3 is complete only when:
 - `plot_edm.py`, `python/plotPostFit.py`, and `plot_postfit.cpp` each
   match their Section 4.3 target decomposition, with `plot_postfit.cpp`'s
   public `plot_postfit(char const*, char const*)` entry point unchanged.
+- **(Added 2026-09-04)** `python/createBinning.py`, `python/FindBHWindow.py`,
+  `python/ExtractFitParameters.py`, `python/ExtractPostfitFromWS.py`, and
+  `python/PreFit.py` each match their Section 4.4 target decomposition,
+  each is registered in `scripts/quality_check.py`, and each has a
+  dedicated test file exercising its own real behavior directly (not only
+  through a caller-side fake).
 - `git diff --check` passes with zero errors over the full Tier 3 change
   range.
 - No untracked repository-root artifacts remain from test execution.
 - `doc/TIER3_SYSTEM.md` exists and describes only verified behavior, with
   every claim backed by a named passing test or gate.
 - All gates in Section 7 pass on the final commit, with exit codes
-  recorded in the activity log.
+  recorded in the activity log — **except** that the standard scientific
+  gate's pass does not by itself prove `python/FindBHWindow.py`'s or
+  fully `python/createBinning.py`'s own correctness (Chunks 13/14's own
+  text); those two additionally require their own dedicated-interpreter/
+  subprocess gate results recorded, per Section 7.
 - The frozen J100/J50 references, tolerances, and canonical scientific
   configuration in `tests/references/analysis_reference.json` are
   unchanged from their values at the start of this plan (Section 2).
@@ -1359,8 +2025,8 @@ commit history at the time the claim is made.
 Nothing in this plan authorizes CLs implementation, signal-analysis
 changes, new physics models, new canonical inputs, changed fit ranges or
 tolerances, Tier 4 orchestration, repository-wide style cleanup, or
-decomposition of any file beyond the four named in Section 0. It also does
-not authorize consulting, merging in, or reproducing any other branch's
-independent Tier 3 work — this plan is meant to stand on its own. Any
-proposal to cross these boundaries requires a separate plan and explicit
-review.
+decomposition of any file beyond the nine named across Section 0 and the
+Chunk 13–18 addition (Section 3). It also does not authorize consulting,
+merging in, or reproducing any other branch's independent Tier 3 work —
+this plan is meant to stand on its own. Any proposal to cross these
+boundaries requires a separate plan and explicit review.

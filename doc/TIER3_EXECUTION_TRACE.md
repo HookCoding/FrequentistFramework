@@ -137,11 +137,15 @@ behavior only as an opaque subprocess, not as a unit under test. None of
 the five has a `tests/test_<name>.py` of its own the way every Tier 3
 module does.
 
-This is a documented, deliberate scope boundary from `doc/TIER3_COMPLETION_PLAN.md`
-- not a surprise, and not something this document is proposing to change.
-It's recorded here so the boundary is visible against the *actual* call
-graph of a real run, not just as an abstract "everything else is
-untouched" statement.
+This was a documented, deliberate scope boundary from
+`doc/TIER3_COMPLETION_PLAN.md`'s original Chunks 0-12 - not a surprise.
+As of 2026-09-04, that same document's Chunks 13-18 now propose closing
+this exact boundary, bringing all five files into the Tier 3 system -
+not yet executed; this table and the `(*)` markers on the trace diagram
+above still describe the current, as-implemented state and will be
+updated once that work lands. It's recorded here so the boundary is
+visible against the *actual* call graph of a real run, not just as an
+abstract "everything else is untouched" statement.
 
 ## 4. Different category: third-party code (not this repository's)
 

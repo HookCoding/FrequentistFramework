@@ -29,6 +29,15 @@ complete run - and which non-Tier-3 files (`python/PreFit.py`,
 end to end and records one defect (`python/createBinning.py`'s
 `IndentationError`) found and fixed while doing so.
 
+As of 2026-09-04, `doc/TIER3_COMPLETION_PLAN.md` also defines Chunks
+13-18 to bring those same five files into this system, using this
+document's own Step A/Step B methodology unchanged - **not yet
+executed**. This document describes only what has actually happened
+(per its own opening sentence's citation requirement), so it is not
+updated to reflect that extension until Chunks 13-17 actually land;
+Chunk 18 of that plan is exactly the "update this document" step, once
+they do.
+
 ## Current status
 
 All twelve chunks (`doc/TIER3_COMPLETION_PLAN.md` Chunks 0-12) are
