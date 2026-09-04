@@ -19,18 +19,18 @@ _FIXTURE_POSTFIT_FILE = (
     / "PostFit_anaFit_sixPar_bkgOnly.root"
 )
 
-# python/FindBHWindow.py is a whole-script CLI tool today (Chunk 14.A -
-# its Step B extraction has not run yet): every third-party dependency it
-# needs (matplotlib, matplotlib.pyplot, uproot, numpy, pyBumpHunter) is
-# imported at module scope, and none of the five is importable in this
-# repository's own pytest dev venv - confirmed directly. This
-# characterizes NpEncoder in isolation (the only genuinely ROOT/heavy-
-# dependency-free logic this file has today) with a fake numpy exposing
-# real, instantiable integer/floating/ndarray classes (matching the
-# isinstance() checks NpEncoder.default() makes) and trivial empty fakes
-# for the other four - the same ModuleType-fake convention already used
-# for ROOT/PreFit/ExtractPostfitFromWS/ExtractFitParameters, applied to a
-# numpy module name for the first time in this plan.
+# python/FindBHWindow.py (Chunk 14.B): matplotlib/matplotlib.pyplot/
+# uproot/pyBumpHunter are now deferred into the one function each
+# actually needs; only `numpy` remains module-level. Loading this module
+# therefore now needs only a fake `numpy` - a genuine, called-out
+# exception to the Test Relocation Rule (Chunk 14's own plan text): Step
+# A's NpEncoder tests dropped three of their four stubs here, since the
+# other three heavy dependencies are no longer module-level. The fake
+# numpy exposes real, instantiable integer/floating/ndarray classes,
+# matching the isinstance() checks NpEncoder.default() makes - the same
+# ModuleType-fake convention already used for ROOT/PreFit/
+# ExtractPostfitFromWS/ExtractFitParameters, applied to a numpy module
+# name for the first time in this plan.
 
 
 class _FakeNpInteger:
@@ -57,24 +57,16 @@ class _FakeNpNdarray:
         return self._data
 
 
-def _install_fake_heavy_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
+def _install_fake_numpy(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_numpy = ModuleType("numpy")
     fake_numpy.integer = _FakeNpInteger  # type: ignore[attr-defined]
     fake_numpy.floating = _FakeNpFloating  # type: ignore[attr-defined]
     fake_numpy.ndarray = _FakeNpNdarray  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "numpy", fake_numpy)
 
-    for module_name in ("matplotlib", "matplotlib.pyplot", "uproot", "pyBumpHunter"):
-        monkeypatch.setitem(sys.modules, module_name, ModuleType(module_name))
-
-    # FindBHWindow.py calls matplotlib.use("Agg") at module scope (line 2)
-    # - the empty fake above needs this one attribute to satisfy that call.
-    fake_matplotlib = sys.modules["matplotlib"]
-    fake_matplotlib.use = lambda *args, **kwargs: None  # type: ignore[attr-defined]
-
 
 def _load_find_bh_window_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    _install_fake_heavy_dependencies(monkeypatch)
+    _install_fake_numpy(monkeypatch)
 
     module_path = _REPO_ROOT / "python" / "FindBHWindow.py"
     spec = importlib.util.spec_from_file_location("find_bh_window_under_test", module_path)
@@ -85,7 +77,7 @@ def _load_find_bh_window_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     return module
 
 
-# --- NpEncoder: characterized with 5 fake heavy dependencies --------------
+# --- NpEncoder: characterized with a single fake numpy dependency --------
 
 
 def test_npencoder_serializes_numpy_integer(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -124,6 +116,133 @@ def test_npencoder_falls_back_to_default_for_unknown_types(monkeypatch: pytest.M
         module.NpEncoder().default(_Unrelated())
 
 
+# --- parse_args(): zero ROOT/uproot/pyBumpHunter needed, only numpy ------
+
+
+def test_parse_args_parses_required_and_default_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_find_bh_window_module(monkeypatch)
+
+    args = module.parse_args(["--inputfile", "in.root"])
+
+    assert args.inputfile == "in.root"
+    assert args.datahist == "data"
+    assert args.bkghist == "postfit"
+    assert args.outputjson == "BHresults.json"
+    assert args.usebinnumbers is False
+
+
+def test_parse_args_accepts_every_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_find_bh_window_module(monkeypatch)
+
+    args = module.parse_args(
+        [
+            "--inputfile",
+            "in.root",
+            "--datahist",
+            "d",
+            "--bkghist",
+            "b",
+            "--outputjson",
+            "out.json",
+            "--inputxmlcard",
+            "in.xml",
+            "--outputxmlcard",
+            "out.xml",
+            "--usebinnumbers",
+        ]
+    )
+
+    assert args.inputfile == "in.root"
+    assert args.datahist == "d"
+    assert args.bkghist == "b"
+    assert args.outputjson == "out.json"
+    assert args.inputxmlcard == "in.xml"
+    assert args.outputxmlcard == "out.xml"
+    assert args.usebinnumbers is True
+
+
+def test_parse_args_requires_inputfile(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_find_bh_window_module(monkeypatch)
+
+    with pytest.raises(SystemExit):
+        module.parse_args([])
+
+
+# --- crop_data_to_background_range(): plain lists, no numpy call needed --
+
+
+def test_crop_data_to_background_range_finds_the_matching_slice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_find_bh_window_module(monkeypatch)
+    bins = [10, 20, 30]
+    bins_data = [0, 5, 10, 15, 20, 25, 30, 35]
+    data = [0, 1, 2, 3, 4, 5, 6, 7]
+
+    cropped, firstbindata = module.crop_data_to_background_range(bins, bins_data, data)
+
+    # Independently verified before writing this assertion: the first
+    # bins_data entry >= bins[0]=10 is index 2; the *last* entry
+    # <= bins[-1]=30 is index 6 (the loop keeps overwriting lastbindata,
+    # it does not break early on the second search - preserved exactly).
+    assert firstbindata == 2
+    assert cropped == [2, 3, 4, 5]
+
+
+# --- compute_mask_window(): plain dict/list, no numpy call needed --------
+
+
+def test_compute_mask_window_uses_observable_values_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_find_bh_window_module(monkeypatch)
+    state = {"min_loc_ar": [3], "min_width_ar": [2]}
+    bins = [0, 10, 20, 30, 40, 50, 60]
+
+    result = module.compute_mask_window(state, bins, firstbindata=1, use_bin_numbers=False)
+
+    assert result["MaskMin"] == bins[3]
+    assert result["MaskMax"] == bins[3 + 2]
+    assert result["BlindRange"] == "30,50"
+    assert result["pyBHresult"] is state
+
+
+def test_compute_mask_window_uses_bin_numbers_when_requested(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A genuinely different formula from the default branch above - not
+    # an alias of it - preserved and tested as its own distinct branch.
+    module = _load_find_bh_window_module(monkeypatch)
+    state = {"min_loc_ar": [3], "min_width_ar": [2]}
+    bins = [0, 10, 20, 30, 40, 50, 60]
+
+    result = module.compute_mask_window(state, bins, firstbindata=1, use_bin_numbers=True)
+
+    assert result["MaskMin"] == 1 + 3
+    assert result["MaskMax"] == 1 + 3 + 2
+    assert result["BlindRange"] == "4,6"
+
+
+# --- write_mask_window_json(): exercises NpEncoder end to end ------------
+
+
+def test_write_mask_window_json_uses_npencoder_for_numpy_types(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = _load_find_bh_window_module(monkeypatch)
+    outfile = tmp_path / "out.json"
+    out_dict = {
+        "MaskMin": _FakeNpInteger(5),
+        "MaskMax": _FakeNpFloating(10.0),
+        "BlindRange": "5,10",
+    }
+
+    module.write_mask_window_json(out_dict, str(outfile))
+
+    written = json.loads(outfile.read_text())
+    assert written == {"MaskMin": 5, "MaskMax": 10.0, "BlindRange": "5,10"}
+
+
 # --- main(): real, whole-script end-to-end behavior ------------------------
 #
 # python/FindBHWindow.py's own production interpreter,
@@ -154,6 +273,8 @@ def test_npencoder_falls_back_to_default_for_unknown_types(monkeypatch: pytest.M
 #
 # Since seed=666 is fixed, the result is fully deterministic - confirmed
 # directly across two separate real runs before writing this assertion.
+# Kept unchanged from Chunk 14.A (Test Relocation Rule) - now exercises
+# the extracted main(), not the original inline script.
 
 
 def _run_find_bh_window_script(

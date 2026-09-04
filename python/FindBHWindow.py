@@ -1,12 +1,9 @@
-import matplotlib
-matplotlib.use("Agg")
-from datetime import datetime  # # Used to compute the execution time
-import matplotlib.pyplot as plt
-import uproot  # # Used to read data from a root file
-import sys, re, os, argparse
+import argparse
 import json
+import sys
+
 import numpy as np
-import pyBumpHunter as BH
+
 
 # from https://stackoverflow.com/a/57915246
 class NpEncoder(json.JSONEncoder):
@@ -19,44 +16,92 @@ class NpEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
 
-def main(args):
 
-    parser = argparse.ArgumentParser(description='%prog [options]')
-    parser.add_argument('--inputfile', dest='inputfile', type=str, required=True, help='Root file with bkg and data histograms')
-    parser.add_argument('--datahist', dest='datahist', type=str, default='data', help='data hist name')
-    parser.add_argument('--bkghist', dest='bkghist', type=str, default='postfit', help='bkg hist name')
-    parser.add_argument('--outputjson', dest='outputjson', type=str, default='BHresults.json', help='Name of output file with BH results')
-    parser.add_argument('--inputxmlcard', dest='inputxmlcard', type=str, help='Path of xmlAnaWSBuilder card to insert BlindRange into')
-    parser.add_argument('--outputxmlcard', dest='outputxmlcard', type=str, help='Output path of modified xmlAnaWSBuilder card')
-    parser.add_argument('--usebinnumbers', dest='usebinnumbers', action='store_true', help='Use bin numbers instead of observable for BlindRange')
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="%prog [options]")
+    parser.add_argument(
+        "--inputfile",
+        dest="inputfile",
+        type=str,
+        required=True,
+        help="Root file with bkg and data histograms",
+    )
+    parser.add_argument(
+        "--datahist", dest="datahist", type=str, default="data", help="data hist name"
+    )
+    parser.add_argument(
+        "--bkghist", dest="bkghist", type=str, default="postfit", help="bkg hist name"
+    )
+    parser.add_argument(
+        "--outputjson",
+        dest="outputjson",
+        type=str,
+        default="BHresults.json",
+        help="Name of output file with BH results",
+    )
+    parser.add_argument(
+        "--inputxmlcard",
+        dest="inputxmlcard",
+        type=str,
+        help="Path of xmlAnaWSBuilder card to insert BlindRange into",
+    )
+    parser.add_argument(
+        "--outputxmlcard",
+        dest="outputxmlcard",
+        type=str,
+        help="Output path of modified xmlAnaWSBuilder card",
+    )
+    parser.add_argument(
+        "--usebinnumbers",
+        dest="usebinnumbers",
+        action="store_true",
+        help="Use bin numbers instead of observable for BlindRange",
+    )
+    return parser.parse_args(argv)
 
-    args = parser.parse_args(args)
 
-    # Open the file
-    with uproot.open(args.inputfile) as file:
-        # Background
-        bkg_th1 = file[args.bkghist]
+def load_histograms(input_file, bkghist, datahist):
+    # Deferred here, not top-level: this is the only function that needs
+    # uproot, and this repository's own pytest dev venv cannot import it
+    # at all - confirmed directly, matching every other deferred-import
+    # module in this plan.
+    import uproot
+
+    with uproot.open(input_file) as file:
+        bkg_th1 = file[bkghist]
         bkg, bins = bkg_th1.to_numpy()
 
-        # Data
-        data_th1 = file[args.datahist]
-        data,bins_data = data_th1.to_numpy()
+        data_th1 = file[datahist]
+        data, bins_data = data_th1.to_numpy()
 
-    #crop data hist to bkg range
-    firstbindata=0
-    lastbindata=0
+    return bkg, bins, data, bins_data
 
-    for i,b in enumerate(bins_data):
+
+def crop_data_to_background_range(bins, bins_data, data):
+    firstbindata = 0
+    lastbindata = 0
+
+    for i, b in enumerate(bins_data):
         if b >= bins[0]:
             firstbindata = i
             break
-    for i,b in enumerate(bins_data):
+    for i, b in enumerate(bins_data):
         if b <= bins[-1]:
             lastbindata = i
 
-    data=data[firstbindata:lastbindata]
+    return data[firstbindata:lastbindata], firstbindata
 
-    # Create a BumpHunter1D class instance
+
+def run_bump_hunter(data, bkg, bins):
+    # Deferred here, not top-level: this is the only function that needs
+    # pyBumpHunter, and this repository's own pytest dev venv cannot
+    # import it at all - confirmed directly.
+    from datetime import datetime
+
+    import pyBumpHunter as BH
+
+    # Hardcoded scan parameters preserved exactly, not promoted to CLI
+    # flags (guardrail 11 forbids adding capability not already present).
     hunter = BH.BumpHunter1D(
         width_min=2,
         width_max=3,
@@ -65,9 +110,9 @@ def main(args):
         npe=10000,
         nworker=1,
         seed=666,
-        bins=bins)
+        bins=bins,
+    )
 
-    # Call the bump_scan method
     print("####bump_scan call####")
     begin = datetime.now()
     hunter.bump_scan(data, bkg, is_hist=True)
@@ -75,39 +120,64 @@ def main(args):
     print(f"time={end - begin}")
     print("")
 
+    hunter.bump_info(data, is_hist=True)
 
-    # Print bump
-    #hunter.print_bump_info()
-    #hunter.print_bump_true(data, bkg, is_hist=True)
-    hunter.bump_info(data,is_hist=True)
+    return hunter
 
-    # Get and save tomography plot
-    # hunter.plot_tomography(data, is_hist=True, filename="tomography.png")
 
-    # Get and save bump plot
+def save_bump_plots(hunter, data, bkg):
+    # Deferred here, not top-level: this is the only function that needs
+    # matplotlib, and this repository's own pytest dev venv cannot import
+    # it at all - confirmed directly. Hardcoded, cwd-relative filenames
+    # preserved exactly, not parameterized.
+    import matplotlib
+
+    matplotlib.use("Agg")
+
     hunter.plot_bump(data, bkg, is_hist=True, filename="bump.png")
-
-    # Get and save statistics plot
     hunter.plot_stat(show_Pval=True, filename="BH_statistics.png")
 
-    state = hunter.save_state()
 
+def compute_mask_window(state, bins, firstbindata, use_bin_numbers):
     out_dict = {}
     out_dict["pyBHresult"] = state
 
-    if args.usebinnumbers:
-        out_dict["MaskMin"] = firstbindata+state["min_loc_ar"][0]
-        out_dict["MaskMax"] = firstbindata+state["min_loc_ar"][0]+state["min_width_ar"][0]
+    # The two formulas below are genuinely distinct, not aliases of each
+    # other - preserved as two separate branches, not merged.
+    if use_bin_numbers:
+        out_dict["MaskMin"] = firstbindata + state["min_loc_ar"][0]
+        out_dict["MaskMax"] = firstbindata + state["min_loc_ar"][0] + state["min_width_ar"][0]
     else:
         out_dict["MaskMin"] = bins[state["min_loc_ar"][0]]
-        out_dict["MaskMax"] = bins[state["min_loc_ar"][0]+state["min_width_ar"][0]]
+        out_dict["MaskMax"] = bins[state["min_loc_ar"][0] + state["min_width_ar"][0]]
 
+    # "%d,%d" truncates rather than rounds even though MaskMin/MaskMax may
+    # originate as numpy floats - preserved exactly.
     out_dict["BlindRange"] = "%d,%d" % (out_dict["MaskMin"], out_dict["MaskMax"])
 
-    with open(args.outputjson, 'w') as f:
+    return out_dict
+
+
+def write_mask_window_json(out_dict, outputjson):
+    with open(outputjson, "w") as f:
         json.dump(out_dict, f, cls=NpEncoder)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+
+    bkg, bins, data, bins_data = load_histograms(args.inputfile, args.bkghist, args.datahist)
+    data, firstbindata = crop_data_to_background_range(bins, bins_data, data)
+
+    hunter = run_bump_hunter(data, bkg, bins)
+    save_bump_plots(hunter, data, bkg)
+
+    state = hunter.save_state()
+    out_dict = compute_mask_window(state, bins, firstbindata, args.usebinnumbers)
+    write_mask_window_json(out_dict, args.outputjson)
 
     print(out_dict["BlindRange"])
 
-if __name__ == "__main__":  
-   sys.exit(main(sys.argv[1:]))   
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

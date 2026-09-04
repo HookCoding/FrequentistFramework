@@ -8195,3 +8195,113 @@ above appear).
   the committed test itself), and reviewed directly.
 - [x] Human-verification checkpoint: reviewed and confirmed in this same
   session before Step B's commit follows.
+
+## Chunk 14.B — Extract python/FindBHWindow.py into named functions
+
+### Objective
+
+Move the whole-script logic characterized in Step A (commit `604b5cd`)
+into named, individually-tested functions, deferring the heavy
+third-party imports each needs, per `doc/TIER3_COMPLETION_PLAN.md`
+Chunk 14.
+
+### What changed
+
+- `python/FindBHWindow.py` restructured into `NpEncoder` (unchanged),
+  `parse_args(argv=None)`, `load_histograms(input_file, bkghist,
+  datahist)`, `crop_data_to_background_range(bins, bins_data, data)`,
+  `run_bump_hunter(data, bkg, bins)`, `save_bump_plots(hunter, data,
+  bkg)`, `compute_mask_window(state, bins, firstbindata,
+  use_bin_numbers)`, `write_mask_window_json(out_dict, outputjson)`,
+  and `main(argv=None)` as the orchestrator.
+- `import matplotlib`/`matplotlib.pyplot` deferred into
+  `save_bump_plots()`; `import uproot` into `load_histograms()`;
+  `from datetime import datetime` and `import pyBumpHunter as BH`
+  into `run_bump_hunter()`. `import numpy as np` stays module-level
+  (`NpEncoder` needs it as a name at call time; the two other "pure"
+  functions never reference `np.` directly, only operate on values
+  already numpy-typed by their caller).
+- Confirmed-dead `import re, os` (from the original `import sys, re, os,
+  argparse` line) removed - `grep -n "\bre\.\|\bos\."
+  python/FindBHWindow.py` found zero uses of either in the whole file,
+  confirmed before removing, matching the same explicit,
+  separately-noted-removal precedent this plan already established.
+- **Two real deviations from the plan's original target-functions table,
+  found necessary by direct reading of the actual source (not
+  discoverable from the table alone) and documented here rather than
+  silently applied**:
+  - `crop_data_to_background_range()` returns `(cropped_data,
+    firstbindata)`, not just cropped data - `firstbindata` is also
+    needed later, by `compute_mask_window()`'s `use_bin_numbers=True`
+    branch. The plan's table only listed a cropped-values return.
+  - `save_bump_plots()` takes `(hunter, data, bkg)`, not just `hunter` -
+    `hunter.plot_bump()` needs `data`/`bkg` directly, not only the
+    hunter object. The plan's table listed `save_bump_plots(bump_hunter)`
+    only.
+- `run_masking.py`'s call site (`pyBumpHunter/pyBH_env/bin/python3
+  python/FindBHWindow.py ...`) is unchanged - confirmed via `grep -n
+  "FindBHWindow" python/run_masking.py`.
+- `tests/test_find_bh_window.py` gained 7 new tests: 3 for `parse_args()`,
+  1 for `crop_data_to_background_range()` (plain Python lists - proven
+  to need no real numpy call, only indexing/slicing), 2 for
+  `compute_mask_window()` (one per `use_bin_numbers` branch, pinning
+  both formulas independently), 1 for `write_mask_window_json()`
+  (exercising `NpEncoder` end to end through a real file write). Step
+  A's `NpEncoder` tests **dropped 3 of their 4 stubs** - an explicit,
+  called-out exception to the Test Relocation Rule (no precedent for
+  this in Chunks 0-13), since only `numpy` remains module-level
+  post-extraction. Step A's end-to-end test kept unchanged, now
+  exercising the extracted `main()`.
+- `scripts/quality_check.py`: `python/FindBHWindow.py` and
+  `tests/test_find_bh_window.py` registered in
+  `python_targets`/`test_targets`.
+
+### Confirm: no scientific behavior changed
+
+`run_masking.py`'s call site is byte-for-byte unchanged (confirmed by
+grep). The extracted script was run for real, exactly as
+`run_masking.py` invokes it (using this chunk's own working
+ambient-interpreter combination, per Step A), against the real J100
+fixture, and produced the identical deterministic result already
+verified in Step A (`MaskMin=595.0`, `MaskMax=691.0`,
+`BlindRange="595,691"`). The integration-gate rerun below confirms zero
+regression to the real J100/J50 workflows, though - as already stated in
+Chunk 14's own plan text - that gate never exercises this file's real
+behavior at all (both committed fixtures are unmasked); the real proof
+is the 12 passing tests above, particularly the deterministic real-run
+one.
+
+### Verification performed
+
+- `python -m pytest tests/test_find_bh_window.py -v` -> **12 passed,
+  20.12s** (11 fast/unmarked in well under a second, 1 real end-to-end
+  in the remainder).
+- `python scripts/quality_check.py --mode full` -> **191 passed, 12
+  deselected**, Ruff clean, Black clean (33 files unchanged), exit code
+  0.
+- `python -m pytest tests/test_analysis_workflows_integration.py -m
+  "integration and requires_root" -v` -> **1 passed, 2 deselected,
+  162.50 seconds, exit code 0**.
+- `grep -n "FindBHWindow" python/run_masking.py`: confirms the call site
+  is byte-for-byte unchanged.
+- `git status --short` after every real-fixture test run: clean - no
+  `bump.png`/`BH_statistics.png` left in the repository.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, Extraction variant)
+
+- [x] Step A's commit (`604b5cd`) named above; this commit's relocated
+  end-to-end test is unchanged from it, per the Test Relocation Rule;
+  the `NpEncoder` tests' stub-drop is the one explicit, documented
+  exception to that rule.
+- [x] No scientific constant, reference, tolerance, dependency revision,
+  or canonical workflow argument touched.
+- [x] Every newly-introduced function has a dedicated, genuinely new
+  test (not copied from Step A).
+- [x] `run_masking.py` still invokes `python/FindBHWindow.py` by the
+  same subprocess command - confirmed by grep, not assumed.
+- [x] All required gates ran and passed, output captured above.
+- [x] `git diff --check` passes.
+- [x] Activity-log entry appended (this content).
+- [x] This entry names Chunk 14 as now resolved; Chunks 15-18 remain
+  explicitly open.
