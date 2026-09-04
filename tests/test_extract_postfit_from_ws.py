@@ -296,3 +296,38 @@ fd_handle.Close()
 print("SNIPPET_OK")
 """
     _assert_snippet_ok(_run_real_root_snippet(snippet))
+
+
+# --- Chunk 16a: WriteRoot(dirPerCategory=False)'s Python-2-only dict
+# indexing - characterization of the current crash ------------------------
+#
+# `self.channel_hpostfit.values()[-1]` (and the two other `.values()[-1]`
+# calls alongside it) is Python-2-only dict-values indexing - a real
+# TypeError under Python 3. Dead-in-practice: run_fit.py always calls
+# WriteRoot with dirPerCategory=True (run_fit.py:165), so this branch has
+# never executed in the scientific gate, in CI, or (as far as this
+# repository's history shows) in any verified run.
+
+
+@pytest.mark.requires_root
+@pytest.mark.requires_analysis_dependencies
+def test_writeroot_dirpercategory_false_currently_raises_typeerror() -> None:
+    snippet = _CONSTRUCT_EXTRACTOR + """
+import tempfile
+import os
+
+outfile = tempfile.mktemp(suffix=".root")
+try:
+    raised = False
+    try:
+        pfe.WriteRoot(outfile, dirPerCategory=False)
+    except TypeError:
+        raised = True
+    assert raised, "expected WriteRoot(dirPerCategory=False) to raise TypeError today"
+finally:
+    if os.path.exists(outfile):
+        os.remove(outfile)
+
+print("SNIPPET_OK")
+"""
+    _assert_snippet_ok(_run_real_root_snippet(snippet))

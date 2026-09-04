@@ -9031,3 +9031,66 @@ are both untouched. `run_fit.py`'s call site is confirmed unchanged via
 - [x] Activity-log entry appended (this content).
 - [x] This entry names Chunk 16 as now resolved; optional Chunks
   16a/16b, Chunk 17, and Chunk 18 remain explicitly open.
+
+## Chunk 16a.A — Characterize WriteRoot(dirPerCategory=False)'s crash
+
+### Objective
+
+Pin down, before fixing it, the exact real behavior of
+`PostfitExtractor.WriteRoot(self, outfile, dirPerCategory=False)`'s
+`else` branch today: `self.channel_hpostfit.values()[-1]` (and the two
+other `.values()[-1]` calls beside it) is Python-2-only dict-values
+indexing, which raises `TypeError` under Python 3. Per
+`doc/TIER3_COMPLETION_PLAN.md` Chunk 16a (optional, run only after
+Chunk 16 lands, against the newly-decomposed structure — confirmed:
+this test runs against `0732473`'s already-extracted `Extract()`).
+
+Currently dead-in-practice: `run_fit.py:165` always calls `WriteRoot`
+with `dirPerCategory=True`, so this branch has never executed in the
+scientific gate, in CI, or (as far as this repository's history shows)
+in any verified run — the same dormancy pattern already verified once
+this session for `createBinning.py`'s syntax error.
+
+### Test added
+
+`test_writeroot_dirpercategory_false_currently_raises_typeerror` — real
+ROOT, the same committed J100 fixtures as Chunk 16's own tests, calls
+`Extract()` then `WriteRoot(<tmp file>, dirPerCategory=False)` and
+asserts it raises `TypeError` today. Confirmed by actually running it:
+**1 passed, 5.29s** — the crash is real, not hypothetical.
+
+### What this commit does NOT do
+
+No production file is modified. `python/ExtractPostfitFromWS.py` is
+unchanged byte-for-byte in this diff — confirmed with `git diff --stat`
+(only `tests/test_extract_postfit_from_ws.py` and this activity-log
+entry appear).
+
+### Verification performed
+
+- Under `scripts/setup_buildAndFit.sh`'s ambient interpreter:
+  `python -m pytest
+  tests/test_extract_postfit_from_ws.py::test_writeroot_dirpercategory_false_currently_raises_typeerror
+  -v -m "requires_root and requires_analysis_dependencies"` -> **1
+  passed, 5.29s**.
+- Full lightweight suite: **195 passed, 20 deselected** — verified via
+  a direct `git stash`/`git stash pop` before/after comparison against
+  this branch's committed tip (`0732473`), which is **195 passed, 19
+  deselected**: +0 fast, +1 deselected, exactly matching this commit's
+  one new `requires_root`+`requires_analysis_dependencies`-marked test.
+- `git diff --stat`: only the test file and this activity-log entry —
+  no production file touched.
+- `git diff --check`: clean.
+
+### Compliance review (Section 8, Characterization variant)
+
+- [x] Base commit for this test: this branch's tip immediately before
+  this commit (`0732473`) — `python/ExtractPostfitFromWS.py` is
+  unchanged from its state there.
+- [x] The new test asserts a real, observed outcome (`TypeError` is
+  actually raised), not merely "does not raise."
+- [x] `git diff --stat` shows no production file touched.
+- [x] The test was run for real and reviewed directly before this
+  commit.
+- [x] Human-verification checkpoint: reviewed and confirmed in this
+  same session before Step B's commit (the actual fix) follows.
