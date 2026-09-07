@@ -10086,3 +10086,82 @@ dependency checks inside `tests/test_repo_utils.py`.
 
 None. This is new convenience tooling plus its own regression tests,
 added to an already-complete Tier 3, not a new chunk.
+
+---
+
+## 2026-09-07 — Refresh Tier 1/2 documentation and fold in the new gate-completeness tests
+
+### Objective
+The user asked for a correctness pass over `doc/TIER1_SYSTEM.md`,
+`doc/TIER2_SYSTEM.md`, and `doc/TIER1_ENVIRONMENT_PROVENANCE.md`, and
+for the two new gate-completeness tests (added alongside
+`scripts/run_all_gates.sh`) to be reflected there.
+
+### What changed
+
+- All three documents carried the same stale "Latest verified result"
+  snapshot from early Tier-1/2 baselining: `105 collected`, `103
+  passed`, and either `2 prepared-dependency tests deselected` or `11
+  deselected` for the prepared-dependency gate alone, plus stale
+  per-gate timings (`16.39 seconds` for runtime readiness, `152.86
+  seconds` for the scientific characterization gate). Re-ran every gate
+  for real and replaced these with current numbers: lightweight gate
+  `218 collected, 198 passed, 20 deselected`; prepared-dependency gate
+  (`tests/test_repo_utils.py -m requires_analysis_dependencies`) `2
+  passed, 14 deselected`; scientific runtime readiness `2.62 seconds`;
+  authoritative J100/J50 characterization gate `73.22 seconds`. ROOT
+  6.26/08, Python 3.9.12, and the LCG_102a/x86_64-centos9-gcc11-opt
+  platform were independently reverified as still accurate and left
+  unchanged.
+- `doc/TIER1_SYSTEM.md`'s "Scope boundary" sentence still read as if
+  Tier-3 refactoring had not yet started ("Tier-3 refactoring may
+  proceed after this installer build-mode change set is..."), despite
+  Tier 3 having been under way and mostly complete for many chunks.
+  Reworded to state that Tier-3 refactoring proceeds under the Tier-1
+  safety net and must keep this document's gates passing, with a
+  pointer to `doc/TIER3_SYSTEM.md`.
+- Added a new "Run every gate in one command" entry (`bash
+  scripts/run_all_gates.sh`) to `doc/TIER1_SYSTEM.md`'s Gate commands,
+  `doc/TIER2_SYSTEM.md`'s Gate operation, and
+  `doc/TIER1_ENVIRONMENT_PROVENANCE.md`'s Verification commands - the
+  script composes exactly these tiers' own gates (plus Tier 3's), but
+  none of the three documents mentioned it even though README.md already
+  points to them as the "complete operating and validation details" for
+  it.
+- `doc/TIER1_SYSTEM.md`'s new gate entry and
+  `doc/TIER2_SYSTEM.md`'s "Current lightweight coverage" list now
+  explicitly name the two new tests in `tests/test_repo_utils.py`
+  (`test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file`,
+  `test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file`)
+  and what they guard against, rather than leaving them covered only
+  implicitly by the generic "tests/test_repo_utils.py" file-level
+  listing both documents already carried.
+
+### Verification performed
+
+- `python scripts/quality_check.py --mode full`: 198 passed, 20
+  deselected, Ruff clean, Black clean, exit code 0 (before and after the
+  edits - these are documentation-only changes).
+- Re-ran, for real, on this machine (CVMFS/ROOT available):
+  `python -m pytest tests/test_repo_utils.py -m
+  "requires_analysis_dependencies" -v` (2 passed, 14 deselected);
+  `python -m pytest tests/test_analysis_workflows_integration.py -k
+  authoritative_setup_provides_scientific_runtime -v` (1 passed, 2
+  deselected, 2.62s); `python -m pytest
+  tests/test_analysis_workflows_integration.py -m "integration and
+  requires_root" -v` (1 passed, 2 deselected, 73.22s); `root-config
+  --version` and `python -c "import ROOT; print(ROOT.gROOT.GetVersion())"`
+  (both `6.26/08`).
+- Confirmed every file named in Tier-1's "Authoritative files" list and
+  Tier-2's "Approved lightweight tests"/"Approved source targets" lists
+  still exists at its stated path.
+- `grep -nE '[[:blank:]]+$' doc/TIER1_SYSTEM.md doc/TIER2_SYSTEM.md
+  doc/TIER1_ENVIRONMENT_PROVENANCE.md`: clean.
+- `git diff --check`: clean.
+- `git diff --stat`: `doc/TIER1_SYSTEM.md`, `doc/TIER2_SYSTEM.md`,
+  `doc/TIER1_ENVIRONMENT_PROVENANCE.md`.
+
+### Remaining open chunks
+
+None. This is a documentation-accuracy pass over already-complete Tier
+1/2 systems, not a new chunk.

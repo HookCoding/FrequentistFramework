@@ -13,9 +13,9 @@ Verified development baseline:
 
 Latest full lightweight gate:
 
-- 105 collected;
-- 103 passed;
-- 2 prepared-dependency tests deselected;
+- 218 collected;
+- 198 passed;
+- 20 prepared-dependency tests deselected;
 - 0 expected failures;
 - Ruff passed;
 - Black passed;
@@ -111,6 +111,18 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
+Run every gate above, plus every Tier-3 real-ROOT plotting-layer/
+hot-path-support test and the `FindBHWindow.py` dedicated-interpreter
+gate, in one command:
+
+```bash
+bash scripts/run_all_gates.sh
+```
+
+This fails loudly rather than skipping if `scripts/setup_buildAndFit.sh`
+cannot provide a ROOT runtime here, since its purpose is to run every
+gate.
+
 ## Pytest markers
 
 - `integration`: executes authoritative workflows
@@ -144,7 +156,11 @@ The suite covers:
 - CI policy;
 - optional pre-commit policy;
 - launcher permissions;
-- installation-contract checks.
+- installation-contract checks;
+- gate-script (`scripts/run_all_gates.sh`) and CI-workflow
+  (`.github/workflows/scientific-analysis.yml`) coverage of every
+  `requires_analysis_dependencies` test file, so a new one can never
+  silently run in no job at all.
 
 ## Installation-policy status
 

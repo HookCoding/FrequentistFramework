@@ -169,9 +169,9 @@ python scripts/quality_check.py --mode full
 
 Latest verified result:
 
-- 105 collected;
-- 103 passed;
-- 2 prepared-dependency tests deselected;
+- 218 collected;
+- 198 passed;
+- 20 prepared-dependency tests deselected;
 - 0 expected failures;
 - Ruff and Black passed;
 - exit code 0.
@@ -183,7 +183,7 @@ python -m pytest tests/test_repo_utils.py \
   -m "requires_analysis_dependencies" -v
 ```
 
-Latest result: 2 passed, 11 deselected, exit code 0.
+Latest result: 2 passed, 14 deselected, exit code 0.
 
 ### Scientific runtime readiness
 
@@ -192,7 +192,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -k authoritative_setup_provides_scientific_runtime -v
 ```
 
-Latest result: 1 passed, 2 deselected, 16.39 seconds, exit code 0.
+Latest result: 1 passed, 2 deselected, 2.62 seconds, exit code 0.
 
 ### Executable characterization gate
 
@@ -201,7 +201,25 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest result: 1 passed, 2 deselected, 152.86 seconds, exit code 0.
+Latest result: 1 passed, 2 deselected, 73.22 seconds, exit code 0.
+
+### Run every gate in one command
+
+```bash
+bash scripts/run_all_gates.sh
+```
+
+Runs the three gates above plus every Tier-3 real-ROOT plotting-layer/
+hot-path-support test and the `FindBHWindow.py` dedicated-interpreter
+gate, in one command — exactly what
+`.github/workflows/scientific-analysis.yml` runs. It fails loudly
+(rather than skipping) if `scripts/setup_buildAndFit.sh` cannot provide
+a ROOT runtime here, since its purpose is to run everything.
+`tests/test_repo_utils.py::test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file`
+and
+`tests/test_repo_utils.py::test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file`
+keep this script and the CI workflow from silently drifting out of sync
+with each new `requires_analysis_dependencies` test file.
 
 ## Runtime split
 
@@ -259,4 +277,4 @@ FIT_PARS="six" ./scripts/run_anaFit_J50.sh
 
 ## Scope boundary
 
-CLs remains outside the project scope because the analysis is intentionally no-signal and background-only. Tier-4 orchestration remains out of scope. Tier-3 refactoring may proceed after this installer build-mode change set is reviewed, committed, pushed, and its hosted lightweight gate is confirmed passing.
+CLs remains outside the project scope because the analysis is intentionally no-signal and background-only. Tier-4 orchestration remains out of scope. Tier-3 refactoring proceeds under this Tier-1 safety net; every Tier-3 change must keep the gates in this document passing (see [Tier 3 system](TIER3_SYSTEM.md) for its own scope and status).
