@@ -249,6 +249,72 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
     assert ".githooks" in installer_text
 
 
+def _tests_dir_files_marked_requires_analysis_dependencies(tests_dir: Path) -> list[str]:
+    return sorted(
+        p.name
+        for p in tests_dir.glob("test_*.py")
+        if "requires_analysis_dependencies" in p.read_text(encoding="utf-8")
+    )
+
+
+def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:
+    # scripts/run_all_gates.sh exists specifically to run every gate in
+    # one command, including every test the lightweight gate deselects.
+    # A test file carrying a requires_analysis_dependencies test but
+    # missing from this script's own real-ROOT/prepared-dependency gate
+    # invocations would silently never run there - the same class of
+    # gap already found and fixed three times in
+    # .github/workflows/scientific-analysis.yml (most recently
+    # tests/test_pre_fit.py). This test catches a repeat before it
+    # reaches CI, rather than relying on a human noticing again.
+    repo_root = Path(__file__).resolve().parents[1]
+
+    script_path = repo_root / "scripts" / "run_all_gates.sh"
+    assert script_path.is_file(), "Missing scripts/run_all_gates.sh"
+    assert script_path.stat().st_mode & 0o111, "run_all_gates.sh must be executable"
+
+    script_text = script_path.read_text(encoding="utf-8")
+
+    # test_analysis_workflows_integration.py is covered by its own
+    # dedicated "scientific gate" invocation (a different -m filter,
+    # "integration and requires_root"), not the shared
+    # requires_analysis_dependencies pytest invocations - exempt by
+    # design, not by oversight.
+    exempt = {"test_analysis_workflows_integration.py"}
+
+    marked_files = _tests_dir_files_marked_requires_analysis_dependencies(repo_root / "tests")
+    missing = [
+        name for name in marked_files if name not in exempt and f"tests/{name}" not in script_text
+    ]
+    assert not missing, (
+        "scripts/run_all_gates.sh is missing these requires_analysis_dependencies "
+        f"test files: {missing}"
+    )
+
+
+def test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file() -> None:
+    # Same check as the one above, against the actual CI workflow file -
+    # this is the one that matters for real CI coverage; the script
+    # above is a local convenience wrapper for the same set of gates.
+    repo_root = Path(__file__).resolve().parents[1]
+
+    workflow_path = repo_root / ".github" / "workflows" / "scientific-analysis.yml"
+    assert workflow_path.is_file(), "Missing .github/workflows/scientific-analysis.yml"
+
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+
+    exempt = {"test_analysis_workflows_integration.py"}
+
+    marked_files = _tests_dir_files_marked_requires_analysis_dependencies(repo_root / "tests")
+    missing = [
+        name for name in marked_files if name not in exempt and f"tests/{name}" not in workflow_text
+    ]
+    assert not missing, (
+        ".github/workflows/scientific-analysis.yml is missing these "
+        f"requires_analysis_dependencies test files: {missing}"
+    )
+
+
 def test_authoritative_analysis_launchers_are_executable() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 

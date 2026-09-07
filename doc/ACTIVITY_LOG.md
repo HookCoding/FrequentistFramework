@@ -10009,3 +10009,80 @@ the real workflow step to 7 files.
 
 None. This is a CI-coverage bug fix plus a documentation-sync
 correction to an already-complete Tier 3, not a new chunk.
+
+## Add scripts/run_all_gates.sh: a single command for every gate
+
+### Objective
+
+At the user's request, create a single command that runs the analysis
+and every test file. No such command existed - the checks were split
+across four separate invocations (the lightweight gate, the scientific
+gate, the plotting-layer/hot-path real-ROOT gate, and the
+FindBHWindow.py dedicated-interpreter gate), plus the prepared-
+dependency checks inside `tests/test_repo_utils.py`.
+
+### What changed
+
+- New `scripts/run_all_gates.sh` (executable), running in order: (1) the
+  lightweight quality gate; (2) the real J100/J50 scientific analysis,
+  end to end; (3) the plotting-layer and hot-path-support real-ROOT
+  regression gate (the 8-file list `test_pre_fit.py` was just added to);
+  (4) the prepared external-dependency checkout checks; (5) the
+  FindBHWindow.py dedicated-interpreter gate, run against the committed
+  J100 `PostFit_anaFit_sixPar_bkgOnly.root` fixture inside a throwaway
+  temp directory (avoids leaving `bump.png`/`BH_statistics.png` in the
+  repo root - confirmed these files are written to the working directory
+  by direct observation before adding the temp-dir wrapper). Prints a
+  PASSED/FAILED line per gate, runs every gate regardless of earlier
+  failures, and exits non-zero if any failed. Unlike `.githooks/pre-commit`
+  (which skips the ROOT-dependent half with a warning when CVMFS isn't
+  mounted, so a commit is never blocked on a machine that legitimately
+  lacks it), this script fails loudly if the ROOT runtime isn't
+  available, since its whole purpose is to run every gate.
+- Two new tests in `tests/test_repo_utils.py`:
+  `test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file`
+  and
+  `test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file`.
+  Both grep every `tests/test_*.py` file for the
+  `requires_analysis_dependencies` marker and assert the new script (and
+  the CI workflow file, respectively) reference every one of them - the
+  same class of gap just fixed for `tests/test_pre_fit.py`, now
+  regression-tested going forward instead of relying on a human noticing
+  a third time. Confirmed the CI-workflow test actually catches a
+  regression: temporarily removed `test_pre_fit.py` from
+  `.github/workflows/scientific-analysis.yml` and reran the test - it
+  failed with the exact missing filename named in the assertion message,
+  then restored the file with `git checkout --`.
+- `README.md` gains a "Run every gate in one command" subsection
+  pointing at the new script. `doc/TIER3_SYSTEM.md`'s "Gate commands"
+  section gains a matching entry at the top, and its lightweight-gate
+  test count is updated from 196 to 198 (the two new tests above).
+
+### Verification performed
+
+- `bash -n scripts/run_all_gates.sh`: syntax OK.
+- `shellcheck scripts/run_all_gates.sh`: no actual warnings (two
+  info-level SC2016 hits on intentionally-deferred variable expansion
+  inside nested `bash -lc`/`trap` strings, not bugs).
+- Ran the full script for real, twice: first run caught a real bug (a
+  stray `set -e` before `source scripts/setup_buildAndFit.sh` in the
+  FindBHWindow step broke sourcing, since that script contains commands
+  that legitimately return non-zero mid-script - the same reason every
+  other gate in this script and `.githooks/pre-commit` avoid `set -e`
+  around that line). Fixed, then reran end to end: all 5 gates PASSED,
+  exit code 0, ~2m45s, `git status --short` clean afterward (no stray
+  plot files).
+- `python -m pytest tests/test_repo_utils.py -v`: 16 passed, including
+  both new tests.
+- `python scripts/quality_check.py --mode full`: 198 passed (up from
+  196), 20 deselected, Ruff clean, Black clean (39 files unchanged),
+  exit code 0.
+- `grep -nE '[[:blank:]]+$'` across all changed files: clean.
+- `git diff --check`: clean.
+- `git diff --stat`: `README.md`, `doc/TIER3_SYSTEM.md`,
+  `tests/test_repo_utils.py`, plus the new `scripts/run_all_gates.sh`.
+
+### Remaining open chunks
+
+None. This is new convenience tooling plus its own regression tests,
+added to an already-complete Tier 3, not a new chunk.

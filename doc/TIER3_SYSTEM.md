@@ -38,7 +38,7 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 196 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 198 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
@@ -292,13 +292,34 @@ workflow runs instead.
 
 ## Gate commands
 
+### Run every gate in one command
+
+```bash
+bash scripts/run_all_gates.sh
+```
+
+Runs every gate below in sequence - the lightweight gate, the scientific
+gate, the plotting-layer real-ROOT gate, the prepared-dependency gate,
+and the FindBHWindow.py dedicated-interpreter gate - printing a
+PASSED/FAILED line for each and exiting non-zero if any failed. Requires
+a real ROOT runtime here (`scripts/setup_buildAndFit.sh` succeeds); it
+fails loudly rather than skipping when that isn't available, since its
+purpose is to run everything.
+`tests/test_repo_utils.py::test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file`
+and
+`tests/test_repo_utils.py::test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file`
+pin that this script and the CI workflow below both stay in sync with
+every `requires_analysis_dependencies` test file that exists - the
+class of gap that let `tests/test_pre_fit.py`'s own real-ROOT tests run
+in no CI job for a time.
+
 ### Lightweight full gate
 
 ```bash
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 196 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 198 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)
