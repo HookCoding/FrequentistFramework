@@ -9936,3 +9936,76 @@ consult to answer "which test file exercises this."
 
 None. This is a documentation-completeness correction to an
 already-complete Tier 3, not a new chunk.
+
+## Fix a real CI gap: tests/test_pre_fit.py's real-ROOT tests never ran in any job
+
+### Objective
+
+While investigating whether a single command exists to run the analysis
+and all test files, checked which CI workflow step actually runs each
+`requires_analysis_dependencies`-marked test file. Found that
+`tests/test_pre_fit.py` (added by Chunk 17) was never added to
+`.github/workflows/scientific-analysis.yml`'s "Run plotting-layer
+real-ROOT regression gates" step - the only CI step that runs anything
+the lightweight gate deselects. Its two real-ROOT tests
+(`test_fit_returns_expected_shape_and_is_deterministic_for_real_fixture`,
+`test_fit_raises_indexerror_for_npars_above_seven_with_default_ranges`)
+have therefore never run in any CI job at all, on any push to this
+branch since Chunk 17 landed - the exact same class of gap this
+workflow step's own comment already records being found and fixed twice
+before, for other files, now repeated a third time.
+
+Also found, while fixing this, that `doc/TIER3_SYSTEM.md`'s own
+"Plotting-layer real-ROOT gate" section had drifted out of sync with the
+real workflow file even before this: it still documented the original
+3-file command from Chunk 11/12, never updated when Chunks 13-16 grew
+the real workflow step to 7 files.
+
+### What changed
+
+- `.github/workflows/scientific-analysis.yml`: added `tests/test_pre_fit.py`
+  to the "Run plotting-layer real-ROOT regression gates" step's pytest
+  file list. Rewrote the step's own comment to stop naming specific past
+  chunk numbers for the file list (which is exactly what went stale) and
+  instead state the actual rule going forward: every test file with a
+  `requires_analysis_dependencies` test must be added to this list in
+  the same commit that introduces it.
+- `doc/TIER3_SYSTEM.md`'s "Plotting-layer real-ROOT gate" section:
+  updated the documented command to the real, current 8-file list (was
+  3), and updated the "6 tests"/"11 passed" claims to the real, freshly
+  measured 18 selected / 46 total.
+
+### Verification performed
+
+- `grep -rn "test_pre_fit" .github/workflows/*.yml` before this fix:
+  no matches - confirmed the gap directly, not assumed from the
+  workflow's own comment.
+- `grep -rl "requires_analysis_dependencies" tests/*.py`: 10 files
+  carry the marker; cross-checked each against the workflow step's file
+  list (`test_analysis_workflows_integration.py`/`test_repo_utils.py`
+  are covered by their own separate steps) - `test_pre_fit.py` was the
+  only one missing.
+- Ran the exact fixed command for real, under
+  `scripts/setup_buildAndFit.sh`'s sourced interpreter:
+  `python -m pytest tests/test_plot_post_fit.py
+  tests/test_plot_postfit_macro.py tests/test_read_bumphunter_results.py
+  tests/test_create_binning.py tests/test_extract_fit_parameters.py
+  tests/test_extract_postfit_from_ws.py tests/test_find_bh_window.py
+  tests/test_pre_fit.py -m "requires_analysis_dependencies" -v` ->
+  **18 passed, 28 deselected, 69.98s**, including both of
+  `test_pre_fit.py`'s real-ROOT tests for the first time in this CI
+  step's history.
+- Reran the same 8 files unfiltered (no `-m`) to confirm the
+  "equivalent on a CVMFS host" claim: **46 passed, 44.30s**.
+- `grep -nE '[[:blank:]]+$'` on both changed files: clean.
+- `git diff --check`: clean.
+- `python scripts/quality_check.py --mode full`: 196 passed, 20
+  deselected, Ruff clean, Black clean (39 files unchanged), exit 0
+  (unaffected - this fix touches no lightweight-gate target).
+- `git diff --stat`: `.github/workflows/scientific-analysis.yml` and
+  `doc/TIER3_SYSTEM.md` only.
+
+### Remaining open chunks
+
+None. This is a CI-coverage bug fix plus a documentation-sync
+correction to an already-complete Tier 3, not a new chunk.

@@ -308,18 +308,28 @@ python -m pytest \
   tests/test_plot_post_fit.py \
   tests/test_plot_postfit_macro.py \
   tests/test_read_bumphunter_results.py \
+  tests/test_create_binning.py \
+  tests/test_extract_fit_parameters.py \
+  tests/test_extract_postfit_from_ws.py \
+  tests/test_find_bh_window.py \
+  tests/test_pre_fit.py \
   -m "requires_analysis_dependencies" -v
 ```
 
 This is the command `.github/workflows/scientific-analysis.yml`'s "Run
 plotting-layer real-ROOT regression gates" step runs, after sourcing
 `scripts/setup_buildAndFit.sh` on its CVMFS-mounted runner. It selects
-exactly the 6 tests the lightweight gate deselects; the other 5
-(`parse_args()`'s) need no ROOT and already run there. Dropping the `-m`
-filter runs all 11 and is equivalent on a CVMFS host.
+exactly the 18 tests across these 8 files that the lightweight gate
+deselects; every other test in them (`parse_args()`'s and similar
+stub-friendly tests) needs no ROOT and already runs there. Dropping the
+`-m` filter runs all 46 and is equivalent on a CVMFS host. Every test
+file with a `requires_analysis_dependencies` test must be added to this
+command (and to the CI workflow step it mirrors) in the same commit that
+introduces it - this list has been found out of date more than once
+before.
 
-Latest verified result: 11 passed, 92.21 seconds, exit code 0 (and 6
-selected / 5 deselected under the marker filter above), run against a
+Latest verified result: 46 passed, 44.30 seconds, exit code 0 (and 18
+selected / 28 deselected under the marker filter above), run against a
 real CVMFS/LCG scientific runtime.
 
 ### Scientific gate
