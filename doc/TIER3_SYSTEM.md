@@ -316,17 +316,17 @@ workflow runs instead.
 bash scripts/run_all_gates.sh
 ```
 
-Runs all six gates in sequence - the lightweight gate, the scientific
-runtime-readiness gate, the scientific gate, the plotting-layer
-real-ROOT gate, the prepared-dependency gate, and the FindBHWindow.py
-dedicated-interpreter gate - printing a PASSED/FAILED line for each and
-exiting non-zero if any failed. Four of the six have their own sections
-below; the scientific runtime-readiness and prepared-dependency gates
-belong to Tiers 1 and 2 and are documented in
-[Tier 1 system](TIER1_SYSTEM.md)'s own Gate commands instead. Requires
-a real ROOT runtime here (`scripts/setup_buildAndFit.sh` succeeds); it
-fails loudly rather than skipping when that isn't available, since its
-purpose is to run everything.
+Runs all five gates in sequence - the lightweight gate, the
+prepared-dependency gate, the scientific runtime-readiness gate, the
+scientific gate, and the plotting-layer real-ROOT gate - printing a
+PASSED/FAILED line for each and exiting non-zero if any failed. Three
+of the five have their own sections below; the prepared-dependency and
+scientific runtime-readiness gates belong to Tiers 2 and 1 and are
+documented in [Tier 1 system](TIER1_SYSTEM.md)'s own Gate commands
+instead. The first two need no ROOT and always run; the last three
+require a real ROOT runtime here (`scripts/setup_buildAndFit.sh`
+succeeds), and the script fails loudly rather than skipping when that
+isn't available, since its purpose is to run everything.
 `tests/test_repo_utils.py::test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file`
 and
 `tests/test_repo_utils.py::test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file`
@@ -385,7 +385,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
 Latest verified result: 1 passed, 2 deselected, 182.11 seconds, exit
 code 0.
 
-### FindBHWindow.py dedicated-interpreter gate
+### FindBHWindow.py manual reproduction command (not a separate gate)
 
 ```bash
 repo_dir="$PWD"
@@ -402,9 +402,17 @@ real behavior at all: both committed J100/J50 fixtures are unmasked, so
 `run_masking.run_bumphunter()` (the only production call site) is never
 invoked in that gate - running it there only proves `should_mask()`/
 `run_bumphunter()` are still correctly *not* invoked on the unmasked
-path. This subprocess run is the only real proof of `FindBHWindow.py`'s
-own correctness; `tests/test_find_bh_window.py`'s own end-to-end test
-runs the equivalent workflow automatically. It uses a working ambient-
+path. The automated proof of `FindBHWindow.py`'s own correctness is
+`tests/test_find_bh_window.py`'s marked end-to-end test, which the
+plotting-layer gate above runs (and which
+`.github/workflows/scientific-analysis.yml` runs in CI): it invokes the
+script as a real subprocess against the committed J100 PostFit fixture
+and asserts the resulting `MaskMin`/`MaskMax`/`BlindRange` and both
+output PNGs. The command above is the hand-runnable equivalent of that
+test, for debugging - not a separate gate, and
+`scripts/run_all_gates.sh` deliberately does not run it as one, since
+doing so would duplicate that test exactly while asserting only an
+exit status. Both use the same working ambient-
 interpreter + `PYTHONPATH` combination - `pyBumpHunter/pyBH_env` is
 confirmed broken in this environment (missing `uproot` and `matplotlib`
 in its own site-packages) - not the broken dedicated venv this
@@ -438,9 +446,10 @@ not cover the plotting layer:
   `python/FindBHWindow.py`'s or fully `python/createBinning.py`'s own
   correctness, for the identical reason (both files' real branches sit
   behind the same unmasked-fixture / already-exists-on-disk conditions)
-  - the FindBHWindow.py dedicated-interpreter gate above and
-  `tests/test_create_binning.py`'s own real-fixture tests are the gates
-  that actually prove those two files' behavior.
+  - `tests/test_find_bh_window.py`'s and
+  `tests/test_create_binning.py`'s own marked real-fixture tests, both
+  run by the plotting-layer gate, are what actually prove those two
+  files' behavior.
 
 ## Pytest markers
 
@@ -472,9 +481,11 @@ Unchanged from `doc/TIER2_SYSTEM.md`:
   unmasked (no `BHresults.json` in either fixture directory), so it
   never exercises this file's real behavior at all - running it there
   only proves `should_mask()`/`run_bumphunter()` are still correctly
-  *not* invoked on the unmasked path. The FindBHWindow.py
-  dedicated-interpreter gate ("Gate commands" above) is the only real
-  proof of this file's own correctness.
+  *not* invoked on the unmasked path. `tests/test_find_bh_window.py`'s
+  marked end-to-end test - run by the plotting-layer gate above, and by
+  CI - is the only real proof of this file's own correctness, and even
+  it uses the ambient interpreter rather than the broken
+  `pyBumpHunter/pyBH_env` one production actually invokes.
 - **`run_provenance.py`'s `collect_scientific_runtime()` and
   `run_templates.py`'s `doprefit=True` path are tested only with
   `sys.modules`-stubbed `ROOT`/`PreFit`, never real ones** (this
@@ -651,12 +662,13 @@ signature unchanged; `python/createBinning.py`, `python/FindBHWindow.py`,
 newly-introduced function has a dedicated test except the documented
 scope boundaries above; every new source and test file is registered in
 `scripts/quality_check.py`; the lightweight gate, the plotting-layer
-real-ROOT gate, the scientific gate, and the FindBHWindow.py
-dedicated-interpreter gate all pass - **except** that the scientific
-gate's pass does not by itself prove `python/FindBHWindow.py`'s or fully
+real-ROOT gate, and the scientific gate all pass - **except** that the
+scientific gate's pass does not by itself prove
+`python/FindBHWindow.py`'s or fully
 `python/createBinning.py`'s own correctness (both files' real branches
 sit behind unmasked-fixture / already-exists-on-disk conditions the
-committed J100/J50 workflows never trigger); the FindBHWindow.py
-dedicated-interpreter gate above and `tests/test_create_binning.py`'s
-own real-fixture tests are the gates that actually prove those two
-files' behavior; and this document exists and is current.
+committed J100/J50 workflows never trigger);
+`tests/test_find_bh_window.py`'s and `tests/test_create_binning.py`'s
+own marked real-fixture tests, both run by the plotting-layer gate, are
+what actually prove those two files' behavior; and this document exists
+and is current.

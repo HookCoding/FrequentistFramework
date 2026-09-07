@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -286,6 +287,39 @@ def _strip_full_line_comments(text: str) -> str:
     return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
 
 
+# Matches a real pytest invocation: `python -m pytest`, `python3 -m
+# pytest`, `$python_bin -m pytest`, or a bare `pytest`/`.../bin/pytest`
+# command word. Deliberately not a bare "pytest" substring - the word
+# appears in prose, step names and echo lines all over both files.
+_PYTEST_INVOCATION = re.compile(r"(?:-m\s+pytest|(?:^|[\s/])pytest)(?:\s|$)")
+
+
+def _pytest_command_lines(text: str) -> str:
+    """Only the text of this file's actual pytest command lines.
+
+    Full-line comments are dropped, backslash-continued lines are
+    joined into single logical lines, and every logical line that does
+    not itself invoke pytest is discarded. A test-file name or -k/-m
+    selector that appears in an `echo`, a workflow `name:`, a variable
+    assignment, a comment or any other non-pytest text therefore cannot
+    satisfy the coverage assertions below - only one really passed to
+    pytest can. Without this, removing a gate outright while leaving
+    its name behind in an echo line would still pass these tests.
+    """
+    joined: list[str] = []
+    pending = ""
+    for line in _strip_full_line_comments(text).splitlines():
+        stripped = line.strip()
+        if stripped.endswith("\\"):
+            pending += stripped[:-1].strip() + " "
+            continue
+        joined.append((pending + stripped).strip())
+        pending = ""
+    if pending:
+        joined.append(pending.strip())
+    return "\n".join(line for line in joined if _PYTEST_INVOCATION.search(line))
+
+
 # tests/test_analysis_workflows_integration.py is exempt from the
 # generic "tests/<file> appears in the gate invocation" check below:
 # unlike every other requires_analysis_dependencies test file (selected
@@ -318,7 +352,25 @@ _INTEGRATION_TEST_SELECTORS = {
 }
 
 
-def _assert_covers_every_dependency_marked_test(cleaned_text: str, source_description: str) -> None:
+def _assert_covers_every_dependency_marked_test(
+    raw_text: str, source_description: str, non_pytest_sentinel: str
+) -> None:
+    # Everything below is asserted against the real pytest command
+    # lines only, never the whole file.
+    command_text = _pytest_command_lines(raw_text)
+
+    # Negative control on the extractor itself: `non_pytest_sentinel` is
+    # a string this source really contains, but only outside any pytest
+    # command. If it survives extraction, the extractor is letting
+    # non-pytest text through and every assertion below is worthless -
+    # so fail here rather than pass on a false positive later.
+    assert command_text, f"No pytest invocation found in {source_description} at all"
+    assert non_pytest_sentinel not in command_text, (
+        f"{source_description}'s pytest-command extraction is too permissive: it kept "
+        f"non-pytest text containing {non_pytest_sentinel!r}, so the coverage "
+        "assertions below would no longer prove anything"
+    )
+
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = repo_root / "tests"
 
@@ -332,7 +384,7 @@ def _assert_covers_every_dependency_marked_test(cleaned_text: str, source_descri
     missing_integration_selectors = [
         test_name
         for test_name, selector in _INTEGRATION_TEST_SELECTORS.items()
-        if selector not in cleaned_text
+        if selector not in command_text
     ]
     assert not missing_integration_selectors, (
         f"{source_description} is missing a dedicated selector for these "
@@ -343,7 +395,7 @@ def _assert_covers_every_dependency_marked_test(cleaned_text: str, source_descri
     missing_files = [
         name
         for name in marked_files
-        if name != _INTEGRATION_TEST_FILE and f"tests/{name}" not in cleaned_text
+        if name != _INTEGRATION_TEST_FILE and f"tests/{name}" not in command_text
     ]
     assert not missing_files, (
         f"{source_description} is missing these requires_analysis_dependencies "
@@ -369,8 +421,13 @@ def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_f
     assert script_path.is_file(), "Missing scripts/run_all_gates.sh"
     assert script_path.stat().st_mode & 0o111, "run_all_gates.sh must be executable"
 
-    script_text = _strip_full_line_comments(script_path.read_text(encoding="utf-8"))
-    _assert_covers_every_dependency_marked_test(script_text, "scripts/run_all_gates.sh")
+    _assert_covers_every_dependency_marked_test(
+        script_path.read_text(encoding="utf-8"),
+        "scripts/run_all_gates.sh",
+        # appears only in this script's own echo/log lines, never in a
+        # pytest command - the negative control for the extractor
+        non_pytest_sentinel="[run-all-gates]",
+    )
 
 
 def test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file() -> None:
@@ -382,9 +439,12 @@ def test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test
     workflow_path = repo_root / ".github" / "workflows" / "scientific-analysis.yml"
     assert workflow_path.is_file(), "Missing .github/workflows/scientific-analysis.yml"
 
-    workflow_text = _strip_full_line_comments(workflow_path.read_text(encoding="utf-8"))
     _assert_covers_every_dependency_marked_test(
-        workflow_text, ".github/workflows/scientific-analysis.yml"
+        workflow_path.read_text(encoding="utf-8"),
+        ".github/workflows/scientific-analysis.yml",
+        # a YAML step key, never part of a pytest command - the
+        # negative control for the extractor
+        non_pytest_sentinel="runs-on:",
     )
 
 

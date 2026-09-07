@@ -123,13 +123,12 @@ bash scripts/run_all_gates.sh
 ```
 
 Runs the development gate, the prepared dependency gate, runtime
-readiness, scientific characterization, every Tier-3 real-ROOT
-plotting-layer/hot-path-support test, and the `FindBHWindow.py`
-dedicated-interpreter gate, in one command. The first five are the same
-checks `.github/workflows/scientific-analysis.yml` runs; the
-`FindBHWindow.py` gate has no counterpart step in that workflow, which
-in turn runs dependency build/check steps this script does not. It
-fails loudly
+readiness, scientific characterization, and every Tier-3 real-ROOT
+plotting-layer/hot-path-support test, in one command — the same five
+test gates `.github/workflows/scientific-analysis.yml` runs (that
+workflow additionally runs dependency build/check steps this script
+does not). The first two need no ROOT and always run; for the other
+three it fails loudly
 rather than skipping when `scripts/setup_buildAndFit.sh` cannot provide
 a ROOT runtime here.
 

@@ -111,18 +111,21 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Run every gate above, plus Tier 1's scientific runtime-readiness gate,
-every Tier-3 real-ROOT plotting-layer/hot-path-support test, and the
-`FindBHWindow.py` dedicated-interpreter gate - six gates in total - in
-one command:
+Run every gate above, plus Tier 1's scientific runtime-readiness gate
+and every Tier-3 real-ROOT plotting-layer/hot-path-support test - five
+gates in total - in one command:
 
 ```bash
 bash scripts/run_all_gates.sh
 ```
 
-This fails loudly rather than skipping if `scripts/setup_buildAndFit.sh`
-cannot provide a ROOT runtime here, since its purpose is to run every
-gate.
+The lightweight and prepared-dependency gates need no ROOT and always
+run first (the prepared-dependency tests only inspect the dependency
+checkouts with Git), so a missing CVMFS mount cannot hide a
+dependency-checkout failure. For the three ROOT-dependent gates the
+script fails loudly rather than skipping if
+`scripts/setup_buildAndFit.sh` cannot provide a ROOT runtime here,
+since its purpose is to run every gate.
 
 ## Pytest markers
 

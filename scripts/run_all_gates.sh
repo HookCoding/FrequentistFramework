@@ -3,37 +3,57 @@
 #
 #   1. the lightweight quality gate (pytest, Ruff, Black -
 #      python scripts/quality_check.py --mode full);
-#   2. the scientific runtime-readiness gate (ROOT/Python imports, the
-#      required fixtures and executable artifacts are all present);
-#   3. the real J100/J50 scientific analysis, end to end, compared
-#      against the frozen reference (the "scientific gate");
-#   4. every plotting-layer and hot-path-support test that needs a real
-#      ROOT/RooFit runtime and is therefore deselected by gate 1 (the
-#      "plotting-layer real-ROOT gate" - see doc/TIER3_SYSTEM.md);
-#   5. the prepared external-dependency checkout checks (pinned
+#   2. the prepared external-dependency checkout checks (pinned
 #      submodule revisions, tracked-source cleanliness);
-#   6. the FindBHWindow.py dedicated-interpreter gate, against the
-#      committed J100 PostFit fixture - the one file whose masked-path
-#      correctness the gates above cannot exercise on their own.
+#   3. the scientific runtime-readiness gate (ROOT/Python imports, the
+#      required fixtures and executable artifacts are all present);
+#   4. the real J100/J50 scientific analysis, end to end, compared
+#      against the frozen reference (the "scientific gate");
+#   5. every plotting-layer and hot-path-support test that needs a real
+#      ROOT/RooFit runtime and is therefore deselected by gate 1 (the
+#      "plotting-layer real-ROOT gate" - see doc/TIER3_SYSTEM.md).
 #
-# Gates 1-5 are the same five checks
+# Gates 1 and 2 need no ROOT runtime and therefore always run, before
+# the ROOT-availability check below. Gate 2's two tests only inspect the
+# dependency checkouts with git - see
+# tests/test_repo_utils.py's test_external_dependency_checkouts_match_pinned_revisions
+# and ..._have_no_tracked_source_changes, which call `git rev-parse`/
+# `git status` and touch nothing else - so running them inside the ROOT
+# conditional would let a missing CVMFS mount silently hide a real
+# dependency-checkout failure. They carry
+# requires_analysis_dependencies because they need the prepared
+# checkouts, not because they need ROOT.
+#
+# These five are the same five test gates
 # .github/workflows/scientific-analysis.yml runs (the lightweight gate
 # also runs, alone, in .github/workflows/tier1-root-comparison.yml on
-# every branch). Gate 6 has no counterpart step in that workflow, and
-# the workflow in turn runs submodule-checkout, install.sh
-# --check/--build and CVMFS-probe steps that this script does not - so
-# this script is deliberately a superset of that workflow's test gates,
-# not a mirror of it. Nothing enforces gate-step parity between the
-# two: tests/test_repo_utils.py's two coverage tests compare which
-# *test files* each one references, so they would not notice Gate 6
-# being deleted from here (Gate 4 already references
-# tests/test_find_bh_window.py) - only a test file referenced by
-# neither. Gates 2 and 3 both live in
+# every branch); that workflow additionally runs submodule-checkout,
+# install.sh --check/--build and CVMFS-probe steps this script does
+# not. Gates 3 and 4 both live in
 # tests/test_analysis_workflows_integration.py but are two distinct,
 # separately-marked tests selected by two different invocations - see
 # doc/TIER1_SYSTEM.md's own "Scientific runtime readiness" and
 # "Executable characterization gate" entries - so both must be listed
 # here explicitly; listing only one silently drops the other.
+#
+# tests/test_repo_utils.py's two gate-coverage tests keep gates 2-5
+# honest: each of those four gates is the only pytest invocation here
+# naming its own test file or -k/-m selector, so deleting any one of
+# them makes those tests fail. They parse this file's real pytest
+# command lines, so a selector mentioned only in an echo or a comment
+# does not count as coverage.
+#
+# There is deliberately no separate FindBHWindow.py gate here.
+# tests/test_find_bh_window.py's own marked end-to-end test - which
+# gate 5 runs - already invokes python/FindBHWindow.py as a real
+# subprocess against the same committed J100 PostFit fixture, with the
+# same ambient python3 plus pyBumpHunter PYTHONPATH, and asserts far
+# more about the outcome (MaskMin/MaskMax, BlindRange, both output
+# PNGs) than a bare exit-status check could. A separate invocation here
+# would duplicate it exactly while proving less. Neither exercises the
+# production pyBumpHunter/pyBH_env interpreter that
+# run_masking.run_bumphunter() actually invokes, which is broken in
+# this environment - see doc/TIER3_SYSTEM.md's Known limitations.
 #
 # Unlike .githooks/pre-commit - which skips the ROOT-dependent gates
 # with a warning when scripts/setup_buildAndFit.sh can't provide a ROOT
@@ -75,8 +95,13 @@ run_gate() {
     fi
 }
 
-echo "[run-all-gates] Gate 1/6: lightweight quality gate (pytest, Ruff, Black)"
+echo "[run-all-gates] Gate 1/5: lightweight quality gate (pytest, Ruff, Black)"
 run_gate "lightweight quality gate" "$python_bin" scripts/quality_check.py --mode full
+
+echo
+echo "[run-all-gates] Gate 2/5: prepared external-dependency checkout checks (no ROOT needed)"
+run_gate "prepared-dependency gate" "$python_bin" -m pytest tests/test_repo_utils.py \
+  -m "requires_analysis_dependencies" -v
 
 echo
 echo "[run-all-gates] Checking whether the ROOT-dependent scientific runtime is available here..."
@@ -86,28 +111,28 @@ if ! bash -lc 'source scripts/setup_buildAndFit.sh' >"$setup_check_log" 2>&1; th
     echo "[run-all-gates] (no CVMFS mount, or the scientific dependencies are not built - see:"
     sed 's/^/[run-all-gates]   /' "$setup_check_log"
     echo "[run-all-gates] )."
-    echo "[run-all-gates] Gates 2-6 (everything that needs ROOT) cannot run without it - this is a"
+    echo "[run-all-gates] Gates 3-5 (everything that needs ROOT) cannot run without it - this is a"
     echo "[run-all-gates] hard failure, since this script's purpose is to run every gate."
     rm -f "$setup_check_log"
     failures=$((failures + 1))
 else
     rm -f "$setup_check_log"
 
-    echo "[run-all-gates] Gate 2/6: scientific runtime-readiness gate"
+    echo "[run-all-gates] Gate 3/5: scientific runtime-readiness gate"
     run_gate "scientific runtime-readiness gate" bash -lc '
         source scripts/setup_buildAndFit.sh >/dev/null
         python -m pytest tests/test_analysis_workflows_integration.py \
           -k authoritative_setup_provides_scientific_runtime -v
     '
 
-    echo "[run-all-gates] Gate 3/6: the real J100/J50 scientific analysis, end to end"
+    echo "[run-all-gates] Gate 4/5: the real J100/J50 scientific analysis, end to end"
     run_gate "scientific gate (J100/J50 authoritative workflows)" bash -lc '
         source scripts/setup_buildAndFit.sh >/dev/null
         python -m pytest tests/test_analysis_workflows_integration.py \
           -m "integration and requires_root" -v
     '
 
-    echo "[run-all-gates] Gate 4/6: plotting-layer and hot-path-support real-ROOT regression gate"
+    echo "[run-all-gates] Gate 5/5: plotting-layer and hot-path-support real-ROOT regression gate"
     run_gate "plotting-layer/hot-path real-ROOT gate" bash -lc '
         source scripts/setup_buildAndFit.sh >/dev/null
         python -m pytest \
@@ -120,26 +145,6 @@ else
           tests/test_find_bh_window.py \
           tests/test_pre_fit.py \
           -m "requires_analysis_dependencies" -v
-    '
-
-    echo "[run-all-gates] Gate 5/6: prepared external-dependency checkout checks"
-    run_gate "prepared-dependency gate" bash -lc '
-        source scripts/setup_buildAndFit.sh >/dev/null
-        python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v
-    '
-
-    echo "[run-all-gates] Gate 6/6: FindBHWindow.py dedicated-interpreter gate"
-    run_gate "FindBHWindow.py dedicated-interpreter gate" bash -lc '
-        repo_dir="$PWD"
-        source scripts/setup_buildAndFit.sh >/dev/null
-        export PYTHONPATH="$repo_dir/pyBumpHunter:$PYTHONPATH"
-        work_dir="$(mktemp -d)"
-        trap '"'"'rm -rf "$work_dir"'"'"' EXIT
-        cd "$work_dir" || exit 1
-        python3 "$repo_dir/python/FindBHWindow.py" \
-          --inputfile "$repo_dir/run/fits/J100/run_481_3000_sixPar/PostFit_anaFit_sixPar_bkgOnly.root" \
-          --bkghist Run3TLA_rebinned/postfit --datahist Run3TLA_rebinned/data \
-          --outputjson "$work_dir/BHresults.json"
     '
 fi
 

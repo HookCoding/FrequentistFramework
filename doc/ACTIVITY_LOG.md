@@ -10486,3 +10486,154 @@ entry is the correction of record for all four.
 
 None. This is a self-audit and accuracy-correction pass over
 already-complete work, not a new chunk.
+
+---
+
+## 2026-09-07 — Address a third round of GitHub Copilot PR review findings (gate runner and its coverage tests)
+
+### Objective
+Respond to a third Copilot review round, which flagged three problems
+with `scripts/run_all_gates.sh` and its two coverage tests: a
+ROOT-independent gate trapped behind the ROOT-availability check, a
+gate that duplicates another gate's coverage while proving less, and
+coverage assertions that can pass on text that is not part of any
+pytest command. Each was verified directly against the real files
+before anything was changed; all three were real.
+
+### What changed
+
+- **Real gap, confirmed and fixed: the prepared-dependency gate was
+  skipped whenever ROOT setup failed.** It sat inside the
+  `else` branch of the ROOT-availability check, yet its two tests
+  (`tests/test_repo_utils.py`'s
+  `test_external_dependency_checkouts_match_pinned_revisions` and
+  `..._have_no_tracked_source_changes`) need no ROOT at all - read
+  directly, they call `git -C <dir> rev-parse HEAD`, `git status
+  --short --untracked-files=no` and `Path.is_dir()`, and nothing else.
+  They carry `requires_analysis_dependencies` because they need the
+  prepared *checkouts*, not a ROOT runtime. Leaving them behind that
+  check contradicted the script's own documented
+  "all gates still run - one broken gate doesn't hide another"
+  contract, and let a missing CVMFS mount mask a genuine
+  dependency-checkout failure. Moved it ahead of the ROOT check as
+  Gate 2, invoked with the script's already-selected `$python_bin`
+  rather than a sourced LCG Python. Proved by replacing
+  `scripts/setup_buildAndFit.sh` with a stub that fails: Gate 2
+  PASSED while Gates 3-5 hard-failed, where previously it would not
+  have run at all. The stub was then reverted and
+  `git diff`/`git status` confirmed the file byte-identical to HEAD.
+- **Real duplication, confirmed and removed: the "FindBHWindow.py
+  dedicated-interpreter gate" ran exactly what another gate already
+  ran.** Read against `tests/test_find_bh_window.py`'s own
+  `_run_find_bh_window_script()` helper: that marked end-to-end test -
+  which the plotting-layer gate already selects - sources the same
+  setup script, exports the same
+  `PYTHONPATH="$repo_dir/pyBumpHunter:$PYTHONPATH"`, invokes the same
+  ambient `python3 python/FindBHWindow.py` against the same committed
+  J100 `PostFit_anaFit_sixPar_bkgOnly.root` fixture with the same
+  `--bkghist`/`--datahist` values, and additionally asserts
+  `MaskMin == 595.0`, `MaskMax == 691.0`, `BlindRange == "595,691"`,
+  the presence of `pyBHresult`, and both output PNGs. The separate gate
+  asserted only an exit status, so it was strictly weaker as well as
+  redundant. Its name was also a misnomer: it used the ambient
+  interpreter, not the `pyBumpHunter/pyBH_env` one
+  `run_masking.run_bumphunter()` actually invokes in production (that
+  venv is confirmed broken here - missing `uproot` and `matplotlib` -
+  and is already recorded under Known limitations). Removed; the script
+  is now five gates, not six.
+- **Consequence of the above, corrected in the same pass**: with the
+  duplicate gate gone the script's five gates are once again exactly
+  the five test gates `.github/workflows/scientific-analysis.yml`
+  runs, so the "superset of that workflow's test gates" wording
+  introduced in `5699336` (itself the fix for an earlier "exactly what
+  CI runs" overclaim) is now obsolete. Reverted to a plain equality
+  claim in all four places, each still noting that the workflow
+  additionally runs submodule-checkout/`install.sh`/CVMFS-probe steps
+  the script does not: `scripts/run_all_gates.sh`'s header,
+  `doc/TIER1_SYSTEM.md`, `doc/TIER1_ENVIRONMENT_PROVENANCE.md` and
+  `README.md`.
+- **Real false-positive path, confirmed and fixed (the suppressed
+  finding): the coverage assertions searched whole-file text.** Both
+  gate-coverage tests compared selectors and filenames against the
+  entire comment-stripped file, so any occurrence - an `echo`, a
+  workflow `name:`, a variable assignment, an unrelated shell block -
+  satisfied them even after the real gate was deleted. Added
+  `_pytest_command_lines()`, which strips full-line comments, joins
+  backslash-continued lines into single logical lines, and keeps only
+  those logical lines that actually invoke pytest (`_PYTEST_INVOCATION`
+  matches `-m pytest` or a `pytest`/`.../bin/pytest` command word,
+  deliberately not a bare "pytest" substring, which appears in prose
+  and step names throughout both files). Both tests now assert against
+  that text alone. Each also passes a `non_pytest_sentinel` -
+  `"[run-all-gates]"` for the script, `"runs-on:"` for the workflow -
+  a string the source really contains but only outside any pytest
+  command; if it survives extraction the test fails immediately, so a
+  future over-permissive extractor cannot silently make every
+  assertion vacuous.
+  Proved in both directions. Sabotage: deleted Gate 3's real pytest
+  invocation while leaving `authoritative_setup_provides_scientific_runtime`
+  behind in an `echo` line. The new test failed with
+  `is missing a dedicated selector for these ... tests:
+  ['test_authoritative_setup_provides_scientific_runtime']`, while the
+  old substring logic, run against that same sabotaged file, reported
+  the selector "present" and would have passed - its only occurrence
+  being the echo line. Negative control: monkeypatching
+  `_pytest_command_lines` to return all non-comment text made the
+  sentinel assertion fire as designed. The script was then restored and
+  re-verified.
+- **Documentation**: the gate count went six -> five in
+  `README.md`, `doc/TIER1_SYSTEM.md`, `doc/TIER2_SYSTEM.md`,
+  `doc/TIER1_ENVIRONMENT_PROVENANCE.md` and `doc/TIER3_SYSTEM.md`, with
+  the two ROOT-free gates now described as always running first.
+  `doc/TIER3_SYSTEM.md`'s `### FindBHWindow.py dedicated-interpreter
+  gate` section became `### FindBHWindow.py manual reproduction command
+  (not a separate gate)`: the command is retained, because it is still
+  the useful hand-runnable form for debugging, but the section now
+  states plainly that the *automated* proof is
+  `tests/test_find_bh_window.py`'s marked test (run by the
+  plotting-layer gate and by CI), that the script deliberately does not
+  run the command as a gate, and that neither route exercises the
+  production `pyBumpHunter/pyBH_env` interpreter. Three further
+  references to it as a "gate" - in the gate-coverage summary, the
+  Known-limitations entry, and the Completion definition - were
+  repointed to that test.
+
+Deliberately **not** changed: `doc/TIER3_COMPLETION_PLAN.md`'s Chunk 18
+instruction to "Add the new `FindBHWindow.py` dedicated-interpreter gate
+command" records the plan as approved and executed, and the command it
+refers to still exists (renamed); rewriting a completed plan's own
+instructions to match a later refactor would misrepresent what was
+planned. This file's earlier entries describing a six-gate script are
+likewise left unedited per its append-only rule - they were accurate
+when written, and this entry is the correction of record.
+
+### Verification performed
+
+- `bash scripts/run_all_gates.sh`: exit code 0, all five gates PASSED -
+  lightweight (198 passed, 20 deselected); prepared-dependency (2
+  passed, 14 deselected, run before the ROOT check under the dev venv);
+  scientific runtime-readiness (1 passed, 2.56s); J100/J50 scientific
+  gate (1 passed, 72.45s); plotting-layer/hot-path real-ROOT gate (18
+  passed, 28 deselected, 50.44s).
+- ROOT-failure simulation (stubbed `scripts/setup_buildAndFit.sh`):
+  Gate 2 PASSED, Gates 3-5 reported the hard ROOT failure, script
+  exited 1; stub reverted and the file confirmed byte-identical to
+  HEAD. Gate 1 also failed in that simulation, as expected - the
+  lightweight gate contains its own test asserting that file's
+  authoritative content - which is itself a useful confirmation that
+  the file is guarded.
+- `python scripts/quality_check.py --mode full`: 198 passed, 20
+  deselected, Ruff clean, Black clean, exit code 0.
+- Both sabotage/negative-control experiments above, then restore and
+  re-run: `tests/test_repo_utils.py` 14 passed, 2 deselected.
+- `bash -n scripts/run_all_gates.sh`: syntax OK; file mode still 755.
+- `grep` for residual "dedicated-interpreter gate"/"six gates"/"Gate 6"
+  outside this log and `doc/TIER3_COMPLETION_PLAN.md`: none.
+- `grep -nE '[[:blank:]]+$'` across all changed files: clean.
+- `git diff --check`: clean.
+- CI: `5699336` (the preceding self-audit commit) concluded `success`.
+
+### Remaining open chunks
+
+None. This is a third review-response pass over already-complete work,
+not a new chunk.
