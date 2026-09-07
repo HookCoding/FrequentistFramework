@@ -404,7 +404,7 @@ specific functions that need them —
 like `FindBHWindow.py`'s own `matplotlib`/`uproot`/`pyBumpHunter`
 deferrals (Chunk 14). The remaining three — `ExtractFitParameters.py`
 (Chunk 15), `ExtractPostfitFromWS.py` (Chunk 16), and `PreFit.py`
-(Chunk 17, not yet executed) — keep a module-level `import ROOT` today,
+(Chunk 17) — keep a module-level `import ROOT` today,
 unlike `run_fit.py`'s own deferred `import ROOT`: there is no ROOT-free
 subset of these three files worth isolating by deferring the import
 (confirmed directly: `PreFit.py`'s `__init__` already touches

@@ -9585,3 +9585,129 @@ unchanged.
 - [x] This entry names Chunk 17 as now resolved; Chunk 18 (final
   documentation) remains the only open item in
   `doc/TIER3_COMPLETION_PLAN.md`.
+
+## 2026-09-04: Tier-3 refactoring — Chunk 18: documentation update for the extended scope
+
+### Objective
+
+Revise the three documents Chunks 13-17 touch (`doc/TIER3_COMPLETION_PLAN.md`,
+`doc/TIER3_SYSTEM.md`, `doc/TIER3_EXECUTION_TRACE.md`) so none of them
+still claims a narrower or "finished" scope than the repository actually
+has, per `doc/TIER3_COMPLETION_PLAN.md` Chunk 18's own required-contents
+list. Single commit, documentation only - no target function exists to
+characterize, matching Chunk 12's own precedent for this kind of chunk.
+
+### What changed
+
+- **`doc/TIER3_COMPLETION_PLAN.md`**: Section 0/3's extended-scope
+  language, Section 9's "Chunks 0 through 18" completion definition
+  (including the five files' final decomposition/test/registration
+  bullet and the `FindBHWindow.py`/`createBinning.py` scientific-gate
+  caveat), and Section 10's "nine named" scope-boundary text were all
+  already present from Chunks 13-17's own work - confirmed by re-reading
+  the document in full, not assumed. The one genuinely stale claim found
+  and fixed: Section 4.5's parenthetical "(Chunk 17, not yet executed)"
+  next to `PreFit.py`, now that Chunk 17 has landed.
+- **`doc/TIER3_SYSTEM.md`**: added a new, dated "Chunk 18 update
+  (2026-09-04)" paragraph directly after the existing same-day note that
+  anticipated it (Chunks 13-16 landed / PreFit.py not yet executed) -
+  the original note stays exactly as written, per this document's own
+  established practice of layering dated corrections rather than
+  editing prior text. Added: a matching dated paragraph under "Current
+  status" recording Chunks 13-18's own final gate numbers (196 passed,
+  20 deselected lightweight; 1 passed, 2 deselected, 182.11s scientific)
+  and the `FindBHWindow.py`/`createBinning.py` scientific-gate caveat; a
+  "Chunks 13-18" bullet in "Scope" plus correcting "four files" to
+  "nine" in its out-of-scope paragraph; a new "Module map: hot-path
+  support scripts" table (5 rows, built from the actual `def`/import
+  lines in all five production files, not from memory of the plan's own
+  target tables); 5 new "Test-file map" rows (built from each test
+  file's actual `@pytest.mark` lines); a new "FindBHWindow.py
+  dedicated-interpreter gate" subsection under "Gate commands" (the
+  literal command from `doc/TIER3_COMPLETION_PLAN.md` Section 7); 6 new
+  "Known limitations" entries (`ExtractPostfitFromWS.py`'s two
+  originally-named bugs now fixed plus the third, newly-found one still
+  preserved; `FindBHWindow.py`'s masked-path gate-coverage gap; the
+  `wsfile` double-meaning, cross-checked directly against
+  `python/run_fit.py`'s actual `FitParameterExtractor(wsfile=...)`/
+  `PostfitExtractor(wsfile=...)` call sites; `PreFit.py`'s 7-vs-10
+  fragility; `createBinning.py`'s unchecked `execute()` return code,
+  cross-referenced to `doc/TIER3_EXECUTION_TRACE.md` Section 5; the
+  `numpy`-stub technique, cross-checked directly that this repository's
+  dev venv has no `numpy` installed at all) plus correcting the same
+  stale "four files" bullet; the five new files added to "Authoritative
+  files"; and an "Extended (2026-09-04, Chunks 13-18)" paragraph added to
+  "Completion definition". Also corrected two passages that were not
+  merely historical but actively wrong as of today - the top-level title
+  and intro paragraph's implicit "four files only" framing, and a
+  "which file (`python/PreFit.py`) a real J100/J50 run still calls
+  outside the Tier 3 system" sentence that was flatly false the moment
+  Chunk 17 landed - both rewritten to state the current, extended scope
+  directly rather than left to stand uncorrected beside a dated note.
+- **`doc/TIER3_EXECUTION_TRACE.md`**: removed the sole remaining `(*)`
+  marker from Section 1's call-graph diagram (`python/PreFit.py`'s line)
+  and rewrote the legend paragraph beneath it to state plainly that no
+  file carries the marker any more; extended Section 2's "Also part of
+  the system" paragraph from "Chunks 13-16"/four files to "Chunks 13-17"/
+  all five, adding `PreFit.py`'s own detail (module-level `import ROOT`
+  retained, but its sampling/ranking logic isolated behind a plain
+  scoring-callable interface - this plan's first stub-free, ROOT-free
+  unit test of any piece of one of these five files' own logic); rewrote
+  Section 3 to drop the now-empty `python/PreFit.py` row entirely,
+  leaving only the always-out-of-scope, non-Python
+  `scripts/setup_buildAndFit.sh`, and revised its closing sentence to
+  state the boundary "is no longer something this document is proposing
+  to change; it has changed."
+
+### Verification performed
+
+- Every module-map/test-file-map fact was read directly from the actual
+  production and test files (`grep -n "^def "`/`@pytest.mark` lines
+  across all five files and their five test files) in this session, not
+  carried forward from the plan's own target tables or from memory.
+- `run_fit.py`'s two extractor call sites were grepped directly
+  (`FitParameterExtractor(wsfile=fitresultfile)` at line 168,
+  `PostfitExtractor(..., wsfile=fitresultfile, ...)` at lines 144-153)
+  to confirm the `wsfile` double-meaning claim before writing it.
+- `.venv/bin/python -c "import numpy"` run directly, confirming
+  `ModuleNotFoundError` before writing the numpy-stub Known Limitations
+  entry.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_COMPLETION_PLAN.md doc/TIER3_SYSTEM.md
+  doc/TIER3_EXECUTION_TRACE.md` → clean.
+- `git diff --check` → clean.
+- `git diff --stat` → exactly the three documents this chunk names,
+  zero production or test files touched.
+
+### Compliance review
+
+1. Chunk 18, single commit (documentation only - no Step A/Step B split
+   applies, matching Chunk 12's own precedent).
+2. Every required-contents item from Chunk 18's own list (Section 6) is
+   present in all three documents: extended-scope confirmation, the
+   dated superseding note (not a silent rewrite of the existing "all
+   twelve chunks" status line - that line stays exactly as written), the
+   new module-map table, the 5 new test-file-map rows, the 6 named Known
+   Limitations entries, the new `FindBHWindow.py` gate command, the
+   extended "Authoritative files"/"Completion definition", and Section
+   3's five-files-moved/`(*)`-markers-removed/boundary-sentence-revised
+   changes in `doc/TIER3_EXECUTION_TRACE.md`.
+3. No production or test code touched - `git diff --stat` shows only the
+   three named documents.
+4. Every factual claim was checked against the actual repository state
+   in this session before being written (see "Verification performed"),
+   not carried forward from possibly-stale earlier chunk text.
+5. The activity log's append-only rule was honored inside
+   `doc/TIER3_SYSTEM.md`/`doc/TIER3_EXECUTION_TRACE.md` too, in the same
+   spirit Chunk 18's own instruction asked for: existing dated notes and
+   the original "Current status"/Section 3 tables were superseded by new
+   dated paragraphs and table edits, not silently rewritten in place,
+   except where a passage was actively, factually wrong as of today (not
+   merely an old historical claim) - those two are called out explicitly
+   above rather than left standing uncorrected.
+6. Activity-log entry appended (this content), not a rewrite of any
+   existing section.
+
+### Remaining open chunks
+
+None. All eighteen chunks of `doc/TIER3_COMPLETION_PLAN.md` (0 through
+18, including both optional Chunks 16a and 16b) are complete.

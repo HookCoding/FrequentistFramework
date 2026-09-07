@@ -40,7 +40,7 @@ scripts/run_anaFit_J100.sh
         +-- run_templates.prepare_run_templates(...)
         |     +-- _stage_xml_templates(...)      [copies/edits the 4 XML templates]
         |           +-- doprefit=1, so: _seed_prefit_parameters(...)
-        |                 +-- from PreFit import PreFitter   <-- python/PreFit.py (*)
+        |                 +-- from PreFit import PreFitter   <-- python/PreFit.py
         |
         +-- run_fit.build_fit_extract(...)                    [called once for the global fit]
         |     +-- validates fitresultfile's "FitResult" basename contract
@@ -80,13 +80,14 @@ scripts/run_anaFit_J100.sh
         (reads PostFit_*.root / FitParameters_*.root, writes post_fit.pdf)
 ```
 
-`(*)` marks a file that does not (yet) follow the Tier 3 system
-(Section 3 below) — as of this update, only `python/PreFit.py` still
-carries this marker; `python/createBinning.py`, `ExtractFitParameters.py`,
-`ExtractPostfitFromWS.py`, and `FindBHWindow.py` were brought into the
-Tier 3 system by Chunks 13–16 (`doc/TIER3_COMPLETION_PLAN.md`) and moved
-to Section 2 below. `(!)` marks the one defect found and fixed while
-tracing (Section 5).
+**Update (2026-09-04): no file in this diagram carries a `(*)` marker any
+more.** All five files this document originally flagged as outside the
+Tier 3 system — `python/createBinning.py`, `python/FindBHWindow.py`,
+`python/ExtractFitParameters.py`, `python/ExtractPostfitFromWS.py`, and
+`python/PreFit.py` — were brought into it by Chunks 13–17
+(`doc/TIER3_COMPLETION_PLAN.md`) and are now described in Section 2
+below; none is listed in Section 3 any more. `(!)` marks the one defect
+found and fixed while tracing (Section 5).
 
 **Output artifacts of one unmasked sixPar/bkgOnly J100 run**, all under
 `$out_dir/J100/run_481_3000_sixPar/`:
@@ -109,56 +110,59 @@ small single-responsibility functions, each has a dedicated test file,
 and each is registered in `scripts/quality_check.py`'s `python_targets`/
 `test_targets`. Not repeated here - see `doc/TIER3_SYSTEM.md` directly.
 
-Also part of the system as of Chunks 13–16
+Also part of the system as of Chunks 13–17
 (`doc/TIER3_COMPLETION_PLAN.md`, 2026-09-04): `python/createBinning.py`
 (Chunk 13), `python/FindBHWindow.py` (Chunk 14),
-`python/ExtractFitParameters.py` (Chunk 15), and
-`python/ExtractPostfitFromWS.py` (Chunk 16). Each has a dedicated test
-file (`tests/test_create_binning.py`, `tests/test_find_bh_window.py`,
-`tests/test_extract_fit_parameters.py`,
-`tests/test_extract_postfit_from_ws.py` respectively) and is registered
-in `scripts/quality_check.py`. `createBinning.py` and `FindBHWindow.py`
-also defer their heavy imports (`ROOT`; `matplotlib`/`uproot`/
-`pyBumpHunter`) into the specific functions that need them, matching
-Section 4.5 of the completion plan; `ExtractFitParameters.py` and
-`ExtractPostfitFromWS.py` keep a module-level `import ROOT` (no ROOT-free
-subset was worth isolating in either). See `doc/TIER3_COMPLETION_PLAN.md`
-Chunks 13–16 and `doc/ACTIVITY_LOG.md`'s corresponding entries for the
-full detail not repeated here.
+`python/ExtractFitParameters.py` (Chunk 15),
+`python/ExtractPostfitFromWS.py` (Chunk 16), and `python/PreFit.py`
+(Chunk 17). Each has a dedicated test file (`tests/test_create_binning.py`,
+`tests/test_find_bh_window.py`, `tests/test_extract_fit_parameters.py`,
+`tests/test_extract_postfit_from_ws.py`, `tests/test_pre_fit.py`
+respectively) and is registered in `scripts/quality_check.py`.
+`createBinning.py` and `FindBHWindow.py` also defer their heavy imports
+(`ROOT`; `matplotlib`/`uproot`/`pyBumpHunter`) into the specific
+functions that need them, matching Section 4.5 of the completion plan;
+`ExtractFitParameters.py`, `ExtractPostfitFromWS.py`, and `PreFit.py`
+keep a module-level `import ROOT` (no ROOT-free subset was worth
+isolating in any of the three — confirmed for `PreFit.py` directly:
+`PreFitter.__init__` already touches `ROOT.Math.MinimizerOptions`/
+`ROOT.TRandom3` immediately). `PreFit.py`'s own decomposition went
+further than the other two module-level-`import ROOT` files despite
+that: `_build_candidate_functions()`/`_select_best_parameter_sets()`
+isolate its sampling/ranking logic behind a plain scoring-callable
+interface, which is what makes `tests/test_pre_fit.py` this plan's first
+stub-free, ROOT-free unit test of any piece of one of these five files'
+own logic. See `doc/TIER3_COMPLETION_PLAN.md` Chunks 13–17 and
+`doc/ACTIVITY_LOG.md`'s corresponding entries for the full detail not
+repeated here.
 
 ## 3. Files in this trace that do NOT follow the Tier 3 system
 
 `doc/TIER3_SYSTEM.md`'s own Scope section originally stated this
 boundary as covering exactly four files
 (`run_anaFit.py`/`plot_edm.py`/`plotPostFit.py`/`plot_postfit.cpp`), with
-"every other script under `python/`... remain[s] untouched." Chunks
-13-16 (`doc/TIER3_COMPLETION_PLAN.md`, 2026-09-04) closed that boundary
-for four of the five files this section originally listed - see Section
-2 above for where they moved. **One file on this hot path still sits
-outside the Tier 3 system**, per Chunk 17 (`PreFit.py`) not yet having
-executed:
+"every other script under `python/`... remain[s] untouched." That
+boundary is now closed: Chunks 13–17 (`doc/TIER3_COMPLETION_PLAN.md`,
+2026-09-04) brought all five files this section originally listed
+(`python/createBinning.py`, `python/FindBHWindow.py`,
+`python/ExtractFitParameters.py`, `python/ExtractPostfitFromWS.py`, and
+`python/PreFit.py`) into the Tier 3 system — see Section 2 above for
+where they moved. This is no longer something this document is
+proposing to change; it has changed. **Nothing on this hot path remains
+outside the Tier 3 system except the one file below, which was never
+one of the five and is not Python at all:**
 
-| File | Lines | Decomposition | Dedicated test file | Registered in `quality_check.py`? | Module-level `import ROOT`? |
-|---|---|---|---|---|---|
-| `python/PreFit.py` | 208 | One `PreFitter` class + a `main()` CLI wrapper (unused from this call path) | None | No | Yes |
-| `scripts/setup_buildAndFit.sh` | - | Shell, not Python - out of `quality_check.py`'s Python-only scope entirely | None of its own (only exercised indirectly, by being sourced inside other tests) | N/A (shell) | N/A |
+| File | Lines | Decomposition | Dedicated test file | Registered in `quality_check.py`? |
+|---|---|---|---|---|
+| `scripts/setup_buildAndFit.sh` | - | Shell, not Python - out of `quality_check.py`'s Python-only scope entirely | None of its own (only exercised indirectly, by being sourced inside other tests) | N/A (shell) |
 
-"No dedicated test file" is verified, not assumed: every mention of
-`PreFit`/`PreFitter` inside `tests/` is either (a) a `ModuleType`-stub
-monkeypatch used to isolate the Tier 3 module actually under test (e.g.
-`tests/test_run_templates.py`), or (b) a literal command-string
-assertion inside `tests/test_analysis_workflows_integration.py`'s
-end-to-end integration test, which exercises this file's real behavior
-only as an opaque subprocess, not as a unit under test. `PreFit.py` has
-no `tests/test_pre_fit.py` of its own the way every Tier 3 module does.
-
-This was a documented, deliberate scope boundary from
-`doc/TIER3_COMPLETION_PLAN.md`'s original Chunks 0-12 - not a surprise.
-Chunk 18 (final documentation) is the step that will retire this section
-entirely once Chunk 17 also lands, leaving nothing on this hot path
-outside the Tier 3 system except the shell setup script above (which is
-not Python, and out of `quality_check.py`'s scope by design, not by
-omission).
+This is a permanent, by-design exclusion, not a gap: `quality_check.py`
+only ever covered Python source and test files (Ruff/Black, then
+pytest), and this trace's own Section 1 confirms
+`scripts/setup_buildAndFit.sh` is sourced once, at the very top of the
+launcher, purely to configure the ROOT/RooFit environment and
+`PATH`/`LD_LIBRARY_PATH` for the `XMLReader`/`quickFit` binaries — it
+runs no analysis logic of its own for any dedicated test to exercise.
 
 ## 4. Different category: third-party code (not this repository's)
 
