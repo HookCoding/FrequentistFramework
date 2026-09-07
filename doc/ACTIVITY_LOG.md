@@ -9881,3 +9881,58 @@ None. This is a documentation-accuracy correction to an already-complete
 Tier 3, not a new chunk - and it required no new decomposition, test, or
 registration work, since `python/repo_utils.py` already met Tier 3's own
 standard before this plan began.
+
+## Fill in python/repo_utils.py's missing Test-file map row
+
+### Objective
+
+At the user's prompting ("are all of these files included in tier3
+system documentation"), systematically cross-checked every one of the
+17 files on the J100/J50 hot path (the nine Tier-3-decomposed files plus
+the eight already-decomposed coordinator/plotting files, plus
+`python/repo_utils.py`) against `doc/TIER3_SYSTEM.md`'s three canonical
+lookup tables/lists: "Module map" (x3), "Test-file map", and
+"Authoritative files". `python/repo_utils.py` was present in "Scope",
+"Known limitations", and "Authoritative files", but missing from the
+"Test-file map" table - the concrete table a reader would actually
+consult to answer "which test file exercises this."
+
+### What changed
+
+- `doc/TIER3_SYSTEM.md`'s "Test-file map" gains a `python/repo_utils.py`
+  row (`tests/test_repo_utils.py`), read directly from the test file's
+  own `@pytest.mark` lines rather than assumed: `find_repo_root()`/
+  `build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s
+  own tests need no ROOT or other heavy dependency, but two other,
+  unrelated tests in that same file (external Git-submodule-revision
+  checks - Tier 1/2's own installation policy, nothing to do with
+  `repo_utils.py`'s own functions) are separately marked
+  `requires_analysis_dependencies` - stated explicitly so the row isn't
+  a flat, misleading "No."
+- "Scope"'s `repo_utils.py` paragraph now names all four of its
+  functions explicitly (matching every other file's level of detail in
+  this document) and states which one is actually on the hot path.
+
+### Verification performed
+
+- `grep -c "<filename>" doc/TIER3_SYSTEM.md` for all 17 hot-path files:
+  every one has at least one mention.
+- `sed -n '/Test-file map/,/Gate commands/p' doc/TIER3_SYSTEM.md | grep -c "^| \`"`
+  -> 18 rows (17 files + `plot_postfit.cpp`'s `read_bumphunter_results()`
+  extra row) after this fix - was 17 before.
+- `sed -n '/Authoritative files/,/Change control/p' doc/TIER3_SYSTEM.md`
+  cross-checked line by line against the 17-file list: all present.
+- `grep -n "@pytest.mark" tests/test_repo_utils.py`: confirmed exactly 2
+  of 14 test functions are `requires_analysis_dependencies`, and read
+  both to confirm they check external submodule revisions, not
+  `repo_utils.py`'s own functions.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_SYSTEM.md`: clean.
+- `git diff --check`: clean.
+- `python scripts/quality_check.py --mode full`: 196 passed, 20
+  deselected, Ruff clean, Black clean (39 files unchanged), exit 0.
+- `git diff --stat`: `doc/TIER3_SYSTEM.md` only.
+
+### Remaining open chunks
+
+None. This is a documentation-completeness correction to an
+already-complete Tier 3, not a new chunk.
