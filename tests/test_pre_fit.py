@@ -356,9 +356,17 @@ class _FakeCandidateTF1:
             buf[i] = self._params[i]
 
     def Integral(self, _xMin, _xMax, _tol=1e-10):
-        # a fixed, nonzero value - only used as a divisor when computing
-        # each trial's p0 initial guess, never asserted on directly.
-        return 1.0
+        # Depends on the current parameters, as ROOT's real
+        # TF1::Integral does. This matters: _select_best_parameter_sets()
+        # calls Integral() while the parameters are still the freshly
+        # randomized ones, and *then* overwrites parameters 0-9 with
+        # fixed values (p0, 80, 10, 10, 2, 0, ...). p0 - computed from
+        # this return value - is therefore the only channel through
+        # which each trial's randomization reaches the score at all. A
+        # fake returning a constant here makes every trial score
+        # identically, which silently reduces the ranking assertions
+        # below to "the list is sorted", true of any five duplicates.
+        return 1.0 + sum(abs(p) for p in self._params)
 
 
 def _score_by_summed_abs_params(fitFunction) -> float:
@@ -380,6 +388,16 @@ def test_select_best_parameter_sets_ranks_and_bounds_output_and_is_deterministic
     nRetries2 = 5
 
     def _run():
+        # every score this run hands out, in trial order, so the ranking
+        # below is checked against the real population rather than only
+        # against itself
+        observed_scores: list[float] = []
+
+        def _scoring_spy(fitFunction):
+            score = _score_by_summed_abs_params(fitFunction)
+            observed_scores.append(score)
+            return score
+
         pf = _make_stubbed_prefitter(
             monkeypatch,
             xMin=481,
@@ -388,29 +406,114 @@ def test_select_best_parameter_sets_ranks_and_bounds_output_and_is_deterministic
             parRangeHigh=[1, 30, 30],
         )
         fitFunction = _FakeCandidateTF1(npar)
-        return pf._select_best_parameter_sets(
-            fitFunction,
-            integral=1.0,
-            score_fn=_score_by_summed_abs_params,
-            nRetries1=nRetries1,
-            nRetries2=nRetries2,
+        return (
+            pf._select_best_parameter_sets(
+                fitFunction,
+                integral=1.0,
+                score_fn=_scoring_spy,
+                nRetries1=nRetries1,
+                nRetries2=nRetries2,
+            ),
+            observed_scores,
         )
 
-    result = _run()
+    result, observed_scores = _run()
+
+    # Guard the test's own premise first: if the trials do not actually
+    # score differently, every ranking assertion below is vacuous - an
+    # implementation keeping any nRetries2 entries would pass. (They
+    # were in fact all identical until _FakeCandidateTF1.Integral() was
+    # made parameter-dependent; see the comment there.)
+    assert len(observed_scores) == nRetries1
+    assert len(set(observed_scores)) == nRetries1, (
+        "every trial scored identically, so this test cannot distinguish a real "
+        f"ranking from any {nRetries2} duplicates: {sorted(set(observed_scores))}"
+    )
 
     # nRetries1 (30) comfortably exceeds nRetries2 (5), so the initial
     # (inf, []) sentinel is guaranteed to be evicted by the end - the
     # returned list is exactly nRetries2 long, every entry finite, and
-    # sorted ascending by chi2 (bisect.insort's own contract).
+    # holds precisely the nRetries2 smallest scores of all nRetries1
+    # trials, in ascending order.
     assert len(result) == nRetries2
     chi2_values = [entry[0] for entry in result]
     assert all(math.isfinite(c) for c in chi2_values)
-    assert chi2_values == sorted(chi2_values)
-    for _chi2, pars in result:
+    assert chi2_values == sorted(observed_scores)[:nRetries2]
+
+    # Each retained parameter array really belongs to its own recorded
+    # chi2, not to some other trial: this scorer returns
+    # |p0| + |80| + |10|, and Fit()'s sampling loop overwrites
+    # parameters 1 and 2 with exactly 80 and 10 before scoring, so
+    # pars[0] must be chi2 - 90 for every entry. Five distinct arrays
+    # therefore also confirm p0 - the only parameter that varies at all
+    # here - was captured per trial rather than shared.
+    for chi2, pars in result:
         assert len(pars) == npar
+        assert pars[0] == pytest.approx(chi2 - 90.0, abs=1e-12)
+        assert pars[1] == 80
+        assert pars[2] == 10
+    assert len({tuple(pars) for _chi2, pars in result}) == nRetries2
 
     # determinism: an independent PreFitter/candidate pair built with the
     # same seed reproduces an identical ranked result.
-    result2 = _run()
+    result2, observed_scores2 = _run()
     assert [c for c, _ in result] == [c for c, _ in result2]
     assert [list(p) for _, p in result] == [list(p) for _, p in result2]
+    assert observed_scores == observed_scores2
+
+
+def test_select_best_parameter_sets_keeps_the_exact_minima_of_a_scripted_score_sequence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The sharpest available check on the array/bisect bookkeeping
+    # Chunk 17.B extracted: hand _select_best_parameter_sets() a known,
+    # deliberately unsorted score sequence - with the global minimum
+    # last and the maximum first, so any "keep the first N" or "keep the
+    # last N" implementation is ruled out - and assert it returns
+    # exactly the nRetries2 smallest, ascending. Unlike the test above,
+    # this asserts against values chosen in advance rather than against
+    # whatever the seeded randomization happened to produce.
+    nRetries2 = 4
+    scripted_scores = [
+        99.0,
+        12.0,
+        45.5,
+        3.0,
+        45.4,
+        8.0,
+        61.0,
+        3.5,
+        70.0,
+        12.5,
+        30.0,
+        1.0,
+    ]
+    expected = sorted(scripted_scores)[:nRetries2]
+    assert expected == [1.0, 3.0, 3.5, 8.0]
+    # sanity: the population really is unsorted at both ends
+    assert scripted_scores[0] == max(scripted_scores)
+    assert scripted_scores[-1] == min(scripted_scores)
+
+    remaining = list(scripted_scores)
+
+    def _scripted_score(_fitFunction) -> float:
+        return remaining.pop(0)
+
+    pf = _make_stubbed_prefitter(
+        monkeypatch,
+        xMin=481,
+        xMax=3000,
+        parRangeLow=[1, -30, -30],
+        parRangeHigh=[1, 30, 30],
+    )
+
+    result = pf._select_best_parameter_sets(
+        _FakeCandidateTF1(3),
+        integral=1.0,
+        score_fn=_scripted_score,
+        nRetries1=len(scripted_scores),
+        nRetries2=nRetries2,
+    )
+
+    assert not remaining, "score_fn was not called exactly nRetries1 times"
+    assert [chi2 for chi2, _pars in result] == expected

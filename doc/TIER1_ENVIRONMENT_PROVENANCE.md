@@ -18,8 +18,8 @@ Dependency records:
 
 Latest full lightweight gate:
 
-- 218 collected;
-- 198 passed;
+- 220 collected;
+- 200 passed;
 - 20 dependency tests deselected;
 - 0 expected failures;
 - Ruff and Black passed;
@@ -105,7 +105,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -k authoritative_setup_provides_scientific_runtime -v
 ```
 
-Latest runtime-readiness result: 1 passed, 2 deselected, 2.62 seconds, exit code 0.
+Latest runtime-readiness result: 1 passed, 2 deselected, 2.27 seconds, exit code 0.
 
 Scientific characterization:
 
@@ -114,7 +114,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest scientific result: 1 passed, 2 deselected, 73.22 seconds, exit code 0.
+Latest scientific result: 1 passed, 2 deselected, 74.68 seconds, exit code 0.
 
 ## Run every gate in one command
 

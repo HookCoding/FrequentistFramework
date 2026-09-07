@@ -10637,3 +10637,131 @@ when written, and this entry is the correction of record.
 
 None. This is a third review-response pass over already-complete work,
 not a new chunk.
+
+---
+
+## 2026-09-07 — Address a fourth round of GitHub Copilot PR review findings (gate extractor anchoring, vacuous ranking assertions)
+
+### Objective
+Respond to a fourth Copilot review round: the pytest-command extractor
+added in `2e03d2c` was unanchored and therefore still accepted echoed
+commands - the exact false positive it was introduced to prevent - and
+`tests/test_pre_fit.py`'s ranking test scored every trial identically,
+making its ranking assertions vacuous. Both were verified empirically
+before anything changed; both were real.
+
+### What changed
+
+- **Real false positive, confirmed and fixed: `_PYTEST_INVOCATION` was
+  unanchored.** The previous pattern
+  `(?:-m\s+pytest|(?:^|[\s/])pytest)(?:\s|$)` searched anywhere in a
+  logical line, so
+  `echo "python -m pytest tests/test_pre_fit.py -v"` and a workflow
+  `- name:` mentioning the command both matched. The sabotage
+  experiment run for `2e03d2c` happened not to expose this because the
+  echo it inserted (`skipping authoritative_setup...`) contained no
+  `-m pytest`; a fuller sabotage does. Reproduced directly: deleted
+  Gate 3's real invocation from `scripts/run_all_gates.sh` and left the
+  *entire* command text inside an `echo`. The old pattern classified
+  that echo as a pytest command, so the coverage check would still have
+  reported the gate covered; the new anchored pattern makes the test
+  fail with
+  `missing a dedicated selector ... ['test_authoritative_setup_provides_scientific_runtime']`.
+  Replaced with a pattern anchored at the command position of the
+  logical line, accepting `python`/`python3`/`python3.9`,
+  `/path/to/python`, `"$python_bin"`, a bare `pytest`/`.../bin/pytest`,
+  and any of those behind this script's own `run_gate "<description>"`
+  wrapper. Verified against both real files: 4 pytest invocations
+  matched in `scripts/run_all_gates.sh` and 4 in
+  `.github/workflows/scientific-analysis.yml` - every real one, no
+  echoes.
+- **Added the echo-line regression test Copilot asked for**:
+  `test_pytest_command_lines_ignores_echoed_commands()` asserts
+  `_pytest_command_lines()` returns nothing for a block containing an
+  `echo`ed command, a single-quoted `echo`, a commented-out command, a
+  `step_name=` assignment and a `printf`, and that all five genuine
+  invocation shapes are still recognised with backslash continuations
+  joined. This pins the helper's contract directly rather than leaving
+  it to a manual sabotage experiment.
+- **Real vacuous assertion, confirmed and fixed: every trial in the
+  ranking test scored identically.** `_FakeCandidateTF1.Integral()`
+  returned a constant `1.0`, and `_select_best_parameter_sets()` calls
+  `Integral()` and then overwrites parameters 0-9 with fixed values
+  (`p0`, 80, 10, ...) before scoring - so `p0 = Exp(integral/1.0)` was
+  constant and the summed-abs-params score was identical for all 30
+  trials. Measured directly before the fix: **1 distinct score across
+  30 trials** (92.71828...), and all five returned parameter arrays
+  identical. `chi2_values == sorted(chi2_values)` was therefore
+  trivially true, and an implementation keeping any five duplicates
+  would have passed. Fixed at the root cause: `Integral()` now depends
+  on the current parameters, as ROOT's real `TF1::Integral` does - and
+  since `_select_best_parameter_sets()` calls it while the parameters
+  are still the freshly randomized ones, `p0` is in fact the only
+  channel through which each trial's randomization reaches the score at
+  all. Measured after: **30 distinct scores across 30 trials**.
+- **Strengthened the ranking assertions to match.** The test now spies
+  on every score handed out and asserts: all `nRetries1` scores are
+  distinct (guarding the test's own premise, with an explicit failure
+  message naming the vacuousness if they ever collapse again); the
+  returned chi2 list equals `sorted(observed_scores)[:nRetries2]`
+  exactly, not merely "is sorted"; each retained parameter array
+  belongs to its own recorded chi2 (`pars[0] == chi2 - 90`, since the
+  scorer returns `|p0| + |80| + |10|` and the loop writes exactly 80
+  and 10 into parameters 1 and 2 before scoring); and all five arrays
+  are distinct. The determinism half additionally asserts the whole
+  observed score sequence reproduces.
+- **Added the scripted-sequence test Copilot suggested as the
+  alternative**:
+  `test_select_best_parameter_sets_keeps_the_exact_minima_of_a_scripted_score_sequence()`
+  feeds a known, deliberately unsorted 12-value sequence - global
+  maximum first, global minimum last, so "keep the first N" and "keep
+  the last N" are both ruled out - and asserts the returned four chi2
+  values are exactly `[1.0, 3.0, 3.5, 8.0]`, plus that `score_fn` was
+  called exactly `nRetries1` times. This checks the extracted
+  `bisect.insort`/`pop` bookkeeping against values chosen in advance
+  rather than against whatever the seeded randomization produced.
+- **Refreshed every gate figure the two new tests changed**, since
+  leaving them would have re-introduced exactly the staleness audited
+  earlier today: lightweight gate `218 collected/198 passed` ->
+  `220 collected/200 passed` in `doc/TIER1_SYSTEM.md`,
+  `doc/TIER2_SYSTEM.md`, `doc/TIER1_ENVIRONMENT_PROVENANCE.md` and
+  `doc/TIER3_SYSTEM.md`; prepared-dependency gate `2 passed, 14
+  deselected` -> `15 deselected`; the plotting-layer files' unfiltered
+  count `46` -> `47` and its marker-filtered `28 deselected` -> `29`;
+  and the per-gate timings to this run's real measurements (2.27s
+  runtime-readiness, 74.68s scientific, 59.06s unfiltered
+  plotting-layer). The `47 passed` figure was re-measured for real
+  under a sourced CVMFS/LCG runtime rather than inferred from the
+  collection count.
+
+### Verification performed
+
+- `bash scripts/run_all_gates.sh`: exit code 0, all five gates PASSED -
+  lightweight (200 passed, 20 deselected); prepared-dependency (2
+  passed, 15 deselected); scientific runtime-readiness (1 passed,
+  2.27s); J100/J50 scientific gate (1 passed, 74.68s);
+  plotting-layer/hot-path real-ROOT gate (18 passed, 29 deselected,
+  51.55s).
+- Real-ROOT, unfiltered: the plotting-layer gate's 8 files with no `-m`
+  filter - 47 passed in 59.06s.
+- `python scripts/quality_check.py --mode full`: 220 collected, 200
+  passed, 20 deselected, Ruff clean, Black clean, exit code 0.
+- Empirical before/after on the ranking test: 1 distinct score in 30
+  trials before, 30 distinct after; the retained five confirmed equal
+  to the five smallest observed, with `pars[0] == chi2 - 90` holding
+  for each.
+- Echo-form sabotage reproduced and the old pattern shown to accept it,
+  the new pattern shown to reject it, then `scripts/run_all_gates.sh`
+  restored and confirmed identical to its committed state.
+- Anchored pattern checked against both real files: 4 genuine pytest
+  invocations matched in each, no echo or step-name lines.
+- `grep` for residual `218`/`198 passed`/`14 deselected`/`28
+  deselected`/`46 passed`/`2.62`/`73.22` outside this log: none.
+- `grep -nE '[[:blank:]]+$'` across all changed files: clean.
+- `git diff --check`: clean.
+- CI: `2e03d2c` (the preceding commit) concluded `success`.
+
+### Remaining open chunks
+
+None. This is a fourth review-response pass over already-complete work,
+not a new chunk.

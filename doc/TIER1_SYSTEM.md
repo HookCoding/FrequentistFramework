@@ -169,8 +169,8 @@ python scripts/quality_check.py --mode full
 
 Latest verified result:
 
-- 218 collected;
-- 198 passed;
+- 220 collected;
+- 200 passed;
 - 20 prepared-dependency tests deselected;
 - 0 expected failures;
 - Ruff and Black passed;
@@ -183,7 +183,7 @@ python -m pytest tests/test_repo_utils.py \
   -m "requires_analysis_dependencies" -v
 ```
 
-Latest result: 2 passed, 14 deselected, exit code 0.
+Latest result: 2 passed, 15 deselected, exit code 0.
 
 ### Scientific runtime readiness
 
@@ -192,7 +192,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -k authoritative_setup_provides_scientific_runtime -v
 ```
 
-Latest result: 1 passed, 2 deselected, 2.62 seconds, exit code 0.
+Latest result: 1 passed, 2 deselected, 2.27 seconds, exit code 0.
 
 ### Executable characterization gate
 
@@ -201,7 +201,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest result: 1 passed, 2 deselected, 73.22 seconds, exit code 0.
+Latest result: 1 passed, 2 deselected, 74.68 seconds, exit code 0.
 
 ### Run every gate in one command
 

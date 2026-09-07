@@ -287,11 +287,23 @@ def _strip_full_line_comments(text: str) -> str:
     return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
 
 
-# Matches a real pytest invocation: `python -m pytest`, `python3 -m
-# pytest`, `$python_bin -m pytest`, or a bare `pytest`/`.../bin/pytest`
-# command word. Deliberately not a bare "pytest" substring - the word
-# appears in prose, step names and echo lines all over both files.
-_PYTEST_INVOCATION = re.compile(r"(?:-m\s+pytest|(?:^|[\s/])pytest)(?:\s|$)")
+# Matches a real pytest invocation, anchored at the *command position*
+# of a logical line: `python -m pytest`, `python3.9 -m pytest`,
+# `/path/to/python -m pytest`, `"$python_bin" -m pytest`, a bare
+# `pytest`/`.../bin/pytest`, and any of those behind this script's own
+# `run_gate "<description>"` wrapper. Anchoring is the whole point: an
+# unanchored search for `-m pytest` also matches
+# `echo "python -m pytest tests/test_pre_fit.py"` and a workflow
+# `- name:` mentioning the command, so deleting a real gate while
+# leaving its text in an echo would still have satisfied the coverage
+# assertions below - exactly the false positive this helper exists to
+# prevent. test_pytest_command_lines_ignores_echoed_commands() below is
+# the regression test for that.
+_PYTEST_INVOCATION = re.compile(
+    r'^(?:run_gate\s+"[^"]+"\s+)?'
+    r'(?:(?:"?\$python_bin"?)|(?:\S*/)?python\d*(?:\.\d+)*)\s+-m\s+pytest(?:\s|$)'
+    r"|^(?:\S*/)?pytest(?:\s|$)"
+)
 
 
 def _pytest_command_lines(text: str) -> str:
@@ -401,6 +413,42 @@ def _assert_covers_every_dependency_marked_test(
         f"{source_description} is missing these requires_analysis_dependencies "
         f"test files: {missing_files}"
     )
+
+
+def test_pytest_command_lines_ignores_echoed_commands() -> None:
+    # Direct regression test for _pytest_command_lines()'s own contract,
+    # so the two coverage tests below cannot quietly become vacuous. The
+    # failure this pins down is specific: if a gate's real pytest
+    # invocation is deleted but its command text survives in an echo,
+    # a workflow step name or a comment, the coverage checks must stop
+    # seeing that gate as covered.
+    sabotaged = """
+        echo "python -m pytest tests/test_pre_fit.py -k some_selector -v"
+        echo '[run-all-gates] skipping python -m pytest tests/test_repo_utils.py'
+        # python -m pytest tests/test_create_binning.py -v
+        step_name="run python -m pytest tests/test_find_bh_window.py"
+        printf '%s\\n' "python -m pytest tests/test_plot_post_fit.py"
+    """
+    assert _pytest_command_lines(sabotaged) == ""
+
+    # ...while every real invocation shape actually used by
+    # scripts/run_all_gates.sh and the CI workflow is still recognised,
+    # including backslash-continued argument lists.
+    genuine = """
+        run_gate "prepared-dependency gate" "$python_bin" -m pytest tests/test_repo_utils.py \\
+          -m "requires_analysis_dependencies" -v
+        python -m pytest tests/test_analysis_workflows_integration.py \\
+          -k authoritative_setup_provides_scientific_runtime -v
+        python3 -m pytest tests/test_pre_fit.py -v
+        /usr/bin/python3.9 -m pytest tests/test_create_binning.py -v
+        pytest tests/test_find_bh_window.py -v
+    """
+    recognised = _pytest_command_lines(genuine).splitlines()
+    assert len(recognised) == 5, recognised
+    # continuation joining really happened, so a selector on the second
+    # physical line still counts as part of the same command
+    assert any('-m "requires_analysis_dependencies" -v' in line for line in recognised)
+    assert any("-k authoritative_setup_provides_scientific_runtime" in line for line in recognised)
 
 
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:
