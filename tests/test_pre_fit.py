@@ -25,7 +25,7 @@ _FIXTURE_DATAHIST = "hists_yStar06_rejectEta_10_16/afterSelection/nominal/h_mjj"
 # chunks' extractor classes, though, Chunk 17's two new private helpers
 # (_build_candidate_functions()/_select_best_parameter_sets()) *are*
 # testable against a fully-stubbed sys.modules["ROOT"] instead - see the
-# fast, ROOT-free tests near the bottom of this file for why.
+# fast, ROOT-stubbed tests near the bottom of this file for why.
 #
 # Fixture used, read directly from run_templates.py:86-96 and
 # scripts/run_anaFit_J100.sh: the already-committed
@@ -184,7 +184,7 @@ print("SNIPPET_OK")
 
 
 # --- _build_candidate_functions()/_select_best_parameter_sets(): ----------
-# --- fast, ROOT-free unit tests -------------------------------------------
+# --- fast, ROOT-stubbed unit tests -----------------------------------------
 #
 # This repository's first fast, ROOT-stubbed unit test of any piece of
 # PreFit.py's own logic. Both new private methods are exercised against

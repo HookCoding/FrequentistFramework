@@ -251,14 +251,23 @@ class PreFitter:
             fitFunction, integral, lambda fn: h.Chisquare(fn), self.nRetries1, self.nRetries2
         )
 
+        # Matches the pre-refactor Fit(): the fitting-phase stopwatch used
+        # to be the same `w` as the sampling phase's, restarted
+        # (w.Reset(); w.Start()) immediately after the sampling phase's
+        # own w.Print() - i.e. before the "Starting fit" banner and the
+        # bestChi2/bestPars buffer setup below, not after. Now that
+        # sampling owns its own stopwatch inside
+        # _select_best_parameter_sets(), starting this one here
+        # (immediately after that method returns) reproduces the exact
+        # same interval instead of also timing the banner/setup below.
+        w = ROOT.TStopwatch()
+        w.Start()
+
         print("==================")
         print("Starting fit of %d best samples" % self.nRetries2)
 
         bestChi2 = float("inf")
         bestPars = array.array("d", [0] * fitFunction.GetNpar())
-
-        w = ROOT.TStopwatch()
-        w.Start()
 
         for i in range(self.nRetries2):
             fitFunction.SetParameters(best_chi2Pars[i][1])

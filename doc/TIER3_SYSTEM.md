@@ -218,11 +218,18 @@ not support one.
 | `python/ExtractPostfitFromWS.py` | Free functions `getNPars(pdf, obs, exclSyst)`/`expHist(h)`/`getChi2(extractor, channelname, npars, useSumW2=False)` (`getChi2`'s external mutation of the `extractor` it's passed is preserved exactly); `PostfitExtractor.__init__`; `._open_workspace_and_data()`; `._build_channel_postfit_histogram(pdfi, x, channelname, npars, data)`; `._build_bkgonly_variant(w, channelname, x, hpdf, nBins, binEdges, npars)`; `._apply_external_rebinning(channelname, channelname_bkg, npars)`; `.Extract()` (orchestrator); `.WriteRoot(outfile, dirPerCategory=False)`; the 8 accessors (`GetChi2`/`GetNbins`/`GetNpars`/`GetNdof`/`GetPval`/`GetH1Chi2`/`GetH1Postfit`/`GetH1Residuals`); `.GetCategories()`; `main(args)` | `Extract()` (137 lines, the largest method across all nine files) decomposes into the four private helpers; `WriteRoot()`/the 8 accessors/`GetCategories()` stay undecomposed one-liners. |
 | `python/PreFit.py` | `PreFitter.__init__`; `.RandomizeParameters(function)`; `._build_candidate_functions()`; `._select_best_parameter_sets(fitFunction, integral, score_fn, nRetries1, nRetries2)`; `.Fit()` (orchestrator); `main(args)` | `_select_best_parameter_sets()` takes a `score_fn` callable (`Fit()` passes a `lambda fn: h.Chisquare(fn)` closure) instead of the data histogram itself, so it never touches the data histogram directly - it still calls `ROOT.TStopwatch`/`ROOT.TMath` for timing and the `Exp`/`Log` initial-guess math, which is what makes `tests/test_pre_fit.py` a histogram-independent, ROOT-stubbed unit test of this file's own logic rather than a fully ROOT-free one. |
 
-All five import-placement/testing-tier decisions above follow the same
-two-tier approach used elsewhere in this document: a
-`sys.modules`-stubbed fast tier plus a real, marked
+These five files' fast tiers are not all the same shape, and one has no
+fast tier at all - each still pairs with the same real, marked
 `requires_root`+`requires_analysis_dependencies` subprocess/fixture
-tier.
+tier, but only where a fast tier exists: `createBinning.py`'s fast
+fragment (`resolve_bin_edges()`) is genuinely ROOT-free at call scope,
+needing no stub; `FindBHWindow.py`'s fast fragments are `numpy`-only,
+reached by deferring every heavy import rather than by stubbing
+`sys.modules["ROOT"]`; `ExtractFitParameters.py` and `PreFit.py` each
+add a `sys.modules["ROOT"]`-stubbed fast tier; `ExtractPostfitFromWS.py`
+has no fast tier - its decomposition only produced private helpers that
+still need a real workspace/histogram, so every one of its tests is the
+real, marked tier.
 
 ### Design notes
 

@@ -10268,3 +10268,73 @@ value.
 
 None. This is a review-response pass over already-complete work, not a
 new chunk.
+
+---
+
+## 2026-09-07 — Address a second round of GitHub Copilot PR review findings (Chunk 17)
+
+### Objective
+Respond to a further Copilot review round on the same open PR, which
+flagged a real behavior-preservation regression in the refactored
+`Fit()` plus a few leftover "ROOT-free" wording inaccuracies missed by
+the previous review-response commit.
+
+### What changed
+
+- **Real bug, confirmed by diffing against the pre-Chunk-17 source
+  (`git show dab5cbd^:python/PreFit.py`) and fixed**: the original
+  `Fit()` reused one `TStopwatch` for both phases, restarting it
+  (`w.Reset(); w.Start()`) immediately after the sampling phase's own
+  `w.Print()` - i.e. *before* the "Starting fit of %d best samples"
+  banner and the `bestChi2`/`bestPars` buffer setup. After Chunk 17
+  moved the sampling phase into `_select_best_parameter_sets()` (which
+  now owns its own stopwatch), the fitting-phase stopwatch in `Fit()`
+  was constructed and started *after* that banner and buffer setup
+  instead - a small but real, observable timing-output regression
+  (`w.Print()`'s reported interval no longer covers the same span).
+  Moved the new stopwatch's construction/`Start()` back to immediately
+  after `_select_best_parameter_sets()` returns, matching the original
+  interval exactly. Verified with the real-ROOT fixture test that fit
+  results (`bestPars`, `nbkg`) are unaffected, as expected (timing
+  never entered any assertion).
+- **Documentation-accuracy fixes** (no behavior change), all leftover
+  from the previous review-response commit's "stub-free" -> "ROOT-stubbed"
+  pass: `tests/test_pre_fit.py`'s two remaining "ROOT-free" mentions
+  (a cross-reference comment and a section-heading comment for the same
+  two tests already described accurately a few lines below) renamed to
+  "ROOT-stubbed" for internal consistency. `doc/TIER3_SYSTEM.md`'s
+  summary sentence claiming all five hot-path-support files "follow the
+  same two-tier approach... a sys.modules-stubbed fast tier plus a
+  real... tier" was checked against its own Test-file map and found
+  false: `ExtractPostfitFromWS.py` has no fast tier at all (every one
+  of its tests is real-ROOT, confirmed - none of its 5
+  `requires_analysis_dependencies`-marked tests print in the
+  lightweight gate's dot output), and `createBinning.py`/
+  `FindBHWindow.py`'s fast fragments are reached by deferred imports
+  (ROOT-free / numpy-only respectively), not by `sys.modules["ROOT"]`
+  stubbing. Rewrote the sentence to describe each file's actual shape
+  instead of asserting a uniform pattern.
+
+### Verification performed
+
+- `python scripts/quality_check.py --mode full`: 198 passed, 20
+  deselected, Ruff clean, Black clean, exit code 0.
+- Real-ROOT: `python -m pytest tests/test_pre_fit.py -m
+  "requires_analysis_dependencies" -v` (2 passed) - confirms the
+  stopwatch reorder does not change `bestPars`/`nbkg`.
+- Read `tests/test_extract_fit_parameters.py` directly to confirm its
+  fast tier does use a `sys.modules["ROOT"]` stub (2 tests, the
+  `GetNsig`/`GetNsigErr` falsiness-quirk regression), and confirmed via
+  the lightweight gate's own dot-per-file output that
+  `test_extract_postfit_from_ws.py` contributes zero dots (all 5 of its
+  tests are `requires_analysis_dependencies`-marked, none fast) before
+  rewriting the summary sentence.
+- `grep -nE '[[:blank:]]+$'` across all changed files: clean.
+- `git diff --check`: clean.
+- `git diff --stat`: `python/PreFit.py`, `tests/test_pre_fit.py`,
+  `doc/TIER3_SYSTEM.md`.
+
+### Remaining open chunks
+
+None. This is a second review-response pass over already-complete
+work, not a new chunk.
