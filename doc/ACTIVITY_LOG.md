@@ -10338,3 +10338,151 @@ the previous review-response commit.
 
 None. This is a second review-response pass over already-complete
 work, not a new chunk.
+
+---
+
+## 2026-09-07 — Self-audit of the review-response commits: four accuracy defects found and fixed
+
+### Objective
+The user asked for a critical evaluation of the three preceding
+2026-09-07 commits (`12a17e1`, `fde3006`, `b4b9d36`) - whether the
+documentation actually matches the changes made, and whether those
+changes were effective - rather than taking the commits' own
+verification claims at face value. Effectiveness was confirmed by
+re-running everything; four documentation/behaviour defects were found
+in the process, three of them introduced or left behind by the very
+commits meant to fix accuracy. This entry records both halves.
+
+### Effectiveness re-verified (independently, not from prior claims)
+
+- `bash scripts/run_all_gates.sh`: exit code 0, all six gates PASSED -
+  lightweight (218 collected, 198 passed, 20 deselected, Ruff/Black
+  clean); scientific runtime-readiness (1 passed, 2.13s); J100/J50
+  scientific gate (1 passed, 71.34s); plotting-layer/hot-path real-ROOT
+  gate (18 passed, 28 deselected, 46.70s); prepared-dependency gate (2
+  passed, 14 deselected); `FindBHWindow.py` dedicated-interpreter gate
+  (global p-value 0.0334, mask window 595,691). `git status --short`
+  clean afterward. The runtime-readiness gate that `fde3006` added
+  therefore does run, which was the point of that fix.
+- The `tests/test_pre_fit.py` stub-order fix works: running
+  `test_select_best_parameter_sets_ranks_and_bounds_output_and_is_deterministic`
+  before `test_build_candidate_functions_returns_ten_linear_and_ten_log_candidates`
+  by explicit node ID (the order that failed before the fix) now gives
+  2 passed.
+- The documented gate figures are exact, and the deselection count
+  reconciles: 22 `requires_analysis_dependencies` markers exist across
+  `tests/`, minus the 2 in `tests/test_analysis_workflows_integration.py`
+  (deliberately absent from `scripts/quality_check.py`'s `test_targets`),
+  giving the documented 20 deselected.
+- `doc/TIER3_SYSTEM.md`'s rewritten five-file fast-tier paragraph is
+  accurate on tier *shape*: fast (unmarked) test counts per file are 6
+  (`createBinning`), 11 (`FindBHWindow`), 2 (`ExtractFitParameters`), 0
+  (`ExtractPostfitFromWS`), 2 (`PreFit`), and only
+  `tests/test_extract_fit_parameters.py` and `tests/test_pre_fit.py`
+  contain `sys.modules["ROOT"]` stubs.
+- CI: `12a17e1`, `fde3006` and `b4b9d36` all concluded `success` (the
+  last confirmed directly against its own run record, run
+  34123857025, rather than from a polling script).
+
+### What changed (the four defects)
+
+- **`python/PreFit.py`: one line of stdout that the pre-refactor code
+  never printed.** Chunk 17.B added a `print("==================")`
+  between the sampling phase and the "Starting fit of %d best samples"
+  banner. The pre-refactor `Fit()` went straight from the sampling
+  phase's own `w.Print()` to that banner, printing exactly one divider
+  for the whole transition - confirmed twice over, from
+  `git show dab5cbd^:python/PreFit.py` and from the untouched
+  near-duplicate `python/PreFitWS.py:119-127`, which still carries the
+  original shape. Chunk 17's premise is verbatim behaviour
+  preservation, and `b4b9d36` corrected the stopwatch placement *in
+  this same region* without noticing the added line. Removed; the two
+  files' `print(...)` sets are now identical. Nothing parses this
+  output (checked across `.py`/`.sh`/`.cpp`), so the practical impact
+  was cosmetic.
+- **The "exactly what CI runs" claim was false, in four places.**
+  `scripts/run_all_gates.sh`'s header, `doc/TIER1_SYSTEM.md`,
+  `doc/TIER1_ENVIRONMENT_PROVENANCE.md` and `README.md` all stated the
+  script runs exactly what `.github/workflows/scientific-analysis.yml`
+  runs. It does not: that workflow has five gate steps and no
+  `FindBHWindow.py` dedicated-interpreter step, while the workflow in
+  turn runs submodule-checkout, `install.sh --check`/`--build` and
+  CVMFS-probe steps the script does not. Reworded all four to say the
+  first five gates match and the script is a deliberate superset of the
+  workflow's test gates. Also recorded, in the script's own header,
+  that nothing enforces gate-*step* parity between script and workflow:
+  the two `tests/test_repo_utils.py` coverage tests compare which test
+  *files* each references, and `tests/test_find_bh_window.py` is
+  already referenced by Gate 4, so deleting Gate 6 outright would not
+  fail any test. This is the same class of gap Copilot found in
+  `fde3006`, inverted.
+- **Two stale gate enumerations missed by `fde3006`.** That commit
+  added the runtime-readiness gate and updated
+  `doc/TIER1_SYSTEM.md`'s "three gates above" to "four", but
+  `doc/TIER3_SYSTEM.md`'s parallel "Runs every gate below in sequence -
+  ..." list and `README.md`'s equivalent sentence both still enumerated
+  the old five gates, omitting runtime-readiness. `doc/TIER3_SYSTEM.md`
+  also named the prepared-dependency gate as being "below" when that
+  document has no such section. Both updated to six gates, with
+  `doc/TIER3_SYSTEM.md` now pointing at `doc/TIER1_SYSTEM.md` for the
+  two gates documented there rather than in it. `doc/TIER2_SYSTEM.md`'s
+  own enumeration was incomplete in the same way and was extended to
+  six.
+- **`doc/TIER3_SYSTEM.md` overclaimed the `requires_root` marker, in
+  two places.** `b4b9d36`'s rewrite fixed the false "all five share one
+  `sys.modules`-stubbed fast tier" claim but carried over the old
+  sentence's assertion that each file "pairs with the same real, marked
+  `requires_root`+`requires_analysis_dependencies` ... tier".
+  `tests/test_find_bh_window.py` has zero `requires_root` markers: its
+  one marked test carries `requires_analysis_dependencies` alone, with
+  a source comment at `tests/test_find_bh_window.py:324` stating why
+  (`FindBHWindow.py` imports `uproot`/`pyBumpHunter`, never ROOT). The
+  same overclaim appeared in the blanket sentence under the Test-file
+  map ("Every real-ROOT/CVMFS-needing test above is marked both ..."),
+  which also contradicted that map's own `FindBHWindow.py` row. Both
+  rewritten to state the actual split - `requires_analysis_dependencies`
+  on all of them, `requires_root` on the four that need ROOT - and the
+  rewrite of the second one was checked to keep its following clause
+  ("... is what keeps a test that sources `setup_buildAndFit.sh` out of
+  the ordinary gate") pointing at the correct marker. Also fixed the
+  first paragraph's "but only where a fast tier exists" clause, which
+  read backwards: `ExtractPostfitFromWS.py` has no fast tier yet does
+  have the real, marked tier.
+
+Deliberately **not** changed: the three preceding 2026-09-07 entries in
+this file use `## <date> — <title>` while the 46 Tier-3 entries above
+them use `## <date>: <title>`. Both styles already exist in this file's
+history (the 2026-07 entries use the em dash), the record stays
+accurate and readable either way, and per this file's own append-only
+rule and the user's explicit instruction, existing entries are edited
+only for serious typesetting or text-malformation problems - which this
+is not. Nor were those entries edited to record the defects above; this
+entry is the correction of record for all four.
+
+### Verification performed
+
+- `python scripts/quality_check.py --mode full`: 198 passed, 20
+  deselected, Ruff clean, Black clean, exit code 0 (which includes both
+  gate-coverage tests - the new header text mentioning
+  `tests/test_find_bh_window.py` sits in a full-line comment and is
+  correctly stripped by `_strip_full_line_comments()`, so it creates no
+  false-positive coverage).
+- Real-ROOT: `python -m pytest tests/test_pre_fit.py -m
+  "requires_analysis_dependencies" -v`: 2 passed, 2 deselected, 6.06s -
+  confirms removing the divider changes no assertion or result.
+- `diff` of every `print("...")` string in `python/PreFit.py` against
+  `git show dab5cbd^:python/PreFit.py`: identical sets.
+- `bash -n scripts/run_all_gates.sh`: syntax OK.
+- `grep` for any residual "exactly what `.github`"/"exactly the
+  checks"/"every check `.github`" phrasing outside this log: none.
+- `grep -nE '[[:blank:]]+$'` across all changed files: clean.
+- `git diff --check`: clean.
+- `git diff --stat`: `README.md`, `doc/TIER1_SYSTEM.md`,
+  `doc/TIER1_ENVIRONMENT_PROVENANCE.md`, `doc/TIER2_SYSTEM.md`,
+  `doc/TIER3_SYSTEM.md`, `python/PreFit.py`,
+  `scripts/run_all_gates.sh`, `doc/ACTIVITY_LOG.md`.
+
+### Remaining open chunks
+
+None. This is a self-audit and accuracy-correction pass over
+already-complete work, not a new chunk.

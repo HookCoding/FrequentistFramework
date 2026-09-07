@@ -218,10 +218,15 @@ not support one.
 | `python/ExtractPostfitFromWS.py` | Free functions `getNPars(pdf, obs, exclSyst)`/`expHist(h)`/`getChi2(extractor, channelname, npars, useSumW2=False)` (`getChi2`'s external mutation of the `extractor` it's passed is preserved exactly); `PostfitExtractor.__init__`; `._open_workspace_and_data()`; `._build_channel_postfit_histogram(pdfi, x, channelname, npars, data)`; `._build_bkgonly_variant(w, channelname, x, hpdf, nBins, binEdges, npars)`; `._apply_external_rebinning(channelname, channelname_bkg, npars)`; `.Extract()` (orchestrator); `.WriteRoot(outfile, dirPerCategory=False)`; the 8 accessors (`GetChi2`/`GetNbins`/`GetNpars`/`GetNdof`/`GetPval`/`GetH1Chi2`/`GetH1Postfit`/`GetH1Residuals`); `.GetCategories()`; `main(args)` | `Extract()` (137 lines, the largest method across all nine files) decomposes into the four private helpers; `WriteRoot()`/the 8 accessors/`GetCategories()` stay undecomposed one-liners. |
 | `python/PreFit.py` | `PreFitter.__init__`; `.RandomizeParameters(function)`; `._build_candidate_functions()`; `._select_best_parameter_sets(fitFunction, integral, score_fn, nRetries1, nRetries2)`; `.Fit()` (orchestrator); `main(args)` | `_select_best_parameter_sets()` takes a `score_fn` callable (`Fit()` passes a `lambda fn: h.Chisquare(fn)` closure) instead of the data histogram itself, so it never touches the data histogram directly - it still calls `ROOT.TStopwatch`/`ROOT.TMath` for timing and the `Exp`/`Log` initial-guess math, which is what makes `tests/test_pre_fit.py` a histogram-independent, ROOT-stubbed unit test of this file's own logic rather than a fully ROOT-free one. |
 
-These five files' fast tiers are not all the same shape, and one has no
-fast tier at all - each still pairs with the same real, marked
-`requires_root`+`requires_analysis_dependencies` subprocess/fixture
-tier, but only where a fast tier exists: `createBinning.py`'s fast
+All five files do have a real, `requires_analysis_dependencies`-marked
+subprocess/fixture tier. Four of the five also carry `requires_root` on
+those tests; `tests/test_find_bh_window.py` does not, because
+`FindBHWindow.py` never imports ROOT (it uses `uproot`/`pyBumpHunter`
+under its own dedicated interpreter), so its marked test deliberately
+carries `requires_analysis_dependencies` alone.
+
+Their *fast* tiers, by contrast, are not all the same shape, and one
+file has none at all: `createBinning.py`'s fast
 fragment (`resolve_bin_edges()`) is genuinely ROOT-free at call scope,
 needing no stub; `FindBHWindow.py`'s fast fragments are `numpy`-only,
 reached by deferring every heavy import rather than by stubbing
@@ -279,13 +284,19 @@ while `nPars` can be requested up to 10; see "Known limitations" below.
 | `python/PreFit.py` | `tests/test_pre_fit.py` | Only the two `Fit()` tests (real-ROOT subprocess snippet against the committed J100 `mjj_spectra_J100_dataAll.root` fixture); `_build_candidate_functions()`/`_select_best_parameter_sets()` tests stub `sys.modules["ROOT"]` |
 | `python/repo_utils.py` | `tests/test_repo_utils.py` | No for `find_repo_root()`/`build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s own tests (pure `pathlib`/`json`); two other, unrelated tests in this same file (external-submodule-revision checks, Tier 1/2's own installation policy) are separately marked `requires_analysis_dependencies` |
 
-Every real-ROOT/CVMFS-needing test above is marked both
-`@pytest.mark.requires_root` and `@pytest.mark.requires_analysis_dependencies`
-- the second marker is what keeps a test that sources
-`scripts/setup_buildAndFit.sh` out of the ordinary, CVMFS-less
-`quality_check.py --mode full` gate (`requires_root` alone passes on a
-CVMFS-mounted host but fails in GitHub Actions CI, which has no CVMFS
-mount at all).
+Every real-ROOT/CVMFS-needing test above is marked
+`@pytest.mark.requires_analysis_dependencies`, and every one of them
+that actually needs ROOT is additionally marked
+`@pytest.mark.requires_root`. The single exception to the second marker
+is `tests/test_find_bh_window.py`'s end-to-end test, which needs CVMFS
+but not ROOT (`FindBHWindow.py` imports `uproot`/`pyBumpHunter`, never
+ROOT) and so carries `requires_analysis_dependencies` alone - which is
+exactly why that marker, not `requires_root`, is the one every such
+test must carry: `requires_analysis_dependencies` is what keeps a test
+that sources `scripts/setup_buildAndFit.sh` out of the ordinary,
+CVMFS-less `quality_check.py --mode full` gate (`requires_root` alone
+passes on a CVMFS-mounted host but fails in GitHub Actions CI, which
+has no CVMFS mount at all).
 
 `scripts/quality_check.py`'s `python_targets`/`test_targets` cover every
 Python production module and test file in this document, including the
@@ -305,10 +316,14 @@ workflow runs instead.
 bash scripts/run_all_gates.sh
 ```
 
-Runs every gate below in sequence - the lightweight gate, the scientific
-gate, the plotting-layer real-ROOT gate, the prepared-dependency gate,
-and the FindBHWindow.py dedicated-interpreter gate - printing a
-PASSED/FAILED line for each and exiting non-zero if any failed. Requires
+Runs all six gates in sequence - the lightweight gate, the scientific
+runtime-readiness gate, the scientific gate, the plotting-layer
+real-ROOT gate, the prepared-dependency gate, and the FindBHWindow.py
+dedicated-interpreter gate - printing a PASSED/FAILED line for each and
+exiting non-zero if any failed. Four of the six have their own sections
+below; the scientific runtime-readiness and prepared-dependency gates
+belong to Tiers 1 and 2 and are documented in
+[Tier 1 system](TIER1_SYSTEM.md)'s own Gate commands instead. Requires
 a real ROOT runtime here (`scripts/setup_buildAndFit.sh` succeeds); it
 fails loudly rather than skipping when that isn't available, since its
 purpose is to run everything.

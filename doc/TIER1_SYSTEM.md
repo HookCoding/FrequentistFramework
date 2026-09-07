@@ -211,8 +211,13 @@ bash scripts/run_all_gates.sh
 
 Runs the four gates above plus every Tier-3 real-ROOT plotting-layer/
 hot-path-support test and the `FindBHWindow.py` dedicated-interpreter
-gate, in one command — exactly what
-`.github/workflows/scientific-analysis.yml` runs. It fails loudly
+gate, in one command — six gates in total. The first five are the same
+checks `.github/workflows/scientific-analysis.yml` runs; the
+`FindBHWindow.py` gate has no counterpart step in that workflow, and
+the workflow in turn runs submodule-checkout, `install.sh`
+`--check`/`--build` and CVMFS-probe steps this script does not, so the
+script is a superset of that workflow's test gates rather than a mirror
+of it. It fails loudly
 (rather than skipping) if `scripts/setup_buildAndFit.sh` cannot provide
 a ROOT runtime here, since its purpose is to run everything.
 `tests/test_repo_utils.py::test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file`

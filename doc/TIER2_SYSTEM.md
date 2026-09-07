@@ -111,9 +111,10 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Run every gate above, plus every Tier-3 real-ROOT plotting-layer/
-hot-path-support test and the `FindBHWindow.py` dedicated-interpreter
-gate, in one command:
+Run every gate above, plus Tier 1's scientific runtime-readiness gate,
+every Tier-3 real-ROOT plotting-layer/hot-path-support test, and the
+`FindBHWindow.py` dedicated-interpreter gate - six gates in total - in
+one command:
 
 ```bash
 bash scripts/run_all_gates.sh

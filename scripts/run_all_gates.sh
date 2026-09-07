@@ -16,10 +16,19 @@
 #      committed J100 PostFit fixture - the one file whose masked-path
 #      correctness the gates above cannot exercise on their own.
 #
-# Together these are exactly the checks
+# Gates 1-5 are the same five checks
 # .github/workflows/scientific-analysis.yml runs (the lightweight gate
 # also runs, alone, in .github/workflows/tier1-root-comparison.yml on
-# every branch). Gates 2 and 3 both live in
+# every branch). Gate 6 has no counterpart step in that workflow, and
+# the workflow in turn runs submodule-checkout, install.sh
+# --check/--build and CVMFS-probe steps that this script does not - so
+# this script is deliberately a superset of that workflow's test gates,
+# not a mirror of it. Nothing enforces gate-step parity between the
+# two: tests/test_repo_utils.py's two coverage tests compare which
+# *test files* each one references, so they would not notice Gate 6
+# being deleted from here (Gate 4 already references
+# tests/test_find_bh_window.py) - only a test file referenced by
+# neither. Gates 2 and 3 both live in
 # tests/test_analysis_workflows_integration.py but are two distinct,
 # separately-marked tests selected by two different invocations - see
 # doc/TIER1_SYSTEM.md's own "Scientific runtime readiness" and

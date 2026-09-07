@@ -82,7 +82,7 @@ This is a plain git-native hook (`.githooks/pre-commit`), not the third-party `p
 bash scripts/run_all_gates.sh
 ```
 
-Runs the lightweight gate, the real J100/J50 scientific analysis, every plotting-layer/hot-path-support test that needs a real ROOT runtime, the prepared external-dependency checks, and the `FindBHWindow.py` dedicated-interpreter gate — every check `.github/workflows/scientific-analysis.yml` runs, in one command. Requires `scripts/setup_buildAndFit.sh` to actually provide a ROOT runtime here (CVMFS mounted); unlike the pre-commit hook above, it fails loudly rather than skipping when that isn't available, since its whole purpose is to run everything.
+Runs six gates in one command: the lightweight gate, the scientific runtime-readiness gate, the real J100/J50 scientific analysis, every plotting-layer/hot-path-support test that needs a real ROOT runtime, the prepared external-dependency checks, and the `FindBHWindow.py` dedicated-interpreter gate. The first five are the same checks `.github/workflows/scientific-analysis.yml` runs; the `FindBHWindow.py` gate has no counterpart step in that workflow, which in turn runs dependency build/check steps this script does not — so the script is a superset of that workflow's test gates rather than a mirror of it. Requires `scripts/setup_buildAndFit.sh` to actually provide a ROOT runtime here (CVMFS mounted); unlike the pre-commit hook above, it fails loudly rather than skipping when that isn't available, since its whole purpose is to run everything.
 
 For complete operating and validation details, see:
 

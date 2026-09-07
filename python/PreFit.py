@@ -260,10 +260,19 @@ class PreFitter:
         # _select_best_parameter_sets(), starting this one here
         # (immediately after that method returns) reproduces the exact
         # same interval instead of also timing the banner/setup below.
+        #
+        # The "==================" divider that Chunk 17.B introduced
+        # between this and the banner below was likewise an accidental
+        # stdout change: the pre-refactor Fit() went straight from the
+        # sampling phase's own w.Print() to this banner, printing
+        # exactly one divider for the whole transition - as the
+        # untouched near-duplicate python/PreFitWS.py, which still
+        # carries the original shape, independently confirms. Removed,
+        # so this file's console output matches the original line for
+        # line.
         w = ROOT.TStopwatch()
         w.Start()
 
-        print("==================")
         print("Starting fit of %d best samples" % self.nRetries2)
 
         bestChi2 = float("inf")
