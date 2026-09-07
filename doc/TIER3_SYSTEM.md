@@ -80,12 +80,21 @@ It does not cover: CLs processing, signal-analysis changes, different
 fit models/inputs/histograms/ranges/tolerances; Tier 4 orchestration;
 repository-wide Ruff/Black/C++ formatting; unrelated installer, CI, or
 dependency changes; structural extraction of any file other than the
-nine named above - `python/analysis_reference.py`, `python/repo_utils.py`,
+nine named above - `python/analysis_reference.py`,
 `python/run_injections_anaFit.py`, and every other script under
-`python/` remain untouched; changing the ROOT/C++ build system or
+`python/` remain untouched, since none of them sits on the J100/J50
+workflow this document describes; changing the ROOT/C++ build system or
 linking any new library; or fixing pre-existing, unrelated issues
 noticed along the way (see "Known limitations" below for the specific
 ones deliberately left in place).
+
+`python/repo_utils.py` is a tenth file on this same workflow - its
+`find_repo_root()` is called by `run_provenance.py`'s
+`get_repository_root()` on every run - but it needed no work under this
+document, because Tier 1/2's own earlier work already brought it to the
+same standard this document requires: small, single-purpose,
+individually-tested functions, registered in `scripts/quality_check.py`.
+See `doc/TIER1_SYSTEM.md`'s own "Authoritative files" for its ownership.
 
 ## Module map: `python/run_anaFit.py` -> 7 modules + coordinator
 
@@ -428,10 +437,11 @@ Unchanged from `doc/TIER2_SYSTEM.md`:
   through `"ten"`, meaning a filename matching both `"three"` and
   `"four"` resolves to `nPars = 4`) is deliberately preserved, not
   fixed.
-- **This document's scope is exactly the nine files named above** - no
-  other script under `python/` (signal injection, limit-setting, toy
-  studies, `python/run_injections_anaFit.py`'s own internals, etc.) was
-  touched.
+- **This document's scope is exactly the nine files named above, plus
+  `python/repo_utils.py`'s pre-existing standard** (see "Scope" above)
+  - no other script under `python/` (signal injection, limit-setting,
+  toy studies, `python/run_injections_anaFit.py`'s own internals, etc.)
+  sits on the J100/J50 workflow this document describes.
 - **`ExtractPostfitFromWS.py` has one dormant bug still preserved and
   documented, not fixed.** `_build_bkgonly_variant`'s `try/except` block
   calls `hpdf.Scale(...)` - the **main** channel's already-fully-consumed
@@ -526,6 +536,12 @@ Hot-path support scripts:
 - `python/ExtractFitParameters.py`
 - `python/ExtractPostfitFromWS.py`
 - `python/PreFit.py`
+
+Also on the same hot path, owned by `doc/TIER1_SYSTEM.md` (imported by
+`run_provenance.py`, not decomposed by this document - see "Scope"
+above):
+
+- `python/repo_utils.py`
 
 Tests:
 

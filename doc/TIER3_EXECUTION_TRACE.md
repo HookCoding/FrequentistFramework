@@ -33,7 +33,7 @@ scripts/run_anaFit_J100.sh
     +-- main(args) -> run_anaFit(...)
         |
         +-- run_provenance.build_analysis_provenance(...)
-        |     +-- get_repository_root() -> repo_utils.find_repo_root()
+        |     +-- get_repository_root() -> repo_utils.find_repo_root()  <-- python/repo_utils.py
         |     +-- calculate_file_sha256(...) / get_git_revision(...)
         |     +-- collect_scientific_runtime()   [deferred `import ROOT`]
         |
@@ -135,6 +135,24 @@ stub-free, ROOT-free unit test of any piece of one of these five files'
 own logic. See `doc/TIER3_COMPLETION_PLAN.md` Chunks 13–17 and
 `doc/ACTIVITY_LOG.md`'s corresponding entries for the full detail not
 repeated here.
+
+**A tenth file belongs here too, found by re-checking every import in
+this trace rather than assuming the diagram above was already
+complete: `python/repo_utils.py`.** Its `find_repo_root()` is called
+directly by `run_provenance.py`'s `get_repository_root()` (see the
+diagram in Section 1) - genuinely on this hot path, not merely
+transitively used the way `run_execution.py` is. It is not one of the
+nine files Chunks 1–17 decomposed, and it does not need to be: it was
+already brought to the same standard (small, single-purpose,
+individually-tested functions, registered in `scripts/quality_check.py`)
+by `doc/TIER1_SYSTEM.md`'s own earlier work, before this plan existed.
+An earlier version of `doc/TIER3_COMPLETION_PLAN.md`'s own Section 3
+listed `repo_utils.py` alongside genuinely-untouched scripts like
+`analysis_reference.py` and `run_injections_anaFit.py` as an example of
+a file "not part of the background-only J100/J50 canonical path" -
+directly contradicted by this trace's own diagram, which has always
+shown `get_repository_root() -> repo_utils.find_repo_root()`. That plan
+document, and `doc/TIER3_SYSTEM.md`, have both been corrected.
 
 ## 3. Files in this trace that do NOT follow the Tier 3 system
 

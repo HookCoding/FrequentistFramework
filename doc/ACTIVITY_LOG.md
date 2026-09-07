@@ -9793,3 +9793,91 @@ version survives, restated without its chunk/date/commit/PR framing.
 
 None. This is a documentation-style revision to an already-complete
 Tier 3, not a new chunk.
+
+## Correct a real scope inaccuracy: python/repo_utils.py is on the J100/J50 hot path
+
+### Objective
+
+At the user's prompting ("why does the scope not include the trace of
+all files within the analysis process"), re-verified whether every file
+Tier 3's own documents claim is "out of scope, untouched" is actually
+untouched by a real J100/J50 run. It is not: `python/repo_utils.py` is
+genuinely imported and exercised on that path
+(`run_provenance.py:8: from repo_utils import find_repo_root`, called by
+`get_repository_root()`, called by `build_analysis_provenance(...)`,
+which every real run invokes), yet `doc/TIER3_COMPLETION_PLAN.md` and
+`doc/TIER3_SYSTEM.md` both listed it as an example of a file "not part
+of the background-only J100/J50 canonical path" - directly contradicted
+by `doc/TIER3_EXECUTION_TRACE.md`'s own trace diagram, which has always
+shown `get_repository_root() -> repo_utils.find_repo_root()`.
+
+Checked every remaining candidate before concluding this was the only
+gap: grepped every `import`/`from` line across all 15 already-recognized
+hot-path Python files (excluding stdlib/ROOT/numpy/matplotlib/uproot/
+pyBumpHunter) - `repo_utils` was the only first-party module surfacing
+that wasn't already accounted for. Separately confirmed
+`python/analysis_reference.py` (only imported by tests and
+`scripts/quality_check.py`, never by production code),
+`python/run_injections_anaFit.py` (a distinct entry point, not invoked
+by `scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh`), and
+`scripts/compare_root_outputs.py` (only imported by
+`tests/test_compare_root_outputs.py`) are genuinely untouched by the
+J100/J50 workflow - their "out of scope" listing is accurate and
+unchanged.
+
+No new decomposition was needed for `repo_utils.py`: it was already
+brought to Tier 3's own standard (four small, single-purpose,
+individually-tested functions, registered in `scripts/quality_check.py`)
+by `doc/TIER1_SYSTEM.md`'s own earlier work, before this plan existed.
+This is a documentation-accuracy fix only.
+
+### What changed
+
+- `doc/TIER3_COMPLETION_PLAN.md` Section 3's out-of-scope bullet: removed
+  `python/repo_utils.py` from the list of examples of untouched files
+  (it now names only the two that genuinely are:
+  `python/analysis_reference.py`, `python/run_injections_anaFit.py`),
+  and added an explicit note explaining why `repo_utils.py` is the one
+  exception - on the hot path, but requiring no work because Tier 1/2
+  already met the bar.
+- `doc/TIER3_SYSTEM.md`: "Scope" section's out-of-scope paragraph gets
+  the same correction, plus a new paragraph naming `repo_utils.py` as a
+  tenth file on the workflow. The "This document's scope is exactly the
+  nine files named above" Known Limitations bullet now says "plus
+  `python/repo_utils.py`'s pre-existing standard." "Authoritative files"
+  gains a new "Also on the same hot path, owned by
+  `doc/TIER1_SYSTEM.md`" line listing `python/repo_utils.py`.
+- `doc/TIER3_EXECUTION_TRACE.md`: Section 1's diagram gains a
+  `<-- python/repo_utils.py` annotation on the
+  `get_repository_root() -> repo_utils.find_repo_root()` line, matching
+  every other file's annotation style. Section 2 gains a paragraph
+  documenting this finding directly, including the correction to
+  `doc/TIER3_COMPLETION_PLAN.md`'s prior text.
+
+### Verification performed
+
+- `grep -rln "repo_utils" --include=*.py .` and manual read of
+  `python/run_provenance.py:8` confirm the real import.
+- `grep -nE "^\s*(import|from)\s+" <every hot-path Python file>` filtered
+  against stdlib/ROOT/numpy/matplotlib/uproot/pyBumpHunter/datetime -
+  `repo_utils` was the only first-party module found unaccounted for.
+- `grep -rln "analysis_reference\|compare_root_outputs" --include=*.py .`
+  confirm both are only imported by tests/`quality_check.py`, never by
+  production code.
+- `grep -rln "run_injections_anaFit"` against
+  `scripts/run_anaFit_J100.sh`/`run_anaFit_J50.sh` returns nothing.
+- Read `python/repo_utils.py` in full: 4 small functions, already
+  docstringed, matching Tier 3's own decomposition bar.
+- `grep -nE '[[:blank:]]+$'` across all three documents: clean.
+- `git diff --check`: clean.
+- `python scripts/quality_check.py --mode full` (doc-only change,
+  re-verified unaffected): 196 passed, 20 deselected, Ruff clean, Black
+  clean (39 files unchanged), exit code 0.
+- `git diff --stat`: exactly the three named documents.
+
+### Remaining open chunks
+
+None. This is a documentation-accuracy correction to an already-complete
+Tier 3, not a new chunk - and it required no new decomposition, test, or
+registration work, since `python/repo_utils.py` already met Tier 3's own
+standard before this plan began.

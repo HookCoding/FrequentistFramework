@@ -280,12 +280,24 @@ correction in a new activity-log entry rather than editing this section.
 - Unrelated installer, CI, or dependency changes.
 - Any structural extraction of files other than the nine named across
   Section 0 and the Chunk 13–18 addition above — not
-  `python/analysis_reference.py`, `python/repo_utils.py`,
-  `python/run_injections_anaFit.py`'s own internals, nor any other script
-  under `python/` (signal injection, limit-setting, toy studies, and the
-  ~40 other scripts there remain untouched — they are not part of the
-  background-only J100/J50 canonical path this plan follows, per
-  `doc/TIER3_EXECUTION_TRACE.md`'s own trace of that path).
+  `python/analysis_reference.py`, `python/run_injections_anaFit.py`'s own
+  internals, nor any other script under `python/` (signal injection,
+  limit-setting, toy studies, and the ~40 other scripts there remain
+  untouched — they are not part of the background-only J100/J50
+  canonical path this plan follows, per `doc/TIER3_EXECUTION_TRACE.md`'s
+  own trace of that path). **`python/repo_utils.py` is the one
+  exception, not an oversight**: its `find_repo_root()` genuinely is on
+  that canonical path (`doc/TIER3_EXECUTION_TRACE.md`'s own trace
+  diagram shows `run_provenance.get_repository_root() ->
+  repo_utils.find_repo_root()` directly) — an earlier version of this
+  bullet listed it here incorrectly, alongside files that are actually
+  untouched by the workflow. It needed no extraction under this plan
+  because Tier 1/2's own prior work already brought it to the same
+  standard Tier 3 requires (small, single-purpose, individually-tested
+  functions, registered in `scripts/quality_check.py` — see
+  `doc/TIER1_SYSTEM.md`'s own "Authoritative files"). It is the tenth
+  file on the validated J100/J50 hot path, not a gap in this plan's
+  scope.
 - Fixing `python/ExtractPostfitFromWS.py`'s two dormant bugs (Chunk 16's
   own text) anywhere other than the two dedicated, explicitly-optional
   bug-fix chunks 16a/16b — never silently bundled into Chunk 16's own
