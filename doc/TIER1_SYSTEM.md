@@ -209,7 +209,7 @@ Latest result: 1 passed, 2 deselected, 73.22 seconds, exit code 0.
 bash scripts/run_all_gates.sh
 ```
 
-Runs the three gates above plus every Tier-3 real-ROOT plotting-layer/
+Runs the four gates above plus every Tier-3 real-ROOT plotting-layer/
 hot-path-support test and the `FindBHWindow.py` dedicated-interpreter
 gate, in one command — exactly what
 `.github/workflows/scientific-analysis.yml` runs. It fails loudly

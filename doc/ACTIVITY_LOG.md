@@ -10165,3 +10165,106 @@ for the two new gate-completeness tests (added alongside
 
 None. This is a documentation-accuracy pass over already-complete Tier
 1/2 systems, not a new chunk.
+
+---
+
+## 2026-09-07 — Address GitHub Copilot PR review findings (Chunk 17, run_all_gates.sh)
+
+### Objective
+Respond to a Copilot automated review on the open PR covering Chunk 17
+(`python/PreFit.py`) and the `scripts/run_all_gates.sh` gate-coverage
+work. Verify each finding directly against the real files before
+changing anything, rather than trusting the review's diff at face
+value.
+
+### What changed
+
+- **Real gap, confirmed and fixed**: `scripts/run_all_gates.sh`'s Gate
+  2 (`-m "integration and requires_root"` against
+  `tests/test_analysis_workflows_integration.py`) selects only
+  `test_authoritative_j100_j50_workflows_match_frozen_reference`. It
+  never ran `test_authoritative_setup_provides_scientific_runtime` (the
+  scientific runtime-readiness gate documented in
+  `doc/TIER1_SYSTEM.md`) - sourcing `setup_buildAndFit.sh` is not a
+  substitute, since that test also checks required fixtures and
+  executable artifacts. Added it back as its own numbered gate; the
+  script is now 6 gates, not 5 (renumbered throughout, header comment
+  and `doc/TIER1_SYSTEM.md`'s "Run every gate in one command" entry
+  updated from "three gates above" to "four gates above" accordingly).
+- **Real gap, confirmed and fixed**: both new
+  `tests/test_repo_utils.py` gate-coverage tests
+  (`test_run_all_gates_script_covers_every_...`,
+  `test_ci_scientific_workflow_covers_every_...`) searched raw
+  script/workflow text for `"tests/<filename>"`, so a commented-out
+  reference would still satisfy them, and both blanket-exempted
+  `tests/test_analysis_workflows_integration.py` from the check
+  entirely - which is exactly how the Gate-2 omission above went
+  undetected by the very tests meant to catch this class of bug.
+  Replaced the blanket exemption with an explicit per-test assertion
+  (`_INTEGRATION_TEST_SELECTORS`) that each of that file's two
+  `requires_analysis_dependencies` tests has its own dedicated selector
+  present in the gate text, and added `_strip_full_line_comments()` so
+  a commented-out line can never satisfy either check. Reproduced the
+  original Gate-2 bug (commented out the runtime-readiness invocation)
+  and confirmed the fixed test now fails with the exact missing test
+  name, then restored; same proof for a commented-out
+  `tests/test_pre_fit.py` line in the CI workflow file.
+- **Real, order-dependent test bug, confirmed and fixed**:
+  `tests/test_pre_fit.py`'s `_make_stubbed_prefitter()` only patched
+  `sys.modules["ROOT"]`, not `python.PreFit`'s own already-imported
+  `ROOT` global - since that module stays cached in `sys.modules`
+  across tests, a `from python import PreFit` after the first call
+  does not re-run `import ROOT`, so a later call's fresh fake was
+  silently ignored in favor of whichever fake the *first* call in the
+  process happened to install. Reproduced by running
+  `test_select_best_parameter_sets_...` before
+  `test_build_candidate_functions_...` via explicit node IDs: failed
+  with `AttributeError: module 'ROOT' has no attribute 'TF1'`. Fixed by
+  adding `monkeypatch.setattr(pre_fit, "ROOT", fake_root_module)`
+  immediately after import; reran both orders (declared and reversed) -
+  both now pass.
+- **Documentation-accuracy fixes** (no behavior change): "stub-free"
+  was inaccurate everywhere it appeared for `tests/test_pre_fit.py`'s
+  two new unit tests - they install a fully-stubbed `ROOT` module, and
+  `_select_best_parameter_sets()` itself still calls
+  `ROOT.TStopwatch`/`ROOT.TMath.Exp`/`ROOT.TMath.Log`, so "ROOT-free"
+  was never accurate; "histogram-independent, ROOT-stubbed" is.
+  Corrected the wording in `python/PreFit.py`'s own docstring,
+  `tests/test_pre_fit.py`'s comment header, `doc/TIER3_SYSTEM.md`'s
+  `PreFit.py` module-map row, `doc/TIER3_EXECUTION_TRACE.md`'s Section
+  2 paragraph, and `doc/TIER3_COMPLETION_PLAN.md`'s Chunk 17 Step B
+  text. `doc/ACTIVITY_LOG.md`'s own earlier "stub-free" entries
+  (Chunk 17.B, and the Chunk 13-18 planning entry) are left unedited,
+  per this file's own append-only rule - this entry is the correction
+  of record for both.
+- **Documentation-accuracy fix**: `tests/test_pre_fit.py`'s
+  `_build_candidate_functions()` test comment claimed the real-ROOT
+  test above exercises "the remaining 16 forms ... for real, end to
+  end (nPars=3 selects NParFunction[3]/LogNParFunction[3])". Checked
+  `Fit()` directly: with `fitLog=True` it always selects
+  `LogNParFunction[nPars]`, never `NParFunction[nPars]`, in the same
+  run - so exactly one of the twenty candidate forms (`Log3ParFunction`)
+  is exercised end to end by that test, not sixteen. Corrected the
+  comment to state this precisely.
+
+### Verification performed
+
+- `python scripts/quality_check.py --mode full`: 198 passed, 20
+  deselected, Ruff clean, Black clean, exit code 0.
+- `bash scripts/run_all_gates.sh`: all 6 gates PASSED, including the
+  newly-added scientific runtime-readiness gate; `git status --short`
+  clean afterward.
+- Reproduced and confirmed each of the three real bugs above fails
+  before its fix and passes after, as detailed per bullet.
+- `bash -n scripts/run_all_gates.sh`: syntax OK.
+- `grep -nE '[[:blank:]]+$'` across all changed files: clean.
+- `git diff --check`: clean.
+- `git diff --stat`: `scripts/run_all_gates.sh`, `python/PreFit.py`,
+  `tests/test_pre_fit.py`, `tests/test_repo_utils.py`,
+  `doc/TIER1_SYSTEM.md`, `doc/TIER3_SYSTEM.md`,
+  `doc/TIER3_EXECUTION_TRACE.md`, `doc/TIER3_COMPLETION_PLAN.md`.
+
+### Remaining open chunks
+
+None. This is a review-response pass over already-complete work, not a
+new chunk.

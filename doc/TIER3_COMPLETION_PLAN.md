@@ -1915,8 +1915,9 @@ physics-correctness check).
   built with the documented names/forms) and
   `_select_best_parameter_sets()` written, if its signature allows,
   against a plain scoring callable + candidate list rather than a live
-  ROOT histogram — this repository's first stub-free, fast unit test of
-  any piece of `PreFit.py`'s own logic, if achievable; if the separation
+  ROOT histogram — this repository's first fast, ROOT-stubbed unit test
+  of any piece of `PreFit.py`'s own logic (still stubbing `ROOT.TStopwatch`/
+  `ROOT.TMath` for timing and initial-guess math), if achievable; if the separation
   cannot be made ROOT-free without changing `Fit()`'s external behavior,
   state that explicitly rather than forcing it.
 - Register `python/PreFit.py` and `tests/test_pre_fit.py`.

@@ -3,21 +3,28 @@
 #
 #   1. the lightweight quality gate (pytest, Ruff, Black -
 #      python scripts/quality_check.py --mode full);
-#   2. the real J100/J50 scientific analysis, end to end, compared
+#   2. the scientific runtime-readiness gate (ROOT/Python imports, the
+#      required fixtures and executable artifacts are all present);
+#   3. the real J100/J50 scientific analysis, end to end, compared
 #      against the frozen reference (the "scientific gate");
-#   3. every plotting-layer and hot-path-support test that needs a real
+#   4. every plotting-layer and hot-path-support test that needs a real
 #      ROOT/RooFit runtime and is therefore deselected by gate 1 (the
 #      "plotting-layer real-ROOT gate" - see doc/TIER3_SYSTEM.md);
-#   4. the prepared external-dependency checkout checks (pinned
+#   5. the prepared external-dependency checkout checks (pinned
 #      submodule revisions, tracked-source cleanliness);
-#   5. the FindBHWindow.py dedicated-interpreter gate, against the
+#   6. the FindBHWindow.py dedicated-interpreter gate, against the
 #      committed J100 PostFit fixture - the one file whose masked-path
 #      correctness the gates above cannot exercise on their own.
 #
 # Together these are exactly the checks
 # .github/workflows/scientific-analysis.yml runs (the lightweight gate
 # also runs, alone, in .github/workflows/tier1-root-comparison.yml on
-# every branch).
+# every branch). Gates 2 and 3 both live in
+# tests/test_analysis_workflows_integration.py but are two distinct,
+# separately-marked tests selected by two different invocations - see
+# doc/TIER1_SYSTEM.md's own "Scientific runtime readiness" and
+# "Executable characterization gate" entries - so both must be listed
+# here explicitly; listing only one silently drops the other.
 #
 # Unlike .githooks/pre-commit - which skips the ROOT-dependent gates
 # with a warning when scripts/setup_buildAndFit.sh can't provide a ROOT
@@ -59,7 +66,7 @@ run_gate() {
     fi
 }
 
-echo "[run-all-gates] Gate 1/5: lightweight quality gate (pytest, Ruff, Black)"
+echo "[run-all-gates] Gate 1/6: lightweight quality gate (pytest, Ruff, Black)"
 run_gate "lightweight quality gate" "$python_bin" scripts/quality_check.py --mode full
 
 echo
@@ -70,21 +77,28 @@ if ! bash -lc 'source scripts/setup_buildAndFit.sh' >"$setup_check_log" 2>&1; th
     echo "[run-all-gates] (no CVMFS mount, or the scientific dependencies are not built - see:"
     sed 's/^/[run-all-gates]   /' "$setup_check_log"
     echo "[run-all-gates] )."
-    echo "[run-all-gates] Gates 2-5 (everything that needs ROOT) cannot run without it - this is a"
+    echo "[run-all-gates] Gates 2-6 (everything that needs ROOT) cannot run without it - this is a"
     echo "[run-all-gates] hard failure, since this script's purpose is to run every gate."
     rm -f "$setup_check_log"
     failures=$((failures + 1))
 else
     rm -f "$setup_check_log"
 
-    echo "[run-all-gates] Gate 2/5: the real J100/J50 scientific analysis, end to end"
+    echo "[run-all-gates] Gate 2/6: scientific runtime-readiness gate"
+    run_gate "scientific runtime-readiness gate" bash -lc '
+        source scripts/setup_buildAndFit.sh >/dev/null
+        python -m pytest tests/test_analysis_workflows_integration.py \
+          -k authoritative_setup_provides_scientific_runtime -v
+    '
+
+    echo "[run-all-gates] Gate 3/6: the real J100/J50 scientific analysis, end to end"
     run_gate "scientific gate (J100/J50 authoritative workflows)" bash -lc '
         source scripts/setup_buildAndFit.sh >/dev/null
         python -m pytest tests/test_analysis_workflows_integration.py \
           -m "integration and requires_root" -v
     '
 
-    echo "[run-all-gates] Gate 3/5: plotting-layer and hot-path-support real-ROOT regression gate"
+    echo "[run-all-gates] Gate 4/6: plotting-layer and hot-path-support real-ROOT regression gate"
     run_gate "plotting-layer/hot-path real-ROOT gate" bash -lc '
         source scripts/setup_buildAndFit.sh >/dev/null
         python -m pytest \
@@ -99,13 +113,13 @@ else
           -m "requires_analysis_dependencies" -v
     '
 
-    echo "[run-all-gates] Gate 4/5: prepared external-dependency checkout checks"
+    echo "[run-all-gates] Gate 5/6: prepared external-dependency checkout checks"
     run_gate "prepared-dependency gate" bash -lc '
         source scripts/setup_buildAndFit.sh >/dev/null
         python -m pytest tests/test_repo_utils.py -m "requires_analysis_dependencies" -v
     '
 
-    echo "[run-all-gates] Gate 5/5: FindBHWindow.py dedicated-interpreter gate"
+    echo "[run-all-gates] Gate 6/6: FindBHWindow.py dedicated-interpreter gate"
     run_gate "FindBHWindow.py dedicated-interpreter gate" bash -lc '
         repo_dir="$PWD"
         source scripts/setup_buildAndFit.sh >/dev/null

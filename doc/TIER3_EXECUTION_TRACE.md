@@ -131,8 +131,10 @@ further than the other two module-level-`import ROOT` files despite
 that: `_build_candidate_functions()`/`_select_best_parameter_sets()`
 isolate its sampling/ranking logic behind a plain scoring-callable
 interface, which is what makes `tests/test_pre_fit.py` this plan's first
-stub-free, ROOT-free unit test of any piece of one of these five files'
-own logic. See `doc/TIER3_COMPLETION_PLAN.md` Chunks 13–17 and
+ROOT-stubbed unit test of any piece of one of these five files' own
+logic that is independent of a live data histogram (it still stubs
+`ROOT.TStopwatch`/`ROOT.TMath` for timing and initial-guess math, so it
+is not fully ROOT-free). See `doc/TIER3_COMPLETION_PLAN.md` Chunks 13–17 and
 `doc/ACTIVITY_LOG.md`'s corresponding entries for the full detail not
 repeated here.
 

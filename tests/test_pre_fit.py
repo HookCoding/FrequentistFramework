@@ -186,7 +186,7 @@ print("SNIPPET_OK")
 # --- _build_candidate_functions()/_select_best_parameter_sets(): ----------
 # --- fast, ROOT-free unit tests -------------------------------------------
 #
-# This repository's first stub-free, fast unit test of any piece of
+# This repository's first fast, ROOT-stubbed unit test of any piece of
 # PreFit.py's own logic. Both new private methods are exercised against
 # a fully-stubbed sys.modules["ROOT"] instead of real ROOT - achievable
 # here (unlike Chunk 15/16's extractor classes) because
@@ -271,6 +271,13 @@ def _make_stubbed_prefitter(monkeypatch: pytest.MonkeyPatch, tf1_cls=None, **kwa
 
     from python import PreFit as pre_fit
 
+    # `python.PreFit` stays cached in sys.modules across tests once
+    # imported once, so a later `from python import PreFit` here does
+    # not re-run its `import ROOT` line - only rebinding the module's
+    # own `ROOT` global directly (not just sys.modules["ROOT"]) makes
+    # each call see its own fresh fake, regardless of test order.
+    monkeypatch.setattr(pre_fit, "ROOT", fake_root_module)
+
     defaults = dict(
         datafile="unused",
         datahist="unused",
@@ -303,11 +310,16 @@ def test_build_candidate_functions_returns_ten_linear_and_ten_log_candidates(
         assert log.xMin == 481
         assert log.xMax == 3000
 
-    # Spot-check exact formula text for the simplest and most complex
-    # candidates in each family - the remaining 16 forms are exercised
-    # for real, end to end, by the real-ROOT test above (nPars=3 selects
-    # NParFunction[3]/LogNParFunction[3]) and were preserved verbatim
-    # from today's Fit(), not retyped.
+    # Spot-check exact formula text only for the simplest (n=1) and most
+    # complex (n=10) candidates in each family - the loop above already
+    # confirms every candidate's name/xMin/xMax for n=1..10. The middle
+    # forms' (n=2..9) formula text is preserved verbatim from today's
+    # Fit(), not retyped, and not independently re-verified here.
+    # Separately: the real-ROOT test above only ever exercises one of
+    # these twenty forms end to end - Log3ParFunction, since it
+    # constructs a PreFitter with fitLog=True, nPars=3 (Fit() selects
+    # LogNParFunction[nPars] when fitLog is set, never NParFunction[nPars]
+    # in the same run) - not a stand-in for fitting every form.
     assert NParFunction[1].formula == "[0]"
     assert (
         NParFunction[10].formula

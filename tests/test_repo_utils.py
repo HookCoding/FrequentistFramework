@@ -257,39 +257,120 @@ def _tests_dir_files_marked_requires_analysis_dependencies(tests_dir: Path) -> l
     )
 
 
+def _dependency_marked_test_names(test_file: Path) -> list[str]:
+    """Bare function names of every requires_analysis_dependencies-marked
+    test in one file: scan for the marker line, skip over any other
+    stacked `@pytest.mark....` decorator lines, and record the `def
+    test_...` line that follows."""
+    names: list[str] = []
+    pending = False
+    for line in test_file.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped == "@pytest.mark.requires_analysis_dependencies":
+            pending = True
+            continue
+        if not pending:
+            continue
+        if stripped.startswith("@pytest.mark."):
+            continue
+        if stripped.startswith("def "):
+            names.append(stripped[len("def ") :].split("(")[0])
+        pending = False
+    return names
+
+
+def _strip_full_line_comments(text: str) -> str:
+    """Drop every line whose stripped form starts with '#' (a shell or
+    YAML full-line comment), so a commented-out reference to a test
+    file can never satisfy a "this file is referenced" check below."""
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
+# tests/test_analysis_workflows_integration.py is exempt from the
+# generic "tests/<file> appears in the gate invocation" check below:
+# unlike every other requires_analysis_dependencies test file (selected
+# as a whole file plus a blanket "-m requires_analysis_dependencies"
+# marker filter, so the filename alone proves every marked test in it
+# runs), this file's two marked tests are each selected by their own
+# narrower, distinct pytest invocation (see doc/TIER1_SYSTEM.md's
+# "Scientific runtime readiness" and "Executable characterization
+# gate" entries) - the filename appears in both invocations' text
+# regardless of whether either test is actually selected. Exempting the
+# whole file without also checking each test individually would hide
+# exactly this gap (confirmed: it did, until scripts/run_all_gates.sh's
+# missing runtime-readiness invocation was found and fixed), so the two
+# checks below assert each test's own dedicated selector by name
+# instead of exempting the file outright.
+_INTEGRATION_TEST_FILE = "test_analysis_workflows_integration.py"
+_INTEGRATION_TEST_SELECTORS = {
+    # -k substring selector used by the dedicated runtime-readiness
+    # invocation; also a substring of the test's own full name, so a
+    # plain string search is a safe, sufficient fingerprint either way.
+    "test_authoritative_setup_provides_scientific_runtime": (
+        "authoritative_setup_provides_scientific_runtime"
+    ),
+    # this exact marker combination ("integration" and "requires_root"
+    # together) is unique in the whole test suite to this one test -
+    # confirmed by grepping every @pytest.mark.integration test.
+    "test_authoritative_j100_j50_workflows_match_frozen_reference": (
+        '"integration and requires_root"'
+    ),
+}
+
+
+def _assert_covers_every_dependency_marked_test(cleaned_text: str, source_description: str) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    tests_dir = repo_root / "tests"
+
+    integration_test_file = tests_dir / _INTEGRATION_TEST_FILE
+    integration_marked_tests = set(_dependency_marked_test_names(integration_test_file))
+    assert integration_marked_tests == set(_INTEGRATION_TEST_SELECTORS), (
+        f"{_INTEGRATION_TEST_FILE}'s requires_analysis_dependencies tests changed "
+        f"({sorted(integration_marked_tests)}) without updating this test's own "
+        "per-test selector map"
+    )
+    missing_integration_selectors = [
+        test_name
+        for test_name, selector in _INTEGRATION_TEST_SELECTORS.items()
+        if selector not in cleaned_text
+    ]
+    assert not missing_integration_selectors, (
+        f"{source_description} is missing a dedicated selector for these "
+        f"{_INTEGRATION_TEST_FILE} tests: {missing_integration_selectors}"
+    )
+
+    marked_files = _tests_dir_files_marked_requires_analysis_dependencies(tests_dir)
+    missing_files = [
+        name
+        for name in marked_files
+        if name != _INTEGRATION_TEST_FILE and f"tests/{name}" not in cleaned_text
+    ]
+    assert not missing_files, (
+        f"{source_description} is missing these requires_analysis_dependencies "
+        f"test files: {missing_files}"
+    )
+
+
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:
     # scripts/run_all_gates.sh exists specifically to run every gate in
     # one command, including every test the lightweight gate deselects.
     # A test file carrying a requires_analysis_dependencies test but
     # missing from this script's own real-ROOT/prepared-dependency gate
     # invocations would silently never run there - the same class of
-    # gap already found and fixed three times in
-    # .github/workflows/scientific-analysis.yml (most recently
-    # tests/test_pre_fit.py). This test catches a repeat before it
-    # reaches CI, rather than relying on a human noticing again.
+    # gap already found and fixed four times now (three times in
+    # .github/workflows/scientific-analysis.yml, most recently
+    # tests/test_pre_fit.py; once in this very script, which never ran
+    # test_authoritative_setup_provides_scientific_runtime at all).
+    # This test catches a repeat before it reaches CI, rather than
+    # relying on a human noticing again.
     repo_root = Path(__file__).resolve().parents[1]
 
     script_path = repo_root / "scripts" / "run_all_gates.sh"
     assert script_path.is_file(), "Missing scripts/run_all_gates.sh"
     assert script_path.stat().st_mode & 0o111, "run_all_gates.sh must be executable"
 
-    script_text = script_path.read_text(encoding="utf-8")
-
-    # test_analysis_workflows_integration.py is covered by its own
-    # dedicated "scientific gate" invocation (a different -m filter,
-    # "integration and requires_root"), not the shared
-    # requires_analysis_dependencies pytest invocations - exempt by
-    # design, not by oversight.
-    exempt = {"test_analysis_workflows_integration.py"}
-
-    marked_files = _tests_dir_files_marked_requires_analysis_dependencies(repo_root / "tests")
-    missing = [
-        name for name in marked_files if name not in exempt and f"tests/{name}" not in script_text
-    ]
-    assert not missing, (
-        "scripts/run_all_gates.sh is missing these requires_analysis_dependencies "
-        f"test files: {missing}"
-    )
+    script_text = _strip_full_line_comments(script_path.read_text(encoding="utf-8"))
+    _assert_covers_every_dependency_marked_test(script_text, "scripts/run_all_gates.sh")
 
 
 def test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file() -> None:
@@ -301,17 +382,9 @@ def test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test
     workflow_path = repo_root / ".github" / "workflows" / "scientific-analysis.yml"
     assert workflow_path.is_file(), "Missing .github/workflows/scientific-analysis.yml"
 
-    workflow_text = workflow_path.read_text(encoding="utf-8")
-
-    exempt = {"test_analysis_workflows_integration.py"}
-
-    marked_files = _tests_dir_files_marked_requires_analysis_dependencies(repo_root / "tests")
-    missing = [
-        name for name in marked_files if name not in exempt and f"tests/{name}" not in workflow_text
-    ]
-    assert not missing, (
-        ".github/workflows/scientific-analysis.yml is missing these "
-        f"requires_analysis_dependencies test files: {missing}"
+    workflow_text = _strip_full_line_comments(workflow_path.read_text(encoding="utf-8"))
+    _assert_covers_every_dependency_marked_test(
+        workflow_text, ".github/workflows/scientific-analysis.yml"
     )
 
 

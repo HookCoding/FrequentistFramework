@@ -168,10 +168,10 @@ class PreFitter:
         trial with score_fn(fitFunction), and keep the ranked best
         nRetries2 parameter sets by ascending chi2. Isolates the
         array/bisect bookkeeping that used to live directly inside
-        Fit()'s own sampling loop; no ROOT calls of its own beyond
-        scoring the candidate function it's handed (score_fn is the
-        caller's h.Chisquare(...) closure, so this method never touches
-        the data histogram directly)."""
+        Fit()'s own sampling loop. Histogram scoring is injected through
+        the caller's h.Chisquare(...) closure, so this method never
+        touches the data histogram directly; timing and Exp/Log still
+        use ROOT's TStopwatch and TMath APIs."""
         best_chi2Pars = [(float("inf"), [])]
 
         print("==================")
