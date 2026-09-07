@@ -9711,3 +9711,85 @@ characterize, matching Chunk 12's own precedent for this kind of chunk.
 
 None. All eighteen chunks of `doc/TIER3_COMPLETION_PLAN.md` (0 through
 18, including both optional Chunks 16a and 16b) are complete.
+
+## Rewrite doc/TIER3_SYSTEM.md as pure reference documentation
+
+### Objective
+
+At the user's explicit request: bring `doc/TIER3_SYSTEM.md` closer to
+`doc/TIER1_SYSTEM.md`/`doc/TIER2_SYSTEM.md`'s style - a reference
+document describing the current system, not a chronological record of
+how it was built. Removed every "Chunk N" label, dated "Update
+(2026-09-04): ..." note, GitHub Copilot PR-review citation, and commit
+hash from the document; folded their surviving technical content
+(module maps, design rationale, known limitations, gate commands) into
+plain, present-tense statements about the system as it exists today.
+Nothing in `doc/TIER3_COMPLETION_PLAN.md` or `doc/TIER3_EXECUTION_TRACE.md`
+was touched - both are legitimately historical/planning documents by
+design (the completion plan is "the current Tier 3 backlog, step
+structure, and guardrails"; the execution trace is a dated trace with
+its own defect narrative), and the user's request was scoped to
+`doc/TIER3_SYSTEM.md` specifically.
+
+### What changed
+
+- Collapsed the six-paragraph "Purpose and audience" intro (which had
+  grown three separate dated "Update" notes tracking Chunks 13-16, then
+  17, then 18 landing) into two short paragraphs stating the document's
+  current scope directly.
+- Collapsed "Current status" from two dated paragraphs (Chunks 0-12's
+  original text, then a separate "Chunks 13-18 extended this system"
+  paragraph) into one unified description covering all nine files, with
+  a single current lightweight-gate and scientific-gate result each
+  (no superseded historical numbers kept alongside them).
+- "Scope" no longer distinguishes "the original four" from "the five
+  Chunks 13-18 added" - both in-scope and out-of-scope lists now name
+  all nine files as one set.
+- The `run_masking.py`/`should_mask()` module-map entry no longer
+  attributes the NaN-safe implementation choice to "a GitHub Copilot
+  review finding" - it states the technical reason (float `>`/`<=`
+  disagree only for `NaN`) directly.
+- Renamed "Decisions recorded during extraction" to "Design notes" and
+  moved each file's own rationale next to that file's module-map table
+  (one "Design notes" subsection per module map) instead of one combined
+  section keyed by chunk number - dropped every "Chunk N (...)" heading
+  in favor of naming the file/function directly.
+- "Module map: hot-path support scripts" dropped its "(Chunks 13-17,
+  added 2026-09-04)" heading suffix and each row's "(Chunk 13)"/
+  "(Chunk 14)"/etc. suffix.
+- "Known limitations" dropped every "(Chunk 16a)"/"(Chunk 16b)"/
+  "(Chunk 13)" parenthetical and the "GitHub Copilot review, PR #6"
+  citation; the `ExtractPostfitFromWS.py` entry no longer narrates that
+  two bugs "are now fixed" by two separately-numbered bug-fix chunks -
+  it simply doesn't list them as limitations any more (they're fixed),
+  and states only the one bug that remains: the `hpdf`/`hpdf_bkg` Scale
+  mismatch in `_build_bkgonly_variant`.
+- "Gate commands" dropped the "(Chunk 14, added 2026-09-04)" heading
+  suffix and the "Rerun again after Chunk 17.B's ... unchanged result"
+  historical progression - each gate now states one current result.
+- "Authoritative files" dropped the "(Chunks 13-17, added 2026-09-04)"
+  heading suffix on the hot-path-scripts file list.
+- "Completion definition" merged the original Chunk-12-only paragraph
+  and the separate "Extended (2026-09-04, Chunks 13-18)" paragraph into
+  one, covering all nine files and dropping the commit-hash citations
+  (`b026efd`, `83d3f7a`, `dab5cbd`).
+
+No technical fact was removed in this pass - every module-map row,
+design rationale, known limitation, and gate command from the prior
+version survives, restated without its chunk/date/commit/PR framing.
+
+### Verification performed
+
+- `grep -ni "chunk\|2026-09\|copilot\|PR #\|commit \`" doc/TIER3_SYSTEM.md`
+  -> no matches.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_SYSTEM.md` -> clean.
+- `git diff --check` -> clean.
+- `python scripts/quality_check.py --mode full` (rerun, doc-only change
+  should not affect it) -> 196 passed, 20 deselected, Ruff clean, Black
+  clean (39 files unchanged), exit code 0.
+- `git diff --stat` -> `doc/TIER3_SYSTEM.md` only.
+
+### Remaining open chunks
+
+None. This is a documentation-style revision to an already-complete
+Tier 3, not a new chunk.
