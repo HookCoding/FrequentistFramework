@@ -38,7 +38,7 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 200 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 202 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
@@ -341,7 +341,7 @@ in no CI job for a time.
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 200 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 202 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)
@@ -365,13 +365,13 @@ plotting-layer real-ROOT regression gates" step runs, after sourcing
 exactly the 18 tests across these 8 files that the lightweight gate
 deselects; every other test in them (`parse_args()`'s and similar
 stub-friendly tests) needs no ROOT and already runs there. Dropping the
-`-m` filter runs all 47 and is equivalent on a CVMFS host. Every test
+`-m` filter runs all 48 and is equivalent on a CVMFS host. Every test
 file with a `requires_analysis_dependencies` test must be added to this
 command (and to the CI workflow step it mirrors) in the same commit that
 introduces it - this list has been found out of date more than once
 before.
 
-Latest verified result: 47 passed, 59.06 seconds, exit code 0 (and 18
+Latest verified result: 48 passed, 51.20 seconds, exit code 0 (and 18
 selected / 29 deselected under the marker filter above), run against a
 real CVMFS/LCG scientific runtime.
 

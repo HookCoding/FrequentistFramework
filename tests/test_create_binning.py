@@ -129,6 +129,35 @@ def test_resolve_bin_edges_with_a_different_resolution_and_range() -> None:
     assert edges == [100, 110, 121, 133, 146, 161, 177, 195, 200]
 
 
+class _RecordingResolutionFit(_FakeResolutionFit):
+    """Same fake, but recording every x it is asked to evaluate."""
+
+    def __init__(self, resolution: float) -> None:
+        super().__init__(resolution)
+        self.evaluated_at: list[float] = []
+
+    def Eval(self, x: float) -> float:  # noqa: N802 - matches ROOT's own method name
+        self.evaluated_at.append(x)
+        return super().Eval(x)
+
+
+def test_resolve_bin_edges_evaluates_the_resolution_at_each_bins_lower_edge() -> None:
+    # The tests above hand resolve_bin_edges() a *constant* resolution,
+    # which cannot see which x it is evaluated at: passing the wrong
+    # value (the bin's upper edge, say, instead of its lower edge) would
+    # produce identical output and no test would notice. This records the
+    # evaluation points instead, pinning the one property a constant fake
+    # hides - each bin's width comes from the resolution at that bin's own
+    # lower edge, so the evaluated points are exactly the returned edges
+    # except the final one.
+    reso_fit = _RecordingResolutionFit(0.1)
+
+    edges = create_binning.resolve_bin_edges(reso_fit, 100, 200)
+
+    assert edges == [100, 110, 121, 133, 146, 161, 177, 195, 200]
+    assert reso_fit.evaluated_at == edges[:-1]
+
+
 def test_resolve_bin_edges_caps_the_last_edge_at_rangehigh() -> None:
     # A range whose growth step would overshoot rangehigh must clamp to
     # it exactly, not exceed it - the min(..., rangehigh) call this

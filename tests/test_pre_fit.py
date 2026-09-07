@@ -132,6 +132,30 @@ bestPars2, nbkg2 = pf.Fit()
 assert list(bestPars) == list(bestPars2)
 assert nbkg == nbkg2
 
+# Console-output characterization. Chunk 17.B changed Fit()'s own stdout
+# twice and no test noticed: it started the fitting stopwatch after the
+# "Starting fit" banner instead of before it, and it added a
+# "==================" divider the pre-refactor code never printed. Both
+# were caught by review and by hand-diffing against git history - this
+# file's assertions above only ever covered the return value, so any
+# print-level change was invisible to the gate. This pins the invariant
+# the divider broke: "Finished sampling" is immediately preceded by one
+# divider and immediately followed by the "Starting fit" banner, with
+# nothing in between. (TStopwatch::Print writes from C++, so it never
+# reaches this Python-level buffer.)
+import contextlib
+import io
+
+{_CONSTRUCT_PREFITTER}
+captured = io.StringIO()
+with contextlib.redirect_stdout(captured):
+    pf.Fit()
+
+printed = [line for line in captured.getvalue().splitlines() if line.strip()]
+finished = printed.index("Finished sampling")
+assert printed[finished - 1] == "==================", printed[finished - 2 : finished + 2]
+assert printed[finished + 1] == "Starting fit of 3 best samples", printed[finished : finished + 3]
+
 print("SNIPPET_OK")
 """
     _assert_snippet_ok(_run_real_root_snippet(snippet))

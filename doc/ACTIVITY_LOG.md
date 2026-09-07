@@ -10835,3 +10835,117 @@ and that all four previous response passes therefore missed.
 ### Remaining open chunks
 
 None.
+
+---
+
+## 2026-09-07 — Generalise each Copilot finding to its class; two sister defects and two missing guards found
+
+### Objective
+The user asked whether the thirteen Copilot findings had undiscovered
+root causes or sister instances - explicitly warning against assuming a
+file is correct because it has not been edited recently, or that a
+comment about one line cannot apply elsewhere. Each finding was
+therefore generalised to a defect *class* and the class searched for
+across the whole repository.
+
+### What changed
+
+Two sister defects, both real and both in tests never touched by any
+review round:
+
+- **`test_git_hook_pre_commit_gate_matches_authoritative_commands`
+  false-passed.** It asserted the mandatory local gate's commands by
+  searching `.githooks/pre-commit`'s raw text. Proved by commenting the
+  hook's *entire* scientific gate out: the test still passed. This is
+  Comment 3's defect on the repository's most load-bearing check.
+- **`test_ci_runs_locked_lightweight_full_gate` false-passed.** Same
+  cause. Proved by commenting the lightweight-gate command out of
+  `.github/workflows/tier1-root-comparison.yml`: the test still passed,
+  so CI could stop running the gate with no test objecting.
+
+Both now assert through a new `_executable_command_lines()` helper -
+full-line comments dropped, backslash continuations joined, pure-output
+lines (`echo`/`printf`/`cat`) and heredoc bodies removed - and the
+pytest assertions go through the existing `_pytest_command_lines()`.
+`_strip_full_line_comments()`/`_join_continuations()` were hoisted so
+all three helpers share one implementation. The *negative* assertions
+(`"requires_root" not in workflow`) deliberately stay against raw text:
+for a must-not-appear check, raw text is the stricter side, since it
+also rejects a commented-out mention. Added
+`test_executable_command_lines_ignores_comments_and_echoes()`, which
+itself found a gap in the first version of the helper (heredoc bodies
+carry no command word to filter on) before that version was committed.
+
+Two missing guards, both being the reason earlier findings escaped:
+
+- **No test captured any hot-path script's console output.** Chunk
+  17.A's characterization test pinned only `(bestPars, nbkg)` and
+  determinism, so Chunk 17.B's two stdout/timing changes - the
+  stopwatch moved after the banner, and an added `==================`
+  divider - were invisible to every gate and were caught only by review
+  and by hand-diffing git history. Added a console-output assertion to
+  that test: `"Finished sampling"` must be immediately preceded by one
+  divider and immediately followed by the "Starting fit" banner.
+  Verified it catches the historical defect by re-introducing the
+  divider - the test fails; removed again.
+- **`resolve_bin_edges()`'s fake `.Eval()` returned a constant**, so no
+  test could see *which* x the production loop evaluates: passing a
+  bin's upper edge instead of its lower edge would have produced
+  identical output. Added a recording fake asserting the evaluation
+  points equal the returned edges except the last, and verified it
+  fails under a deliberate `Eval(bin_edge + 1)` mutation.
+
+Verified clean, so no change made:
+
+- Every `requires_root` test also carries
+  `requires_analysis_dependencies` (a test with only the former would
+  run in the lightweight gate and fail in CVMFS-less CI).
+- All five Step-B extractions preserve their `print()` call multisets,
+  compared by AST rather than regex - an initial regex sweep reported a
+  false difference on `ExtractPostfitFromWS.py` because the
+  pre-extraction file wrote `print (` with a space, which Black later
+  normalised.
+- Chunk 16a's Python-2 `.values()[-1]` indexing and Chunk 16b's
+  key-vs-value `next(iter(dict))` pattern appear nowhere else in
+  hot-path code; all eight `ExtractPostfitFromWS` accessors now use
+  `.values()`.
+- All 48 function/method names in `doc/TIER3_SYSTEM.md`'s module-map
+  rows exist in the sources they describe (checked by AST).
+- `python/PreFitWS.py` and `python/run_nloFit.py` are unreachable from
+  the J100/J50 launchers, and `PreFitWS.PreFitter` takes a
+  workspace-based constructor with no `parRangeLow`/`nPars`, so it does
+  not share `PreFit.py`'s 7-vs-10-element fragility. It is a structural
+  sibling of `Fit()`'s sampling block, not a whole-file duplicate.
+- The installer policy tests already strip comments and use negative
+  assertions, which is sound. Notably that correct technique was
+  already present in `tests/test_repo_utils.py` before Comment 3 was
+  raised and was not reused.
+
+Flagged, not changed: `python/createExtractionGraph_signalInjection.py:337`
+has a live `list(next(iter(list(dict_file.items()))))[0]` - the same
+key-vs-value shape as Chunk 16b's bug. That file is outside Tier 3's
+scope and unreachable from the J100/J50 launchers, and the intent of
+that line has not been verified, so it is recorded here rather than
+altered.
+
+Gate figures refreshed for the two new tests: lightweight 222
+collected/202 passed/20 deselected; prepared-dependency 2 passed/16
+deselected; plotting-layer files 48 unfiltered (51.20s, re-measured
+under a real CVMFS runtime, not inferred).
+
+### Verification performed
+
+- `python scripts/quality_check.py --mode full`: 222 collected, 202
+  passed, 20 deselected, Ruff clean, Black clean, exit code 0.
+- Real-ROOT `tests/test_pre_fit.py -m requires_analysis_dependencies`:
+  2 passed.
+- Unfiltered plotting-layer files under real ROOT: 48 passed, 51.20s.
+- Four sabotage/restore experiments, each failing before the fix and
+  after re-breaking, then restored and confirmed clean: hook scientific
+  gate commented out; CI gate command commented out; PreFit divider
+  re-introduced; `Eval(bin_edge + 1)` mutation.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.

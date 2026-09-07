@@ -13,6 +13,66 @@ from python.repo_utils import (
 )
 
 
+def _strip_full_line_comments(text: str) -> str:
+    """Drop every line whose stripped form starts with '#' (a shell or
+    YAML full-line comment), so a commented-out reference to a test
+    file can never satisfy a "this file is referenced" check below."""
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
+def _join_continuations(text: str) -> list[str]:
+    """One logical line per shell command, with backslash-continued
+    lines joined, so an argument on its own physical line still counts
+    as part of the command it belongs to."""
+    joined: list[str] = []
+    pending = ""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.endswith("\\"):
+            pending += stripped[:-1].strip() + " "
+            continue
+        joined.append((pending + stripped).strip())
+        pending = ""
+    if pending:
+        joined.append(pending.strip())
+    return joined
+
+
+# Command words that only *print* text. A command named in an echo is
+# not a command the file runs, so these lines are dropped before any
+# "this file runs that command" assertion.
+_OUTPUT_ONLY_COMMANDS = re.compile(r'^(?:echo|printf|cat|:)\b|^"?\$?\w*echo')
+
+
+def _executable_command_lines(text: str) -> str:
+    """Only the lines of a shell script or workflow that actually run
+    something: full-line comments dropped, backslash continuations
+    joined, pure-output lines (echo/printf/cat) removed, and heredoc
+    bodies removed - a heredoc body is data being printed, and its
+    lines carry no command word of their own to filter on.
+
+    Asserting a command is "present" by searching raw file text is
+    unsound - a commented-out line, or the command quoted inside an
+    echo, satisfies the search while the file no longer runs it. This
+    has been found three times in this repository's own policy tests, so
+    every "the file runs X" assertion below goes through here.
+    """
+    kept: list[str] = []
+    heredoc_terminator: str | None = None
+    for line in _join_continuations(_strip_full_line_comments(text)):
+        if heredoc_terminator is not None:
+            if line.strip() == heredoc_terminator:
+                heredoc_terminator = None
+            continue
+        opener = re.search(r"<<-?\s*'?\"?([A-Za-z_][A-Za-z0-9_]*)'?\"?", line)
+        if opener:
+            heredoc_terminator = opener.group(1)
+            continue
+        if line and not _OUTPUT_ONLY_COMMANDS.search(line):
+            kept.append(line)
+    return "\n".join(kept)
+
+
 def test_find_repo_root_returns_workspace_root() -> None:
     repo_root = find_repo_root()
 
@@ -196,18 +256,28 @@ def test_ci_runs_locked_lightweight_full_gate() -> None:
     workflow_path = repo_root / ".github" / "workflows" / "tier1-root-comparison.yml"
     workflow = workflow_path.read_text(encoding="utf-8")
 
+    # Configuration keys are YAML, not commands - a raw-text check is the
+    # right one for these.
     assert "uses: actions/checkout@" in workflow
     assert "uses: actions/setup-python@" in workflow
     assert 'python-version: "3.12.13"' in workflow
     assert "requirements-dev-lock.txt" in workflow
-    assert "python -m pip install -r requirements-dev-lock.txt" in workflow
-    assert "python scripts/quality_check.py --mode full" in workflow
+    assert "tier-2-m365" in workflow
 
+    # The two *commands* are checked against lines that actually run, not
+    # against raw text: commenting the gate command out of this workflow
+    # used to leave this test passing, so it reported CI coverage that CI
+    # no longer had. Same defect class as the gate-coverage tests below.
+    commands = _executable_command_lines(workflow)
+    assert "python -m pip install -r requirements-dev-lock.txt" in commands
+    assert "python scripts/quality_check.py --mode full" in commands
+
+    # These stay against raw text deliberately. For a "must NOT appear"
+    # check, raw text is the stricter side: it also rejects a
+    # commented-out mention, which is the safe direction here.
     assert "tests/test_analysis_workflows_integration.py" not in workflow
     assert "requires_root" not in workflow
     assert "requires_analysis_dependencies" not in workflow
-
-    assert "tier-2-m365" in workflow
 
 
 def test_precommit_is_not_a_locked_development_dependency() -> None:
@@ -241,13 +311,21 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
     hook_text = hook_path.read_text(encoding="utf-8")
     installer_text = installer_path.read_text(encoding="utf-8")
 
-    assert "scripts/quality_check.py --mode full" in hook_text
-    assert "setup_buildAndFit.sh" in hook_text
-    assert "tests/test_analysis_workflows_integration.py" in hook_text
-    assert '"integration and requires_root"' in hook_text
+    # Checked against lines the hook actually runs, not its raw text.
+    # Commenting the whole scientific gate out of this hook used to leave
+    # this test passing - a false all-clear on the repository's mandatory
+    # local gate. Same defect class as the two gate-coverage tests below.
+    hook_commands = _executable_command_lines(hook_text)
+    assert "scripts/quality_check.py --mode full" in hook_commands
+    assert "setup_buildAndFit.sh" in hook_commands
 
-    assert "core.hooksPath" in installer_text
-    assert ".githooks" in installer_text
+    hook_pytest = _pytest_command_lines(hook_text)
+    assert "tests/test_analysis_workflows_integration.py" in hook_pytest
+    assert '"integration and requires_root"' in hook_pytest
+
+    installer_commands = _executable_command_lines(installer_text)
+    assert "core.hooksPath" in installer_commands
+    assert ".githooks" in installer_commands
 
 
 def _tests_dir_files_marked_requires_analysis_dependencies(tests_dir: Path) -> list[str]:
@@ -278,13 +356,6 @@ def _dependency_marked_test_names(test_file: Path) -> list[str]:
             names.append(stripped[len("def ") :].split("(")[0])
         pending = False
     return names
-
-
-def _strip_full_line_comments(text: str) -> str:
-    """Drop every line whose stripped form starts with '#' (a shell or
-    YAML full-line comment), so a commented-out reference to a test
-    file can never satisfy a "this file is referenced" check below."""
-    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
 
 
 # Matches a real pytest invocation, anchored at the *command position*
@@ -318,18 +389,11 @@ def _pytest_command_lines(text: str) -> str:
     pytest can. Without this, removing a gate outright while leaving
     its name behind in an echo line would still pass these tests.
     """
-    joined: list[str] = []
-    pending = ""
-    for line in _strip_full_line_comments(text).splitlines():
-        stripped = line.strip()
-        if stripped.endswith("\\"):
-            pending += stripped[:-1].strip() + " "
-            continue
-        joined.append((pending + stripped).strip())
-        pending = ""
-    if pending:
-        joined.append(pending.strip())
-    return "\n".join(line for line in joined if _PYTEST_INVOCATION.search(line))
+    return "\n".join(
+        line
+        for line in _join_continuations(_strip_full_line_comments(text))
+        if _PYTEST_INVOCATION.search(line)
+    )
 
 
 # tests/test_analysis_workflows_integration.py is exempt from the
@@ -413,6 +477,34 @@ def _assert_covers_every_dependency_marked_test(
         f"{source_description} is missing these requires_analysis_dependencies "
         f"test files: {missing_files}"
     )
+
+
+def test_executable_command_lines_ignores_comments_and_echoes() -> None:
+    # Regression test for _executable_command_lines()'s contract. The
+    # failure it pins down was real in two policy tests above: with the
+    # pre-commit hook's whole scientific gate commented out, and with
+    # the CI workflow's gate command commented out, both tests still
+    # passed because they searched raw file text.
+    inert = """
+        # bash scripts/setup_buildAndFit.sh
+        echo "running scripts/quality_check.py --mode full"
+        printf '%s\\n' "core.hooksPath"
+        cat <<'EOF'
+        scripts/quality_check.py --mode full
+        EOF
+    """
+    assert _executable_command_lines(inert) == ""
+
+    real = """
+        # this comment mentions quality_check.py --mode full
+        echo "about to run the gate"
+        python scripts/quality_check.py --mode full
+        git config core.hooksPath .githooks
+    """
+    commands = _executable_command_lines(real)
+    assert "python scripts/quality_check.py --mode full" in commands
+    assert "core.hooksPath" in commands
+    assert "about to run the gate" not in commands
 
 
 def test_pytest_command_lines_ignores_echoed_commands() -> None:
