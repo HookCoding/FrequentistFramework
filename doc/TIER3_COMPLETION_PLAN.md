@@ -1876,7 +1876,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
 | `PreFitter.__init__` | unchanged | — | unchanged |
 | `RandomizeParameters(self, function)` | unchanged | unchanged | unchanged |
 | `_build_candidate_functions(self, ...)` (**new**, private) | current histogram-range/log-mode state | the 10 hardcoded `TF1` candidates (`NParFunction[1..10]`, `LogNParFunction[1..10]`) | none beyond `TF1` construction — values unchanged |
-| `_select_best_parameter_sets(self, ...)` (**new**, private) | candidate functions, `nRetries1`, `nRetries2` | the ranked best-`nRetries2` parameter sets by chi2 | isolates the array/bisect bookkeeping (current ~lines 127–132); no ROOT calls of its own beyond scoring the candidates it's handed |
+| `_select_best_parameter_sets(self, ...)` (**new**, private) | candidate functions, `nRetries1`, `nRetries2` | the ranked best-`nRetries2` parameter sets by chi2 | isolates the array/bisect bookkeeping (current ~lines 127–132); histogram scoring is injected through the caller's `h.Chisquare(...)` closure, so it never touches the data histogram directly — it still calls `ROOT.TStopwatch`/`ROOT.TMath` for timing and the `Exp`/`Log` initial-guess math (this cell originally predicted "no ROOT calls of its own", which the implementation showed to be wrong) |
 | `Fit(self)` (existing, becomes the orchestrator) | — | `(bestPars, nbkg)`, unchanged | reads/log-transforms the data histogram, calls the two new helpers above, refits the survivors with `TH1::Fit` |
 | `main(args)` | unchanged | unchanged | unchanged — still unused from the pipeline |
 

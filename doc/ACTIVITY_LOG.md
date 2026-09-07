@@ -10765,3 +10765,73 @@ before anything changed; both were real.
 
 None. This is a fourth review-response pass over already-complete work,
 not a new chunk.
+
+---
+
+## 2026-09-07 — Fix a fourth, never-cited copy of Chunk 17's "no ROOT calls of its own" claim
+
+### Objective
+While walking back through each Copilot review comment one by one with
+the user, tracing the origin of round 1's "no ROOT calls of its
+own"/"stub-free" claim turned up a copy that no review round ever cited
+and that all four previous response passes therefore missed.
+
+### What changed
+
+- `git grep "no ROOT calls of its own" 34315d1` showed the claim stood
+  in **four** places when round 1 reviewed the branch:
+  `python/PreFit.py:171` (cited), `doc/TIER3_SYSTEM.md:219` (cited),
+  `doc/ACTIVITY_LOG.md:9490` (cited), and
+  `doc/TIER3_COMPLETION_PLAN.md:1879` (**never cited**). The first two
+  were corrected in `fde3006`; the activity-log copy is left as written
+  per this file's append-only rule. The plan-document copy - the Chunk
+  17 design table's cell for `_select_best_parameter_sets` - survived
+  untouched through all four review-response commits.
+- Root cause of the miss: the sweep after round 1 grepped for
+  `stub-free` (which reached 0 occurrences outside this log) but never
+  for the *other* half of the same false claim, `no ROOT calls of its
+  own`. Copilot cited three of the four sites and the fourth was
+  assumed absent rather than checked. This is the same
+  fix-the-citation-not-the-class scoping failure that made round 2
+  revisit `tests/test_pre_fit.py`'s lines 28/187 after round 1 fixed
+  only the cited line 189.
+- Corrected that cell to state the actual property - histogram scoring
+  injected through the caller's `h.Chisquare(...)` closure, so the
+  method never touches the data histogram directly, while still calling
+  `ROOT.TStopwatch`/`ROOT.TMath` for timing and the `Exp`/`Log`
+  initial-guess math - and noted inline that the cell originally
+  predicted "no ROOT calls of its own", which the implementation showed
+  to be wrong. The prediction is kept visible rather than silently
+  overwritten, since this document records a design that was reviewed
+  and approved before implementation; unlike Chunk 18's
+  `FindBHWindow.py` gate instruction (deliberately left as the plan of
+  record, since it was executed faithfully and only later refactored),
+  this cell asserted a *property of the code* that was never true, and
+  the same document's Chunk 17 Step B prose had already been corrected
+  for the identical error - leaving one half corrected and the other
+  half false was the worse option.
+- Swept for every related phrasing rather than just this one, to avoid
+  a fifth pass: `no ROOT calls`, `ROOT-independent`, `without ROOT`,
+  `zero ROOT`, `never touches ROOT`, plus every line mentioning
+  `_select_best_parameter_sets`. All remaining hits were verified
+  accurate - `createBinning.py`'s `parse_args()`/`resolve_bin_edges()`,
+  `plotPostFit.py`'s `parse_args()`, `FindBHWindow.py`'s `parse_args()`
+  and `tests/test_pre_fit.py`'s `_score_by_summed_abs_params()`
+  docstring all genuinely make no ROOT calls. The Chunk 17 row at
+  `doc/TIER3_COMPLETION_PLAN.md:403` was checked and makes no
+  ROOT-independence claim.
+
+### Verification performed
+
+- `grep -rn "no ROOT calls of its own"` outside `doc/ACTIVITY_LOG.md`:
+  the only remaining occurrence is the phrase quoted inside the
+  correction note itself.
+- `python scripts/quality_check.py --mode full`: 220 collected, 200
+  passed, 20 deselected, Ruff clean, Black clean, exit code 0.
+- `grep -nE '[[:blank:]]+$' doc/TIER3_COMPLETION_PLAN.md`: clean.
+- `git diff --check`: clean.
+- Documentation-only change; no source, test or gate behaviour touched.
+
+### Remaining open chunks
+
+None.
