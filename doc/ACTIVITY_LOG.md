@@ -11408,3 +11408,83 @@ claimed to have answered them.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Reflow a comment whose line wrap orphaned its verb (seventh Copilot review round)
+
+### Objective
+
+Copilot's seventh review (the quota limit that blocked the sixth having
+cleared) raised one Low finding: `tests/test_extract_postfit_from_ws.py`
+"names only `GetH1Residuals()` even though the following block covers
+six accessors", and asked for the "omitted accessor list" to be
+restored.
+
+### What the finding actually was
+
+The diagnosis was wrong, but it was caused by a real defect.
+
+- Nothing was omitted. All six accessors were named, across a list that
+  wrapped between two lines - `GetNbins()/GetNpars()/GetNdof()/
+  GetH1Chi2()/GetH1Postfit()/` on the first, `GetH1Residuals()` opening
+  the second. Copilot's comment range began at the second of those
+  lines, so it read the continuation as the whole sentence.
+- Verified independently rather than merely rebutted: `7e6ff95`
+  ("Chunk 16b: fix the 6-of-8 accessors' key-vs-value fallback bug")
+  changed exactly `GetNbins`, `GetNpars`, `GetNdof`, `GetH1Chi2`,
+  `GetH1Postfit` and `GetH1Residuals`. Six changed accessors, six names
+  in the comment, six assertions below it. The comment was accurate.
+- The real defect: the wrap orphaned a plural verb from its list, so
+  the second line read alone as "GetH1Residuals() now correctly use
+  next(iter(dict.values())) in their ..." - a singular subject with a
+  plural verb, forming a sentence that looks complete and says
+  something false. That is what misled the reviewer, and would mislead
+  a person skimming from that line.
+
+### What changed
+
+- The comment is reflowed so its subject is "The six accessors Chunk
+  16b fixed", stating the count up front, and no line reads as a
+  standalone sentence. A closing line records that the six assertions
+  below are one per fixed accessor, so the comment is self-checking
+  against the block it describes. No assertion, and no production code,
+  was touched.
+
+### Generalised to the class
+
+Every comment and document line in the repository ending in `/` - a
+list continued onto the next line - was swept: 17 hits. Only this one
+had the defect; in the rest the continuation either carries more list
+items or reads correctly on its own. One was checked closely and
+deliberately left as written: `tests/test_pre_fit.py:24`'s "Unlike
+those two chunks' extractor classes" follows a list of *three* test
+files, but "those two chunks" refers to Chunks 15 and 16 named earlier
+in the same comment, and is correct.
+
+### Verification performed
+
+- `tests/test_extract_postfit_from_ws.py -m
+  "requires_analysis_dependencies"` under a sourced scientific runtime:
+  5 passed, 21.91s. Run because the edited comment sits inside a
+  snippet string that a real-ROOT subprocess executes, so a broken
+  quote would be a real failure rather than a cosmetic one.
+- `python scripts/quality_check.py --mode full`: 230 collected, 210
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Collection counts unchanged - no test was added or removed,
+  so no documented figure moved.
+- CI for `eef3e33`: the fork's push-triggered "Complete lightweight and
+  scientific test suite" concluded **success**; upstream PR 19's
+  pull_request-triggered lightweight gate also **success**.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Noted, not changed
+
+- The review reports "Files reviewed: 16/17 changed files". Which file
+  went unexamined is not exposed by the API, so it is recorded here as
+  unknown rather than guessed.
+- The review's own header asks for "final human confirmation" of the
+  scientific-runtime work. That is a request for maintainer sign-off,
+  not a code finding, and remains open.
+
+### Remaining open chunks
+
+None.

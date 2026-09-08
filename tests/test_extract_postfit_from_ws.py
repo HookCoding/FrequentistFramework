@@ -163,12 +163,13 @@ assert approx(pfe.GetPval(), 0.4957578521660618)
 assert approx(pfe.GetChi2("Run3TLA"), 2513.0871912425)
 assert approx(pfe.GetPval("Run3TLA"), 0.4957578521660618)
 
-# GetNbins()/GetNpars()/GetNdof()/GetH1Chi2()/GetH1Postfit()/
-# GetH1Residuals() now correctly use next(iter(dict.values())) in their
-# no-channelname fallback, matching GetChi2()/GetPval() above (Chunk
-# 16b fix) - previously returned the channel-name string "Run3TLA"
-# instead of the real int/histogram (Chunk 16.A's own characterization
-# of that bug, now resolved).
+# The six accessors Chunk 16b fixed - GetNbins(), GetNpars(),
+# GetNdof(), GetH1Chi2(), GetH1Postfit() and GetH1Residuals() - now
+# use next(iter(dict.values())) in their no-channelname fallback,
+# matching GetChi2()/GetPval() above. Each previously returned the
+# channel-name string "Run3TLA" instead of the real int/histogram,
+# which is what Chunk 16.A's own characterization pinned down. The six
+# assertions below are one per fixed accessor.
 assert pfe.GetNbins() == 2519
 assert pfe.GetNpars() == 6
 assert pfe.GetNdof() == 2513
