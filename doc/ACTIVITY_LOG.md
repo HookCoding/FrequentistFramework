@@ -11488,3 +11488,95 @@ in the same comment, and is correct.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Correct Tier 3's global behavior-preservation claim, which the deliberate bug-fix chunks contradicted (eighth Copilot review round)
+
+### Objective
+
+Copilot's eighth review raised two suppressed findings, both on
+`doc/TIER3_SYSTEM.md`: its opening claim that Tier 3 leaves "every
+public entry point's external behavior preserved exactly" (line 6, and
+again at line 12) and its Purpose statement's "never changing what any
+of it computes" (line 14) are contradicted by Chunks 16a and 16b, which
+changed public behavior on purpose. It asked for the actual policy to be
+stated instead: preserve behavior during extraction, with separately
+identified bug-fix chunks allowed to change it.
+
+### The finding is correct
+
+Verified against the commits rather than taken on trust:
+
+- `7e6ff95` (Chunk 16b) changed six of the eight `PostfitExtractor`
+  accessors - `GetNbins`, `GetNpars`, `GetNdof`, `GetH1Chi2`,
+  `GetH1Postfit`, `GetH1Residuals` - from `next(iter(dict))` to
+  `next(iter(dict.values()))`, so a no-argument call returns the value
+  rather than the channel-name key.
+- `d54e89a` (Chunk 16a) changed `WriteRoot(dirPerCategory=False)`'s
+  three `.values()[-1]` expressions to `list(...values())[-1]`, turning
+  a Python-3 `TypeError` into a working branch.
+
+Both are public-facing, both were deliberate, and
+`doc/TIER3_SYSTEM.md` did not mention Chunks 16a or 16b anywhere - so
+the document claimed total preservation while omitting the two changes
+that broke it.
+
+### What changed
+
+- The opening sentence now scopes the preservation claim to the
+  extraction chunks and points at the two bug-fix chunks.
+- The Purpose statement now states the real policy: an extraction chunk
+  never changes what the code computes and preserves existing quirks
+  verbatim; behavior may change only in a separate chunk identified as
+  a bug fix that does no extraction of its own. It also names the
+  invariant that *does* hold absolutely - guardrail 1's "no scientific
+  change", proved by the Tier 1 gates - so the qualified claim is not
+  read as a licence to change anything.
+- A new "Deliberate behavior changes" section records both fixes: what
+  each changed, why neither altered a production call path
+  (`run_fit.py` always passes `channelname`, and always passes
+  `dirPerCategory=True`), and that Chunk 16's characterization tests
+  pinned both behaviors before either was fixed.
+- The `ExtractPostfitFromWS.py` module-map row now points at that
+  section, since the accessor list is where a reader looks up what
+  those methods do.
+
+### Generalised to the class
+
+Every document was swept for the same absolute wording
+(`preserved exactly`, `never chang`, `no behavior change`,
+`behavior-preserving`, `purely structural`, `identical behavior`,
+`unchanged behavior`, and others). `doc/TIER3_SYSTEM.md` lines 6 and 14
+were the only *global* claims. Every other hit is correctly scoped to
+one named quirk - `getChi2`'s external mutation, `run_templates.py`'s
+`nPars` chain, `FindBHWindow.py`'s hardcoded scan parameters,
+`plot_postfit()`'s public signature - and each remains true.
+`doc/TIER3_COMPLETION_PLAN.md`'s own guardrail 1 is "no scientific
+change", not "no behavior change", so the plan never made the claim the
+system document did; the two now agree.
+
+### Verification performed
+
+- `tests/test_repo_utils.py -k documented`: 3 passed - the
+  figure-consistency tests still hold, the new section having added no
+  figure claim of its own.
+- `python scripts/quality_check.py --mode full`: 230 collected, 210
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0.
+- CI for `4aded75`: fork "Complete lightweight and scientific test
+  suite" **success**; upstream PR 19 lightweight gate **success**.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Noted, not changed
+
+- The Known-limitations entry for `_build_bkgonly_variant`'s
+  misdirected `Scale` call describes it as a "dormant" bug. That may be
+  inaccurate: the call executes on every run, and whether it is inert
+  depends on whether `hpdf.Scale(...)` raises on an already-consumed
+  histogram and is swallowed by the bare `except`. Determining which
+  needs a real-ROOT probe and a judgement about intended scaling, so it
+  is recorded here as an open question rather than silently reworded.
+  The new section deliberately avoids repeating the word.
+
+### Remaining open chunks
+
+None.

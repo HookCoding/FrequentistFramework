@@ -3,15 +3,26 @@
 This guide describes the Tier-3 structural refactoring: splitting
 `python/run_anaFit.py`, the plotting layer, and five additional hot-path
 support scripts into focused, individually-tested functions and modules,
-with every public entry point's external behavior preserved exactly. It
-is modeled on `doc/TIER1_SYSTEM.md` and `doc/TIER2_SYSTEM.md`'s
-structure.
+with every public entry point's external behavior preserved exactly by
+the extraction chunks themselves - and with two separately-scoped
+bug-fix chunks that deliberately changed it, both recorded under
+"Deliberate behavior changes" below. It is modeled on
+`doc/TIER1_SYSTEM.md` and `doc/TIER2_SYSTEM.md`'s structure.
 
 ## Purpose and audience
 
 Tier 3 is assisted structural refactoring: moving and decomposing
-existing code using extract-function/extract-module technique, never
-changing what any of it computes. This document is for anyone reading or
+existing code using extract-function/extract-module technique. The
+policy is not that nothing ever changes: an *extraction* chunk never
+changes what any of the code computes, and characterizes and preserves
+existing quirks and bugs verbatim; behavior may change only in a
+separate chunk identified as a bug fix that does no extraction of its
+own. Two such chunks landed - see "Deliberate behavior changes" below.
+What holds without exception is guardrail 1 of
+`doc/TIER3_COMPLETION_PLAN.md`, "no scientific change": frozen
+references, tolerances, fit configuration, canonical inputs and the
+manifest contract, proved by the Tier 1 gates rather than asserted in
+prose. This document is for anyone reading or
 extending the seven `run_anaFit.py` modules, the plotting layer, or the
 five hot-path support scripts below - it answers "where did function X
 go", "what does module Y depend on", and "which test file exercises
@@ -52,6 +63,36 @@ by itself prove `python/FindBHWindow.py`'s or fully
 J100/J50 fixtures never exercise either file's real branch (unmasked
 runs only; both binning fixtures already exist on disk) - see "Gate
 commands" below for the gates that do.
+
+## Deliberate behavior changes
+
+Two chunks changed behavior on purpose, each in its own commit that did
+no extraction, per `doc/TIER3_COMPLETION_PLAN.md`'s Chunks 16a and 16b.
+Both are in `python/ExtractPostfitFromWS.py`, and neither is reachable
+from the J100/J50 workflows - which is why the scientific gate above
+still matches the frozen reference exactly.
+
+- **Chunk 16b** changed six of the eight `PostfitExtractor` accessors:
+  `GetNbins()`, `GetNpars()`, `GetNdof()`, `GetH1Chi2()`,
+  `GetH1Postfit()` and `GetH1Residuals()`. Called with no
+  `channelname`, each used `next(iter(self.channel_X))`, returning a
+  channel-name *key* (the string `"Run3TLA"`) rather than the value.
+  They now use `next(iter(self.channel_X.values()))`, matching
+  `GetChi2()`/`GetPval()`, which were always correct. `run_fit.py`'s
+  only call site always passes `channelname` explicitly, so no
+  production call changed.
+- **Chunk 16a** changed `WriteRoot(dirPerCategory=False)`, whose three
+  `.values()[-1]` expressions were Python-2-only dict-values indexing
+  and raised `TypeError` under Python 3. They are now
+  `list(...values())[-1]`. `run_fit.py` always passes
+  `dirPerCategory=True`, so this branch was unreachable in production;
+  it now works rather than crashing.
+
+Chunk 16's own characterization tests pinned both behaviors *before*
+either was fixed, so neither fix could be made silently. A separate,
+still-unfixed bug in the same file (`_build_bkgonly_variant`'s
+misdirected `Scale` call) was deliberately left alone - see "Known
+limitations".
 
 ## Scope
 
@@ -215,7 +256,7 @@ not support one.
 | `python/createBinning.py` | `parse_args(argv=None)`; `load_resolution_fit(input_path=...)`; `resolve_bin_edges(reso_fit, rangelow, rangehigh)`; `build_binning_histogram(bin_edges)`; `main(argv=None)`, plus an `if __name__ == "__main__":` guard | `import ROOT` deferred inside `load_resolution_fit()`/`build_binning_histogram()`/`main()`; `parse_args()`/`resolve_bin_edges()` are ROOT-free at both module and call scope - `resolve_bin_edges()` is the one fragment testable with zero ROOT, needing only an object exposing `.Eval(x)`. |
 | `python/FindBHWindow.py` | `NpEncoder`; `parse_args(argv=None)`; `load_histograms(input_file, bkghist, datahist)`; `crop_data_to_background_range(bins, bins_data, data)`; `run_bump_hunter(data, bkg, bins)`; `compute_mask_window(state, bins, firstbindata, use_bin_numbers)`; `save_bump_plots(hunter, data, bkg)`; `write_mask_window_json(out_dict, outputjson)`; `main(argv=None)` (the file's only real entry point - always invoked as a whole subprocess under its own dedicated interpreter, never imported) | `numpy` stays at module scope; `uproot` deferred inside `load_histograms()`; `matplotlib`/`pyBumpHunter` deferred inside `run_bump_hunter()`/`save_bump_plots()`. `crop_data_to_background_range()` is the one fragment testable with only a `numpy` stub, once given plain arrays; `compute_mask_window()` keeps the `--usebinnumbers` vs. default formulas as two distinct, separately-tested branches. |
 | `python/ExtractFitParameters.py` | `FitParameterExtractor.__init__(self, wsfile)`; `.Extract()`; `.GetH1Params()`; `.GetH2Cov()`; `.GetH2Cor()`; `.GetNsig()`; `.GetNsigErr()`; `.WriteRoot(outfile)`; `main(args)` | No decomposition of `Extract()`/`WriteRoot()`/the 5 accessors: `Extract()` (42 lines) is one cohesive block, and forcing a split would relocate, not reduce, its complexity. |
-| `python/ExtractPostfitFromWS.py` | Free functions `getNPars(pdf, obs, exclSyst)`/`expHist(h)`/`getChi2(extractor, channelname, npars, useSumW2=False)` (`getChi2`'s external mutation of the `extractor` it's passed is preserved exactly); `PostfitExtractor.__init__`; `._open_workspace_and_data()`; `._build_channel_postfit_histogram(pdfi, x, channelname, npars, data)`; `._build_bkgonly_variant(w, channelname, x, hpdf, nBins, binEdges, npars)`; `._apply_external_rebinning(channelname, channelname_bkg, npars)`; `.Extract()` (orchestrator); `.WriteRoot(outfile, dirPerCategory=False)`; the 8 accessors (`GetChi2`/`GetNbins`/`GetNpars`/`GetNdof`/`GetPval`/`GetH1Chi2`/`GetH1Postfit`/`GetH1Residuals`); `.GetCategories()`; `main(args)` | `Extract()` (137 lines, the largest method across all nine files) decomposes into the four private helpers; `WriteRoot()`/the 8 accessors/`GetCategories()` stay undecomposed one-liners. |
+| `python/ExtractPostfitFromWS.py` | Free functions `getNPars(pdf, obs, exclSyst)`/`expHist(h)`/`getChi2(extractor, channelname, npars, useSumW2=False)` (`getChi2`'s external mutation of the `extractor` it's passed is preserved exactly); `PostfitExtractor.__init__`; `._open_workspace_and_data()`; `._build_channel_postfit_histogram(pdfi, x, channelname, npars, data)`; `._build_bkgonly_variant(w, channelname, x, hpdf, nBins, binEdges, npars)`; `._apply_external_rebinning(channelname, channelname_bkg, npars)`; `.Extract()` (orchestrator); `.WriteRoot(outfile, dirPerCategory=False)`; the 8 accessors (`GetChi2`/`GetNbins`/`GetNpars`/`GetNdof`/`GetPval`/`GetH1Chi2`/`GetH1Postfit`/`GetH1Residuals`); `.GetCategories()`; `main(args)` | `Extract()` (137 lines, the largest method across all nine files) decomposes into the four private helpers; `WriteRoot()`/the 8 accessors/`GetCategories()` stay undecomposed one-liners. Six of the accessors and `WriteRoot(dirPerCategory=False)` had their behavior deliberately corrected afterwards - see "Deliberate behavior changes". |
 | `python/PreFit.py` | `PreFitter.__init__`; `.RandomizeParameters(function)`; `._build_candidate_functions()`; `._select_best_parameter_sets(fitFunction, integral, score_fn, nRetries1, nRetries2)`; `.Fit()` (orchestrator); `main(args)` | `_select_best_parameter_sets()` takes a `score_fn` callable (`Fit()` passes a `lambda fn: h.Chisquare(fn)` closure) instead of the data histogram itself, so it never touches the data histogram directly - it still calls `ROOT.TStopwatch`/`ROOT.TMath` for timing and the `Exp`/`Log` initial-guess math, which is what makes `tests/test_pre_fit.py` a histogram-independent, ROOT-stubbed unit test of this file's own logic rather than a fully ROOT-free one. |
 
 All five files do have a real, `requires_analysis_dependencies`-marked
