@@ -11314,3 +11314,97 @@ is append-only, so its figures are history and were not touched.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Re-read every Copilot review comment on PR 19 as a set, and fix the two remaining raw-text policy checks it never reached
+
+### Objective
+
+The individual review rounds were each answered as they arrived. This
+pass fetched every comment Copilot has left on
+`tofitsch/FrequentistFramework` PR 19 — 16 inline comments across five
+reviews, plus the 8 "suppressed" comments that appear only inside the
+review summaries and are never posted inline — and checked all 24
+against the current tree rather than against the commit messages that
+claimed to have answered them.
+
+### What the audit found
+
+- All 24 findings are addressed in `0d3c853`. The 8 suppressed ones
+  were checked individually, since a suppressed comment is easy to miss:
+  the two most substantive were `doc/TIER3_SYSTEM.md`'s "all five
+  scripts use a stubbed fast tier" claim (now states plainly that the
+  fast tiers are three different shapes and that
+  `ExtractPostfitFromWS.py` has none) and `tests/test_pre_fit.py`'s
+  20-formula coverage claim (now narrowed to the one form the real-ROOT
+  test actually fits).
+- Copilot's sixth review, on `0d3c853`, returned "unable to review …
+  the user who requested the review has reached their quota limit". The
+  latest commit — the figure-consistency audit and its three new tests —
+  has therefore never been reviewed. Recorded here because the absence
+  of comments on it is a quota artefact, not a clean bill of health.
+- Copilot raised the same defect class five separate times: an
+  assertion that searches a file's raw text cannot prove the file
+  *runs* anything. Following the standing instruction not to treat an
+  unreviewed file as clean, every remaining raw-text policy assertion
+  in `tests/test_repo_utils.py` was swept for that class, and two
+  instances were found in tests no review round ever reached. Both were
+  confirmed by sabotage before being touched.
+
+### What changed
+
+- `_shell_invocation_lines()`: `_executable_command_lines()` with shell
+  function *definition* lines removed. A function's definition carries
+  its own name, so `"run_check" in executable_lines` was satisfied by
+  `run_check() {` alone. Replacing both of `install.sh`'s real
+  `run_check` calls with `echo "would run run_check here"` left
+  `test_install_script_is_non_destructive` passing. Six assertions in
+  the two installer tests (`run_check`, `setup_scientific_environment`,
+  `verify_parent_gitlink`, `verify_no_tracked_changes`,
+  `verify_roofit_extensions`, and the `--build)` dispatch's `run_build`)
+  now go through it. The remaining assertions in those tests stay on
+  comment-stripped text deliberately: they check message text, flags
+  and filenames, which legitimately appear inside `echo`.
+- `_declared_submodule_paths()`: reads `.gitmodules` through `git
+  config --file … --get-regexp`, the way git itself reads it, instead
+  of searching for `path = <name>`. Commenting out `path = quickFit`
+  and renaming the real entry `quickFit-RENAMED` left
+  `test_gitmodules_declares_expected_analysis_dependencies` passing,
+  and no other test in the suite reads `.gitmodules` at all, so nothing
+  else would have caught it.
+- Two new regression tests pin both sabotages
+  (`test_shell_invocation_lines_ignores_function_definitions_and_echoes`,
+  `test_declared_submodule_paths_ignores_commented_out_declarations`).
+
+### Verification performed
+
+- Three sabotages, each restored afterwards, all confirmed **passing
+  before** the change and **failing after**: the two `run_check` calls
+  replaced by echoes; the `--build)` dispatch's `run_build` call
+  replaced by an echo; the commented-out `.gitmodules` path.
+- Both new regression tests were themselves sabotaged to confirm they
+  are not vacuous: dropping the definition filter fails the first,
+  reverting `_declared_submodule_paths()` to a raw-text scan fails the
+  second. Restored, both pass.
+- `python scripts/quality_check.py --mode full`: 230 collected, 210
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0.
+- The lightweight and prepared-dependency figures in the four
+  documents that record them were updated to the values measured after
+  these two tests were added — `230 collected/210 passed/20 deselected`
+  and `26 collected/2 passed/24 deselected`. No ROOT gate's figures are
+  affected: neither new test is marked
+  `requires_analysis_dependencies`.
+- CI for `0d3c853`: "Complete lightweight and scientific test suite"
+  conclusion **success**.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Noted, not changed
+
+- `doc/ACTIVITY_LOG.md`'s earlier "stub-free" entries stay as written.
+  Copilot flagged one directly (line 9514); this log is append-only and
+  remains an accurate record of what was believed at the time, with the
+  correction recorded in the later entry that made it.
+
+### Remaining open chunks
+
+None.

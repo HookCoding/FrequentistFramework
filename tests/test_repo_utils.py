@@ -75,6 +75,61 @@ def _executable_command_lines(text: str) -> str:
     return "\n".join(kept)
 
 
+_SHELL_FUNCTION_DEFINITION = re.compile(
+    r"^\s*(?:function\s+)?[A-Za-z_][A-Za-z0-9_]*\s*\(\s*\)\s*\{?\s*$"
+)
+
+
+def _shell_invocation_lines(text: str) -> str:
+    """Only the lines of a shell script that actually *call* something.
+
+    `_executable_command_lines()` already drops comments and
+    output-only lines, but a shell function's own definition line still
+    carries its name. So "this script calls run_check" cannot be proved
+    by searching even the executable lines for `run_check`: replacing
+    every real call with `echo "run_check"` leaves the definition
+    behind, and the search still succeeds. Confirmed by sabotage - it
+    did, in the installer tests below. Definition lines are dropped too,
+    so only real call sites remain.
+    """
+    return "\n".join(
+        line
+        for line in _executable_command_lines(text).splitlines()
+        if not _SHELL_FUNCTION_DEFINITION.match(line)
+    )
+
+
+def _declared_submodule_paths(gitmodules_path: Path) -> set[str]:
+    """Every submodule path a .gitmodules file really declares, read the
+    way git itself reads that file.
+
+    Searching the raw text for `path = <name>` also matches a
+    commented-out declaration. Confirmed by sabotage: commenting one out
+    and renaming the real one left the check below passing, and no other
+    test in this suite reads .gitmodules at all, so nothing caught it.
+    `git config --file` parses the real config syntax, where a comment
+    is not a setting.
+    """
+    completed = subprocess.run(
+        [
+            "git",
+            "config",
+            "--file",
+            str(gitmodules_path),
+            "--get-regexp",
+            r"^submodule\..*\.path$",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return {
+        line.split(maxsplit=1)[1]
+        for line in completed.stdout.splitlines()
+        if line.strip() and len(line.split(maxsplit=1)) == 2
+    }
+
+
 def _strip_inline_comment(line: str) -> str:
     """Drop a YAML/shell trailing `# ...` comment, respecting quotes."""
     out: list[str] = []
@@ -718,6 +773,66 @@ def test_pytest_command_lines_ignores_echoed_commands() -> None:
     assert any("-k authoritative_setup_provides_scientific_runtime" in line for line in recognised)
 
 
+def test_shell_invocation_lines_ignores_function_definitions_and_echoes() -> None:
+    """A function's own definition line is not a call to it.
+
+    Pins the sabotage that found this: replacing `install.sh`'s two real
+    `run_check` calls with `echo "would run run_check here"` left
+    `test_install_script_is_non_destructive` passing, because the
+    surviving `run_check() {` definition line still carried the name.
+    """
+    script = """#!/usr/bin/env bash
+# run_check is mentioned in this comment only
+run_check() {
+    real_work
+}
+function verify_thing() {
+    more_work
+}
+echo "would run run_check here"
+printf '%s\\n' "verify_thing"
+verify_thing
+"""
+
+    invocations = _shell_invocation_lines(script)
+
+    # `verify_thing` is really called, so it survives; `run_check` is
+    # only defined, commented and echoed, so it does not.
+    assert "verify_thing" in invocations
+    assert "run_check" not in invocations
+
+    # The definition filter must not swallow real command lines.
+    assert "real_work" in invocations
+    assert "more_work" in invocations
+
+
+def test_declared_submodule_paths_ignores_commented_out_declarations(tmp_path: Path) -> None:
+    """A commented-out `path =` is not a declaration.
+
+    Pins the sabotage that found this: commenting out .gitmodules'
+    `path = quickFit` and renaming the real entry left
+    `test_gitmodules_declares_expected_analysis_dependencies` passing,
+    and nothing else in this suite reads .gitmodules.
+    """
+    gitmodules = tmp_path / ".gitmodules"
+    gitmodules.write_text(
+        '[submodule "kept"]\n'
+        "\tpath = kept\n"
+        '[submodule "quickFit"]\n'
+        "\t# path = quickFit\n"
+        "\tpath = quickFit-RENAMED\n"
+        '[submodule "semicolon"]\n'
+        "\t; path = semicolon\n",
+        encoding="utf-8",
+    )
+
+    declared = _declared_submodule_paths(gitmodules)
+
+    assert declared == {"kept", "quickFit-RENAMED"}
+    assert "quickFit" not in declared
+    assert "semicolon" not in declared
+
+
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:
     # scripts/run_all_gates.sh exists specifically to run every gate in
     # one command, including every test the lightweight gate deselects.
@@ -783,10 +898,17 @@ def test_authoritative_analysis_launchers_are_executable() -> None:
 
 def test_gitmodules_declares_expected_analysis_dependencies() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    gitmodules = (repo_root / ".gitmodules").read_text(encoding="utf-8")
 
-    for dependency in DEPENDENCY_REVISIONS:
-        assert f"path = {dependency}" in gitmodules
+    # Read as git config, not as text: a commented-out `path =` line
+    # satisfied the old raw-text search (see
+    # `_declared_submodule_paths()`), and this is the only test in the
+    # suite that reads .gitmodules at all.
+    declared = _declared_submodule_paths(repo_root / ".gitmodules")
+    missing = [name for name in DEPENDENCY_REVISIONS if name not in declared]
+    assert not missing, (
+        f".gitmodules does not declare a submodule path for {missing} "
+        f"(it declares {sorted(declared)})"
+    )
 
 
 def test_declared_submodules_have_gitlink_entries() -> None:
@@ -887,11 +1009,18 @@ def test_install_script_is_non_destructive() -> None:
     assert "setup.py install" not in active_script
     assert "pip install --upgrade" not in active_script
 
+    # Call sites, not mentions: each of these is a shell function this
+    # installer must really invoke, and its own definition line carries
+    # its name, so searching `active_script` proved nothing. Replacing
+    # every real `run_check` call with an echo left this test passing
+    # until this was changed.
+    invocations = _shell_invocation_lines(installer_text)
+
     assert "--check" in active_script
-    assert "run_check" in active_script
-    assert "verify_parent_gitlink" in active_script
-    assert "verify_no_tracked_changes" in active_script
-    assert "verify_roofit_extensions" in active_script
+    assert "run_check" in invocations
+    assert "verify_parent_gitlink" in invocations
+    assert "verify_no_tracked_changes" in invocations
+    assert "verify_roofit_extensions" in invocations
     assert 'mode" != "160000"' in active_script
     assert "ba94bfcbfa4f4a4e3541ade09580399e409e8514" in active_script
     assert "Installation contract check passed." in active_script
@@ -903,8 +1032,8 @@ def test_install_script_is_non_destructive() -> None:
     assert "build_cpp_dependency() {" in active_script
     assert "setup_scientific_environment() {" in active_script
 
-    assert "run_check" in active_script
-    assert "setup_scientific_environment" in active_script
+    assert "run_check" in invocations
+    assert "setup_scientific_environment" in invocations
     assert 'install_jobs_value="${INSTALL_JOBS:-4}"' in active_script
     assert "INSTALL_JOBS must be a positive integer" in active_script
 
@@ -930,7 +1059,7 @@ def test_install_script_is_non_destructive() -> None:
     assert "scripts/install_pyBumpHunter.sh" in active_script
     assert "Non-destructive dependency build completed successfully." in active_script
 
-    command_dispatch = installer_text.split('case "$1" in', maxsplit=1)[1]
+    command_dispatch = invocations.split('case "$1" in', maxsplit=1)[1]
     assert "--build)" in command_dispatch
     assert "run_build" in command_dispatch
 
