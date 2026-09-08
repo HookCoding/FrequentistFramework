@@ -11202,3 +11202,115 @@ Confirm it, fix it, and stop the class rather than the two citations.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Audit every recorded gate figure across the documentation, and verify the ROOT-free counts by measurement
+
+### Objective
+
+Check every recorded selected-test count, outcome and timing in every
+document for consistency, and make them consistent. `ACTIVITY_LOG.md`
+is append-only, so its figures are history and were not touched.
+
+### What changed
+
+- **Extracted every figure mechanically** rather than by reading:
+  13 "Latest ..." claims across four documents, plus two historical
+  ones in `doc/TIER3_EXECUTION_TRACE.md`. No figures exist in
+  `README.md`, the workflows, or `scripts/`.
+- **Re-measured all five gates in one pass** (`bash
+  scripts/run_all_gates.sh`, exit 0, all five PASSED), plus the
+  plotting-layer gate a second time with no `-m` filter, so every
+  documented figure comes from one coherent set of runs.
+- **Four figures were stale against reality**, all corrected:
+  prepared-dependency `19` -> `22` deselected; runtime readiness
+  `2.27s` -> `3.69s`; scientific `74.68s` -> `134.41s`; plotting-layer
+  marker-filtered `29` -> `30` deselected.
+- **One documented figure was impossible, provable from the document
+  alone**: the plotting-layer gate recorded 48 collected with 18
+  selected and 29 deselected, which sums to 47. A test file had gained
+  a test and only the total was refreshed. That section now records
+  both variants of the gate separately - 48 collected/18 passed/30
+  deselected/132.61s under the marker filter, and 48 passed/66.82s
+  without it - since they are two different runs with legitimately
+  different figures.
+- **`doc/TIER3_EXECUTION_TRACE.md` Section 5 contradicted Section 2 of
+  the same document**, which is worse than a stale number: its closing
+  paragraph still said `createBinning.py` "still has no decomposition
+  into functions, no dedicated test file, and is still unregistered in
+  `quality_check.py`", all three of which Chunk 13 changed. Its figures
+  (289.19s, 172 passed) are a true record of the 2026-09-04 run that
+  fixed that file's syntax error, so they were **not** rewritten; the
+  block is now marked as measured then, and the contradicting
+  present-tense claims are past tense with a pointer to Section 2.
+- **Rewrote yesterday's figure-consistency test, which had two holes
+  this audit exposed.** It compared only timings and collected counts,
+  so the `19` -> `22` count drift was outside its scope entirely; and
+  its runtime pattern required the word "seconds", so
+  `doc/TIER3_EXECUTION_TRACE.md`'s `289.19s` never matched it. It now
+  compares collected/passed/selected/deselected/expected-failures/
+  seconds/files-unchanged, and matches both `74.68 seconds` and
+  `289.19s`.
+- **Scoped that test to claims introduced by the word "Latest"**, which
+  is the real line between "this is the current result", which every
+  document has to agree on, and "this is what that run measured", which
+  must not be rewritten - the same reason this log is append-only. Each
+  claim is also cut at the `exit code N` it ends with, so prose
+  explaining a figure cannot be read back as part of it.
+- **Added an arithmetic check**: where a gate records collected, passed
+  and deselected, passed plus deselected must equal collected. This is
+  the only check that catches a stale figure from one document alone,
+  with nothing to compare against and nothing re-run - and it is
+  exactly the plotting-layer defect above.
+- **Added `test_documented_gate_counts_match_a_real_collection`**,
+  which collects the two ROOT-free gates for real and compares the
+  counts to what the documents claim. This is the only check that
+  catches a count gone stale in *every* copy at once, or in the single
+  document that records one - the prepared-dependency `19` was stale in
+  the only place it appears, so no cross-document check could ever have
+  found it. The gate's target list is read out of
+  `scripts/quality_check.py` by AST, so dropping a file from the gate
+  fails this test too.
+- Timings are deliberately compared between documents but never
+  measured: the scientific gate has taken 74.68s, 131.40s and 134.41s
+  on this shared node for identical work, so a recorded timing is an
+  observation, not a property. Attempting to verify one would make the
+  suite fail on machine load.
+
+### Verification performed
+
+- Six sabotages, each restored afterwards. Caught: a cross-document
+  timing disagreement written in the abbreviated `99.99s` form; counts
+  changed *consistently* in all three documents to a total that cannot
+  add up; the original 48/18/29 plotting-layer defect; the
+  prepared-dependency count stale in its only copy; the lightweight
+  count stale in all four copies at once; and a test file deleted from
+  `scripts/quality_check.py`'s target list.
+- Two of those six passed against the first version of the rewritten
+  test and were only caught after fixing the seconds pattern and adding
+  the real-collection check - both recorded here because the first
+  version was reported as covering them.
+- `bash scripts/run_all_gates.sh`: exit code 0, all five gates PASSED -
+  lightweight (227 collected, 207 passed, 20 deselected, 2.01s);
+  prepared-dependency (2 passed, 21 deselected); runtime readiness (1
+  passed, 3.69s); J100/J50 scientific (1 passed, 134.41s);
+  plotting-layer marker-filtered (18 passed, 30 deselected, 132.61s).
+- Plotting-layer unfiltered, same sourced runtime: 48 passed, 66.82s.
+- The lightweight and prepared-dependency counts documented now are
+  `228 collected/208 passed/20 deselected` and `24 collected/2
+  passed/22 deselected`, measured *after* the two new tests were added,
+  which is why they exceed the gate-pass figures above by two. No other
+  documented figure is affected by those two tests.
+- `python scripts/quality_check.py --mode full`: 228 collected, 208
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0.
+- CI for `3c7e4b2`: "Complete lightweight and scientific test suite"
+  conclusion **success**.
+- `grep` for every superseded figure (`51.20`, `2.27 seconds`, `74.68`,
+  `19 deselected`, `29 deselected`, `227 collected`, `207 passed`,
+  `182.11`) outside this log: one deliberate hit, the timing-variance
+  illustration in `doc/TIER2_SYSTEM.md`.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.

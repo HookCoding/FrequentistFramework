@@ -38,12 +38,12 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 207 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 208 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
 tests/test_analysis_workflows_integration.py -m "integration and
-requires_root" -v`): 1 passed, 2 deselected, 74.68 seconds, exit code 0
+requires_root" -v`): 1 passed, 2 deselected, 134.41 seconds, exit code 0
 - `test_authoritative_j100_j50_workflows_match_frozen_reference` still
 matches the frozen `tests/references/analysis_reference.json` exactly,
 confirming this refactor moved no science. This gate's pass does **not**
@@ -341,7 +341,7 @@ in no CI job for a time.
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 207 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 208 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)
@@ -371,9 +371,18 @@ command (and to the CI workflow step it mirrors) in the same commit that
 introduces it - this list has been found out of date more than once
 before.
 
-Latest verified result: 48 passed, 51.20 seconds, exit code 0 (and 18
-selected / 29 deselected under the marker filter above), run against a
-real CVMFS/LCG scientific runtime.
+Latest verified result under the marker filter above: 48 collected, 18
+passed, 30 deselected, 132.61 seconds, exit code 0.
+
+Latest verified result with no `-m` filter (all 48 tests these eight
+files hold): 48 passed, 66.82 seconds, exit code 0.
+
+Both were run against a real CVMFS/LCG scientific runtime in the same
+measurement pass.
+`tests/test_repo_utils.py::test_documented_gate_figures_agree_across_every_living_document`
+keeps each figure above in step with every other document that quotes
+it, and checks that the selected and deselected counts still add up to
+the collected one.
 
 ### Scientific gate
 
@@ -382,7 +391,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest verified result: 1 passed, 2 deselected, 74.68 seconds, exit
+Latest verified result: 1 passed, 2 deselected, 134.41 seconds, exit
 code 0.
 
 ### FindBHWindow.py manual reproduction command (not a separate gate)

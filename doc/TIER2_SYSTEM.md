@@ -13,8 +13,8 @@ Verified development baseline:
 
 Latest full lightweight gate:
 
-- 227 collected;
-- 207 passed;
+- 228 collected;
+- 208 passed;
 - 20 prepared-dependency tests deselected;
 - 0 expected failures;
 - Ruff passed;
@@ -165,11 +165,19 @@ The suite covers:
   (`.github/workflows/scientific-analysis.yml`) coverage of every
   `requires_analysis_dependencies` test file, so a new one can never
   silently run in no job at all;
-- agreement between the gate figures the living documents quote
-  (`tests/test_repo_utils.py::test_documented_gate_figures_agree_across_every_living_document`):
-  each gate's latest recorded runtime, and the lightweight gate's
-  collected-test count, are written down in up to four documents, and
-  the test fails if any copy drifts from the others.
+- the gate figures the living documents quote, checked three ways:
+  `test_documented_gate_figures_agree_across_every_living_document`
+  requires every document quoting a gate's latest collected/passed/
+  selected/deselected/seconds figure to quote the same value, and
+  requires the counts to add up (selected plus deselected equals
+  collected, which a stale figure usually breaks on its own);
+  `test_documented_gate_counts_match_a_real_collection` measures the
+  two ROOT-free gates by collecting them for real, which is the only
+  check that catches a count that has gone stale in every copy at once,
+  or in the one document that records it. Timings are compared between
+  documents but deliberately not measured - the same gate has taken
+  74.68s, 131.40s and 134.41s on this shared node for identical work,
+  so a recorded timing is an observation, not a property.
 
 ## Installation-policy status
 

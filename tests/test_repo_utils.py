@@ -1,6 +1,8 @@
+import ast
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -956,25 +958,60 @@ _GATE_MARKERS = (
     ),
 )
 
-_RECORDED_RUNTIME = re.compile(r"\d+ passed(?:, \d+ deselected)?, (\d+\.\d+) seconds")
-_RECORDED_COLLECTION = re.compile(r"(\d+) collected")
+_FIGURE_PATTERNS = (
+    ("collected", re.compile(r"(\d+) collected\b")),
+    ("passed", re.compile(r"(\d+) passed\b")),
+    ("selected", re.compile(r"(\d+) selected\b")),
+    ("deselected", re.compile(r"(\d+)(?:\s+[a-z-]+){0,3}\s+deselected\b")),
+    ("expected failures", re.compile(r"(\d+) expected failures\b")),
+    ("files unchanged", re.compile(r"(\d+) files (?:would be left )?unchanged")),
+    ("seconds", re.compile(r"(\d+(?:\.\d+)?)\s?(?:seconds\b|s\b)")),
+)
+
+_LATEST_CLAIM = re.compile(r"Latest\b")
+_CLAIM_END = re.compile(r"exit code \d+")
+_CLAIM_BOUNDARY = re.compile(r"Latest\b|#{2,} ")
+
+_GATE_NAMED_IN_CLAIM = (
+    # Checked in order. The plotting-layer gate is documented twice,
+    # once under its marker filter and once without it, and the two runs
+    # legitimately report different counts and different times - so they
+    # are two gates here, not one gate with two contradictory figures.
+    ("plotting-layer unfiltered", re.compile(r"no `?-m`? filter|unfiltered")),
+    ("runtime readiness", re.compile(r"runtime[- ]readiness")),
+    ("prepared dependency", re.compile(r"prepared[- ]dependency|dependency gate")),
+    ("lightweight", re.compile(r"lightweight")),
+    ("scientific", re.compile(r"scientific")),
+)
 
 
-def _documented_gate_runtimes(text: str) -> dict[str, set[str]]:
-    """Every recorded gate runtime in one document, keyed by which gate.
+def _documented_latest_figures(text: str) -> dict[str, dict[str, set[str]]]:
+    """Every figure a document claims is the *latest* gate result.
 
-    The living documents each quote the same gate commands and their
-    latest measured runtimes, so the same figure is written down in up
-    to four places. Nothing but care has kept those copies equal, and
-    care has already failed three times in one pull request: a reworded
-    figure was updated in three documents and left stale in a fourth.
-    Attribution is positional - a figure belongs to the nearest gate
-    command printed above it - because that is how the documents are
-    actually laid out (a command block, then its result).
+    Returned as `{gate: {figure kind: values}}`, where a figure kind is
+    one of collected/passed/selected/deselected/expected failures/
+    seconds.
 
-    Backslash continuations are removed and whitespace collapsed first,
-    since every one of these commands is wrapped across lines and the
-    prose that quotes them wraps at a different column in each document.
+    Only figures inside a "Latest ..." claim are returned, and that
+    restriction is the point. These documents also record what specific
+    past runs measured - `doc/TIER3_EXECUTION_TRACE.md`'s
+    "Verification performed" bullets, for instance, record a gate at
+    289.19s and a 172-test suite, both true when that fix was made.
+    Those must not be rewritten to match today, exactly as
+    `doc/ACTIVITY_LOG.md` must not. A figure introduced by the word
+    "Latest" is making a different, stronger claim - that it is the
+    current result - and every document making that claim about the
+    same gate has to agree.
+
+    A claim runs from "Latest" to the next "Latest" or the next
+    heading, which is how these documents are laid out: a gate command,
+    then the result of running it, then the next section. It is cut
+    short at the "exit code N" every one of these claims ends with, so
+    that prose *explaining* a figure - which may quote a superseded
+    count to say why it was wrong - cannot be read back as part of the
+    claim itself. Backslash continuations are removed and whitespace
+    collapsed first, since every one of these commands is wrapped
+    across lines and each document wraps at a different column.
     """
     flat = " ".join(text.replace("\\\n", " ").split())
     marker_positions = sorted(
@@ -982,63 +1019,115 @@ def _documented_gate_runtimes(text: str) -> dict[str, set[str]]:
         for name, marker in _GATE_MARKERS
         for match in re.finditer(re.escape(marker), flat)
     )
-    runtimes: dict[str, set[str]] = {}
-    for figure in _RECORDED_RUNTIME.finditer(flat):
-        preceding = [name for start, name in marker_positions if start < figure.start()]
-        gate = preceding[-1] if preceding else "unattributed"
-        runtimes.setdefault(gate, set()).add(figure.group(1))
-    return runtimes
+
+    figures: dict[str, dict[str, set[str]]] = {}
+    for claim in _LATEST_CLAIM.finditer(flat):
+        following = _CLAIM_BOUNDARY.search(flat, claim.end())
+        block = flat[claim.start() : following.start() if following else len(flat)]
+        ends = _CLAIM_END.search(block)
+        if ends:
+            block = block[: ends.end()]
+
+        # A claim that names its own gate ("Latest lightweight gate:")
+        # is attributed by that name, since several documents state the
+        # summary figures near the top and print the command itself much
+        # further down. Only the claim's header - up to its first colon -
+        # is searched, because the prose after it may mention another
+        # gate in passing. A generic "Latest verified result:" falls
+        # back to the last gate command printed above it.
+        header, _, _ = block.partition(":")
+        gate = "unattributed"
+        for name, pattern in _GATE_NAMED_IN_CLAIM:
+            if pattern.search(header):
+                gate = name
+                break
+        else:
+            above = [name for start, name in marker_positions if start < claim.start()]
+            if above:
+                gate = above[-1]
+
+        for kind, pattern in _FIGURE_PATTERNS:
+            for value in pattern.findall(block):
+                figures.setdefault(gate, {}).setdefault(kind, set()).add(value)
+    return figures
 
 
 def test_documented_gate_figures_agree_across_every_living_document() -> None:
     repo_root = find_repo_root()
 
-    runtimes: dict[str, dict[str, set[str]]] = {}
-    collections: dict[str, set[str]] = {}
+    claimed: dict[str, dict[str, dict[str, set[str]]]] = {}
     for relative_path in _LIVING_DOCUMENTS:
         document = repo_root / relative_path
         assert document.is_file(), f"{relative_path} is missing"
         text = document.read_text(encoding="utf-8")
-        for gate, figures in _documented_gate_runtimes(text).items():
-            runtimes.setdefault(gate, {})[relative_path] = figures
-        counts = set(_RECORDED_COLLECTION.findall(text))
-        if counts:
-            collections[relative_path] = counts
+        for gate, by_kind in _documented_latest_figures(text).items():
+            for kind, values in by_kind.items():
+                claimed.setdefault(gate, {}).setdefault(kind, {})[relative_path] = values
 
-    assert "unattributed" not in runtimes, (
-        "a recorded gate runtime appears above every gate command in "
-        f"{sorted(runtimes.get('unattributed', {}))} - add its command to "
-        "_GATE_MARKERS so the figure is checked rather than ignored"
+    assert "unattributed" not in claimed, (
+        "a document claims a latest result above every gate command this "
+        f"test knows: {sorted(claimed.get('unattributed', {}))} - add that "
+        "gate's command to _GATE_MARKERS so its figures are checked "
+        "rather than silently ignored"
     )
 
-    for gate in ("scientific", "runtime readiness"):
-        assert gate in runtimes, (
-            f"no recorded {gate} gate runtime was found in any living "
-            "document, so this test would check nothing - the phrasing "
-            "_RECORDED_RUNTIME matches has probably changed"
+    for gate in ("lightweight", "scientific"):
+        assert gate in claimed, (
+            f"no latest {gate} gate result was found in any living "
+            "document, so this test would check almost nothing - the "
+            "phrasing it matches has probably changed"
         )
 
-    for gate, per_document in sorted(runtimes.items()):
-        distinct = set().union(*per_document.values())
-        assert len(distinct) == 1, (
-            f"the {gate} gate's latest runtime is recorded as "
-            f"{sorted(distinct)} in different documents: "
-            f"{ {path: sorted(figures) for path, figures in per_document.items()} } "
-            "- one of them is stale"
+    agreed: dict[str, dict[str, str]] = {}
+    for gate, by_kind in sorted(claimed.items()):
+        for kind, per_document in sorted(by_kind.items()):
+            distinct = set().union(*per_document.values())
+            assert len(distinct) == 1, (
+                f"the {gate} gate's latest {kind} figure is recorded as "
+                f"{sorted(distinct)} in different documents: "
+                f"{ {path: sorted(v) for path, v in per_document.items()} }"
+                " - at least one of them is stale"
+            )
+            agreed.setdefault(gate, {})[kind] = distinct.pop()
+
+    # A gate that records all three counts has to have them add up.
+    # This catches a stale figure from one document alone, with no
+    # second copy to compare against and nothing re-run: the
+    # plotting-layer gate was once recorded as 48 collected with 18
+    # selected and 29 deselected, which is 47, because a test file had
+    # gained a test and only the total was refreshed.
+    for gate, figures in sorted(agreed.items()):
+        if not {"collected", "passed", "deselected"} <= figures.keys():
+            continue
+        collected = int(figures["collected"])
+        passed = int(figures["passed"])
+        deselected = int(figures["deselected"])
+        assert passed + deselected == collected, (
+            f"the {gate} gate's latest figures cannot describe any real "
+            f"run: {passed} passed + {deselected} deselected is "
+            f"{passed + deselected}, but {collected} were collected"
         )
 
-    distinct_collections = set().union(*collections.values()) if collections else set()
-    assert len(distinct_collections) <= 1, (
-        "the lightweight gate's collected-test count is recorded as "
-        f"{sorted(distinct_collections)} in different documents: "
-        f"{ {path: sorted(counts) for path, counts in collections.items()} } "
-        "- one of them is stale"
-    )
 
-
-def test_documented_gate_runtimes_are_attributed_to_the_right_gate() -> None:
+def test_documented_latest_figures_are_attributed_to_the_right_gate() -> None:
     document = """
-Scientific gate:
+## Gate commands
+
+### Lightweight full gate
+
+```bash
+python scripts/quality_check.py --mode full
+```
+
+Latest verified result:
+
+- 227 collected;
+- 207 passed;
+- 20 prepared-dependency tests deselected;
+- 0 expected failures;
+- exit code 0.
+
+### Scientific gate
 
 ```bash
 python -m pytest tests/test_analysis_workflows_integration.py \\
@@ -1046,15 +1135,155 @@ python -m pytest tests/test_analysis_workflows_integration.py \\
 ```
 
 Latest verified result: 1 passed, 2 deselected, 74.68 seconds, exit
-code 0.
+code 0 - down from the 289.19 seconds an earlier run of the same 3
+tests took.
 
-Runtime readiness (`python -m pytest
-tests/test_analysis_workflows_integration.py
--k authoritative_setup_provides_scientific_runtime -v`): 1 passed, 2
-deselected, 2.27 seconds, exit code 0.
+## Verification performed
+
+- Reran the scientific gate: 1 passed, 2 deselected, 289.19s, exit
+  code 0.
+- Reran the lightweight gate: 172 passed, 8 deselected, exit code 0.
 """
 
-    assert _documented_gate_runtimes(document) == {
-        "scientific": {"74.68"},
-        "runtime readiness": {"2.27"},
+    assert _documented_latest_figures(document) == {
+        "lightweight": {
+            "collected": {"227"},
+            "passed": {"207"},
+            "deselected": {"20"},
+            "expected failures": {"0"},
+        },
+        "scientific": {
+            "passed": {"1"},
+            "deselected": {"2"},
+            "seconds": {"74.68"},
+        },
     }
+    # The 289.19 seconds and the "3 tests" in the prose after "exit
+    # code 0" are explanation, not part of the claim, and the whole
+    # "Verification performed" section records a past run rather than
+    # the latest one. Neither may leak into the figures above.
+
+
+_COLLECTION_SUMMARY = re.compile(
+    r"^(?:(?P<selected>\d+)/(?P<collected>\d+) tests collected"
+    r" \((?P<deselected>\d+) deselected\)"
+    r"|(?P<only>\d+) tests collected)"
+)
+
+
+def _quality_check_test_targets(repo_root: Path) -> list[str]:
+    """The test files `scripts/quality_check.py` actually runs."""
+    source = (repo_root / "scripts" / "quality_check.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == "test_targets" for target in node.targets
+        ):
+            continue
+        return [
+            element.value
+            for element in node.value.elts
+            if isinstance(element, ast.Constant) and isinstance(element.value, str)
+        ]
+    raise AssertionError("scripts/quality_check.py no longer assigns test_targets")
+
+
+def _collect(repo_root: Path, arguments: list[str]) -> dict[str, int]:
+    """Real collected/selected/deselected counts for a pytest selection."""
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            *arguments,
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (
+        completed.returncode == 0
+    ), f"collection failed for {arguments}:\n{completed.stdout}\n{completed.stderr}"
+
+    for line in reversed(completed.stdout.splitlines()):
+        summary = _COLLECTION_SUMMARY.match(line.strip())
+        if summary:
+            if summary.group("only"):
+                total = int(summary.group("only"))
+                return {"collected": total, "selected": total, "deselected": 0}
+            return {
+                "collected": int(summary.group("collected")),
+                "selected": int(summary.group("selected")),
+                "deselected": int(summary.group("deselected")),
+            }
+    raise AssertionError(
+        "no recognisable collection summary in pytest's output - the format "
+        f"has probably changed:\n{completed.stdout}"
+    )
+
+
+def test_documented_gate_counts_match_a_real_collection() -> None:
+    """The two gates that need no ROOT are counted, not just cross-checked.
+
+    `test_documented_gate_figures_agree_across_every_living_document`
+    compares the documents against each other, so it cannot catch a
+    figure that is stale in every copy at once - and for the
+    prepared-dependency gate there is only one copy, so it catches
+    nothing there at all. That is not hypothetical: its deselected count
+    sat at 19 after two tests were added to `tests/test_repo_utils.py`,
+    and no check noticed. Collection is deterministic and needs no ROOT,
+    so for these two gates the documented counts can simply be measured.
+
+    Timings are deliberately not verified. The same gate has measured
+    74.68s, 131.40s and 134.41s on this shared node for identical work,
+    so a documented timing is an observation, not a property.
+    """
+    repo_root = find_repo_root()
+
+    documented: dict[str, dict[str, str]] = {}
+    for relative_path in _LIVING_DOCUMENTS:
+        text = (repo_root / relative_path).read_text(encoding="utf-8")
+        for gate, by_kind in _documented_latest_figures(text).items():
+            for kind, values in by_kind.items():
+                documented.setdefault(gate, {}).update({kind: sorted(values)[0]})
+
+    measurable = {
+        "lightweight": [
+            "-m",
+            "not requires_analysis_dependencies",
+            *_quality_check_test_targets(repo_root),
+        ],
+        "prepared dependency": [
+            "-m",
+            "requires_analysis_dependencies",
+            "tests/test_repo_utils.py",
+        ],
+    }
+
+    for gate, arguments in measurable.items():
+        assert gate in documented, f"no documented {gate} gate result to check"
+        real = _collect(repo_root, arguments)
+        claimed = documented[gate]
+
+        for documented_kind, real_kind in (
+            ("collected", "collected"),
+            ("passed", "selected"),
+            ("deselected", "deselected"),
+        ):
+            if documented_kind not in claimed:
+                continue
+            assert int(claimed[documented_kind]) == real[real_kind], (
+                f"the documented {gate} gate figure "
+                f"'{claimed[documented_kind]} {documented_kind}' does not "
+                f"match a real collection, which reports "
+                f"{real[real_kind]} {real_kind} "
+                f"(collected {real['collected']}, selected "
+                f"{real['selected']}, deselected {real['deselected']})"
+            )

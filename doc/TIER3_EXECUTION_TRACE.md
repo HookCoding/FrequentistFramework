@@ -238,7 +238,9 @@ with a more confusing ROOT-level error, far from the actual cause.
 top-level statement in the file. A pure whitespace change - no other
 line was touched.
 
-**Verification performed**:
+**Verification performed** (measured on 2026-09-04, when this fix
+was made - these are a record of that run, not current gate figures;
+`doc/TIER1_SYSTEM.md` records the latest results):
 - `python3 -c "import ast; ast.parse(...)"` now succeeds.
 - Ran the fixed script for real, exactly as `run_fit.py` invokes it
   (`python3 python/createBinning.py -s 481 -e 3000 -o <path>`), against a
@@ -257,14 +259,17 @@ line was touched.
   workflows (which don't exercise this branch, since their own fixtures
   are already committed).
 - Reran `python scripts/quality_check.py --mode full`: 172 passed, 8
-  deselected, Ruff clean, Black clean, exit code 0 (unaffected, since
-  `createBinning.py` is not registered in `quality_check.py`'s
-  `python_targets` - see Section 3; this fix does not change that).
+  deselected, Ruff clean, Black clean, exit code 0 - unaffected, since
+  `createBinning.py` was not registered in `quality_check.py`'s
+  `python_targets` at that point, and this fix did not change that.
+  Chunk 13 registered it later; see Section 2.
 
-This fix is scoped to exactly the syntax defect: `createBinning.py`
-still has no decomposition into functions, no dedicated test file, and
-is still unregistered in `quality_check.py` - it remains outside the
-Tier 3 system per Section 3 above, just no longer broken.
+This fix was scoped to exactly the syntax defect. At the time it was
+made, `createBinning.py` still had no decomposition into functions, no
+dedicated test file, and no registration in `quality_check.py`: it
+remained outside the Tier 3 system, just no longer broken. Chunk 13
+subsequently brought it in, so Section 2 - not this section - describes
+where the file stands now.
 
 ## Verification performed
 
