@@ -533,26 +533,54 @@ def _tests_dir_files_marked_requires_analysis_dependencies(tests_dir: Path) -> l
     )
 
 
-def _dependency_marked_test_names(test_file: Path) -> list[str]:
-    """Bare function names of every requires_analysis_dependencies-marked
-    test in one file: scan for the marker line, skip over any other
-    stacked `@pytest.mark....` decorator lines, and record the `def
-    test_...` line that follows."""
-    names: list[str] = []
-    pending = False
-    for line in test_file.read_text(encoding="utf-8").splitlines():
-        stripped = _strip_inline_comment(line).strip()
-        if _DEPENDENCY_MARKER.match(stripped):
-            pending = True
+def _pytest_marker_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """The `pytest.mark.<name>` markers applied to one function.
+
+    Read from `decorator_list`, so it does not matter where in the
+    stack the marker sits, what other decorators surround it, whether
+    it is called with arguments, or whether any of them span several
+    lines. `@pytest.mark.x` and `@mark.x` are both recognised.
+    """
+    names: set[str] = set()
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if not isinstance(target, ast.Attribute):
             continue
-        if not pending:
-            continue
-        if stripped.startswith("@pytest.mark."):
-            continue
-        if stripped.startswith("def "):
-            names.append(stripped[len("def ") :].split("(")[0])
-        pending = False
+        owner = target.value
+        if (isinstance(owner, ast.Attribute) and owner.attr == "mark") or (
+            isinstance(owner, ast.Name) and owner.id == "mark"
+        ):
+            names.add(target.attr)
     return names
+
+
+def _dependency_marked_test_names(test_file: Path) -> list[str]:
+    """Names of every requires_analysis_dependencies-marked test in one file.
+
+    Parsed, not scanned. The line-based version this replaced looked for
+    the marker and then expected either another `@pytest.mark.` line or
+    the `def`, so it silently dropped a marked test in three shapes,
+    each confirmed against a synthetic file:
+
+    - any other decorator in between, such as `@mock.patch(...)`;
+    - `async def`, which it never recognised;
+    - a *multi-line* `@pytest.mark.parametrize(...)` below the marker,
+      whose continuation lines are neither a decorator nor a `def` -
+      the likeliest of the three here, since this suite parametrizes
+      widely.
+
+    A dropped test keeps
+    `_assert_covers_every_dependency_marked_test()`'s selector-map
+    equality true, so nothing would force a gate selector for it and it
+    would never run anywhere.
+    """
+    tree = ast.parse(test_file.read_text(encoding="utf-8"))
+    return [
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and "requires_analysis_dependencies" in _pytest_marker_names(node)
+    ]
 
 
 # Matches a real pytest invocation, anchored at the *command position*
@@ -1327,6 +1355,60 @@ def test_files_loaded_by_the_scientific_gates_are_importable_on_python_39() -> N
         "`from __future__ import annotations` or use typing.Optional: "
         f"{offenders}"
     )
+
+
+def test_marked_tests_are_found_whatever_decorators_surround_them(tmp_path: Path) -> None:
+    """Marker detection must not depend on decorator layout.
+
+    The first three shapes always worked; the last three were dropped
+    by the line-based scanner this replaced, each confirmed against a
+    synthetic file. The `@mock.patch` case was then confirmed
+    end-to-end: added to
+    `tests/test_analysis_workflows_integration.py`, it left both
+    gate-coverage tests passing under the old scanner - a silent
+    all-clear for a test that no gate would ever run - and fails them
+    under this one.
+    """
+    shapes = {
+        "bare": "@pytest.mark.requires_analysis_dependencies\ndef test_x():\n    pass\n",
+        "called": "@pytest.mark.requires_analysis_dependencies()\ndef test_x():\n    pass\n",
+        "stacked_marks": (
+            "@pytest.mark.requires_analysis_dependencies\n"
+            "@pytest.mark.requires_root\ndef test_x():\n    pass\n"
+        ),
+        "other_decorator_between": (
+            "@pytest.mark.requires_analysis_dependencies\n"
+            '@mock.patch("python.run_fit.something")\ndef test_x(mocked):\n    pass\n'
+        ),
+        "async_def": (
+            "@pytest.mark.requires_analysis_dependencies\nasync def test_x():\n    pass\n"
+        ),
+        "multiline_decorator_below": (
+            "@pytest.mark.requires_analysis_dependencies\n"
+            '@pytest.mark.parametrize(\n    "value", [1, 2]\n)\n'
+            "def test_x(value):\n    pass\n"
+        ),
+        "marker_below_a_multiline_decorator": (
+            '@pytest.mark.parametrize(\n    "value", [1, 2]\n)\n'
+            "@pytest.mark.requires_analysis_dependencies\ndef test_x(value):\n    pass\n"
+        ),
+    }
+    for name, source in shapes.items():
+        path = tmp_path / f"test_{name}.py"
+        path.write_text(f"import pytest\nfrom unittest import mock\n\n\n{source}", encoding="utf-8")
+        assert _dependency_marked_test_names(path) == ["test_x"], f"{name} was not detected"
+
+    # A different marker, or none, must not be reported.
+    for name, source in {
+        "other_marker": "@pytest.mark.requires_root\ndef test_x():\n    pass\n",
+        "unmarked": "def test_x():\n    pass\n",
+        "marker_named_in_a_string": (
+            'DOC = "requires_analysis_dependencies"\ndef test_x():\n    pass\n'
+        ),
+    }.items():
+        path = tmp_path / f"test_{name}.py"
+        path.write_text(f"import pytest\n\n\n{source}", encoding="utf-8")
+        assert _dependency_marked_test_names(path) == [], f"{name} was wrongly detected"
 
 
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:

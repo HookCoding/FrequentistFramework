@@ -11963,3 +11963,85 @@ was re-run against it to confirm nothing was weakened.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Parse decorators instead of scanning for them (twelfth Copilot review round)
+
+### Objective
+
+Copilot's twelfth review found that `_dependency_marked_test_names()`
+drops a marked test when another decorator sits between the marker and
+the `def`, and never recognises `async def`. Both are real, and a third
+shape was found by testing the helper against every decorator layout
+rather than only the two named.
+
+### What was broken
+
+The helper scanned lines: find the marker, skip further
+`@pytest.mark.` lines, record the following `def`. Six shapes were
+tried against a synthetic file:
+
+| shape | found |
+| --- | --- |
+| bare marker | yes |
+| marker with `()` | yes |
+| stacked `@pytest.mark.*` | yes |
+| any other decorator between marker and `def` (`@mock.patch(...)`) | **no** |
+| `async def` | **no** |
+| multi-line `@pytest.mark.parametrize(...)` below the marker | **no** |
+
+The third miss is the one no review round named, and the likeliest to
+occur here: this suite parametrizes widely, and a multi-line
+`parametrize` placed below the dependency marker leaves continuation
+lines that are neither a decorator nor a `def`, so the scan gives up.
+
+The consequence is the one the review describes.
+`_assert_covers_every_dependency_marked_test()` asserts that the
+integration file's marked tests equal the selector map's keys, so a
+dropped test keeps that equality true, nothing forces a gate selector
+for it, and it would never run in any gate while every check stayed
+green.
+
+### What changed
+
+`_dependency_marked_test_names()` now parses the file and reads each
+function's `decorator_list`, via a new `_pytest_marker_names()` helper.
+Decorator order, interleaving, arguments, line breaks and `async` all
+stop mattering. `@pytest.mark.x` and `@mark.x` are both recognised.
+
+The sibling `_tests_dir_files_marked_requires_analysis_dependencies()`
+was **left as it is**, deliberately. It matches the marker name
+anywhere in the file, and its own comment already explains why: a file
+merely mentioning the marker is still required to appear in the gate
+lists, and erring that way causes a false failure, never a false pass.
+Converting it to the parser would make it exact but less conservative,
+so the inconsistency between the two helpers is intentional.
+
+### Verification performed
+
+- The parser returns **identical** results to the line scanner on all
+  21 real test files, so this widens detection without changing any
+  current behaviour.
+- Three sabotages, each restored afterwards: a marked test added to
+  `tests/test_analysis_workflows_integration.py` in each of the three
+  previously-dropped shapes. All three now fail both gate-coverage
+  tests.
+- The `@mock.patch` sabotage was also run against the committed line
+  scanner to confirm the fix is what catches it: with the old helper
+  both coverage tests **passed**, a silent all-clear for a test no gate
+  would run.
+- `test_marked_tests_are_found_whatever_decorators_surround_them` pins
+  all seven detected shapes and three that must not be reported,
+  including the marker named only inside a string. Verified
+  non-vacuous by restoring the line scanner underneath it, which fails
+  it on `other_decorator_between`.
+- `python scripts/quality_check.py --mode full`: 236 collected, 216
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented lightweight (236/216/20) and prepared-dependency
+  (32/2/30) figures updated.
+- `tests/test_repo_utils.py -m "requires_analysis_dependencies"` under
+  Python 3.9.12: 2 passed.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
