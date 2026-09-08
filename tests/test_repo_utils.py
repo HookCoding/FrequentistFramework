@@ -679,20 +679,46 @@ _RECURSIVE_DELETE = re.compile(
 )
 
 
-def _keeps_test_selected(line: str, marker: str, test_name: str) -> bool:
-    """True when this pytest line really runs `test_name`.
+def _invocation_runs_test(
+    line: str,
+    designated: tuple[str, str],
+    guard: tuple[str, str],
+) -> bool:
+    """True when one pytest command line really runs the mapped test.
 
-    Both filters have to cooperate: the `-m` marker filter must keep
-    `marker`, and any `-k` present must name the test rather than
-    exclude or narrow past it. Confirmed by sabotage - appending
-    `-k "not <test_name>"` to `.githooks/pre-commit`'s scientific gate
-    deselected it while the marker was still named, and the hook's
-    policy test passed.
+    `designated` is the option that *selects* the test - `("-k", name)`
+    for the runtime-readiness gate, `("-m", marker)` for the scientific
+    one - and it must positively carry its expression. `guard` is the
+    other option, which must not deselect the test: absent is fine,
+    present means it has to name the test's own marker or name.
+
+    Checking only the designated half is not enough, and this was the
+    hole: the readiness line could add
+    `-m "not requires_analysis_dependencies"`, and the scientific line
+    could add `-k "not authoritative_j100_j50_..."`. Either deselects
+    the test while the designated selector is still right there.
+    Confirmed by sabotage against both `scripts/run_all_gates.sh` and
+    the CI workflow.
+
+    Both halves live in one predicate on purpose. A second, parallel
+    implementation of this rule is what let the gate-coverage checks
+    keep the weaker single-option version after the pre-commit hook's
+    check was fixed.
     """
-    if not _selects_positively(_pytest_option_value(line, "-m"), marker):
+    designated_option, designated_expression = designated
+    if not _selects_positively(
+        _pytest_option_value(line, designated_option), designated_expression
+    ):
         return False
-    selector = _pytest_option_value(line, "-k")
-    return selector is None or _selects_positively(selector, test_name)
+    guard_option, guard_expression = guard
+    guard_value = _pytest_option_value(line, guard_option)
+    return guard_value is None or _selects_positively(guard_value, guard_expression)
+
+
+def _keeps_test_selected(line: str, marker: str, test_name: str) -> bool:
+    """The marker-designated case of `_invocation_runs_test()`, used by
+    the pre-commit hook's own gate check."""
+    return _invocation_runs_test(line, ("-m", marker), ("-k", test_name))
 
 
 def _assert_no_always_false_guard(commands: str, source_description: str) -> None:
@@ -832,19 +858,25 @@ _INTEGRATION_TEST_FILE = "test_analysis_workflows_integration.py"
 # the opposite tests. Confirmed by sabotage - negating the -k selector
 # left the old check passing.
 _INTEGRATION_TEST_SELECTORS = {
-    # -k substring selector used by the dedicated runtime-readiness
-    # invocation; also a substring of the test's own full name.
-    "test_authoritative_setup_provides_scientific_runtime": (
-        "-k",
-        "authoritative_setup_provides_scientific_runtime",
-    ),
-    # this exact marker combination ("integration" and "requires_root"
-    # together) is unique in the whole test suite to this one test -
-    # confirmed by grepping every @pytest.mark.integration test.
-    "test_authoritative_j100_j50_workflows_match_frozen_reference": (
-        "-m",
-        "integration and requires_root",
-    ),
+    # For each test: the option that must positively select it, and the
+    # other option, which must not deselect it. Both halves are
+    # required - validating only the designated one let a second filter
+    # on the same line remove the test while the check stayed green.
+    "test_authoritative_setup_provides_scientific_runtime": {
+        # -k substring selector used by the dedicated runtime-readiness
+        # invocation; also a substring of the test's own full name.
+        "designated": ("-k", "authoritative_setup_provides_scientific_runtime"),
+        # the marker this test carries, so an -m filter here must keep it
+        "guard": ("-m", "requires_analysis_dependencies"),
+    },
+    "test_authoritative_j100_j50_workflows_match_frozen_reference": {
+        # this exact marker combination ("integration" and
+        # "requires_root" together) is unique in the whole test suite to
+        # this one test - confirmed by grepping every
+        # @pytest.mark.integration test.
+        "designated": ("-m", "integration and requires_root"),
+        "guard": ("-k", "authoritative_j100_j50_workflows_match_frozen_reference"),
+    },
 }
 
 
@@ -880,9 +912,9 @@ def _assert_covers_every_dependency_marked_test(
     command_lines = command_text.splitlines()
     missing_integration_selectors = [
         test_name
-        for test_name, (option, expression) in _INTEGRATION_TEST_SELECTORS.items()
+        for test_name, selectors in _INTEGRATION_TEST_SELECTORS.items()
         if not any(
-            _selects_positively(_pytest_option_value(line, option), expression)
+            _invocation_runs_test(line, selectors["designated"], selectors["guard"])
             for line in command_lines
             if f"tests/{_INTEGRATION_TEST_FILE}" in line
         )
@@ -1409,6 +1441,78 @@ def test_marked_tests_are_found_whatever_decorators_surround_them(tmp_path: Path
         path = tmp_path / f"test_{name}.py"
         path.write_text(f"import pytest\n\n\n{source}", encoding="utf-8")
         assert _dependency_marked_test_names(path) == [], f"{name} was wrongly detected"
+
+
+def test_a_second_filter_cannot_quietly_deselect_a_mapped_test() -> None:
+    """`-m` and `-k` are independent filters combined with AND.
+
+    So proving that one of them selects a test says nothing about
+    whether the other vetoes it. Both attacks below carry exactly the
+    selector the map demands and still run nothing, and both passed the
+    coverage checks until `_invocation_runs_test()` validated the guard
+    half too - confirmed against `scripts/run_all_gates.sh` and
+    `.github/workflows/scientific-analysis.yml`.
+    """
+    readiness = _INTEGRATION_TEST_SELECTORS["test_authoritative_setup_provides_scientific_runtime"]
+    scientific = _INTEGRATION_TEST_SELECTORS[
+        "test_authoritative_j100_j50_workflows_match_frozen_reference"
+    ]
+    base = "python -m pytest tests/test_analysis_workflows_integration.py"
+
+    # The real invocations, which must keep passing.
+    assert _invocation_runs_test(
+        f"{base} -k authoritative_setup_provides_scientific_runtime -v",
+        readiness["designated"],
+        readiness["guard"],
+    )
+    assert _invocation_runs_test(
+        f'{base} -m "integration and requires_root" -v',
+        scientific["designated"],
+        scientific["guard"],
+    )
+
+    # A guard filter that deselects the test, beside a correct designated one.
+    assert not _invocation_runs_test(
+        f"{base} -k authoritative_setup_provides_scientific_runtime "
+        '-m "not requires_analysis_dependencies" -v',
+        readiness["designated"],
+        readiness["guard"],
+    )
+    assert not _invocation_runs_test(
+        f'{base} -m "integration and requires_root" '
+        '-k "not authoritative_j100_j50_workflows_match_frozen_reference" -v',
+        scientific["designated"],
+        scientific["guard"],
+    )
+
+    # A guard filter that keeps the test is fine, and so is no guard at all.
+    assert _invocation_runs_test(
+        f"{base} -k authoritative_setup_provides_scientific_runtime "
+        '-m "requires_analysis_dependencies" -v',
+        readiness["designated"],
+        readiness["guard"],
+    )
+    assert _invocation_runs_test(
+        f'{base} -m "integration and requires_root" '
+        '-k "authoritative_j100_j50_workflows_match_frozen_reference" -v',
+        scientific["designated"],
+        scientific["guard"],
+    )
+
+    # A wrong designated selector still fails, guard or no guard.
+    assert not _invocation_runs_test(
+        f'{base} -m "requires_analysis_dependencies" -v',
+        scientific["designated"],
+        scientific["guard"],
+    )
+
+    # The hook's helper is the marker-designated case of the same rule,
+    # not a second implementation of it.
+    assert _keeps_test_selected(
+        f'{base} -m "integration and requires_root" -v',
+        "integration and requires_root",
+        "authoritative_j100_j50_workflows_match_frozen_reference",
+    )
 
 
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:

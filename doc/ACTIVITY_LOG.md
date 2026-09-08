@@ -12045,3 +12045,84 @@ so the inconsistency between the two helpers is intentional.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Validate both pytest filters per mapped test, and remove the duplicate rule that let one drift (thirteenth Copilot review round)
+
+### Objective
+
+Copilot's thirteenth review found that the integration coverage check
+proves only that the expected selector is *present*, not that the
+invocation still selects the test once every filter is combined.
+
+### Why one filter is not enough
+
+`-m` and `-k` are independent pytest filters combined with AND: a test
+runs only if it satisfies both. The check validated one option per
+mapped test - `-k` for the runtime-readiness test, `-m` for the
+scientific one - so adding the *other* filter deselects the test while
+the validated one remains exactly right:
+
+```
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -k authoritative_setup_provides_scientific_runtime \
+  -m "not requires_analysis_dependencies" -v
+
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "integration and requires_root" \
+  -k "not authoritative_j100_j50_workflows_match_frozen_reference" -v
+```
+
+Both passed, in `scripts/run_all_gates.sh` and in
+`.github/workflows/scientific-analysis.yml` - four holes. The effect is
+that the repository's headline scientific gate could be emptied while
+every policy test reported full coverage.
+
+### The cause was a duplicate rule, not a missing idea
+
+`_keeps_test_selected()` already existed in this file, already
+implemented exactly this both-halves rule, and already rejected the
+second attack. It was added three rounds earlier and wired into
+`.githooks/pre-commit`'s own check, while the gate-coverage loop kept
+the weaker single-option version. The later sweep "of every remaining
+check of that shape" audited the other tests and never re-audited the
+one it had just rewritten.
+
+So this is a different failure from the four rounds before it. Those
+were text scanning where parsing was needed - the wrong tool. Here the
+right tool was present, working, and applied to one of the two places
+that needed it.
+
+### What changed
+
+- `_invocation_runs_test(line, designated, guard)` is now the single
+  predicate: `designated` must positively select, and `guard` - the
+  other option - must not deselect, with absent counting as fine.
+- `_keeps_test_selected()` is now a thin marker-designated case of it
+  rather than a parallel implementation. The duplication was the actual
+  defect; the missing check was the symptom.
+- `_INTEGRATION_TEST_SELECTORS` carries both halves per test: the
+  readiness test's `-k` name with `-m requires_analysis_dependencies`
+  as its guard, and the scientific test's `-m` marker with its own name
+  as the guard.
+
+### Verification performed
+
+- Four sabotages, each restored afterwards, all confirmed passing
+  before and failing after: the guard filter added to the readiness and
+  scientific lines, in both the gate runner and the CI workflow.
+- `test_a_second_filter_cannot_quietly_deselect_a_mapped_test` pins
+  them, plus the cases that must keep passing - the real invocations, a
+  guard filter that *keeps* the test, and no guard at all - and that a
+  wrong designated selector still fails. Verified non-vacuous by making
+  the guard half return `True` unconditionally, which fails it.
+- `python scripts/quality_check.py --mode full`: 237 collected, 217
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented lightweight (237/217/20) and prepared-dependency
+  (33/2/31) figures updated.
+- `tests/test_repo_utils.py -m "requires_analysis_dependencies"` under
+  Python 3.9.12: 2 passed.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
