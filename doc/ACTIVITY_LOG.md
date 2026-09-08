@@ -10949,3 +10949,82 @@ under a real CVMFS runtime, not inferred).
 ### Remaining open chunks
 
 None.
+
+---
+
+## 2026-09-07 — Address a fifth round of GitHub Copilot PR review findings (YAML metadata treated as executable)
+
+### Objective
+Respond to a fifth Copilot review round, raised against
+`tests/test_repo_utils.py`'s `_executable_command_lines()` - code
+committed thirty-four minutes earlier in `ffd6b92`, the commit whose
+whole purpose was to fix this defect class in two other tests. Rated
+High, and correct.
+
+### What changed
+
+- **Real false positive, confirmed and fixed.** The helper filters
+  shell lines: comments, `echo`/`printf`/`cat`, heredoc bodies. A
+  GitHub Actions workflow is YAML, so most of its lines are metadata,
+  and a step's `name:` is free text. `- name: python
+  scripts/quality_check.py --mode full` carries no output-only command
+  word, so it survived every filter and satisfied the assertion.
+  Reproduced end to end: deleting the real `run:` command from
+  `.github/workflows/tier1-root-comparison.yml` while moving its text
+  into the step's `name:` left
+  `test_ci_runs_locked_lightweight_full_gate` passing.
+- Added `_workflow_run_block_lines()`, which returns only the contents
+  of a workflow's `run:` blocks - block scalars by indentation, plus
+  inline `run: <command>` - and routed both workflow-reading tests
+  through it before any command search. This is Copilot's primary
+  suggestion; the alternative it offered (excluding YAML keys
+  generically) would also have dropped inline `run:` commands.
+- Moved the scientific-workflow coverage test's negative-control
+  sentinel from `"runs-on:"` to `"set -o pipefail"`. The old sentinel
+  sits in YAML metadata, which the new restriction discards, so it
+  would have been trivially absent and the control vacuous. The new one
+  is a real command inside a `run:` block that is not a pytest
+  invocation, so it still proves the extractor excludes non-pytest
+  commands.
+- Added `test_workflow_run_block_lines_excludes_yaml_metadata()`,
+  asserting that a block of `name:`/`uses:`/`with:`/`env:` lines
+  extracts to nothing, while a block scalar's contents and an inline
+  `run:` command both survive.
+
+### Why this was not caught in `ffd6b92`
+
+The sabotage used to sign that commit off commented the gate command
+out but left the step name alone. The workflow's real step name is
+"Run complete lightweight quality gate", which does not contain the
+command text, so the test failed and the fix looked proven. The
+adversarial case - delete the command *and* put its text where a
+surviving line will carry it - was not tried.
+
+This is the second time in this cycle that a verification was shaped so
+the weak spot went unexercised: the same thing happened one round
+earlier, when the echo used to prove the pytest parser contained no
+`-m pytest` and so was the one echo the unanchored pattern rejected.
+Both times a green result was reported as evidence the mechanism
+worked. The corrective taken here is to keep the adversarial case in a
+committed regression test rather than in a one-off experiment, which is
+now done for all three helpers.
+
+### Verification performed
+
+- Four sabotage cases, each failing as it should and then restored:
+  (1) CI gate command deleted with its text moved into the step
+  `name:` - the case that previously passed; (2) the same command
+  merely commented out - the previously-fixed case, still caught;
+  (3) `tests/test_pre_fit.py` dropped from the scientific workflow's
+  `run:` block while a step name mentions it; (4) the pre-commit hook's
+  scientific gate commented out.
+- `python scripts/quality_check.py --mode full`: 223 collected, 203
+  passed, 20 deselected, Ruff clean, Black clean, exit code 0.
+- Gate figures refreshed accordingly (lightweight 223/203;
+  prepared-dependency 2 passed, 17 deselected).
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None. This is a fifth review-response pass over already-complete work,
+not a new chunk.

@@ -73,6 +73,38 @@ def _executable_command_lines(text: str) -> str:
     return "\n".join(kept)
 
 
+def _workflow_run_block_lines(text: str) -> str:
+    """Only the shell inside a GitHub Actions workflow's `run:` blocks.
+
+    A workflow is YAML, so most of its lines are metadata, and a step's
+    `name:` is free text that may quote the very command a test is
+    looking for. Feeding whole-file YAML to a command search is
+    therefore unsound in a way `_executable_command_lines()` alone
+    cannot fix: `- name: python scripts/quality_check.py --mode full`
+    carries no output-only command word, so it survives every filter
+    and satisfies the search after the real `run:` command is deleted.
+    Only `run:` contents are commands, so only they are returned.
+    """
+    kept: list[str] = []
+    block_key_column: int | None = None
+    for raw in text.splitlines():
+        if not raw.strip():
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if block_key_column is not None:
+            if indent > block_key_column:
+                kept.append(raw)
+                continue
+            block_key_column = None
+        if re.match(r"\s*(?:-\s+)?run:", raw):
+            inline = raw.split("run:", 1)[1].strip()
+            if inline.strip("|>+-") == "":
+                block_key_column = raw.index("run:")
+            else:
+                kept.append(inline)
+    return "\n".join(kept)
+
+
 def test_find_repo_root_returns_workspace_root() -> None:
     repo_root = find_repo_root()
 
@@ -264,11 +296,14 @@ def test_ci_runs_locked_lightweight_full_gate() -> None:
     assert "requirements-dev-lock.txt" in workflow
     assert "tier-2-m365" in workflow
 
-    # The two *commands* are checked against lines that actually run, not
-    # against raw text: commenting the gate command out of this workflow
-    # used to leave this test passing, so it reported CI coverage that CI
-    # no longer had. Same defect class as the gate-coverage tests below.
-    commands = _executable_command_lines(workflow)
+    # The two *commands* are checked against the contents of this
+    # workflow's `run:` blocks only. Two separate false positives were
+    # real here: commenting the gate command out left this test passing,
+    # and so did deleting it while leaving its text in the step's
+    # `name:`, because a YAML key is not an output-only command and
+    # survives every shell-level filter. Same defect class as the
+    # gate-coverage tests below.
+    commands = _executable_command_lines(_workflow_run_block_lines(workflow))
     assert "python -m pip install -r requirements-dev-lock.txt" in commands
     assert "python scripts/quality_check.py --mode full" in commands
 
@@ -507,6 +542,43 @@ def test_executable_command_lines_ignores_comments_and_echoes() -> None:
     assert "about to run the gate" not in commands
 
 
+def test_workflow_run_block_lines_excludes_yaml_metadata() -> None:
+    # Regression test for _workflow_run_block_lines(). The failure it
+    # pins down was real: a step whose `name:` quoted the gate command
+    # satisfied test_ci_runs_locked_lightweight_full_gate above even
+    # after the real `run:` command was deleted, because a YAML key
+    # carries no output-only command word for a shell-level filter to
+    # catch.
+    metadata_only = """
+      - name: python scripts/quality_check.py --mode full
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
+        env:
+          CC: gcc-11
+    """
+    assert _workflow_run_block_lines(metadata_only) == ""
+
+    # ...while a real block scalar's contents survive, and an inline
+    # `run:` command does too.
+    with_blocks = """
+      - name: Run the gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/quality_check.py --mode full
+      - name: One-liner
+        run: git config core.hooksPath .githooks
+      - name: After the block
+        uses: actions/checkout@v6
+    """
+    commands = _workflow_run_block_lines(with_blocks)
+    assert "python scripts/quality_check.py --mode full" in commands
+    assert "git config core.hooksPath .githooks" in commands
+    assert "actions/checkout" not in commands
+    assert "Run the gate" not in commands
+
+
 def test_pytest_command_lines_ignores_echoed_commands() -> None:
     # Direct regression test for _pytest_command_lines()'s own contract,
     # so the two coverage tests below cannot quietly become vacuous. The
@@ -580,11 +652,14 @@ def test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test
     assert workflow_path.is_file(), "Missing .github/workflows/scientific-analysis.yml"
 
     _assert_covers_every_dependency_marked_test(
-        workflow_path.read_text(encoding="utf-8"),
+        _workflow_run_block_lines(workflow_path.read_text(encoding="utf-8")),
         ".github/workflows/scientific-analysis.yml",
-        # a YAML step key, never part of a pytest command - the
-        # negative control for the extractor
-        non_pytest_sentinel="runs-on:",
+        # A real command inside a run: block that is not a pytest
+        # invocation - the negative control for the extractor. It has to
+        # live inside a run: block, because everything outside one is now
+        # discarded before the check and a sentinel from the YAML
+        # metadata would be trivially absent.
+        non_pytest_sentinel="set -o pipefail",
     )
 
 
