@@ -73,6 +73,48 @@ def _executable_command_lines(text: str) -> str:
     return "\n".join(kept)
 
 
+def _strip_inline_comment(line: str) -> str:
+    """Drop a YAML/shell trailing `# ...` comment, respecting quotes."""
+    out: list[str] = []
+    quote: str | None = None
+    for ch in line:
+        if quote is not None:
+            out.append(ch)
+            if ch == quote:
+                quote = None
+        elif ch in "\"'":
+            quote = ch
+            out.append(ch)
+        elif ch == "#" and (not out or out[-1] in " \t"):
+            break
+        else:
+            out.append(ch)
+    return "".join(out).rstrip()
+
+
+_YAML_NAME_KEY = re.compile(r"^\s*(?:-\s+)?name:")
+
+
+def _yaml_config_lines(text: str) -> str:
+    """A workflow's configuration only: no comments, no `name:` values.
+
+    A YAML comment and a step's `name:` are both free text. A comment
+    mentioning a pinned version, or a step named after the very setting
+    a test is looking for, satisfies a raw-text search while the real
+    configuration says something else - the same false-positive class as
+    the command searches above. Neither is configuration, so neither is
+    returned. Use this for "the workflow is configured with X"
+    assertions, and `_workflow_run_block_lines()` for "the workflow runs
+    X".
+    """
+    kept: list[str] = []
+    for raw in _strip_full_line_comments(text).splitlines():
+        line = _strip_inline_comment(raw)
+        if line.strip() and not _YAML_NAME_KEY.match(line):
+            kept.append(line)
+    return "\n".join(kept)
+
+
 def _workflow_run_block_lines(text: str) -> str:
     """Only the shell inside a GitHub Actions workflow's `run:` blocks.
 
@@ -288,13 +330,17 @@ def test_ci_runs_locked_lightweight_full_gate() -> None:
     workflow_path = repo_root / ".github" / "workflows" / "tier1-root-comparison.yml"
     workflow = workflow_path.read_text(encoding="utf-8")
 
-    # Configuration keys are YAML, not commands - a raw-text check is the
-    # right one for these.
-    assert "uses: actions/checkout@" in workflow
-    assert "uses: actions/setup-python@" in workflow
-    assert 'python-version: "3.12.13"' in workflow
-    assert "requirements-dev-lock.txt" in workflow
-    assert "tier-2-m365" in workflow
+    # Configuration keys are checked against configuration lines only -
+    # comments and step names stripped - for the same reason the
+    # commands below are checked against run: blocks only. A comment
+    # naming a pinned version, or a step named after it, is not
+    # configuration.
+    config = _yaml_config_lines(workflow)
+    assert "uses: actions/checkout@" in config
+    assert "uses: actions/setup-python@" in config
+    assert 'python-version: "3.12.13"' in config
+    assert "requirements-dev-lock.txt" in config
+    assert "tier-2-m365" in config
 
     # The two *commands* are checked against the contents of this
     # workflow's `run:` blocks only. Two separate false positives were
@@ -363,7 +409,18 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
     assert ".githooks" in installer_commands
 
 
+# The marker decorator, however it is validly written: bare, or called
+# with empty parentheses. Matching one exact spelling would let a
+# differently-written marker slip past the per-test map guard below,
+# which is the same "the check looked thorough and missed a test"
+# failure the map exists to prevent.
+_DEPENDENCY_MARKER = re.compile(r"^@pytest\.mark\.requires_analysis_dependencies\s*(?:\(\s*\))?$")
+
+
 def _tests_dir_files_marked_requires_analysis_dependencies(tests_dir: Path) -> list[str]:
+    # Deliberately over-inclusive: a file merely *mentioning* the marker
+    # is still required to appear in the gate lists. Erring that way
+    # causes a false failure, never a false pass.
     return sorted(
         p.name
         for p in tests_dir.glob("test_*.py")
@@ -379,8 +436,8 @@ def _dependency_marked_test_names(test_file: Path) -> list[str]:
     names: list[str] = []
     pending = False
     for line in test_file.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if stripped == "@pytest.mark.requires_analysis_dependencies":
+        stripped = _strip_inline_comment(line).strip()
+        if _DEPENDENCY_MARKER.match(stripped):
             pending = True
             continue
         if not pending:
@@ -540,6 +597,50 @@ def test_executable_command_lines_ignores_comments_and_echoes() -> None:
     assert "python scripts/quality_check.py --mode full" in commands
     assert "core.hooksPath" in commands
     assert "about to run the gate" not in commands
+
+
+def test_yaml_config_lines_excludes_comments_and_step_names() -> None:
+    # Regression test for _yaml_config_lines(). Both inert positions it
+    # removes were live false-positive paths for the configuration
+    # assertions in test_ci_runs_locked_lightweight_full_gate above: a
+    # comment or a step name quoting a pinned value satisfied a raw-text
+    # search while the real configuration said something else.
+    inert = """
+    # python-version: "3.12.13"
+      - name: pin python-version "3.12.13" and cover tier-2-m365
+        uses: actions/nothing@v1   # tier-2-m365
+    """
+    config = _yaml_config_lines(inert)
+    assert '"3.12.13"' not in config
+    assert "tier-2-m365" not in config
+    # the real key on that line still survives
+    assert "uses: actions/nothing@v1" in config
+
+    real = """
+    on:
+      push:
+        branches:
+          - tier-2-m365
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
+    """
+    config = _yaml_config_lines(real)
+    assert "tier-2-m365" in config
+    assert 'python-version: "3.12.13"' in config
+
+
+def test_dependency_marker_is_recognised_however_it_is_written() -> None:
+    # The per-test selector map guard is only as good as this detector:
+    # a marker it fails to recognise means a marked test can exist with
+    # no gate selecting it and no test objecting.
+    assert _DEPENDENCY_MARKER.match("@pytest.mark.requires_analysis_dependencies")
+    assert _DEPENDENCY_MARKER.match("@pytest.mark.requires_analysis_dependencies()")
+    assert _DEPENDENCY_MARKER.match("@pytest.mark.requires_analysis_dependencies( )")
+    # ...but a mention that is not the decorator must not count
+    assert not _DEPENDENCY_MARKER.match("# @pytest.mark.requires_analysis_dependencies")
+    assert not _DEPENDENCY_MARKER.match('pytestmark = "requires_analysis_dependencies"')
+    assert not _DEPENDENCY_MARKER.match("@pytest.mark.requires_analysis_dependencies_extra")
 
 
 def test_workflow_run_block_lines_excludes_yaml_metadata() -> None:
@@ -734,19 +835,19 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     assert "virtualenv " not in active_script
     assert "LCG_105" not in active_script
 
-    assert 'scientific_setup="$repo_root/scripts/setup_buildAndFit.sh"' in installer_text
-    assert "--system-site-packages" in installer_text
-    assert "--no-deps" in installer_text
-    assert "--no-build-isolation" in installer_text
-    assert '"$pybh_source"' in installer_text
+    assert 'scientific_setup="$repo_root/scripts/setup_buildAndFit.sh"' in active_script
+    assert "--system-site-packages" in active_script
+    assert "--no-deps" in active_script
+    assert "--no-build-isolation" in active_script
+    assert '"$pybh_source"' in active_script
 
-    assert 'if [[ -e "$pybh_environment" ]]; then' in installer_text
-    assert "existing_python_version" in installer_text
-    assert "platform.python_version()" in installer_text
-    assert "Existing pyBH_env uses Python" in installer_text
-    assert "expected" in installer_text
-    assert "Existing pyBH_env failed import validation" in installer_text
-    assert "Existing pyBumpHunter environment is valid" in installer_text
+    assert 'if [[ -e "$pybh_environment" ]]; then' in active_script
+    assert "existing_python_version" in active_script
+    assert "platform.python_version()" in active_script
+    assert "Existing pyBH_env uses Python" in active_script
+    assert "expected" in active_script
+    assert "Existing pyBH_env failed import validation" in active_script
+    assert "Existing pyBumpHunter environment is valid" in active_script
 
     required_imports = {
         "import matplotlib",
@@ -757,9 +858,9 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     }
 
     for required_import in required_imports:
-        assert required_import in installer_text
+        assert required_import in active_script
 
-    assert '"$environment_python" "$find_bh_window" --help' in installer_text
+    assert '"$environment_python" "$find_bh_window" --help' in active_script
 
 
 def test_install_script_is_non_destructive() -> None:
@@ -784,48 +885,48 @@ def test_install_script_is_non_destructive() -> None:
     assert "setup.py install" not in active_script
     assert "pip install --upgrade" not in active_script
 
-    assert "--check" in installer_text
-    assert "run_check" in installer_text
-    assert "verify_parent_gitlink" in installer_text
-    assert "verify_no_tracked_changes" in installer_text
-    assert "verify_roofit_extensions" in installer_text
-    assert 'mode" != "160000"' in installer_text
-    assert "ba94bfcbfa4f4a4e3541ade09580399e409e8514" in installer_text
-    assert "Installation contract check passed." in installer_text
-    assert "No files were modified." in installer_text
+    assert "--check" in active_script
+    assert "run_check" in active_script
+    assert "verify_parent_gitlink" in active_script
+    assert "verify_no_tracked_changes" in active_script
+    assert "verify_roofit_extensions" in active_script
+    assert 'mode" != "160000"' in active_script
+    assert "ba94bfcbfa4f4a4e3541ade09580399e409e8514" in active_script
+    assert "Installation contract check passed." in active_script
+    assert "No files were modified." in active_script
 
-    assert "--build" in installer_text
-    assert "run_build() {" in installer_text
-    assert "build_roofit_extensions() {" in installer_text
-    assert "build_cpp_dependency() {" in installer_text
-    assert "setup_scientific_environment() {" in installer_text
+    assert "--build" in active_script
+    assert "run_build() {" in active_script
+    assert "build_roofit_extensions() {" in active_script
+    assert "build_cpp_dependency() {" in active_script
+    assert "setup_scientific_environment() {" in active_script
 
-    assert "run_check" in installer_text
-    assert "setup_scientific_environment" in installer_text
-    assert 'install_jobs_value="${INSTALL_JOBS:-4}"' in installer_text
-    assert "INSTALL_JOBS must be a positive integer" in installer_text
+    assert "run_check" in active_script
+    assert "setup_scientific_environment" in active_script
+    assert 'install_jobs_value="${INSTALL_JOBS:-4}"' in active_script
+    assert "INSTALL_JOBS must be a positive integer" in active_script
 
-    assert 'mkdir -p "$build_dir"' in installer_text
-    assert "cmake --build" in installer_text
-    assert "--parallel" in installer_text
+    assert 'mkdir -p "$build_dir"' in active_script
+    assert "cmake --build" in active_script
+    assert "--parallel" in active_script
 
     assert "cmake --install" not in installer_text
     assert "CMAKE_INSTALL_PREFIX=/usr/local" not in installer_text
 
-    assert "libRooFitExtensions.so" in installer_text
-    assert "libRooFitExtensions_rdict.pcm" in installer_text
-    assert "libRooFitExtensions.rootmap" in installer_text
-    assert "RooFitExtensionsConfig.cmake" in installer_text
+    assert "libRooFitExtensions.so" in active_script
+    assert "libRooFitExtensions_rdict.pcm" in active_script
+    assert "libRooFitExtensions.rootmap" in active_script
+    assert "RooFitExtensionsConfig.cmake" in active_script
 
-    assert "bin/XMLReader" in installer_text
-    assert "libxmlAnaWSBuilder.so" in installer_text
-    assert 'verify_executable_file "$build_dir/quickFit"' in installer_text
-    assert "libquick.so" in installer_text
-    assert 'verify_executable_file "$build_dir/manager"' in installer_text
-    assert "libworkspaceCombiner.so" in installer_text
+    assert "bin/XMLReader" in active_script
+    assert "libxmlAnaWSBuilder.so" in active_script
+    assert 'verify_executable_file "$build_dir/quickFit"' in active_script
+    assert "libquick.so" in active_script
+    assert 'verify_executable_file "$build_dir/manager"' in active_script
+    assert "libworkspaceCombiner.so" in active_script
 
-    assert "scripts/install_pyBumpHunter.sh" in installer_text
-    assert "Non-destructive dependency build completed successfully." in installer_text
+    assert "scripts/install_pyBumpHunter.sh" in active_script
+    assert "Non-destructive dependency build completed successfully." in active_script
 
     command_dispatch = installer_text.split('case "$1" in', maxsplit=1)[1]
     assert "--build)" in command_dispatch

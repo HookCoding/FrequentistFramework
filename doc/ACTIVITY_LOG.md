@@ -11028,3 +11028,95 @@ now done for all three helpers.
 
 None. This is a fifth review-response pass over already-complete work,
 not a new chunk.
+
+---
+
+## 2026-09-07 — Apply the executable-text standard to every remaining policy assertion
+
+### Objective
+The user asked that all tests be brought up to the standard established
+over the last five review rounds, so the same defect class cannot be
+reported a sixth time. The class: a test asserts a property of a file
+by searching its raw text, where a match from an inert position - a
+comment, a step name, a label - satisfies the assertion while the real
+thing is gone.
+
+### What changed
+
+Every positive assertion of this shape in `tests/` was enumerated by
+AST rather than by eye: find variables assigned from `read_text()`, then
+find `assert "<literal>" in <that variable>`. Fifty-three remained, in
+three groups.
+
+- **The two installer policy tests (47 assertions).**
+  `test_install_script_is_non_destructive` and
+  `test_pybumphunter_installer_is_non_destructive_and_reproducible`
+  asserted against raw `installer_text`, so a comment mentioning
+  `verify_parent_gitlink`, `cmake --build`, `--no-deps` or any expected
+  log message satisfied the check after the real line was removed. Each
+  now reads `active_script`, the comment-stripped text those same tests
+  already compute two lines above for their *negative* assertions -
+  the correct variable was present and simply unused. Comment-stripping
+  is the right strength here rather than `_executable_command_lines()`,
+  because several of these assertions deliberately target `echo`
+  message strings, which that helper removes.
+- **The CI workflow's five configuration assertions.** `uses:`,
+  `python-version:`, `requirements-dev-lock.txt` and `tier-2-m365` were
+  searched in raw YAML, so a comment or a step `name:` quoting a pinned
+  value satisfied them. Added `_yaml_config_lines()`, which strips
+  full-line comments, strips trailing `# ...` comments respecting
+  quotes, and drops every `name:` line, then routed those five through
+  it. `pyyaml` is not in the locked development environment, so the
+  workflow cannot be parsed properly; this is the strongest check
+  available without adding a dependency, and it closes both inert
+  positions that actually exist in these files.
+- **The dependency-marker detector.** `_dependency_marked_test_names()`
+  matched one exact spelling of the decorator line, so
+  `@pytest.mark.requires_analysis_dependencies()` - equally valid -
+  would not have been recognised, letting a marked test exist with no
+  gate selecting it and the per-test map guard still passing. Replaced
+  with `_DEPENDENCY_MARKER`, accepting the bare and parenthesised
+  forms and tolerating a trailing comment, while still rejecting a
+  commented-out marker, a `pytestmark` assignment, and a
+  longer-suffixed name. The file-level filter is left deliberately
+  over-inclusive, which errs toward a false failure rather than a false
+  pass, and now says so.
+
+Two regression tests were added -
+`test_yaml_config_lines_excludes_comments_and_step_names()` and
+`test_dependency_marker_is_recognised_however_it_is_written()` - so
+these properties are pinned by committed tests rather than by whichever
+sabotage happens to be tried. That is the corrective for the specific
+recurring mistake in this cycle: twice, a verification was shaped so the
+weak spot went unexercised, and the passing result was reported as proof.
+
+Judged out of class, unchanged: `tests/test_find_bh_window.py:359`
+(`"pyBHresult" in result` is a dict-key check on parsed JSON, not a text
+search - a false positive of the AST sweep) and
+`tests/test_run_templates.py:210` (a substring check on a file the code
+under test *generates*, where no "someone disabled a check" path
+exists; it is a weaker assertion than checking the exact field, but a
+different concern).
+
+### Verification performed
+
+- Each of the three groups sabotaged by planting the searched text in
+  the inert position after removing the real one, and each test
+  confirmed to fail: `tier-2-m365` left only in a workflow comment;
+  `verify_parent_gitlink` left only in an `install.sh` comment;
+  `--no-deps` left only in an `install_pyBumpHunter.sh` comment. All
+  three files restored afterwards.
+- The old logic was re-run against those same three sabotages and
+  confirmed to return a match in every case - so each really would have
+  passed before this change, rather than being assumed to.
+- Re-ran the AST enumeration afterwards: **0 positive raw-text
+  assertions remain** across every file in `tests/`.
+- `python scripts/quality_check.py --mode full`: 225 collected, 205
+  passed, 20 deselected, Ruff clean, Black clean, exit code 0.
+- Gate figures refreshed (lightweight 225/205; prepared-dependency
+  2 passed, 19 deselected).
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
