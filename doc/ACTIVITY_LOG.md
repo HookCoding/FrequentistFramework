@@ -11680,3 +11680,160 @@ Each was sabotaged against the real files before anything changed:
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Apply the positive-selection rule to every remaining policy check of the same shape
+
+### Objective
+
+Round 9 established a rule for this repository's policy tests: parse the
+structure, require positive selection, and never treat the presence of
+a name as proof that the thing runs. This pass audited every remaining
+content-membership assertion in `tests/test_repo_utils.py` against that
+rule, rather than waiting for a review round to find the next instance.
+
+### What the audit found
+
+Four real defects, each confirmed by sabotage before anything changed,
+in checks no review round had reached:
+
+- **The pre-commit hook's scientific gate could be deselected.**
+  Appending `-k "not test_authoritative_j100_j50_workflows_match_frozen_reference"`
+  beside the correct `-m "integration and requires_root"` left
+  `test_git_hook_pre_commit_gate_matches_authoritative_commands`
+  passing. This is round 9's exact defect, in the test guarding the
+  repository's *mandatory local* gate.
+- **The same hook's gates could be disabled by an always-false guard.**
+  `if false && ! "$python_bin" scripts/quality_check.py --mode full;`
+  keeps every command's text in the executable lines, so the check
+  still found what it was looking for.
+- **`install.sh`'s `--check` mode was proved by its own help text.**
+  Renaming the dispatch arm to `--no-check)` left
+  `test_install_script_is_non_destructive` passing, because `--check`
+  still appears in the usage heredoc. The installer would no longer
+  accept the flag the test says it supports.
+- **Both "non-destructive" installer tests missed recursive deletes.**
+  `"rm -rf" not in active_script` is satisfied by `rm -fr`, `rm -r -f`
+  and `rm --recursive --force`, all three confirmed to pass. These are
+  the two tests whose names promise the installers destroy nothing.
+
+### What changed
+
+- `_keeps_test_selected(line, marker, test_name)`: both filters must
+  cooperate - the `-m` filter has to keep the marker, and any `-k` has
+  to name the test rather than exclude or narrow past it.
+- `_assert_no_always_false_guard()`: rejects `if/while/until false` and
+  `! true` outright. A general reachability analysis of shell is out of
+  scope and the helper says so; this catches the quickest way to
+  disable a gate while leaving its text in place.
+- `_RECURSIVE_DELETE`: matches `rm` with any recursive flag, however
+  spelled or ordered. Neither installer runs `rm` at all, so it cannot
+  misfire; a non-recursive `rm -f` of one file still passes
+  deliberately.
+- `install.sh`'s two modes are now asserted against the `case`
+  dispatch, not the whole script: `--check)`/`run_check` alongside the
+  `--build)`/`run_build` pair that was already checked there.
+- One near-vacuous assertion tightened: `"expected" in active_script`
+  matched a bare word, and is now the full `"; expected "` phrase.
+
+### A correction to this session's own record
+
+The always-false-guard finding was first reported as confirmed on the
+strength of a sabotage that was in fact a **no-op**: it replaced the
+string `python scripts/quality_check.py --mode full`, which does not
+occur in `.githooks/pre-commit` - the hook reads
+`"$python_bin" scripts/quality_check.py --mode full`. Both the before
+and after readings were therefore meaningless. The finding is real, but
+only as established afterwards by a sabotage that does apply
+(`if false && ! ...`), proved in both directions: the new guard fails
+it, and removing the guard lets it pass.
+
+### Verification performed
+
+- Six sabotages, each restored afterwards, all confirmed passing before
+  and failing after: the hook's `-k` negation; the hook's always-false
+  guard; `install.sh`'s renamed dispatch arm; and `rm -fr`,
+  `rm -r -f`, `rm --recursive --force` across both installers.
+- `test_a_named_command_is_not_a_command_that_runs` pins all of them,
+  including the benign cases the new rules must not reject.
+- `python scripts/quality_check.py --mode full`: 233 collected, 213
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented lightweight (233/213/20) and prepared-dependency
+  (29/2/27) figures updated, the live-collection test having caught
+  them going stale again.
+- `install.sh --check`: exit code 0, all seven gitlink and nested
+  RooFitExtensions revisions PASS, no files modified.
+- The prepared-dependency gate run for real at both this tree state and
+  `2c9a8b5`'s: 2 passed, exit 0 in each.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### The CI failure on `2c9a8b5` was caused by that commit
+
+CI for `2c9a8b5` concluded **failure** at step 13, "Verify dependencies
+after build", and the three ROOT gates after it were skipped. The cause
+was that commit's own diff, contrary to the reasoning recorded while
+the job log was unavailable:
+
+```
+tests/test_repo_utils.py:535: in <module>
+    def _pytest_option_value(line: str, option: str) -> str | None:
+E   TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'
+```
+
+Step 13's third part runs the prepared-dependency gate *after* sourcing
+`scripts/setup_buildAndFit.sh`, so it runs under the LCG runtime's
+**Python 3.9.12**, not the development venv's 3.12. A `str | None` in a
+function signature is evaluated when the `def` executes, so it raises
+there and collection dies before any test runs.
+
+The earlier inference - that the diff could not be responsible because
+it touched only tests and documentation - was wrong in its premise: the
+one file it touched is a file the scientific gates load under 3.9. It
+was also checked with the wrong interpreter. The prepared-dependency
+gate was run locally and reported 2 passed, but by way of
+`.venv/bin/python`; `scripts/run_all_gates.sh` runs that gate the same
+way, with `$python_bin`, which is why no local gate could reproduce it.
+The divergence between the two runners is recorded below.
+
+Reproduced here under the real interpreter, fixed by adding
+`from __future__ import annotations`, and confirmed: 2 passed under
+Python 3.9.12.
+
+### Guarded against recurrence
+
+Nine of the ten test files the scientific gates run already carried
+`from __future__ import annotations`; `tests/test_repo_utils.py` was the
+sole exception and had no union signatures until this work added three.
+The convention existed and was broken silently, so it is now checked:
+
+- `test_files_loaded_by_the_scientific_gates_are_importable_on_python_39`
+  parses every dependency-marked test file and every registered source
+  module, and fails when one evaluates an `X | Y` annotation at import
+  time without deferring annotations. The file set comes from the
+  markers and from `quality_check.py`'s own target lists, so it grows
+  by itself.
+- Deliberately narrow, and the test says so: it catches this one
+  incompatibility, not 3.9 compatibility in general. Syntax 3.9 cannot
+  parse at all - a `match` statement - is accepted by the 3.12 parser
+  the check runs under and would not be caught.
+- Sabotage-verified both ways: removing the future import fails the
+  **lightweight** gate, where the break is visible in seconds instead
+  of two steps into the hosted workflow, and the same sabotage was
+  confirmed to reproduce the real collection error under Python 3.9.12.
+  Adding a union signature to `python/repo_utils.py` is caught too.
+
+### Noted, not changed
+
+- The prepared-dependency gate runs under a **different interpreter** in
+  the two places that run it: `scripts/run_all_gates.sh` uses
+  `$python_bin` (the 3.12 development venv), while
+  `.github/workflows/scientific-analysis.yml` step 13 runs it after
+  sourcing the scientific setup, under Python 3.9.12. Both are
+  defensible - the tests only inspect submodule directories with Git -
+  but it means the local all-gates runner cannot reproduce a 3.9-only
+  failure in that gate, which is precisely what happened here. Making
+  them agree is a change to the gate contract and was not made
+  unilaterally.
+
+### Remaining open chunks
+
+None.

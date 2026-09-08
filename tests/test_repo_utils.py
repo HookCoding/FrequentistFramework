@@ -1,3 +1,12 @@
+# `from __future__ import annotations` is required, not cosmetic: this
+# file is collected by the scientific gates under the LCG runtime's
+# Python 3.9.12, where a `str | None` in a function signature is
+# evaluated at definition time and raises TypeError. Without it,
+# collection fails before any test runs - which is exactly how CI
+# broke. See tests/test_python39_compatibility... (the policy test
+# below) for the check that keeps this from recurring.
+from __future__ import annotations
+
 import ast
 import json
 import re
@@ -454,12 +463,30 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
     # this test passing - a false all-clear on the repository's mandatory
     # local gate. Same defect class as the two gate-coverage tests below.
     hook_commands = _executable_command_lines(hook_text)
+    _assert_no_always_false_guard(hook_commands, ".githooks/pre-commit")
     assert "scripts/quality_check.py --mode full" in hook_commands
     assert "setup_buildAndFit.sh" in hook_commands
 
-    hook_pytest = _pytest_command_lines(hook_text)
-    assert "tests/test_analysis_workflows_integration.py" in hook_pytest
-    assert '"integration and requires_root"' in hook_pytest
+    # Naming the marker is not enough: a `-k "not <test>"` alongside it
+    # deselects the gate while the marker is still there. Confirmed by
+    # sabotage - it did, and this test passed. So the line must both
+    # keep the marker and not select the test away.
+    hook_pytest_lines = _pytest_command_lines(hook_text).splitlines()
+    integration_lines = [
+        line for line in hook_pytest_lines if f"tests/{_INTEGRATION_TEST_FILE}" in line
+    ]
+    assert integration_lines, (
+        ".githooks/pre-commit runs no pytest command naming " f"tests/{_INTEGRATION_TEST_FILE}"
+    )
+    assert _keeps_test_selected_anywhere(
+        integration_lines,
+        "integration and requires_root",
+        "authoritative_j100_j50_workflows_match_frozen_reference",
+    ), (
+        ".githooks/pre-commit names the scientific gate but no invocation "
+        "actually leaves test_authoritative_j100_j50_workflows_match_frozen_reference "
+        "selected"
+    )
 
     installer_commands = _executable_command_lines(installer_text)
     assert "core.hooksPath" in installer_commands
@@ -583,6 +610,93 @@ def _marker_filter_keeps(value: str | None, marker: str) -> bool:
     if value is None:
         return True
     return _selects_positively(value, marker)
+
+
+# A command wrapped in an always-false guard still appears in the
+# executable lines, so "this file runs X" is not proved by finding X
+# there. Confirmed by sabotage: wrapping .githooks/pre-commit's
+# lightweight gate in `if false; then ... fi` left its policy test
+# passing. A general reachability analysis of shell is out of scope, so
+# the literal always-false guards are rejected outright instead.
+_ALWAYS_FALSE_GUARD = re.compile(r"\b(?:if|while|until)\s+(?:false\b|!\s*true\b)")
+
+# Recursive deletion, however the flags are spelled or ordered.
+# `"rm -rf" not in text` is satisfied by `rm -fr`, `rm -r -f` and
+# `rm --recursive` - confirmed by sabotage on both installers, whose
+# tests advertise that they are non-destructive. Neither installer runs
+# `rm` at all, so this cannot misfire on them.
+_RECURSIVE_DELETE = re.compile(
+    r"\brm\b(?:\s+-{1,2}[A-Za-z-]+)*\s+-{0,2}(?:[A-Za-z]*[rR][A-Za-z]*\b|recursive\b)"
+)
+
+
+def _keeps_test_selected(line: str, marker: str, test_name: str) -> bool:
+    """True when this pytest line really runs `test_name`.
+
+    Both filters have to cooperate: the `-m` marker filter must keep
+    `marker`, and any `-k` present must name the test rather than
+    exclude or narrow past it. Confirmed by sabotage - appending
+    `-k "not <test_name>"` to `.githooks/pre-commit`'s scientific gate
+    deselected it while the marker was still named, and the hook's
+    policy test passed.
+    """
+    if not _selects_positively(_pytest_option_value(line, "-m"), marker):
+        return False
+    selector = _pytest_option_value(line, "-k")
+    return selector is None or _selects_positively(selector, test_name)
+
+
+def _assert_no_always_false_guard(commands: str, source_description: str) -> None:
+    guard = _ALWAYS_FALSE_GUARD.search(commands)
+    assert guard is None, (
+        f"{source_description} guards a command with {guard.group(0)!r}, which "
+        "disables it while leaving its text in place - so every "
+        '"this file runs X" assertion here would still pass'
+    )
+
+
+def _keeps_test_selected_anywhere(lines: list[str], marker: str, test_name: str) -> bool:
+    return any(_keeps_test_selected(line, marker, test_name) for line in lines)
+
+
+def _defers_annotation_evaluation(path: Path) -> bool:
+    """True when `from __future__ import annotations` is in effect."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "__future__"
+        and any(alias.name == "annotations" for alias in node.names)
+        for node in tree.body
+    )
+
+
+def _evaluated_pep604_unions(path: Path) -> list[tuple[int, str]]:
+    """Every `X | Y` annotation this file evaluates at import time.
+
+    Function signatures are evaluated when the `def` executes, so a
+    `str | None` there raises TypeError on Python 3.9 - it is not merely
+    a type-checker hint. Only signatures are inspected: annotations on
+    local variables inside a function body are never evaluated.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        annotations = [
+            argument.annotation
+            for argument in node.args.args + node.args.kwonlyargs
+            if argument.annotation
+        ]
+        if node.returns:
+            annotations.append(node.returns)
+        for annotation in annotations:
+            if any(
+                isinstance(sub, ast.BinOp) and isinstance(sub.op, ast.BitOr)
+                for sub in ast.walk(annotation)
+            ):
+                found.append((node.lineno, node.name))
+    return found
 
 
 def _pytest_command_lines(text: str) -> str:
@@ -969,6 +1083,94 @@ def test_pytest_selectors_are_read_positively_and_reject_negation() -> None:
     assert not _marker_filter_keeps("requires_root", "requires_analysis_dependencies")
 
 
+def test_a_named_command_is_not_a_command_that_runs() -> None:
+    """Three more ways text can be present while the thing never runs.
+
+    Each pins a sabotage that passed before the check it guards was
+    changed:
+
+    - a `-k "not <test>"` beside a correct `-m` marker filter, which
+      deselected `.githooks/pre-commit`'s scientific gate;
+    - an always-false guard, which disabled that hook's lightweight
+      gate while leaving its text in the executable lines;
+    - a recursive delete spelled `rm -fr`, `rm -r -f` or
+      `rm --recursive`, none of which the old `"rm -rf" not in text`
+      check saw, in tests that advertise the installers as
+      non-destructive.
+    """
+    marker = "integration and requires_root"
+    test_name = "authoritative_j100_j50_workflows_match_frozen_reference"
+    base = f'python -m pytest tests/test_analysis_workflows_integration.py -m "{marker}"'
+
+    assert _keeps_test_selected(base, marker, test_name)
+    assert _keeps_test_selected(f'{base} -k "{test_name}"', marker, test_name)
+    assert not _keeps_test_selected(f'{base} -k "not {test_name}"', marker, test_name)
+    assert not _keeps_test_selected(f'{base} -k "some_other_test"', marker, test_name)
+    assert not _keeps_test_selected(
+        'python -m pytest tests/test_analysis_workflows_integration.py -m "not ' f'({marker})"',
+        marker,
+        test_name,
+    )
+
+    for guard in ("if false; then run_gate; fi", "if false && ! run_gate; then", "while false"):
+        with pytest.raises(AssertionError):
+            _assert_no_always_false_guard(guard, "a test fixture")
+    _assert_no_always_false_guard("if ! run_gate; then\nfi", "a test fixture")
+
+    for destructive in ("rm -rf build", "rm -fr build", "rm -r -f build", "rm --recursive build"):
+        assert _RECURSIVE_DELETE.search(destructive), destructive
+    # a non-recursive delete of one file is not what these tests forbid
+    for benign in ('rm -f "$log"', "rm /tmp/one-file"):
+        assert not _RECURSIVE_DELETE.search(benign), benign
+
+
+def test_files_loaded_by_the_scientific_gates_are_importable_on_python_39() -> None:
+    """The scientific gates run under the LCG runtime's Python 3.9.12.
+
+    A `str | None` in a *function signature* is evaluated when the `def`
+    executes, so on 3.9 it raises `TypeError: unsupported operand
+    type(s) for |` and collection dies before a single test runs. The
+    development venv is 3.12, so nothing local notices.
+
+    This is exactly how CI broke: `tests/test_repo_utils.py` gained
+    three such signatures while being the only one of the ten
+    scientific test files without `from __future__ import annotations`,
+    and the failure surfaced two steps into the hosted workflow rather
+    than in any local gate.
+
+    Deliberately narrow: it checks this one incompatibility, not 3.9
+    compatibility in general. Syntax that 3.9 cannot even parse (a
+    `match` statement, say) is accepted by the 3.12 parser used here and
+    would not be caught - only running the files under 3.9 proves that,
+    which the lightweight gate cannot do without CVMFS.
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    tests_dir = repo_root / "tests"
+
+    # Every file with a dependency-marked test is run under the
+    # scientific runtime, so this set maintains itself as tests are
+    # added. The registered source modules are imported by those tests
+    # and by the production scripts that run under the same interpreter.
+    scientific_files = [
+        tests_dir / name
+        for name in _tests_dir_files_marked_requires_analysis_dependencies(tests_dir)
+    ]
+    assert scientific_files, "found no requires_analysis_dependencies test files at all"
+    scientific_files += [repo_root / name for name in _quality_check_python_targets(repo_root)]
+
+    offenders = {
+        str(path.relative_to(repo_root)): unions
+        for path in scientific_files
+        if (unions := _evaluated_pep604_unions(path)) and not _defers_annotation_evaluation(path)
+    }
+    assert not offenders, (
+        "these files run under the LCG Python 3.9.12 and evaluate an `X | Y` "
+        "annotation at import time, which raises TypeError there - add "
+        "`from __future__ import annotations` or use typing.Optional: "
+        f"{offenders}"
+    )
+
+
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:
     # scripts/run_all_gates.sh exists specifically to run every gate in
     # one command, including every test the lightweight gate deselects.
@@ -1087,7 +1289,10 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     ]
     active_script = "\n".join(active_lines)
 
-    assert "rm -rf" not in active_script
+    assert not _RECURSIVE_DELETE.search(active_script), (
+        "this installer recursively deletes something: "
+        f"{_RECURSIVE_DELETE.search(active_script).group(0)!r}"
+    )
     assert "git pull" not in active_script
     assert "git clone" not in active_script
     assert "setup.py install" not in active_script
@@ -1105,7 +1310,7 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     assert "existing_python_version" in active_script
     assert "platform.python_version()" in active_script
     assert "Existing pyBH_env uses Python" in active_script
-    assert "expected" in active_script
+    assert "; expected " in active_script
     assert "Existing pyBH_env failed import validation" in active_script
     assert "Existing pyBumpHunter environment is valid" in active_script
 
@@ -1138,7 +1343,10 @@ def test_install_script_is_non_destructive() -> None:
     ]
     active_script = "\n".join(active_lines)
 
-    assert "rm -rf" not in active_script
+    assert not _RECURSIVE_DELETE.search(active_script), (
+        "this installer recursively deletes something: "
+        f"{_RECURSIVE_DELETE.search(active_script).group(0)!r}"
+    )
     assert "git clone" not in active_script
     assert "git pull" not in active_script
     assert "git checkout" not in active_script
@@ -1195,7 +1403,13 @@ def test_install_script_is_non_destructive() -> None:
     assert "scripts/install_pyBumpHunter.sh" in active_script
     assert "Non-destructive dependency build completed successfully." in active_script
 
+    # Both modes must be *dispatched*, not merely mentioned. `--check`
+    # also appears in the usage heredoc, so asserting it against the
+    # whole script passed even after the dispatch arm was renamed
+    # `--no-check)` - confirmed by sabotage.
     command_dispatch = invocations.split('case "$1" in', maxsplit=1)[1]
+    assert "--check)" in command_dispatch
+    assert "run_check" in command_dispatch
     assert "--build)" in command_dispatch
     assert "run_build" in command_dispatch
 
@@ -1436,23 +1650,31 @@ _COLLECTION_SUMMARY = re.compile(
 )
 
 
-def _quality_check_test_targets(repo_root: Path) -> list[str]:
-    """The test files `scripts/quality_check.py` actually runs."""
+def _quality_check_targets(repo_root: Path, name: str) -> list[str]:
+    """One of `scripts/quality_check.py`'s registered target lists."""
     source = (repo_root / "scripts" / "quality_check.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
             continue
-        if not any(
-            isinstance(target, ast.Name) and target.id == "test_targets" for target in node.targets
-        ):
+        if not any(isinstance(target, ast.Name) and target.id == name for target in node.targets):
             continue
         return [
             element.value
             for element in node.value.elts
             if isinstance(element, ast.Constant) and isinstance(element.value, str)
         ]
-    raise AssertionError("scripts/quality_check.py no longer assigns test_targets")
+    raise AssertionError(f"scripts/quality_check.py no longer assigns {name}")
+
+
+def _quality_check_test_targets(repo_root: Path) -> list[str]:
+    """The test files `scripts/quality_check.py` actually runs."""
+    return _quality_check_targets(repo_root, "test_targets")
+
+
+def _quality_check_python_targets(repo_root: Path) -> list[str]:
+    """The source files `scripts/quality_check.py` lints and formats."""
+    return _quality_check_targets(repo_root, "python_targets")
 
 
 def _collect(repo_root: Path, arguments: list[str]) -> dict[str, int]:
