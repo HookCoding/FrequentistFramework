@@ -38,12 +38,12 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 205 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 207 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
 tests/test_analysis_workflows_integration.py -m "integration and
-requires_root" -v`): 1 passed, 2 deselected, 182.11 seconds, exit code 0
+requires_root" -v`): 1 passed, 2 deselected, 74.68 seconds, exit code 0
 - `test_authoritative_j100_j50_workflows_match_frozen_reference` still
 matches the frozen `tests/references/analysis_reference.json` exactly,
 confirming this refactor moved no science. This gate's pass does **not**
@@ -341,7 +341,7 @@ in no CI job for a time.
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 205 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 207 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)
@@ -382,7 +382,7 @@ python -m pytest tests/test_analysis_workflows_integration.py \
   -m "integration and requires_root" -v
 ```
 
-Latest verified result: 1 passed, 2 deselected, 182.11 seconds, exit
+Latest verified result: 1 passed, 2 deselected, 74.68 seconds, exit
 code 0.
 
 ### FindBHWindow.py manual reproduction command (not a separate gate)

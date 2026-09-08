@@ -931,3 +931,130 @@ def test_install_script_is_non_destructive() -> None:
     command_dispatch = installer_text.split('case "$1" in', maxsplit=1)[1]
     assert "--build)" in command_dispatch
     assert "run_build" in command_dispatch
+
+
+_LIVING_DOCUMENTS = (
+    "README.md",
+    "doc/TIER1_SYSTEM.md",
+    "doc/TIER1_ENVIRONMENT_PROVENANCE.md",
+    "doc/TIER2_SYSTEM.md",
+    "doc/TIER3_SYSTEM.md",
+    "doc/TIER3_EXECUTION_TRACE.md",
+)
+
+_GATE_MARKERS = (
+    ("scientific", '-m "integration and requires_root"'),
+    ("runtime readiness", "-k authoritative_setup_provides_scientific_runtime"),
+    (
+        "plotting-layer",
+        "tests/test_plot_post_fit.py tests/test_plot_postfit_macro.py",
+    ),
+    ("lightweight", "quality_check.py --mode full"),
+    (
+        "prepared dependency",
+        'tests/test_repo_utils.py -m "requires_analysis_dependencies"',
+    ),
+)
+
+_RECORDED_RUNTIME = re.compile(r"\d+ passed(?:, \d+ deselected)?, (\d+\.\d+) seconds")
+_RECORDED_COLLECTION = re.compile(r"(\d+) collected")
+
+
+def _documented_gate_runtimes(text: str) -> dict[str, set[str]]:
+    """Every recorded gate runtime in one document, keyed by which gate.
+
+    The living documents each quote the same gate commands and their
+    latest measured runtimes, so the same figure is written down in up
+    to four places. Nothing but care has kept those copies equal, and
+    care has already failed three times in one pull request: a reworded
+    figure was updated in three documents and left stale in a fourth.
+    Attribution is positional - a figure belongs to the nearest gate
+    command printed above it - because that is how the documents are
+    actually laid out (a command block, then its result).
+
+    Backslash continuations are removed and whitespace collapsed first,
+    since every one of these commands is wrapped across lines and the
+    prose that quotes them wraps at a different column in each document.
+    """
+    flat = " ".join(text.replace("\\\n", " ").split())
+    marker_positions = sorted(
+        (match.start(), name)
+        for name, marker in _GATE_MARKERS
+        for match in re.finditer(re.escape(marker), flat)
+    )
+    runtimes: dict[str, set[str]] = {}
+    for figure in _RECORDED_RUNTIME.finditer(flat):
+        preceding = [name for start, name in marker_positions if start < figure.start()]
+        gate = preceding[-1] if preceding else "unattributed"
+        runtimes.setdefault(gate, set()).add(figure.group(1))
+    return runtimes
+
+
+def test_documented_gate_figures_agree_across_every_living_document() -> None:
+    repo_root = find_repo_root()
+
+    runtimes: dict[str, dict[str, set[str]]] = {}
+    collections: dict[str, set[str]] = {}
+    for relative_path in _LIVING_DOCUMENTS:
+        document = repo_root / relative_path
+        assert document.is_file(), f"{relative_path} is missing"
+        text = document.read_text(encoding="utf-8")
+        for gate, figures in _documented_gate_runtimes(text).items():
+            runtimes.setdefault(gate, {})[relative_path] = figures
+        counts = set(_RECORDED_COLLECTION.findall(text))
+        if counts:
+            collections[relative_path] = counts
+
+    assert "unattributed" not in runtimes, (
+        "a recorded gate runtime appears above every gate command in "
+        f"{sorted(runtimes.get('unattributed', {}))} - add its command to "
+        "_GATE_MARKERS so the figure is checked rather than ignored"
+    )
+
+    for gate in ("scientific", "runtime readiness"):
+        assert gate in runtimes, (
+            f"no recorded {gate} gate runtime was found in any living "
+            "document, so this test would check nothing - the phrasing "
+            "_RECORDED_RUNTIME matches has probably changed"
+        )
+
+    for gate, per_document in sorted(runtimes.items()):
+        distinct = set().union(*per_document.values())
+        assert len(distinct) == 1, (
+            f"the {gate} gate's latest runtime is recorded as "
+            f"{sorted(distinct)} in different documents: "
+            f"{ {path: sorted(figures) for path, figures in per_document.items()} } "
+            "- one of them is stale"
+        )
+
+    distinct_collections = set().union(*collections.values()) if collections else set()
+    assert len(distinct_collections) <= 1, (
+        "the lightweight gate's collected-test count is recorded as "
+        f"{sorted(distinct_collections)} in different documents: "
+        f"{ {path: sorted(counts) for path, counts in collections.items()} } "
+        "- one of them is stale"
+    )
+
+
+def test_documented_gate_runtimes_are_attributed_to_the_right_gate() -> None:
+    document = """
+Scientific gate:
+
+```bash
+python -m pytest tests/test_analysis_workflows_integration.py \\
+  -m "integration and requires_root" -v
+```
+
+Latest verified result: 1 passed, 2 deselected, 74.68 seconds, exit
+code 0.
+
+Runtime readiness (`python -m pytest
+tests/test_analysis_workflows_integration.py
+-k authoritative_setup_provides_scientific_runtime -v`): 1 passed, 2
+deselected, 2.27 seconds, exit code 0.
+"""
+
+    assert _documented_gate_runtimes(document) == {
+        "scientific": {"74.68"},
+        "runtime readiness": {"2.27"},
+    }

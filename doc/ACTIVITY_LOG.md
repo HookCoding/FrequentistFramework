@@ -11120,3 +11120,85 @@ different concern).
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Address a sixth round of Copilot review findings (a stale scientific-gate figure), and make figure drift a test failure
+
+### Objective
+
+Copilot (Low) reported that `doc/TIER3_SYSTEM.md` still records the
+scientific gate as **182.11 seconds** in two places (lines 46 and 385)
+while `doc/TIER1_SYSTEM.md` and `doc/TIER1_ENVIRONMENT_PROVENANCE.md`
+record the later rerun as **74.68 seconds**, making the current
+reference documentation self-contradictory within one pull request.
+Confirm it, fix it, and stop the class rather than the two citations.
+
+### What changed
+
+- **Confirmed and fixed.** `doc/ACTIVITY_LOG.md` is append-only, so
+  entry order settles which figure is later: 182.11s is recorded at
+  line 9563, and the 74.68s rerun at line 10742. No scientific-gate
+  timing is recorded after it. So 74.68s is the latest measurement and
+  both `doc/TIER3_SYSTEM.md` citations were stale. Both updated.
+- **Why it was missed.** The commit that produced the 74.68s
+  measurement did grep for residual figures - but for `73.22` and
+  `2.62`, the values *it* had superseded. It never grepped `182.11`,
+  a figure written down two commits earlier and superseded by the same
+  rerun. The check was aimed at the numbers in front of it rather than
+  at every number the new measurement replaced. This is the third time
+  in this pull request that a gate figure has been updated in some
+  documents and left stale in another.
+- **Made the class a test failure**, since three rounds of careful
+  greppping have not held: added
+  `test_documented_gate_figures_agree_across_every_living_document`
+  and its `_documented_gate_runtimes()` helper. The helper flattens a
+  document (backslash continuations removed, whitespace collapsed,
+  because every one of these commands is wrapped and each document
+  wraps at a different column), finds each recorded
+  `N passed[, N deselected], T seconds` result, and attributes it to
+  the nearest gate command printed above it. The test then requires
+  every gate's runtime, and the lightweight gate's collected-test
+  count, to be identical across all six living documents.
+- The test also fails if a recorded runtime appears above every known
+  gate command, so documenting a new gate forces its command into
+  `_GATE_MARKERS` instead of leaving the figure silently unchecked;
+  and it fails if no scientific or runtime-readiness figure is found at
+  all, so a rewording cannot quietly make it vacuous.
+- Deliberately not covered, and why: `doc/ACTIVITY_LOG.md` and
+  `doc/TIER3_COMPLETION_PLAN.md` are excluded, since both record what
+  was measured at a point in time and are *supposed* to hold
+  superseded figures; and the check compares documents against each
+  other, not against a live run, so it catches drift between copies
+  rather than all four copies aging together.
+
+### Verification performed
+
+- Three sabotages, each confirmed to fail the new test: restoring
+  `182.11` on `doc/TIER3_SYSTEM.md` line 385 alone (the exact defect
+  Copilot reported); changing one document's `225 collected` to `220`;
+  and inserting a recorded runtime above any gate command. All three
+  restored afterwards, `git diff --stat` confirming only the intended
+  files changed.
+- `python scripts/quality_check.py --mode full`: 227 collected, 207
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0.
+- Gate figures refreshed for the two new tests: lightweight
+  `225 collected/205 passed` -> `227 collected/207 passed` in
+  `doc/TIER1_SYSTEM.md`, `doc/TIER2_SYSTEM.md`,
+  `doc/TIER1_ENVIRONMENT_PROVENANCE.md` and `doc/TIER3_SYSTEM.md` -
+  and the new test now enforces that those copies agree.
+- CI for `0daa75e`: "Complete lightweight and scientific test suite"
+  completed, conclusion **success**.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Noted, not changed
+
+- `.venv/bin/python` now reports **Python 3.12.14**, while the
+  documented development baseline and both CI workflows pin 3.12.13.
+  The three pinned tools still match exactly (pytest 9.1.1, Ruff
+  0.16.0, Black 26.5.1), and CI remains internally consistent, so this
+  is a local interpreter patch bump rather than a documentation error;
+  changing the CI pins is a separate decision and was not made here.
+
+### Remaining open chunks
+
+None.

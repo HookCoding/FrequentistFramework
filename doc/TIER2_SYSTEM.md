@@ -13,8 +13,8 @@ Verified development baseline:
 
 Latest full lightweight gate:
 
-- 225 collected;
-- 205 passed;
+- 227 collected;
+- 207 passed;
 - 20 prepared-dependency tests deselected;
 - 0 expected failures;
 - Ruff passed;
@@ -164,7 +164,12 @@ The suite covers:
 - gate-script (`scripts/run_all_gates.sh`) and CI-workflow
   (`.github/workflows/scientific-analysis.yml`) coverage of every
   `requires_analysis_dependencies` test file, so a new one can never
-  silently run in no job at all.
+  silently run in no job at all;
+- agreement between the gate figures the living documents quote
+  (`tests/test_repo_utils.py::test_documented_gate_figures_agree_across_every_living_document`):
+  each gate's latest recorded runtime, and the lightweight gate's
+  collected-test count, are written down in up to four documents, and
+  the test fails if any copy drifts from the others.
 
 ## Installation-policy status
 

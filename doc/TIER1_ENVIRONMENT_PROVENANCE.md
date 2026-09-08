@@ -18,8 +18,8 @@ Dependency records:
 
 Latest full lightweight gate:
 
-- 225 collected;
-- 205 passed;
+- 227 collected;
+- 207 passed;
 - 20 dependency tests deselected;
 - 0 expected failures;
 - Ruff and Black passed;
