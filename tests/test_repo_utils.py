@@ -31,6 +31,27 @@ def _strip_full_line_comments(text: str) -> str:
     return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
 
 
+def _uncommented_lines(text: str) -> str:
+    """Every line with its comments removed, whole-line and trailing.
+
+    Order matters, and this must run *before* continuations are joined.
+    A trailing comment is inert text on a live command line: a
+    `-m "not ..."` gate carrying `# -k <the expected selector>` after it
+    satisfied a coverage check while selecting nothing. But stripping
+    after the join is wrong in the other direction - a comment whose
+    text happens to end in `\\` would swallow the next line, and with
+    it a real command. Confirmed both ways: `setup_thing  # see docs \\`
+    followed by the genuine gate command lost the gate entirely, and
+    the pytest extractor returned nothing at all.
+
+    A `\\` inside a comment is not a line continuation, so the comment
+    goes first.
+    """
+    return "\n".join(
+        _strip_inline_comment(line) for line in _strip_full_line_comments(text).splitlines()
+    )
+
+
 def _join_continuations(text: str) -> list[str]:
     """One logical line per shell command, with backslash-continued
     lines joined, so an argument on its own physical line still counts
@@ -70,7 +91,7 @@ def _executable_command_lines(text: str) -> str:
     """
     kept: list[str] = []
     heredoc_terminator: str | None = None
-    for line in _join_continuations(_strip_full_line_comments(text)):
+    for line in _join_continuations(_uncommented_lines(text)):
         if heredoc_terminator is not None:
             if line.strip() == heredoc_terminator:
                 heredoc_terminator = None
@@ -670,32 +691,74 @@ def _defers_annotation_evaluation(path: Path) -> bool:
     )
 
 
-def _evaluated_pep604_unions(path: Path) -> list[tuple[int, str]]:
-    """Every `X | Y` annotation this file evaluates at import time.
+def _annotation_has_pep604_union(annotation: ast.AST | None) -> bool:
+    return annotation is not None and any(
+        isinstance(sub, ast.BinOp) and isinstance(sub.op, ast.BitOr) for sub in ast.walk(annotation)
+    )
 
-    Function signatures are evaluated when the `def` executes, so a
-    `str | None` there raises TypeError on Python 3.9 - it is not merely
-    a type-checker hint. Only signatures are inspected: annotations on
-    local variables inside a function body are never evaluated.
+
+def _signature_annotations(node: ast.FunctionDef | ast.AsyncFunctionDef):
+    """Every annotation in a signature, all of which are evaluated when
+    the `def` executes: positional-only, regular and keyword-only
+    arguments, `*args`, `**kwargs`, and the return annotation."""
+    arguments = node.args
+    for argument in (
+        *arguments.posonlyargs,
+        *arguments.args,
+        *arguments.kwonlyargs,
+        arguments.vararg,
+        arguments.kwarg,
+    ):
+        if argument is not None and argument.annotation is not None:
+            yield argument.annotation
+    if node.returns is not None:
+        yield node.returns
+
+
+def _evaluated_pep604_unions(path: Path) -> list[tuple[int, str]]:
+    """Every `X | Y` annotation this file evaluates rather than defers.
+
+    Confirmed slot by slot against the real LCG Python 3.9.12: a union
+    raises `TypeError` in a positional-only, regular, keyword-only,
+    `*args`, `**kwargs` or return annotation, and in a module-level or
+    class-level annotated assignment. It does *not* raise in an
+    annotation on a local variable inside a function body, which is
+    never evaluated - so those are excluded, which is why this file's
+    own `quote: str | None = None` locals were always safe.
+
+    Nested `def`s and classes defined inside a function are still
+    reported. Their annotations are evaluated when the enclosing scope
+    runs rather than at import, so the break is later rather than
+    absent; flagging them is the conservative direction for a check
+    whose whole purpose is to keep the scientific gates loadable.
     """
     tree = ast.parse(path.read_text(encoding="utf-8"))
     found: list[tuple[int, str]] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        annotations = [
-            argument.annotation
-            for argument in node.args.args + node.args.kwonlyargs
-            if argument.annotation
-        ]
-        if node.returns:
-            annotations.append(node.returns)
-        for annotation in annotations:
-            if any(
-                isinstance(sub, ast.BinOp) and isinstance(sub.op, ast.BitOr)
-                for sub in ast.walk(annotation)
-            ):
-                found.append((node.lineno, node.name))
+
+    def _target_name(node: ast.AnnAssign) -> str:
+        target = node.target
+        return target.id if isinstance(target, ast.Name) else "<annotated assignment>"
+
+    def _visit(node: ast.AST, inside_function_body: bool) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if any(
+                    _annotation_has_pep604_union(annotation)
+                    for annotation in _signature_annotations(child)
+                ):
+                    found.append((child.lineno, child.name))
+                _visit(child, True)
+            elif isinstance(child, ast.ClassDef):
+                # A class body executes wherever it appears, so its
+                # annotated assignments are evaluated there.
+                _visit(child, False)
+            elif isinstance(child, ast.AnnAssign):
+                if not inside_function_body and _annotation_has_pep604_union(child.annotation):
+                    found.append((child.lineno, _target_name(child)))
+            else:
+                _visit(child, inside_function_body)
+
+    _visit(tree, False)
     return found
 
 
@@ -713,7 +776,7 @@ def _pytest_command_lines(text: str) -> str:
     """
     return "\n".join(
         line
-        for line in _join_continuations(_strip_full_line_comments(text))
+        for line in _join_continuations(_uncommented_lines(text))
         if _PYTEST_INVOCATION.search(line)
     )
 
@@ -1122,6 +1185,101 @@ def test_a_named_command_is_not_a_command_that_runs() -> None:
     # a non-recursive delete of one file is not what these tests forbid
     for benign in ('rm -f "$log"', "rm /tmp/one-file"):
         assert not _RECURSIVE_DELETE.search(benign), benign
+
+
+def test_every_evaluated_annotation_slot_is_inspected(tmp_path: Path) -> None:
+    """The 3.9 check must cover every slot that really raises there.
+
+    Each case below was run under the real LCG Python 3.9.12 before this
+    test was written: all six raise `TypeError: unsupported operand
+    type(s) for |`, and the function-local one does not. An earlier
+    version of `_evaluated_pep604_unions()` inspected only regular and
+    keyword-only arguments and the return annotation, so it missed five
+    of the six and reported no offender.
+    """
+    raises_on_python_39 = {
+        "posonly": "def f(x: str | None, /):\n    pass\n",
+        "vararg": "def f(*args: str | None):\n    pass\n",
+        "kwarg": "def f(**kw: str | None):\n    pass\n",
+        "module_annotation": "X: str | None = None\n",
+        "class_annotation": "class C:\n    X: str | None = None\n",
+        "regular_and_return": "def f(x: str | None) -> str | None:\n    return x\n",
+    }
+    safe_on_python_39 = {
+        # never evaluated, so it cannot raise - this file's own locals
+        # rely on that
+        "function_local": "def f():\n    x: str | None = None\n    return x\n",
+        "typing_optional": (
+            "from typing import Optional\ndef f(x: Optional[str]) -> Optional[str]:\n"
+            "    return x\n"
+        ),
+        "no_annotations": "def f(x):\n    return x\n",
+    }
+
+    for name, source in raises_on_python_39.items():
+        path = tmp_path / f"{name}.py"
+        path.write_text(source, encoding="utf-8")
+        assert _evaluated_pep604_unions(path), f"{name} evaluates a union but was not reported"
+
+    for name, source in safe_on_python_39.items():
+        path = tmp_path / f"{name}.py"
+        path.write_text(source, encoding="utf-8")
+        assert not _evaluated_pep604_unions(path), f"{name} is safe on 3.9 but was reported"
+
+    # Deferring evaluation makes any of them safe, which is the fix the
+    # policy test recommends.
+    deferred = tmp_path / "deferred.py"
+    deferred.write_text(
+        "from __future__ import annotations\n" + raises_on_python_39["posonly"], encoding="utf-8"
+    )
+    assert _evaluated_pep604_unions(deferred)
+    assert _defers_annotation_evaluation(deferred)
+
+
+def test_a_trailing_comment_is_not_part_of_the_command() -> None:
+    """`#` after a real command hides inert text on a live line.
+
+    Pins the sabotage: a runtime-readiness gate rewritten to
+    `-m "not requires_analysis_dependencies" -v # -k <selector>` kept
+    the expected selector visible to the coverage check while selecting
+    nothing at all.
+    """
+    line = (
+        "python -m pytest tests/test_analysis_workflows_integration.py "
+        '-m "not requires_analysis_dependencies" -v '
+        "# -k authoritative_setup_provides_scientific_runtime"
+    )
+    commands = _pytest_command_lines(line)
+    assert "-k" not in commands
+    assert _pytest_option_value(commands, "-k") is None
+    assert not _selects_positively(
+        _pytest_option_value(commands, "-k"),
+        "authoritative_setup_provides_scientific_runtime",
+    )
+
+    # A `#` inside quotes, or with no leading whitespace, is data - not a
+    # comment - and must survive both extractors.
+    kept = _executable_command_lines(
+        'grep "#define FOO" file.c\nrun_thing --opt="a#b"\nreal_command  # disabled\n'
+    )
+    assert '"#define FOO"' in kept
+    assert '--opt="a#b"' in kept
+    assert "real_command" in kept
+    assert "disabled" not in kept
+
+    # Comments must be removed *before* continuations are joined. A `\\`
+    # inside a comment is not a line continuation, and stripping after
+    # the join let such a comment swallow the following line - losing a
+    # real command, which is the opposite failure and just as wrong.
+    swallowing = "setup_thing  # see docs \\\npython scripts/quality_check.py --mode full\n"
+    assert "scripts/quality_check.py --mode full" in _executable_command_lines(swallowing)
+    assert "see docs" not in _executable_command_lines(swallowing)
+
+    swallowing_pytest = (
+        "run_gate x  # note \\\n"
+        'python -m pytest tests/test_pre_fit.py -m "requires_analysis_dependencies"\n'
+    )
+    assert "tests/test_pre_fit.py" in _pytest_command_lines(swallowing_pytest)
 
 
 def test_files_loaded_by_the_scientific_gates_are_importable_on_python_39() -> None:

@@ -11837,3 +11837,129 @@ The convention existed and was broken silently, so it is now checked:
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Close two holes in the checks added yesterday: the 3.9 guard missed five annotation slots, and command parsing kept trailing comments (tenth Copilot review round)
+
+### Objective
+
+Copilot's tenth review found that two of the parsers added in the
+previous two commits could still report coverage, or Python 3.9
+compatibility, when neither held. Both findings were about checks this
+session had just written to prevent exactly that.
+
+### Finding 1 (High): the 3.9 guard inspected one slot in six
+
+`_evaluated_pep604_unions()` walked only regular and keyword-only
+arguments plus the return annotation. Every case below was then run
+under the real LCG **Python 3.9.12** before anything was changed, and
+all six raise `TypeError: unsupported operand type(s) for |`:
+
+| slot | detected before | raises on 3.9 |
+| --- | --- | --- |
+| positional-only argument | no | yes |
+| `*args` | no | yes |
+| `**kwargs` | no | yes |
+| module-level annotated assignment | no | yes |
+| class-level annotated assignment | no | yes |
+| regular argument / return | yes | yes |
+| function-local annotated assignment | no | **no** |
+
+So the guard written to stop the previous CI break would have missed
+five of the six ways to cause it. The last row is why it must not
+simply flag every union: a local annotation is never evaluated, which
+is exactly what makes this file's own `quote: str | None = None` locals
+safe, and had always been safe.
+
+The traversal now covers `posonlyargs`, `args`, `kwonlyargs`,
+`vararg`, `kwarg` and `returns`, plus `AnnAssign` at module and class
+scope, while excluding annotations inside a function body. Nested
+`def`s and classes declared inside a function are reported too: their
+annotations are evaluated when the enclosing scope runs rather than at
+import, so the break is later rather than absent.
+
+### Finding 2: a trailing comment counted as part of the command
+
+`_pytest_command_lines()` dropped whole-line comments but kept trailing
+ones, so a live command could carry the expected selector in inert
+text:
+
+```
+python -m pytest tests/test_analysis_workflows_integration.py \
+  -m "not requires_analysis_dependencies" -v \
+  # -k authoritative_setup_provides_scientific_runtime
+```
+
+The `-k` parsed out of that comment satisfied the runtime-readiness
+coverage check while the real filter selected nothing. Confirmed
+against `scripts/run_all_gates.sh` itself. The same gap existed in
+`_executable_command_lines()`, and through it in every check built on
+that extractor - the pre-commit hook's, the installers', and the CI
+workflow's, since `_workflow_run_block_lines()` feeds into it.
+
+Both extractors now apply the file's existing `_strip_inline_comment()`,
+which respects quoting: `grep "#define FOO"` and `--opt="a#b"` survive,
+while `real_command  # disabled` loses only the comment.
+
+### Finding 3: the first fix for Finding 2 stripped comments too late
+
+The eleventh review round restated Finding 2 against the pre-fix code,
+but its suggested changeset differed from the fix in one way that
+turned out to matter: it removes comments **before** joining
+backslash-continued lines, where the first fix removed them after.
+
+Six adversarial inputs were compared under both orderings, including a
+`#` that only becomes quoted once lines are joined; all six agreed. One
+case did not:
+
+```
+setup_thing  # see docs \
+python scripts/quality_check.py --mode full
+```
+
+A `\` inside a comment is not a line continuation, but stripping after
+the join treats it as one, so the comment swallowed the following line
+and the real gate command vanished - `_executable_command_lines()`
+returned only `setup_thing`, and `_pytest_command_lines()` returned
+nothing at all. That is the opposite failure to Finding 2's: a false
+*failure* rather than a false pass, and a genuine mis-parse of a
+legitimate script either way.
+
+The reviewer's ordering was adopted, via a shared `_uncommented_lines()`
+helper both extractors now use, and the whole earlier sabotage battery
+was re-run against it to confirm nothing was weakened.
+
+### Verification performed
+
+- Six sabotages, each restored afterwards, all confirmed passing before
+  and failing after: the four previously-missed annotation slots
+  injected one at a time into `python/repo_utils.py`, a real
+  trailing-comment rewrite of `scripts/run_all_gates.sh`'s
+  runtime-readiness gate, and - as a false-positive guard that must
+  keep passing - a function-local union in the same module.
+- Every slot's behaviour was established by executing it under Python
+  3.9.12, not by reading the language reference.
+- Two regression tests pin all of it, including the three safe cases
+  the check must not report (`typing.Optional`, function-local
+  annotations, no annotations at all), and both directions of the
+  comment-ordering defect.
+- The full earlier sabotage battery re-run after the reordering, each
+  restored afterwards, all six still caught: the trailing-comment
+  attack, an echo-quoted gate command, the hook's `-k` negation, the CI
+  workflow's `-m` negation, a commented-out CI gate, and `rm -fr` in
+  `install.sh`. The ordering itself was then reverted in place to
+  confirm its regression test fails without it.
+- `python scripts/quality_check.py --mode full`: 235 collected, 215
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0.
+- `tests/test_repo_utils.py -m "requires_analysis_dependencies"` under
+  Python 3.9.12: 2 passed. Documented lightweight (235/215/20) and
+  prepared-dependency (31/2/29) figures updated.
+- CI for `5f2d366`: **success**, with steps 13-16 all passing - the
+  three ROOT gates that were skipped on `2c9a8b5` ran and passed, which
+  confirms the previous entry's diagnosis end to end rather than
+  leaving it inferred.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
