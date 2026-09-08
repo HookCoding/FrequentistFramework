@@ -49,7 +49,7 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 210 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 211 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
@@ -78,15 +78,23 @@ still matches the frozen reference exactly.
   `channelname`, each used `next(iter(self.channel_X))`, returning a
   channel-name *key* (the string `"Run3TLA"`) rather than the value.
   They now use `next(iter(self.channel_X.values()))`, matching
-  `GetChi2()`/`GetPval()`, which were always correct. `run_fit.py`'s
-  only call site always passes `channelname` explicitly, so no
-  production call changed.
+  `GetChi2()`/`GetPval()`, which were always correct. No non-test
+  caller anywhere in the repository calls any of these six - checked
+  repo-wide, not just on the J100/J50 path - and `run_nloFit.py:122`'s
+  no-argument `GetPval()` is one of the two that were always correct,
+  so no production call changed.
 - **Chunk 16a** changed `WriteRoot(dirPerCategory=False)`, whose three
   `.values()[-1]` expressions were Python-2-only dict-values indexing
   and raised `TypeError` under Python 3. They are now
-  `list(...values())[-1]`. `run_fit.py` always passes
-  `dirPerCategory=True`, so this branch was unreachable in production;
-  it now works rather than crashing.
+  `list(...values())[-1]`. The canonical `run_fit.py` path always
+  passes `dirPerCategory=True`, so the J100/J50 workflows never reach
+  this branch - but it is not unreachable repository-wide, and this fix
+  repairs two callers that do reach it: `python/run_nloFit.py:123`
+  calls `WriteRoot(postfitfile)` with no flag, and this module's own
+  CLI defaults to `False` (`--dirpercategory` is `store_true`, passed
+  through at line 628). `run_fit.py:166` still carries the no-flag call
+  commented out with the note "this looks problematic", which is
+  consistent with it having crashed.
 
 Chunk 16's own characterization tests pinned both behaviors *before*
 either was fixed, so neither fix could be made silently. A separate,
@@ -382,7 +390,7 @@ in no CI job for a time.
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 210 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 211 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)

@@ -11580,3 +11580,103 @@ system document did; the two now agree.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Make the gate-coverage checks reject negated selectors, and correct a reachability claim (ninth Copilot review round)
+
+### Objective
+
+Copilot's ninth review raised one inline finding on
+`doc/TIER3_SYSTEM.md` and three suppressed findings on
+`tests/test_repo_utils.py`, all variants of one question: does a check
+that *names* something prove that the thing runs?
+
+### The reachability claim was wrong
+
+The "Deliberate behavior changes" section written in the previous entry
+said `WriteRoot(dirPerCategory=False)` "was unreachable in production".
+That is false, and it was this session's own wording:
+
+- `python/run_nloFit.py:123` calls `WriteRoot(postfitfile)` with no
+  flag, taking the default `False` (Copilot's finding).
+- This module's own CLI also defaults to `False` -
+  `--dirpercategory` is `store_true` and is passed through at
+  `python/ExtractPostfitFromWS.py:628` (found by checking every
+  `WriteRoot` call site rather than only the one cited).
+- `python/pfe.py:42` passes `True`, so it is unaffected.
+- `python/run_fit.py:166` still carries the no-flag call commented out
+  with the note "this looks problematic" - consistent with it having
+  crashed for someone.
+
+The bullet now scopes the claim to the canonical `run_fit.py` path,
+states plainly that the branch is not unreachable repository-wide, and
+names both callers the fix repairs.
+
+The neighbouring Chunk 16b bullet was checked for the same defect and
+its claim held, but its wording was narrower than the evidence: no
+non-test caller anywhere in the repository calls any of the six changed
+accessors, and `run_nloFit.py:122`'s no-argument `GetPval()` is one of
+the two that were always correct. Restated repo-wide.
+
+### Two of the three selector findings were real
+
+Each was sabotaged against the real files before anything changed:
+
+- **Real.** Negating the runtime-readiness selector to
+  `-k "not authoritative_setup_provides_scientific_runtime"` left both
+  gate-coverage tests passing. The fingerprint was a bare substring,
+  which `not <name>` contains.
+- **Real.** Negating the plotting gate's filter to
+  `-m "not requires_analysis_dependencies"` also left them passing: every
+  filename was still present while none of the marked tests would run.
+- **False positive.** Negating the scientific marker to
+  `-m "not (integration and requires_root)"` did *not* pass - the
+  fingerprint is quote-delimited (`'"integration and requires_root"'`),
+  and the negated form puts `(` and `)` where the quotes must be, so it
+  never matched. Verified by sabotage rather than by reading, since the
+  distinction turns on two characters.
+
+### What changed
+
+- `_pytest_option_value(line, option)` reads a `-k`/`-m` value from one
+  command line. It parses only the text after the `pytest` token,
+  because `python -m pytest` carries an `-m` of its own; an earlier
+  version of this helper read that and compared every marker filter
+  against the string "pytest", which made both coverage tests fail
+  against the real, correct files.
+- `_selects_positively(value, expression)` requires the expression to
+  be present *and* the value to contain no `not`.
+  `_marker_filter_keeps()` is the same rule but treats a missing `-m`
+  as acceptable, since no filter deselects nothing.
+- `_INTEGRATION_TEST_SELECTORS` now carries the option each test is
+  selected by, not a bare substring, and both coverage loops work per
+  command line: a file counts as covered only when some pytest line
+  both names it and carries a filter that keeps the marker.
+- Any `not` disqualifies a value. That is deliberately conservative -
+  neither source uses a mixed expression such as
+  `-m "requires_analysis_dependencies and not slow"`, and the helper
+  says that if one ever legitimately does, it must be taught to parse
+  the expression rather than accept the negation.
+
+### Verification performed
+
+- Five sabotages, each restored afterwards, all confirmed passing
+  before and failing after: the `-k` and `-m` negations in
+  `scripts/run_all_gates.sh`, the same two in
+  `.github/workflows/scientific-analysis.yml`, and the parenthesised
+  marker negation.
+- `test_pytest_selectors_are_read_positively_and_reject_negation` pins
+  all of them, including the `python -m pytest` collision.
+- `python scripts/quality_check.py --mode full`: 231 collected, 211
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0.
+- The live-collection test caught the documented figures going stale
+  when the new test was added, exactly as intended - it failed with
+  "the documented lightweight gate figure '230 collected' does not
+  match a real collection, which reports 231". Documented lightweight
+  (231/211/20) and prepared-dependency (27/2/25) figures updated
+  accordingly.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
