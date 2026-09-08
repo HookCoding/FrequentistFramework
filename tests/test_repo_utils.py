@@ -669,14 +669,43 @@ def _marker_filter_keeps(value: str | None, marker: str) -> bool:
 # the literal always-false guards are rejected outright instead.
 _ALWAYS_FALSE_GUARD = re.compile(r"\b(?:if|while|until)\s+(?:false\b|!\s*true\b)")
 
-# Recursive deletion, however the flags are spelled or ordered.
-# `"rm -rf" not in text` is satisfied by `rm -fr`, `rm -r -f` and
-# `rm --recursive` - confirmed by sabotage on both installers, whose
-# tests advertise that they are non-destructive. Neither installer runs
-# `rm` at all, so this cannot misfire on them.
-_RECURSIVE_DELETE = re.compile(
-    r"\brm\b(?:\s+-{1,2}[A-Za-z-]+)*\s+-{0,2}(?:[A-Za-z]*[rR][A-Za-z]*\b|recursive\b)"
-)
+# One word of an `rm` command that turns it into a recursive delete:
+# any bundle of short flags containing `r`/`R` (`-r`, `-R`, `-rf`,
+# `-fr`), or the long spelling. Matched with fullmatch against a whole
+# word, so `--no-preserve-root` - which contains `r` but is not itself
+# recursive - is not one, and neither is any operand.
+_RECURSIVE_RM_FLAG = re.compile(r"-[A-Za-z]*[rR][A-Za-z]*|--recursive")
+
+# Where one command's arguments stop and the next command begins, so a
+# later command's flags are never attributed to `rm`.
+_ARGUMENT_LIST_END = re.compile(r"[;&|<>\n]")
+
+
+def _recursive_delete(text: str) -> str | None:
+    """The first recursive `rm` command in `text`, or None.
+
+    `"rm -rf" not in text` is satisfied by `rm -fr`, `rm -r -f` and
+    `rm --recursive` - confirmed by sabotage on both installers, whose
+    tests advertise that they are non-destructive.
+
+    Only the words `rm` is actually passed are examined, and of those
+    only the ones that are options. The regex this replaced read the
+    flags positionally and allowed no dash at all, so it counted the
+    *operand* as a flag: `rm report.txt`, `rm results.json` and
+    `rm -f error.log` were all reported as recursive deletes. That is a
+    false failure rather than a false pass - the two installer tests
+    below would reject an ordinary single-file cleanup - which is why
+    this one is made precise instead of deliberately over-inclusive.
+    Reading words also catches options after the operand
+    (`rm build -rf`), which `rm` itself accepts and the positional
+    regex missed in both spellings.
+    """
+    for command in re.finditer(r"\brm\b", text):
+        arguments = _ARGUMENT_LIST_END.split(text[command.end() :], 1)[0]
+        for word in arguments.split():
+            if _RECURSIVE_RM_FLAG.fullmatch(word.strip("\"'")):
+                return f"rm{arguments}".strip()
+    return None
 
 
 def _invocation_runs_test(
@@ -1219,7 +1248,10 @@ def test_a_named_command_is_not_a_command_that_runs() -> None:
     - a recursive delete spelled `rm -fr`, `rm -r -f` or
       `rm --recursive`, none of which the old `"rm -rf" not in text`
       check saw, in tests that advertise the installers as
-      non-destructive.
+      non-destructive;
+    - the opposite failure in that same check once it became a regex:
+      `rm report.txt` was read as recursive, because the pattern
+      allowed zero dashes and so matched the operand.
     """
     marker = "integration and requires_root"
     test_name = "authoritative_j100_j50_workflows_match_frozen_reference"
@@ -1240,11 +1272,36 @@ def test_a_named_command_is_not_a_command_that_runs() -> None:
             _assert_no_always_false_guard(guard, "a test fixture")
     _assert_no_always_false_guard("if ! run_gate; then\nfi", "a test fixture")
 
-    for destructive in ("rm -rf build", "rm -fr build", "rm -r -f build", "rm --recursive build"):
-        assert _RECURSIVE_DELETE.search(destructive), destructive
-    # a non-recursive delete of one file is not what these tests forbid
-    for benign in ('rm -f "$log"', "rm /tmp/one-file"):
-        assert not _RECURSIVE_DELETE.search(benign), benign
+    for destructive in (
+        "rm -rf build",
+        "rm -fr build",
+        "rm -r -f build",
+        "rm --recursive build",
+        "rm -R build",
+        # options after the operand, which rm itself accepts
+        "rm build -rf",
+    ):
+        assert _recursive_delete(destructive), destructive
+    # A non-recursive delete of one file is not what these tests forbid.
+    # The first five benign cases are the false positives the earlier
+    # positional regex produced: it allowed zero dashes, so the operand
+    # itself was read as a flag whenever it contained an `r`.
+    for benign in (
+        # an extensionless operand, which is a bare word of letters and
+        # so is only distinguishable from a flag bundle by the dash
+        "rm report",
+        "rm report.txt",
+        "rm results.json",
+        "rm -f error.log",
+        "rm -- report.txt",
+        'rm -f "$log"',
+        "rm /tmp/one-file",
+        # not itself recursive, despite containing `r`
+        "rm --no-preserve-root -f foo",
+        # a later command's flags do not belong to rm
+        "rm foo.txt && tar -rf archive.tar x",
+    ):
+        assert not _recursive_delete(benign), benign
 
 
 def test_every_evaluated_annotation_slot_is_inspected(tmp_path: Path) -> None:
@@ -1633,10 +1690,8 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     ]
     active_script = "\n".join(active_lines)
 
-    assert not _RECURSIVE_DELETE.search(active_script), (
-        "this installer recursively deletes something: "
-        f"{_RECURSIVE_DELETE.search(active_script).group(0)!r}"
-    )
+    recursive = _recursive_delete(active_script)
+    assert not recursive, f"this installer recursively deletes something: {recursive!r}"
     assert "git pull" not in active_script
     assert "git clone" not in active_script
     assert "setup.py install" not in active_script
@@ -1687,10 +1742,8 @@ def test_install_script_is_non_destructive() -> None:
     ]
     active_script = "\n".join(active_lines)
 
-    assert not _RECURSIVE_DELETE.search(active_script), (
-        "this installer recursively deletes something: "
-        f"{_RECURSIVE_DELETE.search(active_script).group(0)!r}"
-    )
+    recursive = _recursive_delete(active_script)
+    assert not recursive, f"this installer recursively deletes something: {recursive!r}"
     assert "git clone" not in active_script
     assert "git pull" not in active_script
     assert "git checkout" not in active_script

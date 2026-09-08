@@ -12126,3 +12126,76 @@ that needed it.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-08 — Read `rm`'s words instead of its shape, so an ordinary filename is no longer a recursive delete (fourteenth Copilot review round)
+
+### Objective
+
+One finding, Medium: `_RECURSIVE_DELETE`'s `-{0,2}` also accepts *no*
+dash, so the pattern read the operand as a flag. `rm report.txt` was
+reported as a recursive delete.
+
+### Independently verified, and it is worse than the one example
+
+Run against the pattern directly, four benign commands matched, not
+one: `rm report.txt`, `rm results.json`, `rm -f error.log` and
+`rm -- report.txt`. Any operand containing an `r` did it.
+
+The direction matters. Every previous finding in this class was a false
+*pass* - a check reporting coverage that did not exist. This one is a
+false *failure*: the two installer policy tests would have rejected an
+ordinary single-file cleanup as a recursive delete. So this detector is
+made precise, rather than left deliberately over-inclusive the way
+`_tests_dir_files_marked_requires_analysis_dependencies` is.
+
+It was dormant: neither installer runs `rm` at all, which is why no
+test caught it and why nothing in the repository was blocked by it.
+
+Measuring also turned up a second hole in the same pattern, in the
+opposite direction: `rm build -rf` - options after the operand, which
+`rm` itself accepts - matched neither the old pattern nor the fix
+Copilot suggested.
+
+### What changed
+
+- `_recursive_delete(text)` replaces the positional regex. It finds
+  each `rm`, takes the words up to the next shell separator, and tests
+  each word on its own with `fullmatch`. An operand is never a flag,
+  because a flag has to be a whole word starting with a dash.
+- Options after the operand are now caught, since word order stops
+  mattering.
+- `--no-preserve-root` is deliberately not recursive, despite the `r`,
+  and a later command's flags are not attributed to `rm`.
+
+### Verification performed
+
+- Both directions proved end to end on both installers, restored
+  afterwards. Against the old code: appending a benign `rm report.txt`
+  failed both installer tests (the reported defect, reproduced), while
+  `rm build -rf` passed both (the second hole). Against the fix: the
+  benign lines pass, `rm build -rf` and `rm -rf build` both fail with
+  the offending command quoted.
+- The regression cases in
+  `test_a_named_command_is_not_a_command_that_runs` were verified
+  non-vacuous by three separate sabotages of the detector, each failing
+  it: returning `None` always, allowing zero dashes again, and dropping
+  the argument-list boundary. The first attempt at the benign cases did
+  *not* catch the zero-dash sabotage - word-wise `fullmatch` rejects
+  `report.txt` for its dot regardless - so `rm report`, an
+  extensionless operand, was added as the case that actually pins the
+  dash requirement.
+- Swept every other compiled pattern in the file for the same shape.
+  This was the only one that parses command options; the rest match
+  commands, comments, decorators or reported figures, none of which
+  read an operand as a flag.
+- `python scripts/quality_check.py --mode full`: 237 collected, 217
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. No test was added or removed, so the documented figures are
+  unchanged.
+- `tests/test_repo_utils.py -m "requires_analysis_dependencies"` under
+  Python 3.9.12: 2 passed.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
