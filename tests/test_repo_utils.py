@@ -12,6 +12,7 @@ import json
 import re
 import subprocess
 import sys
+import warnings
 from collections.abc import Callable
 from pathlib import Path
 
@@ -1728,6 +1729,37 @@ def test_a_trailing_comment_is_not_part_of_the_command() -> None:
     assert "tests/test_pre_fit.py" in _pytest_command_lines(swallowing_pytest)
 
 
+# Legacy Python-2-era modules that a Python 3 AST cannot parse at all,
+# so no check here can inspect them. None is registered with any gate,
+# none is on the J100/J50 path, and Tier 3 explicitly scopes them out.
+# They are named rather than skipped silently: a *new* unparseable file
+# has to fail the check below, not vanish from it. A legacy file that
+# is later fixed simply starts being checked, which is why the
+# assertion is a subset test rather than an equality.
+_UNPARSEABLE_LEGACY_MODULES = frozenset(
+    {
+        "python/PlotResiduals.py",
+        "python/PlotToyLimitsDistribution.py",
+        "python/PreFitWS.py",
+        "python/createCoverageGraph.py",
+        "python/createToleranceGraph.py",
+        "python/getChi2Distribution.py",
+        "python/plotChi2Ndof.py",
+        "python/plotChi2Ndof2D.py",
+        "python/plotFalseExclusion.py",
+        "python/plotFalseExclusionCandles.py",
+        "python/plotLimits.py",
+        "python/rebin.py",
+        "python/signal_injection.py",
+        "python/simple_analysis.py",
+        "scripts/run_anaFit_zprime.py",
+        "scripts/run_stitch_swiftResults.py",
+        "scripts/run_swiftFit.py",
+        "scripts/stitch_swiftResults.py",
+    }
+)
+
+
 def test_files_loaded_by_the_scientific_gates_are_importable_on_python_39() -> None:
     """The scientific gates run under the LCG runtime's Python 3.9.12.
 
@@ -1760,13 +1792,41 @@ def test_files_loaded_by_the_scientific_gates_are_importable_on_python_39() -> N
         for name in _tests_dir_files_marked_requires_analysis_dependencies(tests_dir)
     ]
     assert scientific_files, "found no requires_analysis_dependencies test files at all"
-    scientific_files += [repo_root / name for name in _quality_check_python_targets(repo_root)]
 
-    offenders = {
-        str(path.relative_to(repo_root)): unions
-        for path in scientific_files
-        if (unions := _evaluated_pep604_unions(path)) and not _defers_annotation_evaluation(path)
-    }
+    # Every Python source in the repository, not only the modules
+    # registered with the lightweight gate. Registration is by hand, so
+    # a new module on the hot path would otherwise escape this check
+    # until someone remembered to add it - the same "nothing runs it"
+    # gap that `test_every_test_file_is_registered_with_a_gate()`
+    # closes for test files. Measured before widening: there are no
+    # offenders among the parseable files, so this costs nothing today.
+    scientific_files += sorted(repo_root.glob("python/*.py"))
+    scientific_files += sorted(repo_root.glob("scripts/*.py"))
+
+    offenders: dict[str, list[tuple[int, str]]] = {}
+    unparseable: set[str] = set()
+    for path in scientific_files:
+        name = str(path.relative_to(repo_root))
+        with warnings.catch_warnings():
+            # Parsing the legacy modules warns about invalid escape
+            # sequences: SyntaxWarning on 3.12, DeprecationWarning on
+            # the LCG 3.9.12, so both are silenced.
+            warnings.simplefilter("ignore", SyntaxWarning)
+            warnings.simplefilter("ignore", DeprecationWarning)
+            try:
+                unions = _evaluated_pep604_unions(path)
+            except SyntaxError:
+                unparseable.add(name)
+                continue
+        if unions and not _defers_annotation_evaluation(path):
+            offenders[name] = unions
+
+    unexpected = sorted(unparseable - _UNPARSEABLE_LEGACY_MODULES)
+    assert not unexpected, (
+        "these files cannot be parsed, so nothing here can check them for the 3.9 "
+        "incompatibility - fix them, or add them to _UNPARSEABLE_LEGACY_MODULES with "
+        f"a reason: {unexpected}"
+    )
     assert not offenders, (
         "these files run under the LCG Python 3.9.12 and evaluate an `X | Y` "
         "annotation at import time, which raises TypeError there - add "
@@ -2164,6 +2224,60 @@ def test_the_disabling_detectors_actually_detect(tmp_path: Path) -> None:
     ]
     # A different tool's addopts is not pytest's.
     assert selection_affecting_addopts('[tool.other]\naddopts = "-k nothing"\n') == []
+
+
+# Test files the lightweight gate deliberately does not run, each named
+# with the gate that does. The exemption has to point at a real gate
+# invocation - checked below - so this cannot become a place to park a
+# file nothing runs.
+_TEST_FILES_RUN_BY_ANOTHER_GATE = {
+    "test_analysis_workflows_integration.py": "the scientific gates in scripts/run_all_gates.sh",
+}
+
+
+def test_every_test_file_is_registered_with_a_gate() -> None:
+    """A test file nothing runs is a test file that proves nothing.
+
+    `scripts/quality_check.py` lists its targets by hand, so a new file
+    under `tests/` is not run, linted or formatted until someone adds
+    it. Nothing noticed. Confirmed by measurement: a new
+    `tests/test_zz_unregistered_probe.py` whose only test was
+    `assert False` left the whole lightweight gate green, and every
+    policy test in this file passing.
+
+    That is the same class as the gate-coverage checks above - a file
+    that looks like it runs and does not - one level further out: those
+    check that a registered file's tests are selected, this checks that
+    the file reaches a gate at all.
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    registered = {Path(target).name for target in _quality_check_test_targets(repo_root)}
+    on_disk = {path.name for path in (repo_root / "tests").glob("test_*.py")}
+
+    missing_registration = sorted(on_disk - registered - set(_TEST_FILES_RUN_BY_ANOTHER_GATE))
+    assert not missing_registration, (
+        "these test files are not in scripts/quality_check.py's test_targets, so the "
+        "lightweight gate does not run, lint or format them, and no other gate claims "
+        f"them either: {missing_registration}"
+    )
+
+    stale_registration = sorted(registered - on_disk)
+    assert (
+        not stale_registration
+    ), f"scripts/quality_check.py registers test files that do not exist: {stale_registration}"
+
+    # An exemption is only honest if some other gate really names the
+    # file. Read from the gate script with the same positional-argument
+    # reader the coverage checks use, so a filename appearing only in
+    # an option value or a comment does not count.
+    gate_script = (repo_root / "scripts" / "run_all_gates.sh").read_text(encoding="utf-8")
+    gate_lines = _pytest_command_lines(gate_script).splitlines()
+    for name, gate_description in _TEST_FILES_RUN_BY_ANOTHER_GATE.items():
+        assert name in on_disk, f"{name} is exempted from registration but does not exist"
+        assert any(_file_references(line, name) for line in gate_lines), (
+            f"{name} is exempted from the lightweight gate on the grounds that "
+            f"{gate_description} runs it, but no pytest command there names it"
+        )
 
 
 def test_no_gate_source_can_be_disabled_or_globally_filtered() -> None:

@@ -12492,3 +12492,92 @@ the filename, and a node id *contains* the filename.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Sweep for the same class one level further out: a file no gate runs at all
+
+### Objective
+
+Asked to look for further cases of the class, with the lens moved from
+"a gate that selects nothing" to "a file no gate reaches". Two surfaces
+had it; three candidates were examined and cleared.
+
+### What was found, and measured
+
+**A test file nothing runs.** `scripts/quality_check.py` lists its
+targets by hand. A new `tests/test_zz_unregistered_probe.py` whose only
+test was `assert False` left the lightweight gate green - 242
+collected, 222 passed, all checks passed - and every policy test in
+`tests/test_repo_utils.py` passing. It is not run, and it is not linted
+or formatted either, since Ruff and Black take the same list. This is
+the gate-coverage class one level out: those checks prove a registered
+file's tests are selected; nothing proved the file reaches a gate.
+
+**A Python module the 3.9 check never sees.** That check read the
+dependency-marked test files - self-maintaining - plus the *registered*
+`python_targets`. So a new module on the hot path escaped it until
+someone remembered to register it, which is the same hand-maintained
+weakness. Measured before widening: across all 51 `python/*.py` and
+every `scripts/*.py`, there are zero PEP 604 offenders, so widening to
+every source file costs nothing today.
+
+### Examined and cleared, rather than "fixed"
+
+- `assert_analysis_reference_close()` - the scientific gate's own
+  comparison. It compares workflow-name sets both ways, fit-parameter
+  name sets both ways, provenance exactly, `None` p-value *presence*
+  symmetrically with `is not`, and the limit points exactly. There is
+  no vacuous path through it. The empty `cls_limit_points` in the
+  frozen reference is a real property of a run with limits disabled,
+  not a comparison that skips.
+- `test_repo_snapshot_matches_frozen_reference()` - an empty snapshot
+  would raise `KeyError` on the three explicit `is True` assertions
+  rather than compare equal.
+- `scripts/compare_root_outputs.py` - would report no differences if
+  handed no object paths, but no gate or script invokes it (only its
+  own unit test), and `doc/TIER1_SYSTEM.md:245` already states it does
+  not inventory every object. A manual tool, not a gate.
+- No `conftest.py`, no `collect_ignore`, no `norecursedirs`, and no
+  test file whose name pytest would skip.
+
+### What changed
+
+- `test_every_test_file_is_registered_with_a_gate()`: every
+  `tests/test_*.py` must be registered, or named in
+  `_TEST_FILES_RUN_BY_ANOTHER_GATE` - and an exemption has to point at
+  a real gate invocation, read from `scripts/run_all_gates.sh` with the
+  same positional-argument reader the coverage checks use, so the
+  exemption list cannot become a place to park a file nothing runs.
+  Stale registrations are rejected too.
+- The 3.9 check now reads every `python/*.py` and `scripts/*.py`, not
+  just the registered ones. The 18 legacy Python-2-era modules that a
+  Python 3 AST cannot parse at all are named in
+  `_UNPARSEABLE_LEGACY_MODULES` rather than skipped silently, so a
+  *new* unparseable file fails the check instead of disappearing from
+  it. The assertion is a subset test, so fixing a legacy file simply
+  starts it being checked.
+
+### Verification performed
+
+- Registration check, four sabotages, all caught: a new unregistered
+  test file; a registered target renamed out of existence; an exemption
+  for a file no gate runs; and the gate script no longer naming the
+  exempted file.
+- Widened 3.9 check, four sabotages: an unregistered `python/` module
+  and an unregistered `scripts/` module with a 3.9-fatal signature both
+  caught, a new unparseable file caught, and - the negative control -
+  the same module with `from __future__ import annotations` correctly
+  passing.
+- `python scripts/quality_check.py --mode full`: 243 collected, 223
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented lightweight (243/223/20) and prepared-dependency
+  (39/2/37) figures updated.
+- Under the LCG Python 3.9.12: 2 passed for the prepared-dependency
+  gate, and the two new/widened checks run there too. Parsing the
+  legacy modules warns about invalid escape sequences - SyntaxWarning
+  on 3.12, DeprecationWarning on 3.9.12 - so both are silenced inside
+  the check rather than left to clutter the gate output.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
