@@ -13469,3 +13469,37 @@ four defects. The findings themselves remain fully swept - all
 forty-four, as classes - and no new Copilot review has arrived. What is
 now recorded, rather than closed, is that each pass adds code no review
 has seen, so the sweep has a fixed point only when a pass finds nothing.
+
+## 2026-09-09 — A quoted YAML key is the same key
+
+Immediately after the entry above, the same generalisation applied once
+more to the same regex. The splitter matched a bare key, so `"run": |`
+and `'run': |` matched nothing. Both are valid YAML that GitHub Actions
+runs, and both left the block's commands being read as configuration -
+exactly the case the entry above had just fixed for the unquoted
+spelling, in the one place the key itself is recognised. Measured
+against PyYAML 6.0.3, which loads both.
+
+The key may now carry a matched pair of quotes, and the block's column
+is taken from the match rather than by searching the line for the key
+text, so the quotes are accounted for rather than skipped. A mismatched
+pair is not treated as a quoted key.
+
+Two other spellings were measured and deliberately left alone: `run:|`
+with no space, and a tab after the header. PyYAML rejects both, so a
+workflow written that way never runs at all, and a reader that accepts
+them cannot mislead anything.
+
+### Verification performed
+
+- The splitter's `run:` lines compared with PyYAML's across all
+  forty-two combinations of three key spellings and fourteen block
+  headers: identical throughout, and still identical to every `run:`
+  value in both real workflow files.
+- One sabotage of the fix - the key regex narrowed back to unquoted
+  keys - confirmed to fail `test_every_block_scalar_header_opens_a_block`
+  and to pass when restored.
+- `python scripts/quality_check.py --mode full`: 253 collected, 233
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. No documented figure changed, because the case was added to an
+  existing test rather than a new one.

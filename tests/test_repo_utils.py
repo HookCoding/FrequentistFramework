@@ -388,7 +388,12 @@ def _yaml_config_lines(text: str) -> str:
 # nor a configuration setting, so it belongs to neither half of the
 # split. Tracking `run:` alone left such a body being read as YAML
 # keys, so a `run:` line inside one counted as a step that runs.
-_YAML_BLOCK_KEY = re.compile(r"\s*(?:-\s+)?(?P<key>[A-Za-z_][A-Za-z0-9_.-]*):(?P<rest>.*)$")
+# A quoted key is the same key: `"run": |` and `'run': |` are both
+# valid YAML that GitHub Actions runs, and neither was recognised, so
+# the block's commands were read as configuration.
+_YAML_BLOCK_KEY = re.compile(
+    r"\s*(?:-\s+)?(?P<quote>[\"']?)(?P<key>[A-Za-z_][A-Za-z0-9_.-]*)(?P=quote):(?P<rest>.*)$"
+)
 
 # A YAML block scalar's header: the style, then an indentation
 # indicator and a chomping indicator in either order, then an optional
@@ -490,7 +495,7 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
             if name == "run" and (header is not None or not rest):
                 # A bare `run:` opens a multi-line plain scalar, which
                 # folds exactly as `>` does - measured, not assumed.
-                block, block_key_column, block_is_run = [], raw.index("run:"), True
+                block, block_key_column, block_is_run = [], key.start("quote"), True
                 folded = rest == "" or header.group("style") == ">"
                 continue
             if name == "run":
@@ -500,7 +505,7 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
                 # A block scalar under any other key. A bare `other:`
                 # is not one - it opens a mapping - so only an explicit
                 # `|` or `>` counts here.
-                block, block_key_column, block_is_run = [], raw.index(f"{name}:"), False
+                block, block_key_column, block_is_run = [], key.start("quote"), False
                 continue
         other_lines.append(raw)
 
@@ -1925,6 +1930,25 @@ def test_every_block_scalar_header_opens_a_block() -> None:
         "      - name: A step\n        run: python -m pytest tests/test_pre_fit.py\n"
     )
     assert run_lines == ["python -m pytest tests/test_pre_fit.py"]
+
+    # A quoted key is the same key. Both spellings are valid YAML that
+    # GitHub Actions runs, and both were previously read as ordinary
+    # configuration lines, command body and all.
+    for quoted in ('"run"', "'run'"):
+        run_lines, config_lines = _workflow_lines(
+            "      - name: A step\n"
+            f"        {quoted}: |\n"
+            "          python -m pytest tests/test_pre_fit.py\n"
+        )
+        assert run_lines == ["python -m pytest tests/test_pre_fit.py"], quoted
+        assert not any("pytest" in line for line in config_lines), quoted
+
+    # A mismatched pair is not a quoted key, so it is left alone rather
+    # than guessed at.
+    run_lines, config_lines = _workflow_lines(
+        "      - name: A step\n        \"run': |\n          echo hi\n"
+    )
+    assert run_lines == []
 
 
 def test_a_block_scalar_under_another_key_is_neither_commands_nor_config() -> None:
