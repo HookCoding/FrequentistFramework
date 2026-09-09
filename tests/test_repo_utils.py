@@ -2212,15 +2212,39 @@ def test_the_disabling_detectors_actually_detect(tmp_path: Path) -> None:
     assert not _PYTEST_ADDOPTS_ASSIGNMENT.search("python -m pytest -k something")
 
     # The config override, via the function the gate runner shares.
+    # Every form pytest accepts, because the first version read one
+    # physical line and stripped the outer quotes, so it missed the
+    # array, the multiline string and an attached short-option value.
+    # The array spelling was the dangerous one: with
+    # `addopts = ["--collect-only"]` the full gate printed
+    # "223/243 tests collected" and "All checks passed!" having
+    # executed nothing.
     section = '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n'
     assert selection_affecting_addopts(section) == []
     assert selection_affecting_addopts(section + 'addopts = "-ra --color=yes"\n') == []
+    assert selection_affecting_addopts(section + 'addopts = "--strict-markers"\n') == []
+    assert selection_affecting_addopts(section + 'addopts = "-p no:cacheprovider -x"\n') == []
     assert selection_affecting_addopts(section + 'addopts = "-k nothing"\n') == ["-k"]
-    assert selection_affecting_addopts(section + 'addopts = "--collect-only"\n') == [
+    # the value attached to the short option, which pytest accepts
+    assert selection_affecting_addopts(section + 'addopts = "-knothing"\n') == ["-k"]
+    assert selection_affecting_addopts(section + "addopts = '''-ra -mfoo'''\n") == ["-m"]
+    # the array form, on one line and split across lines
+    assert selection_affecting_addopts(section + 'addopts = ["--collect-only"]\n') == [
         "--collect-only"
     ]
-    assert selection_affecting_addopts(section + 'addopts = "--deselect tests/test_x.py"\n') == [
-        "--deselect"
+    assert selection_affecting_addopts(section + 'addopts = ["-k", "nothing"]\n') == ["-k"]
+    assert selection_affecting_addopts(
+        section + 'addopts = [\n  "-ra",\n  "--deselect",\n  "tests/x.py",\n]\n'
+    ) == ["--deselect"]
+    # the multiline string form
+    assert selection_affecting_addopts(section + 'addopts = """\n-ra\n--collect-only\n"""\n') == [
+        "--collect-only"
+    ]
+    # an unambiguous prefix, which argparse resolves to the full option
+    assert selection_affecting_addopts(section + 'addopts = "--co"\n') == ["--collect-only"]
+    assert selection_affecting_addopts(section + 'addopts = "--col"\n') == ["--collect-only"]
+    assert selection_affecting_addopts(section + 'addopts = "--ignore-glob=tests/*"\n') == [
+        "--ignore-glob"
     ]
     # A different tool's addopts is not pytest's.
     assert selection_affecting_addopts('[tool.other]\naddopts = "-k nothing"\n') == []

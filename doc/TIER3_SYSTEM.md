@@ -141,12 +141,15 @@ ones deliberately left in place).
 `find_repo_root()` is called by `run_provenance.py`'s
 `get_repository_root()` on every run - but it needed no work under this
 document, because Tier 1/2's own earlier work already brought it to the
-same standard this document requires: four small, single-purpose,
+same standard this document requires: five small, single-purpose,
 individually-tested functions (`find_repo_root()`; `build_repo_snapshot()`;
-`write_repo_snapshot(path, snapshot)`; `read_repo_snapshot(path)` - only
-the first is on the J100/J50 hot path, the other three support Tier 2's
-own repo-snapshot comparison feature), registered in
-`scripts/quality_check.py`. See `doc/TIER1_SYSTEM.md`'s own
+`write_repo_snapshot(path, snapshot)`; `read_repo_snapshot(path)`;
+`selection_affecting_addopts(pyproject_text)` - only the first is on the
+J100/J50 hot path, the next three support Tier 2's own repo-snapshot
+comparison feature, and the last is gate-critical policy shared with
+`scripts/quality_check.py`, which applies it before starting pytest so
+that a configuration which would stop tests from running is refused
+rather than reported clean), registered in `scripts/quality_check.py`. See `doc/TIER1_SYSTEM.md`'s own
 "Authoritative files" for its ownership.
 
 ## Module map: `python/run_anaFit.py` -> 7 modules + coordinator
@@ -331,7 +334,7 @@ while `nPars` can be requested up to 10; see "Known limitations" below.
 | `python/ExtractFitParameters.py` | `tests/test_extract_fit_parameters.py` | Only the real-fixture `Extract()`/accessors/`WriteRoot()` test (real-ROOT subprocess snippet against the committed J100 `FitResult_*.root` fixture); the two `GetNsig()`/`GetNsigErr()` falsy-refire tests stub `sys.modules["ROOT"]` |
 | `python/ExtractPostfitFromWS.py` | `tests/test_extract_postfit_from_ws.py` | Yes, always - every test is a real-ROOT subprocess snippet against committed J100 fixtures (no ROOT-free fragment exists in this file) |
 | `python/PreFit.py` | `tests/test_pre_fit.py` | Only the two `Fit()` tests (real-ROOT subprocess snippet against the committed J100 `mjj_spectra_J100_dataAll.root` fixture); `_build_candidate_functions()`/`_select_best_parameter_sets()` tests stub `sys.modules["ROOT"]` |
-| `python/repo_utils.py` | `tests/test_repo_utils.py` | No for `find_repo_root()`/`build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s own tests (pure `pathlib`/`json`); two other, unrelated tests in this same file (external-submodule-revision checks, Tier 1/2's own installation policy) are separately marked `requires_analysis_dependencies` |
+| `python/repo_utils.py` | `tests/test_repo_utils.py` | No for `find_repo_root()`/`build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s own tests (pure `pathlib`/`json`), nor for `selection_affecting_addopts()`'s, which parses TOML text supplied by the test (`test_the_disabling_detectors_actually_detect`); two other, unrelated tests in this same file (external-submodule-revision checks, Tier 1/2's own installation policy) are separately marked `requires_analysis_dependencies` |
 
 Every real-ROOT/CVMFS-needing test above is marked
 `@pytest.mark.requires_analysis_dependencies`, and every one of them

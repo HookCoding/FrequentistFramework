@@ -12581,3 +12581,97 @@ every source file costs nothing today.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Parse pytest's addopts as TOML instead of reading one line of it (sixteenth Copilot review round)
+
+### Objective
+
+Four findings against 09f56ae, all in code added the same day, all
+real: the `addopts` guard missed three forms pytest accepts, missed the
+attached short-option spelling it already recognised elsewhere, and two
+`doc/TIER3_SYSTEM.md` claims about `python/repo_utils.py` went stale in
+the same PR that made them stale.
+
+### The first finding is the most serious one of the whole PR
+
+`addopts = ["--collect-only"]` - the TOML array form - made
+`selection_affecting_addopts()` return nothing, so
+`scripts/quality_check.py` ran pytest anyway. Measured on the real
+gate:
+
+```
+collected 243 items / 20 deselected / 223 selected
+=============== 223/243 tests collected (20 deselected) in 0.39s ===============
+All checks passed!
+exit code 0
+```
+
+Not one test executed, and the gate reported success. Every previous
+false pass in this PR was a policy check reporting coverage that did
+not exist; this one was the gate itself reporting a pass it had not
+earned. The guard written specifically to prevent it had a hole because
+it read one physical line and stripped the outer quote characters.
+
+The multiline-string form and an array split across lines were missed
+the same way. `addopts = "-knothing"` and `addopts = ["-k", "nothing"]`
+were also missed; both deselect everything, though those exit 5, which
+the runners already catch.
+
+The second finding is pointed: `_GLUED_SHORT_OPTION` was added to
+`tests/test_repo_utils.py` earlier the same day for exactly the
+attached-value spelling, and the shared function did not know about it.
+Two places reasoning about pytest options, one of them taught.
+
+### What changed
+
+- `pytest_addopts_words()` reads the setting with a real TOML parser -
+  `tomllib` on 3.11+, `tomli` on the LCG runtime's 3.9.12 - and handles
+  the string, array and multiline forms because the parser does. If
+  neither parser exists it raises, because "no parser" must not read as
+  "no offending options".
+- `_selection_option()` recognises a value attached to a short option,
+  and treats an unambiguous `--` prefix as the option it resolves to,
+  since argparse does (`--co` and `--col` are `--collect-only`).
+  `--color` is unaffected: no selecting option starts with it.
+- `doc/TIER3_SYSTEM.md`'s module inventory now says five functions, not
+  four, and names `selection_affecting_addopts()` with why it is
+  shared; the test-file map row records its coverage.
+
+### Two of my own mistakes, both caught by the checks added yesterday
+
+- The new `_selection_option(word: str) -> str | None` signature broke
+  Python 3.9 compatibility. `test_files_loaded_by_the_scientific_gates_
+  are_importable_on_python_39` - widened to every source file in the
+  previous commit, specifically so an unregistered module could not
+  escape it - failed on `python/repo_utils.py:135` immediately.
+  `from __future__ import annotations` added. Without that widening
+  this would have reached CI, as the same mistake did once before.
+- Replacing a block of the test file by its start and end markers
+  deleted `test_every_test_file_is_registered_with_a_gate()` along with
+  it. `test_documented_gate_counts_match_a_real_collection` caught it
+  within seconds: 242 collected against 243 documented. Restored from
+  the committed version.
+
+Neither would have been noticed by reading the diff.
+
+### Verification performed
+
+- Every form applied to the real `pyproject.toml` in turn, gate run
+  each time: the array, the attached short option, the split array and
+  the multiline string are now all refused with exit code 2 and the
+  offending option named. Control run with a clean file passes.
+- `python/repo_utils.py` exercised under the LCG Python 3.9.12, which
+  takes the `tomli` branch: identical answers for the clean file, the
+  array form and the attached short option.
+- Both new behaviours reverted individually - the TOML parse back to
+  the one-line reader, and the attached-value matching back to
+  whole-word equality - each confirmed to fail
+  `test_the_disabling_detectors_actually_detect`.
+- `python scripts/quality_check.py --mode full`: 243 collected, 223
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented figures already correct, so unchanged.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
