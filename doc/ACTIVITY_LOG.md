@@ -12917,3 +12917,59 @@ argparse.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — A heredoc printed a gate command and the coverage checks read it as a command that runs
+
+Found by re-running every earlier Copilot finding against the current
+code as a regression suite instead of trusting the earlier verdicts.
+Fifteen of sixteen still held; the heredoc case did not.
+
+`_executable_command_lines()` has dropped heredoc bodies since the
+installer checks were written - a heredoc body is data being printed,
+not a command. `_pytest_command_lines()`, which every gate-coverage
+assertion goes through, never had that rule. So all six spellings of a
+heredoc hid a gate command from the coverage checks while the installer
+checks caught the same text: `<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`, a
+heredoc redirected into a file, and one inside a workflow `run:` block.
+
+Measured on the real script, not synthetically: wrapping the whole of
+Gate 5 - the plotting and hot-path real-ROOT gate, eight test files -
+in `cat <<'GATE5' ... GATE5` leaves valid shell that prints the pytest
+command and runs nothing, so `failures` stays at zero and the script
+reports every gate passed. Against the pre-fix reader all three
+coverage tests passed on that sabotage. Against the fixed reader two
+of them fail.
+
+This is the third instance of one defect: a rule that exists in one
+reader and not the sibling reader that needs it. The first cost a
+review round (the two pytest filter checks), the second was the
+redundant `-p` rule removed yesterday. The fix follows the same
+resolution as the first: `_outside_heredoc_bodies()` is one function
+with two callers, rather than a second copy of the scan.
+
+Checked for over-reach: all four readers give byte-identical output on
+all twenty-five real shell and workflow sources, and the real sources
+still yield the same pytest command lines (four in
+`scripts/run_all_gates.sh`, one in `.githooks/pre-commit`, four in
+`.github/workflows/scientific-analysis.yml`).
+
+### Verification performed
+
+- The six heredoc spellings pinned as a test, each measured as counted
+  before the fix and dropped after; `bash` confirmed to print rather
+  than run a heredoc body.
+- Two controls in the same test: a real gate command *after* a heredoc
+  is still read as a command, and an unterminated heredoc swallows the
+  rest of the file, which is what the shell does.
+- The heredoc filter removed from the pytest pipeline with the test
+  kept: it fails. Restored: it passes.
+- The Gate 5 sabotage on the real `scripts/run_all_gates.sh`, run
+  against both the pre-fix and the fixed reader, and restored.
+- `python scripts/quality_check.py --mode full`: 247 collected, 227
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented lightweight (247/227/20) and prepared-dependency
+  (43/2/41) figures updated.
+
+### Remaining open chunks
+
+None.

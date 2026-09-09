@@ -93,20 +93,44 @@ def _executable_command_lines(text: str) -> str:
     has been found three times in this repository's own policy tests, so
     every "the file runs X" assertion below goes through here.
     """
+    return "\n".join(
+        line
+        for line in _outside_heredoc_bodies(_join_continuations(_uncommented_lines(text)))
+        if line and not _OUTPUT_ONLY_COMMANDS.search(line)
+    )
+
+
+_HEREDOC_OPENER = re.compile(r"<<-?\s*'?\"?([A-Za-z_][A-Za-z0-9_]*)'?\"?")
+
+
+def _outside_heredoc_bodies(lines: list[str]) -> list[str]:
+    """The logical lines that are not the body of a heredoc.
+
+    A heredoc body is data, not commands: `cat <<EOF` followed by a
+    gate's own pytest command prints that command and runs nothing.
+    Every spelling behaves the same way and each was measured -
+    `<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`, a heredoc redirected into
+    a file, and one inside a workflow `run:` block.
+
+    This started as part of `_executable_command_lines()` alone, which
+    left `_pytest_command_lines()` without it: all six spellings hid a
+    gate command from the coverage checks while the installer checks
+    caught them. That is the same drift that put the two filter checks
+    a review round apart, so it is one rule with two callers now.
+    """
     kept: list[str] = []
-    heredoc_terminator: str | None = None
-    for line in _join_continuations(_uncommented_lines(text)):
-        if heredoc_terminator is not None:
-            if line.strip() == heredoc_terminator:
-                heredoc_terminator = None
+    terminator: str | None = None
+    for line in lines:
+        if terminator is not None:
+            if line.strip() == terminator:
+                terminator = None
             continue
-        opener = re.search(r"<<-?\s*'?\"?([A-Za-z_][A-Za-z0-9_]*)'?\"?", line)
+        opener = _HEREDOC_OPENER.search(line)
         if opener:
-            heredoc_terminator = opener.group(1)
+            terminator = opener.group(1)
             continue
-        if line and not _OUTPUT_ONLY_COMMANDS.search(line):
-            kept.append(line)
-    return "\n".join(kept)
+        kept.append(line)
+    return kept
 
 
 # A shell function definition in every form bash accepts: the POSIX
@@ -1231,11 +1255,15 @@ def _pytest_command_lines(text: str) -> str:
 
     Lines inside a shell function body are dropped too, because a
     command in a function nothing calls never runs - see
-    `_outside_function_bodies()`.
+    `_outside_function_bodies()`; so are heredoc bodies, because a
+    heredoc body is printed rather than run - see
+    `_outside_heredoc_bodies()`.
     """
     return "\n".join(
         line
-        for line in _outside_function_bodies(_join_continuations(_uncommented_lines(text)))
+        for line in _outside_function_bodies(
+            _outside_heredoc_bodies(_join_continuations(_uncommented_lines(text)))
+        )
         if _PYTEST_INVOCATION.search(line)
     )
 
@@ -2322,6 +2350,48 @@ def test_a_command_inside_an_uncalled_function_is_not_a_command_that_runs() -> N
     }
     for description, source in visible_forms.items():
         assert "test_pre_fit.py" in _pytest_command_lines(source), description
+
+
+def test_a_command_printed_by_a_heredoc_is_not_a_command_that_runs() -> None:
+    """A gate command inside a heredoc body.
+
+    A heredoc body is data: `cat <<EOF` followed by the plotting gate's
+    own pytest command prints that command and runs nothing, so the
+    script reports no failure. Measured - `bash` on a heredoc holding
+    `echo BODY_RAN` prints the text rather than running it.
+
+    `_executable_command_lines()` has dropped heredoc bodies since the
+    installer checks were written, but `_pytest_command_lines()` never
+    did, so all six spellings below satisfied the gate-coverage
+    assertions while the installer assertions caught them. One rule
+    with two callers now, for the same reason the two pytest filter
+    checks were merged: two copies drifted a review round apart.
+    """
+    command = 'python -m pytest tests/test_pre_fit.py -m "marker" -v'
+    printed = {
+        "plain": "cat <<EOF\n%s\nEOF\n" % command,
+        "quoted terminator": "cat <<'EOF'\n%s\nEOF\n" % command,
+        "double-quoted terminator": 'cat <<"EOF"\n%s\nEOF\n' % command,
+        "tab-stripping <<-": "cat <<-EOF\n\t%s\n\tEOF\n" % command,
+        "redirected into a file": "cat > usage.txt <<EOF\n%s\nEOF\n" % command,
+        "inside a workflow run block": (
+            "    - name: a step\n      run: |\n        cat <<EOF\n"
+            "        %s\n        EOF\n" % command
+        ),
+    }
+    for description, source in printed.items():
+        assert _pytest_command_lines(source) == "", description
+        assert "test_pre_fit.py" not in _executable_command_lines(source), description
+
+    # The heredoc ends where its terminator says it does, so a real
+    # gate command after one is still read as a command.
+    after = "cat <<EOF\nusage text\nEOF\n%s\n" % command
+    assert "test_pre_fit.py" in _pytest_command_lines(after)
+
+    # A terminator that never arrives swallows the rest of the file,
+    # which is what the shell does too.
+    unterminated = "cat <<EOF\nusage text\n%s\n" % command
+    assert _pytest_command_lines(unterminated) == ""
 
 
 def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
