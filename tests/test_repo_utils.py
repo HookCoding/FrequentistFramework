@@ -652,16 +652,59 @@ def _pytest_option_values(line: str, option: str) -> list[str]:
 
 
 def _pytest_option_value(line: str, option: str) -> str | None:
-    """The first value passed to `option`, or None when it is absent."""
+    """The value `option` actually has, or None when it is absent.
+
+    The *last* occurrence, because `-k` and `-m` use argparse's `store`
+    action: a repeated option overwrites, so the last one is the filter
+    pytest applies. Reading the first was wrong, and silently so -
+    `-m "requires_analysis_dependencies" -m requires_root` left the
+    coverage checks passing while the plotting gate dropped a marked
+    test and still exited 0. Measured.
+
+    `--deselect` is an `append` action, where every occurrence counts;
+    `_deselects_test()` reads them all through
+    `_pytest_option_values()` for that reason.
+    """
     values = _pytest_option_values(line, option)
-    return values[0] if values else None
+    return values[-1] if values else None
 
 
-# A short option glued to its value (`-knothing`), which pytest accepts
-# and the readers above deliberately do not parse. Treated as
-# unparseable rather than absent: absent means "filters nothing", which
-# would be exactly the wrong answer.
-_GLUED_SHORT_OPTION = re.compile(r"(?<!\S)-[km](?=[^\s=])")
+# Letters that a single-dash pytest option can carry without affecting
+# which tests are selected: -v, -q, -s, -x, -l and any bundle of them.
+# The real gate lines use only -v (plus -k/-m), confirmed by reading
+# every pytest command in all four gate sources.
+_SELECTION_NEUTRAL_SHORT_LETTERS = frozenset("vqsxl")
+
+
+def _unreadable_short_option(arguments: str) -> str | None:
+    """A single-dash option this reader cannot interpret, if any.
+
+    pytest accepts a short option's value attached (`-knothing`) and
+    bundled behind other flags (`-vk nothing`), and either form makes
+    the option readers above see nothing - which they would otherwise
+    report as "no filter", the opposite of the truth. Both were
+    measured: `-vk <one test name>` took the plotting gate from 16
+    dependency-marked tests to 1, exit code 0, with every coverage
+    check passing.
+
+    So rather than enumerate the ways a bundle can hide a filter, only
+    the forms this reader can actually interpret are accepted: a bare
+    `-k`/`-m` with its value as the next word, `-k=`/`-m=`, and bundles
+    made entirely of selection-neutral letters. Anything else is
+    unreadable, and unreadable counts as unproven. A new short option
+    in a gate therefore fails here until it is considered, which is the
+    intended cost.
+    """
+    for word in arguments.split():
+        if not word.startswith("-") or word.startswith("--") or word == "-":
+            continue
+        if word in ("-k", "-m") or word[:3] in ("-k=", "-m="):
+            continue
+        if set(word[1:].split("=", 1)[0]) <= _SELECTION_NEUTRAL_SHORT_LETTERS:
+            continue
+        return word
+    return None
+
 
 # Collect but never run. Nothing executes and pytest still exits 0, so
 # this is the one veto that leaves no trace at all in the gate's
@@ -820,11 +863,18 @@ def _filters_keep_test(line: str, test_file: str, test_name: str, markers: set[s
     - `--collect-only`, which collects everything and runs none of it,
       while still exiting 0.
 
-    An absent option filters nothing. A short option glued to its value
-    is unparseable here, so it counts as not proven rather than absent.
+    An absent option filters nothing. A short option this reader cannot
+    interpret counts as not proven rather than absent - including
+    plugin disabling, since `-p no:python` collects nothing at all and
+    `-p` is not a selection-neutral flag. A rule of its own was written
+    for that first and then removed: it never fired, because
+    `_unreadable_short_option()` already covered it, and two rules over
+    the same ground is what let these checks drift apart before.
     """
     arguments = _pytest_arguments(line)
-    if _COLLECT_ONLY.search(arguments) or _GLUED_SHORT_OPTION.search(arguments):
+    if _COLLECT_ONLY.search(arguments):
+        return False
+    if _unreadable_short_option(arguments) is not None:
         return False
     if not _selects_whole_file(line, test_file, test_name):
         return False
@@ -1075,6 +1125,43 @@ def _evaluated_pep604_unions(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+def _outside_function_bodies(lines: list[str]) -> list[str]:
+    """The logical lines that are not inside a shell function body.
+
+    A command inside a function that nothing calls never runs, while
+    its text sits in the file exactly as if it did. Confirmed by
+    sabotage: moving the whole plotting gate into a `never_called() {
+    ... }` wrapper is valid shell, runs nothing, leaves `failures` at
+    zero so the script reports "All gates passed", and left both
+    coverage tests passing.
+
+    The installer checks already dropped function *definition* lines
+    for the same reason; this drops the whole body. Deciding which
+    functions are really called is a call-graph problem and out of
+    scope, exactly as shell reachability was for `if false`, so the
+    rule is that a gate command has to sit at top level. The real gate
+    sources satisfy it: `run_gate` is a function, but every pytest
+    command is passed to it as an *argument* from top level, not
+    written inside its body.
+
+    Braces are counted per line, which `${var}` and `awk '{...}'`
+    survive because they are balanced. An unbalanced brace inside a
+    string would confuse it, and there is none in any gate source.
+    """
+    kept: list[str] = []
+    depth = 0
+    for line in lines:
+        opening = line.count("{") - line.count("}")
+        if depth == 0 and _SHELL_FUNCTION_DEFINITION.match(line):
+            depth += max(opening, 1)
+            continue
+        if depth > 0:
+            depth += opening
+            continue
+        kept.append(line)
+    return kept
+
+
 def _pytest_command_lines(text: str) -> str:
     """Only the text of this file's actual pytest command lines.
 
@@ -1086,10 +1173,14 @@ def _pytest_command_lines(text: str) -> str:
     satisfy the coverage assertions below - only one really passed to
     pytest can. Without this, removing a gate outright while leaving
     its name behind in an echo line would still pass these tests.
+
+    Lines inside a shell function body are dropped too, because a
+    command in a function nothing calls never runs - see
+    `_outside_function_bodies()`.
     """
     return "\n".join(
         line
-        for line in _join_continuations(_uncommented_lines(text))
+        for line in _outside_function_bodies(_join_continuations(_uncommented_lines(text)))
         if _PYTEST_INVOCATION.search(line)
     )
 
@@ -2051,6 +2142,50 @@ def test_gate_coverage_rejects_a_disabled_or_narrowed_gate() -> None:
         )
 
 
+def test_a_command_inside_an_uncalled_function_is_not_a_command_that_runs() -> None:
+    """A gate hidden in a shell function nothing calls.
+
+    Valid shell, runs nothing, and `failures` stays at zero so the
+    script still reports "All gates passed". Confirmed against the real
+    `scripts/run_all_gates.sh`: wrapping the whole plotting gate in
+    `never_called() { ... }` left both coverage tests passing.
+
+    Synthetic here on purpose, so the rule is pinned independently of
+    what the gate script happens to contain.
+    """
+    hidden = """
+        never_called() {
+            python -m pytest tests/test_pre_fit.py -m "requires_analysis_dependencies" -v
+        }
+    """
+    assert _pytest_command_lines(hidden) == ""
+
+    called_from_top_level = """
+        run_gate() {
+            "$@"
+        }
+        run_gate "a description" python -m pytest tests/test_pre_fit.py -m "marker" -v
+    """
+    kept = _pytest_command_lines(called_from_top_level)
+    assert "tests/test_pre_fit.py" in kept, kept
+
+    # Balanced braces in ordinary lines do not confuse the depth count.
+    balanced = """
+        echo "${HOME}"
+        python -m pytest tests/test_pre_fit.py -m "marker" -v
+    """
+    assert "tests/test_pre_fit.py" in _pytest_command_lines(balanced)
+
+    # A function that ends before the real gate does not swallow it.
+    after_a_function = """
+        helper() {
+            echo hello
+        }
+        python -m pytest tests/test_pre_fit.py -m "marker" -v
+    """
+    assert "tests/test_pre_fit.py" in _pytest_command_lines(after_a_function)
+
+
 def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
     """`-k` and `-m` are not the only ways to remove a test.
 
@@ -2065,9 +2200,15 @@ def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
     - `--collect-only` (and its `--co` alias) collects everything and
       runs none of it, exiting 0 - the only veto that leaves no trace
       in the gate's own result;
-    - a short option glued to its value (`-knothing`) is not parsed
-      here, so it must count as unproven rather than absent. Absent
-      means "filters nothing", which would be exactly the wrong answer.
+    - a short option this reader cannot interpret - the value glued on
+      (`-knothing`) or the option bundled behind another flag
+      (`-vk nothing`) - counts as unproven rather than absent. Absent
+      means "filters nothing", which would be exactly the wrong
+      answer. `-vk <one test name>` took the plotting gate from 16
+      dependency-marked tests to 1 at exit code 0;
+    - a repeated `-m` or `-k`, where argparse stores and so the *last*
+      one is the filter pytest applies. Reading the first passed the
+      coverage checks while the gate silently dropped a marked test.
     """
     test_file = "test_pre_fit.py"
     test_name = "test_fit_returns_expected_shape_and_is_deterministic_for_real_fixture"
@@ -2143,13 +2284,39 @@ def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
         markers,
     )
 
-    # a glued short option cannot be read, so it is not proof
+    # A short option this reader cannot interpret is not proof of
+    # anything. Both forms were measured: `-vk <one test name>` took
+    # the plotting gate from 16 marked tests to 1, at exit code 0.
     assert not keeps("-knothing")
     assert not keeps("-mnothing")
+    assert not keeps("-vk nothing_matches_this")
+    assert not keeps(f"-vk {test_name}")
+    assert not keeps("-vm requires_root")
+    # Selection-neutral flags, alone and bundled, are fine.
+    assert keeps("-v")
+    assert keeps("-vv")
+    assert keeps("-vx")
+    assert keeps("-q -s")
     # the same options written so they can be read are judged normally
     assert keeps(f"-k {test_name}")
     assert not keeps("-k nothing_matches_this")
     assert keeps("-k=" + test_name)
+
+    # A repeated filter: argparse stores, so the LAST one is what
+    # pytest applies. Reading the first passed this check while the
+    # gate dropped a marked test and still exited 0.
+    assert not keeps("-m nothing_matches_this")
+    # a real marker that this test does not carry
+    assert not keeps("-m integration")
+    assert not keeps(f"-k {test_name} -k nothing_matches_this")
+    # and the last one being correct is still correct
+    assert keeps("-m nothing_matches_this -m requires_analysis_dependencies")
+
+    # Disabling the plugin that collects Python tests stops collection
+    # outright: `-p no:python` collects nothing.
+    assert not keeps("-p no:python")
+    assert not keeps("-p=no:python")
+    assert not keeps("-p no:cacheprovider")
 
 
 def test_the_installer_views_reject_text_that_never_runs() -> None:

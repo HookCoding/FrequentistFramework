@@ -12675,3 +12675,114 @@ Neither would have been noticed by reading the diff.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Audit of every Copilot finding as a class against the unreviewed fixes: four more instances, three of them in code added today
+
+### Objective
+
+Asked to evaluate all changes against Copilot's comments - not only
+that each reported issue is fixed, but whether the same classes have
+recurred in the fixes themselves. The last six commits have not been
+reviewed, and they are where new instances would be. Each of the
+recurring classes was turned into a hypothesis and measured.
+
+### Found, measured, fixed
+
+1. **A repeated filter takes the *last* value, and the reader took the
+   first.** `-k` and `-m` use argparse's `store` action, so
+   `-m "requires_analysis_dependencies" -m requires_root` applies the
+   second. Measured on the plotting gate: 16 dependency-marked tests
+   became 15, **exit code 0**, and both coverage tests passed. Silent.
+   `--deselect` is an `append` action, where every occurrence counts,
+   which is why `_deselects_test()` reads all of them - the two
+   semantics now have one comment each explaining which applies.
+2. **A short option bundled behind another flag.** pytest applies
+   `-vk nothing` as `-v` plus `-k nothing`, and the readers saw no `-k`
+   at all, which they reported as "no filter" - the opposite of the
+   truth. Measured: `-vk <one test name>` took the plotting gate from
+   16 marked tests to **1**, exit code 0, coverage tests passing.
+   Worse than the `-knothing` form fixed this morning, which at least
+   collected nothing and exited 5.
+3. **A gate command inside a shell function nothing calls.** Wrapping
+   the whole plotting gate in `never_called() { ... }` is valid shell
+   (`bash -n` clean), runs nothing, leaves `failures` at zero so the
+   script prints "All gates passed", and left both coverage tests
+   passing. The installer checks had dropped function *definition*
+   lines for this reason since two rounds ago; the gate-coverage
+   checks never dropped the *body*.
+4. **`-p no:python`** collects nothing at all. It exits 4, so a runner
+   catches it, but the coverage checks reported the gate covered.
+
+### Tested and rejected, rather than "fixed"
+
+- `--lf --lfnf none` - no effect on these gates (16 tests before, 16
+  after).
+- The YAML `run:` block reader, against every block scalar form pytest
+  workflows can use - `|`, `|-`, `|+`, `>`, `>-` and the inline form.
+  All six extract correctly; there is no missed spelling here.
+- `assert_analysis_reference_close()`, the repo-snapshot comparison and
+  `scripts/compare_root_outputs.py` were cleared in the previous
+  sweep and are unchanged since.
+
+### What changed
+
+- `_pytest_option_value()` returns the **last** occurrence, with the
+  store-versus-append distinction stated where it matters.
+- `_unreadable_short_option()` replaces `_GLUED_SHORT_OPTION`. Rather
+  than enumerating the ways a bundle can hide a filter, only the forms
+  this reader can actually interpret are accepted: a bare `-k`/`-m`
+  with its value next, `-k=`/`-m=`, and bundles made entirely of
+  selection-neutral letters (`vqsxl`). Everything else is unreadable,
+  and unreadable counts as unproven. The real gate sources use only
+  `-v`, `-k` and `-m` - confirmed by reading every pytest command in
+  all four of them - so the whitelist costs nothing today and a new
+  short option fails loudly until someone considers it.
+- `_outside_function_bodies()` drops lines inside a shell function
+  body, so a gate command has to sit at top level. `run_gate` is still
+  fine: every pytest command is passed to it as an argument from top
+  level, not written inside its body.
+
+### A rule of mine that never fired, removed
+
+`_DISABLED_PLUGIN` was written for `-p no:` and then deleted:
+`_unreadable_short_option()` already rejects `-p`, because `p` is not
+a neutral letter. Reverting the plugin rule failed no test, which is
+how it was noticed. Two rules over the same ground is precisely what
+let these checks drift apart in round 13, so the redundant one is gone
+and the reason is recorded where the surviving one is defined.
+
+### Two mistakes of my own this round
+
+- A wrong assertion, not a wrong fix: `assert not keeps("-m requires_root")`
+  failed because the test used in that case really does carry
+  `requires_root`, so the last `-m` legitimately keeps it. Changed to
+  `-m integration`, a real marker that test does not carry.
+- Deleting the redundant rule by index range swallowed five unrelated
+  helpers, and Ruff caught it immediately with three undefined names.
+  Restored and redone with exact anchors. This is the second time a
+  range-based edit has cut too much; anchors only from here.
+
+### Verification performed
+
+- Ten sabotages against the real `scripts/run_all_gates.sh`, each
+  restored: `-m nothing`, a narrowing `-m`, `-vk nothing`, `-vk <real
+  test>`, `-knothing`, `-p no:python`, `-p=no:python`,
+  `--collect-only`, `--deselect <file>`, and - the negative control - a
+  plain `-v`, which must still pass. Nine fail, the control passes.
+- The uncalled-function sabotage on the real gate script: passed
+  before, fails now, and the real sources still yield all five pytest
+  command lines (four in the script, one in the hook).
+- Each fix reverted individually and confirmed to fail a committed
+  test: last-occurrence reading, the unreadable-short-option rule, and
+  function-body dropping.
+- `python scripts/quality_check.py --mode full`: 244 collected, 224
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented lightweight (244/224/20) and prepared-dependency
+  (40/2/38) figures updated.
+- Under the LCG Python 3.9.12: 2 passed for the prepared-dependency
+  gate, 3 passed for the new and extended checks.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
