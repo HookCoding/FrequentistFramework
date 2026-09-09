@@ -13244,3 +13244,80 @@ recorded because it was checked, not because it is a defect.
   `doc/TIER2_SYSTEM.md`, `doc/TIER3_SYSTEM.md` and
   `doc/TIER1_ENVIRONMENT_PROVENANCE.md` are updated to match, and the
   prepared-dependency gate to 44 collected, 2 passed, 42 deselected.
+
+## 2026-09-09 — Fifth audit pass: a command read as configuration, and an inventory that went stale a second time
+
+The last two findings from reading every Copilot comment as a class
+against the commits it never saw.
+
+### The mirror of the YAML metadata finding
+
+Copilot's comment on `tests/test_repo_utils.py:72` said whole-file YAML
+was being searched for commands, so a step `name:` quoting a command
+satisfied a coverage check after the real `run:` command was deleted.
+That produced `_workflow_run_block_lines()`, which answers "does this
+workflow run X" from `run:` blocks only.
+
+The same file is also asked the opposite question - "is this workflow
+configured with X" - and `_yaml_config_lines()` answered it from the
+whole file, `run:` blocks included. So a command was read as
+configuration, which is the same defect with the halves swapped.
+Confirmed by sabotage on the real workflow: with
+`python-version: "3.12.13"` repinned to `"3.9.0"` and its old text
+moved into a `run: echo 'python-version: "3.12.13"'`, the assertion
+that the lightweight CI gate is configured for 3.12.13 still passed
+while CI would have run on Python 3.9.
+
+The split is now made once, in `_workflow_lines()`, which returns both
+halves; the two readers take one each. All five configuration
+assertions in `test_ci_runs_locked_lightweight_full_gate` were checked
+against the clean file afterwards and are all satisfied by real YAML
+keys outside any `run:` block - `uses:` twice, `python-version:`,
+`cache-dependency-path:` and the `on.pull_request.branches` list.
+
+### The inventory went stale again
+
+Copilot's comment on `doc/TIER3_SYSTEM.md:149` said the document called
+`python/repo_utils.py` a four-function utility while
+`selection_affecting_addopts()` had been added. That was corrected to
+six. Read as a class, the same sentence was stale again:
+`pytest_addopts_words()` was public and unlisted, a seventh function
+absent from a map that claims to name them all.
+
+Nothing outside the module reads the words themselves - only
+`selection_affecting_addopts()` does, in the same file - so it is now
+`_pytest_addopts_words()`, named for what it is, alongside
+`_load_toml()`, `_selection_option()` and
+`_declares_pytest_configuration()`. The documented count of six is
+correct as it stands.
+
+Because that one sentence has now gone stale twice,
+`test_the_documented_repo_utils_inventory_names_every_public_function`
+reads the count and the names out of the module with `ast` and checks
+the document against them. Both failure modes are covered: a public
+function missing from the map, and a count that no longer matches.
+
+### Verification performed
+
+- The real workflow sabotaged and restored: repinned to 3.9.0 with the
+  old pin moved into a `run: echo`, the configuration assertion passed
+  before the fix and fails after it.
+- Three sabotages of the fix, each confirmed to fail and to pass when
+  restored: the configuration reader returned to reading the whole
+  file, the addopts helper made public again while unlisted, and the
+  documented count edited by hand to five.
+- `python scripts/quality_check.py --mode full`: 249 collected, 229
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented figures updated across the four living documents, and
+  the prepared-dependency gate to 45 collected, 2 passed, 43
+  deselected.
+
+### Audit closed
+
+All forty-four Copilot findings - twenty-six inline comments and
+eighteen suppressed ones across thirteen reviews - have now been read
+as defect classes and re-applied to every commit made since the last
+review. Nine further defects were found and fixed this way, in three
+commits; two candidates were checked and rejected with the measurement
+recorded. No Copilot finding remains unaddressed, and no new Copilot
+review has arrived since the one on `09f56ae`.

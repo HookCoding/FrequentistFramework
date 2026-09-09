@@ -109,8 +109,14 @@ def _load_toml(text: str) -> dict:
     return tomllib.loads(text)
 
 
-def pytest_addopts_words(pyproject_text: str) -> list[str]:
+def _pytest_addopts_words(pyproject_text: str) -> list[str]:
     """The words pytest's `addopts` setting passes on every invocation.
+
+    Private, and named so: nothing outside this module reads the words
+    themselves, and `doc/TIER3_SYSTEM.md` maps this module's public
+    surface function by function. Left public-looking, it was a seventh
+    public function absent from that map - the same staleness Copilot
+    raised when the map still called this a four-function module.
 
     The value is read with a real TOML parser. Reading one physical
     line and stripping the outer quotes missed three forms pytest
@@ -160,7 +166,7 @@ def selection_affecting_addopts(pyproject_text: str) -> list[str]:
     """Every test-selecting option set in pytest's `addopts` configuration."""
     found = {
         option
-        for word in pytest_addopts_words(pyproject_text)
+        for word in _pytest_addopts_words(pyproject_text)
         if (option := _selection_option(word)) is not None
     }
     return sorted(found)

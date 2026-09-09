@@ -49,7 +49,7 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 228 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 229 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
@@ -342,7 +342,7 @@ while `nPars` can be requested up to 10; see "Known limitations" below.
 | `python/ExtractFitParameters.py` | `tests/test_extract_fit_parameters.py` | Only the real-fixture `Extract()`/accessors/`WriteRoot()` test (real-ROOT subprocess snippet against the committed J100 `FitResult_*.root` fixture); the two `GetNsig()`/`GetNsigErr()` falsy-refire tests stub `sys.modules["ROOT"]` |
 | `python/ExtractPostfitFromWS.py` | `tests/test_extract_postfit_from_ws.py` | Yes, always - every test is a real-ROOT subprocess snippet against committed J100 fixtures (no ROOT-free fragment exists in this file) |
 | `python/PreFit.py` | `tests/test_pre_fit.py` | Only the two `Fit()` tests (real-ROOT subprocess snippet against the committed J100 `mjj_spectra_J100_dataAll.root` fixture); `_build_candidate_functions()`/`_select_best_parameter_sets()` tests stub `sys.modules["ROOT"]` |
-| `python/repo_utils.py` | `tests/test_repo_utils.py` | No for `find_repo_root()`/`build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s own tests (pure `pathlib`/`json`), nor for `selection_affecting_addopts()`'s, which parses TOML text supplied by the test (`test_the_disabling_detectors_actually_detect`), `effective_pytest_config_file()`'s, which resolves pytest's configuration-file precedence against files the test writes into a `tmp_path` (`test_pytest_reads_its_configuration_from_pyproject_and_nothing_else`), or the check that the gate really applies both before starting pytest, read from `scripts/quality_check.py` with `ast` (`test_the_lightweight_gate_applies_its_own_pytest_config_refusal`); two other, unrelated tests in this same file (external-submodule-revision checks, Tier 1/2's own installation policy) are separately marked `requires_analysis_dependencies` |
+| `python/repo_utils.py` | `tests/test_repo_utils.py` | No for `find_repo_root()`/`build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s own tests (pure `pathlib`/`json`), nor for `selection_affecting_addopts()`'s, which parses TOML text supplied by the test (`test_the_disabling_detectors_actually_detect`), `effective_pytest_config_file()`'s, which resolves pytest's configuration-file precedence against files the test writes into a `tmp_path` (`test_pytest_reads_its_configuration_from_pyproject_and_nothing_else`), or the two checks that read source rather than run it - that the gate really applies both before starting pytest, parsed from `scripts/quality_check.py` with `ast` (`test_the_lightweight_gate_applies_its_own_pytest_config_refusal`), and that this document's own inventory of the module's public functions still matches the module (`test_the_documented_repo_utils_inventory_names_every_public_function`); two other, unrelated tests in this same file (external-submodule-revision checks, Tier 1/2's own installation policy) are separately marked `requires_analysis_dependencies` |
 
 Every real-ROOT/CVMFS-needing test above is marked
 `@pytest.mark.requires_analysis_dependencies`, and every one of them
@@ -401,7 +401,7 @@ in no CI job for a time.
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 228 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 229 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)

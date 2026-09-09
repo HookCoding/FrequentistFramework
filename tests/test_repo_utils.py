@@ -355,17 +355,67 @@ def _yaml_config_lines(text: str) -> str:
     mentioning a pinned version, or a step named after the very setting
     a test is looking for, satisfies a raw-text search while the real
     configuration says something else - the same false-positive class as
-    the command searches above. Neither is configuration, so neither is
-    returned. Use this for "the workflow is configured with X"
-    assertions, and `_workflow_run_block_lines()` for "the workflow runs
-    X".
+    the command searches above.
+
+    The shell inside a `run:` block is the third such position, and it
+    is the mirror image of the finding that produced
+    `_workflow_run_block_lines()`: that one was a step `name:` read as
+    a command, this one is a command read as configuration. Confirmed
+    by sabotage on the real workflow - with `python-version: "3.12.13"`
+    repinned to 3.9.0 and its old text moved into a
+    `run: echo 'python-version: "3.12.13"'`, the assertion that the
+    workflow is configured for 3.12.13 still passed while CI would
+    have run on 3.9.
+
+    So the two readers take opposite halves of one split. Use this for
+    "the workflow is configured with X" assertions, and
+    `_workflow_run_block_lines()` for "the workflow runs X".
     """
     kept: list[str] = []
-    for raw in _strip_full_line_comments(text).splitlines():
+    for raw in _workflow_lines(text)[1]:
+        if raw.lstrip().startswith("#"):
+            continue
         line = _strip_inline_comment(raw)
         if line.strip() and not _YAML_NAME_KEY.match(line):
             kept.append(line)
     return "\n".join(kept)
+
+
+def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
+    """A workflow split into (the shell inside `run:` blocks, the YAML
+    around them).
+
+    Two opposite questions get asked of a workflow file and each may
+    only be answered from one half: "does it run this command" from a
+    `run:` block, "is it configured with this value" from the YAML that
+    is not one. Reading the whole file for either was a real
+    false-positive path in both directions, so the split is made once
+    here and the two readers below take a half each.
+    """
+    run_lines: list[str] = []
+    other_lines: list[str] = []
+    block_key_column: int | None = None
+    block_indent: int | None = None
+    for raw in text.splitlines():
+        if not raw.strip():
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if block_key_column is not None:
+            if indent > block_key_column:
+                if block_indent is None:
+                    block_indent = indent
+                run_lines.append(raw[block_indent:] if indent >= block_indent else raw.lstrip())
+                continue
+            block_key_column, block_indent = None, None
+        if re.match(r"\s*(?:-\s+)?run:", raw):
+            inline = raw.split("run:", 1)[1].strip()
+            if inline.strip("|>+-") == "":
+                block_key_column = raw.index("run:")
+            else:
+                run_lines.append(inline)
+            continue
+        other_lines.append(raw)
+    return run_lines, other_lines
 
 
 def _workflow_run_block_lines(text: str) -> str:
@@ -388,27 +438,7 @@ def _workflow_run_block_lines(text: str) -> str:
     body and everything after it in the block vanished from the
     commands these tests read.
     """
-    kept: list[str] = []
-    block_key_column: int | None = None
-    block_indent: int | None = None
-    for raw in text.splitlines():
-        if not raw.strip():
-            continue
-        indent = len(raw) - len(raw.lstrip())
-        if block_key_column is not None:
-            if indent > block_key_column:
-                if block_indent is None:
-                    block_indent = indent
-                kept.append(raw[block_indent:] if indent >= block_indent else raw.lstrip())
-                continue
-            block_key_column, block_indent = None, None
-        if re.match(r"\s*(?:-\s+)?run:", raw):
-            inline = raw.split("run:", 1)[1].strip()
-            if inline.strip("|>+-") == "":
-                block_key_column = raw.index("run:")
-            else:
-                kept.append(inline)
-    return "\n".join(kept)
+    return "\n".join(_workflow_lines(text)[0])
 
 
 def test_find_repo_root_returns_workspace_root() -> None:
@@ -1636,16 +1666,32 @@ def test_yaml_config_lines_excludes_comments_and_step_names() -> None:
     # assertions in test_ci_runs_locked_lightweight_full_gate above: a
     # comment or a step name quoting a pinned value satisfied a raw-text
     # search while the real configuration said something else.
+    #
+    # The third position is the shell inside a `run:` block, which is
+    # the mirror of the finding that produced
+    # `_workflow_run_block_lines()`: there a step `name:` was read as a
+    # command, here a command was read as configuration. Confirmed by
+    # sabotage on the real workflow - repinned to 3.9.0 with its old
+    # text moved into a `run: echo`, and the assertion that CI is
+    # configured for 3.12.13 still passed.
     inert = """
     # python-version: "3.12.13"
       - name: pin python-version "3.12.13" and cover tier-2-m365
         uses: actions/nothing@v1   # tier-2-m365
+      - run: |
+          echo 'python-version: "3.12.13"'
+          echo "branches: tier-2-m365"
     """
     config = _yaml_config_lines(inert)
     assert '"3.12.13"' not in config
     assert "tier-2-m365" not in config
     # the real key on that line still survives
     assert "uses: actions/nothing@v1" in config
+
+    # ...and the same text really is a command, read by the other half
+    # of the same split.
+    commands = _workflow_run_block_lines(inert)
+    assert 'python-version: "3.12.13"' in commands
 
     real = """
     on:
@@ -3183,6 +3229,68 @@ def test_every_real_source_is_read_through_the_guarded_reader() -> None:
     assert not stale, (
         f"_UNGUARDED_COMMAND_READERS names {stale}, which no longer call "
         "_executable_command_lines() - drop them so this list keeps meaning something"
+    )
+
+
+# How `doc/TIER3_SYSTEM.md` counts `python/repo_utils.py`'s public
+# functions, so the count can be checked against the module.
+_COUNT_WORDS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+_INVENTORY_CLAIM = re.compile(
+    r"(?P<count>\w+) small, single-purpose, individually-tested functions"
+)
+
+
+def test_the_documented_repo_utils_inventory_names_every_public_function() -> None:
+    """`doc/TIER3_SYSTEM.md` maps this module function by function.
+
+    That map has gone stale twice as functions were added: it called
+    the module a four-function utility after
+    `selection_affecting_addopts()` arrived, and named six while
+    `pytest_addopts_words()` was public and unlisted. Both were
+    Copilot findings, and the second only surfaced when the first was
+    checked as a class - so the count and the names are read from the
+    module rather than maintained by hand.
+    """
+    repo_root = find_repo_root()
+    module = ast.parse((repo_root / "python" / "repo_utils.py").read_text(encoding="utf-8"))
+    public = sorted(
+        node.name
+        for node in module.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and not node.name.startswith("_")
+    )
+
+    document = repo_root / "doc" / "TIER3_SYSTEM.md"
+    text = " ".join(document.read_text(encoding="utf-8").split())
+
+    claim = _INVENTORY_CLAIM.search(text)
+    assert claim is not None, (
+        "doc/TIER3_SYSTEM.md no longer states how many public functions "
+        "python/repo_utils.py has, so this check cannot verify it"
+    )
+    claimed = _COUNT_WORDS.get(claim.group("count").lower())
+    assert claimed == len(public), (
+        f"doc/TIER3_SYSTEM.md calls python/repo_utils.py a "
+        f"{claim.group('count')}-function module, but it has {len(public)} public "
+        f"functions: {public}"
+    )
+
+    missing = [name for name in public if f"{name}()" not in text]
+    assert not missing, (
+        f"doc/TIER3_SYSTEM.md's repo_utils.py inventory does not name {missing}. "
+        "Either add them to that inventory or make them private if nothing outside "
+        "the module uses them"
     )
 
 
