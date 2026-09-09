@@ -13503,3 +13503,48 @@ them cannot mislead anything.
   passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
   0. No documented figure changed, because the case was added to an
   existing test rather than a new one.
+
+## 2026-09-09 — Where the workflow split stops, and saying so out loud
+
+Two more YAML forms carry a `run:` command that a line-based split
+cannot see, both measured against PyYAML 6.0.3:
+
+- a flow mapping, `- {name: s, run: python -m pytest ...}`, whose
+  command sits on a line that is not a `run:` key, so the whole line
+  was read as configuration;
+- an alias, `run: *cmd`, whose command is defined elsewhere in the
+  file, so the run half received the text `*cmd` and nothing that
+  looks for a command found one.
+
+Both are valid YAML that GitHub Actions would run, and neither real
+workflow file uses either. The previous three entries each widened a
+regex to cover a spelling that had been missed, and this is where that
+approach stops being the right one: the end of widening is a YAML
+parser, and PyYAML is not among the locked development dependencies -
+it was used in this pass as a measuring instrument, installed outside
+the project environment, not added to it.
+
+So the boundary is now drawn explicitly. `_workflow_lines()` refuses a
+file containing either form, naming the line and saying why, rather
+than reading it as if it were block style. The refusal lives in the
+splitter itself, so no reader can be given a form it cannot read, and
+the check runs against both real workflow files as well as the
+synthetic cases - the same "one implementation, every caller" shape as
+the always-false-guard refusal.
+
+`run:|` with no space and a tab after the header were measured too and
+deliberately left accepted: PyYAML rejects both outright, so a workflow
+written that way never runs, and reading it cannot mislead anything.
+
+### Verification performed
+
+- One sabotage - the refusal unwired from `_workflow_lines()` -
+  confirmed to fail `test_the_workflow_split_refuses_yaml_it_does_not_model`
+  and to pass when restored.
+- Both real workflow files pass the refusal, and their `run:` lines are
+  still identical to PyYAML's.
+- `python scripts/quality_check.py --mode full`: 254 collected, 234
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented figures updated across the four living documents, and
+  the prepared-dependency gate to 50 collected, 2 passed, 48
+  deselected.

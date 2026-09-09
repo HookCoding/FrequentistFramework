@@ -455,6 +455,37 @@ def _block_scalar_lines(block: list[str], folded: bool) -> list[str]:
     return paragraphs
 
 
+# Forms of YAML this line-based split does not model, and refuses
+# rather than misreads. Measured against PyYAML 6.0.3: a flow mapping
+# (`- {name: s, run: cmd}`) hides its command on a line that is not a
+# `run:` key, so the command lands in the configuration half; an alias
+# (`run: *cmd`) names its command somewhere else entirely and yields
+# `*cmd`. Both are valid YAML that GitHub Actions would run. The
+# alternative to refusing them is widening the regexes until they are
+# a YAML parser, and PyYAML is not among the locked development
+# dependencies - so the boundary is drawn here, loudly, instead of
+# being discovered later as a check that read the wrong half.
+_UNMODELLED_YAML = (
+    (re.compile(r"^\s*(?:-\s+)?\{"), "a flow mapping"),
+    (
+        re.compile(r"^\s*(?:-\s+)?[\"']?[A-Za-z_][A-Za-z0-9_.-]*[\"']?:\s*[*&]"),
+        "a YAML anchor or alias",
+    ),
+)
+
+
+def _assert_yaml_is_modelled(text: str) -> None:
+    """Refuse a workflow written in a form the split cannot read."""
+    for number, line in enumerate(text.splitlines(), start=1):
+        for pattern, description in _UNMODELLED_YAML:
+            assert not pattern.match(line), (
+                f"line {number} uses {description}, which this reader does not model: "
+                f"{line.strip()!r}. Rewrite it in block style, or teach "
+                "_workflow_lines() the form - it must not be read as if it were "
+                "block style, because the command would be read as configuration"
+            )
+
+
 def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
     """A workflow split into (the shell inside `run:` blocks, the YAML
     around them).
@@ -466,6 +497,8 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
     false-positive path in both directions, so the split is made once
     here and the two readers below take a half each.
     """
+    _assert_yaml_is_modelled(text)
+
     run_lines: list[str] = []
     other_lines: list[str] = []
     block: list[str] = []
@@ -1949,6 +1982,35 @@ def test_every_block_scalar_header_opens_a_block() -> None:
         "      - name: A step\n        \"run': |\n          echo hi\n"
     )
     assert run_lines == []
+
+
+def test_the_workflow_split_refuses_yaml_it_does_not_model() -> None:
+    """A form this reader cannot read has to fail, not be guessed at.
+
+    A flow mapping carries its `run:` on a line that is not a `run:`
+    key, so the command was read as configuration; an alias points at a
+    command defined elsewhere and yielded the alias text. Both are
+    valid YAML that GitHub Actions would run, and both were silently
+    misread. Refusing them keeps the boundary of what this split models
+    visible instead of leaving it to be discovered as a check that read
+    the wrong half.
+    """
+    for workflow, form in (
+        ("steps:\n  - {name: s, run: python -m pytest tests/test_x.py}\n", "flow mapping"),
+        ("x: &cmd python -m pytest\nsteps:\n  - name: s\n    run: *cmd\n", "alias"),
+    ):
+        with pytest.raises(AssertionError, match="does not model"):
+            _workflow_lines(workflow)
+
+    # Block style, including every spelling above, is still accepted.
+    run_lines, _config = _workflow_lines(
+        "      - name: A step\n        run: |\n          python -m pytest tests/test_x.py\n"
+    )
+    assert run_lines == ["python -m pytest tests/test_x.py"]
+
+    # And both real workflow files are written in the form it models.
+    for workflow in sorted((find_repo_root() / ".github" / "workflows").glob("*.yml")):
+        _workflow_lines(workflow.read_text(encoding="utf-8"))
 
 
 def test_a_block_scalar_under_another_key_is_neither_commands_nor_config() -> None:
