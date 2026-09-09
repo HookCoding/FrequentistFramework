@@ -83,19 +83,31 @@ _OUTPUT_ONLY_COMMANDS = re.compile(r'^(?:echo|printf|cat|:)\b|^"?\$?\w*echo')
 def _executable_command_lines(text: str) -> str:
     """Only the lines of a shell script or workflow that actually run
     something: full-line comments dropped, backslash continuations
-    joined, pure-output lines (echo/printf/cat) removed, and heredoc
+    joined, pure-output lines (echo/printf/cat) removed, heredoc
     bodies removed - a heredoc body is data being printed, and its
-    lines carry no command word of their own to filter on.
+    lines carry no command word of their own to filter on - and the
+    bodies of functions nothing calls removed.
 
     Asserting a command is "present" by searching raw file text is
     unsound - a commented-out line, or the command quoted inside an
     echo, satisfies the search while the file no longer runs it. This
     has been found three times in this repository's own policy tests, so
     every "the file runs X" assertion below goes through here.
+
+    Uncalled function bodies were the fourth: disabling `install.sh`'s
+    two build calls leaves a valid installer that builds nothing, and
+    every assertion about what it builds still passed, because the
+    unreachable bodies were still being read as commands.
+    `only_uncalled=True` rather than dropping every body, because these
+    installers put nearly all their real work inside functions they do
+    call - see `_function_definition_spans()`.
     """
     return "\n".join(
         line
-        for line in _outside_heredoc_bodies(_join_continuations(_uncommented_lines(text)))
+        for line in _outside_function_bodies(
+            _outside_heredoc_bodies(_join_continuations(_uncommented_lines(text))),
+            only_uncalled=True,
+        )
         if line and not _OUTPUT_ONLY_COMMANDS.search(line)
     )
 
@@ -142,8 +154,8 @@ def _outside_heredoc_bodies(lines: list[str]) -> list[str]:
 # nothing; the earlier version of this pattern recognised only one of
 # them, which left three ways to hide a gate command in plain sight.
 _SHELL_FUNCTION_DEFINITION = re.compile(
-    r"^\s*(?:function\s+[^\s(){};&|<>]+(?:\s*\(\s*\))?"
-    r"|[^\s(){};&|<>]+\s*\(\s*\))\s*(?P<opener>[{(])?"
+    r"^\s*(?:function\s+(?P<keyword_name>[^\s(){};&|<>]+)(?:\s*\(\s*\))?"
+    r"|(?P<name>[^\s(){};&|<>]+)\s*\(\s*\))\s*(?P<opener>[{(])?"
 )
 _FUNCTION_BODY_CLOSERS = {"{": "}", "(": ")"}
 _QUOTED_SPAN = re.compile(r"'[^']*'|\"[^\"]*\"")
@@ -178,7 +190,9 @@ def _shell_invocation_lines(text: str) -> str:
     every real call with `echo "run_check"` leaves the definition
     behind, and the search still succeeds. Confirmed by sabotage - it
     did, in the installer tests below. Definition lines are dropped too,
-    so only real call sites remain.
+    so only real call sites remain. The bodies of functions nothing
+    calls are already gone by this point, dropped by
+    `_executable_command_lines()`.
     """
     return "\n".join(
         line
@@ -1180,7 +1194,7 @@ def _evaluated_pep604_unions(path: Path) -> list[tuple[int, str]]:
     return found
 
 
-def _outside_function_bodies(lines: list[str]) -> list[str]:
+def _outside_function_bodies(lines: list[str], *, only_uncalled: bool = False) -> list[str]:
     """The logical lines that are not inside a shell function body.
 
     A command inside a function that nothing calls never runs, while
@@ -1190,14 +1204,15 @@ def _outside_function_bodies(lines: list[str]) -> list[str]:
     zero so the script reports "All gates passed", and left both
     coverage tests passing.
 
-    The installer checks already dropped function *definition* lines
-    for the same reason; this drops the whole body. Deciding which
-    functions are really called is a call-graph problem and out of
-    scope, exactly as shell reachability was for `if false`, so the
-    rule is that a gate command has to sit at top level. The real gate
-    sources satisfy it: `run_gate` is a function, but every pytest
-    command is passed to it as an *argument* from top level, not
-    written inside its body.
+    For a gate command the rule is that it has to sit at top level,
+    which the real gate sources satisfy: `run_gate` is a function, but
+    every pytest command is passed to it as an *argument* from top
+    level, not written inside its body. `only_uncalled=True` asks the
+    weaker question instead - is this function called anywhere at all -
+    which is what the installer checks need, and why the two are one
+    function with a flag rather than two scans. See
+    `_function_definition_spans()` for the measurement behind that
+    split.
 
     Every form bash accepts is recognised, not just the one this rule
     was first written against: the `function name` keyword form, a
@@ -1206,39 +1221,95 @@ def _outside_function_bodies(lines: list[str]) -> list[str]:
     `_body_depth_change()`, so a brace that is not a delimiter cannot
     end a body early and expose the rest of it as top-level text.
     """
-    kept: list[str] = []
+    hidden: set[int] = set()
+    for _, start, end in _function_definition_spans(lines, only_uncalled=only_uncalled):
+        hidden.update(range(start, end + 1))
+    return [line for index, line in enumerate(lines) if index not in hidden]
+
+
+_SHELL_WORD_SEPARATOR = re.compile(r"[^\w./-]+")
+
+
+def _function_definition_spans(
+    lines: list[str], *, only_uncalled: bool = False
+) -> list[tuple[str, int, int]]:
+    """Each shell function definition as (name, first line, last line).
+
+    The span covers the definition line and the whole body, so a caller
+    can drop either every function body or only the bodies of functions
+    whose name is never used as a word anywhere outside their own span.
+
+    That second option exists because the two readers need different
+    rules, and measuring said so. Every pytest command in every gate
+    source sits at top level, so requiring that of a gate command costs
+    nothing and is the stronger rule. `install.sh` and
+    `install_pyBumpHunter.sh` are the opposite: nearly every command
+    they run is inside a function - `require_file`, `verify_dependency`,
+    `build_cpp_dependency` - so the same rule would have dropped over a
+    hundred real commands from the installer view and broken the
+    assertions that check what those installers do.
+
+    Deciding whether a function is *reachable* is a call-graph problem
+    this deliberately does not solve: a name used outside its own span
+    counts as called, even if the only use is inside another function
+    that nothing calls. That is an over-approximation, so it errs
+    towards keeping a body rather than hiding one.
+    """
+    spans: list[tuple[str, int, int]] = []
+    pending: tuple[str, int] | None = None
     opener = ""
     depth = 0
     awaiting_body = False
-    for line in lines:
-        if opener:
+    for index, line in enumerate(lines):
+        if pending is not None and opener:
             depth += _body_depth_change(line, opener)
             if depth <= 0:
-                opener, depth = "", 0
+                spans.append((pending[0], pending[1], index))
+                pending, opener, depth = None, "", 0
             continue
         if awaiting_body:
             awaiting_body = False
             openers = [char for char in _FUNCTION_BODY_CLOSERS if char in line]
             if not openers:
-                kept.append(line)
+                pending = None
                 continue
             opener = min(openers, key=line.index)
             depth = _body_depth_change(line, opener)
-            if depth <= 0:
-                opener, depth = "", 0
+            if depth <= 0 and pending is not None:
+                spans.append((pending[0], pending[1], index))
+                pending, opener, depth = None, "", 0
             continue
         match = _SHELL_FUNCTION_DEFINITION.match(line)
         if match is None:
-            kept.append(line)
             continue
+        name = match.group("keyword_name") or match.group("name")
+        pending = (name, index)
         if match.group("opener") is None:
             awaiting_body = True
             continue
         opener = match.group("opener")
         depth = _body_depth_change(line, opener)
         if depth <= 0:
-            opener, depth = "", 0
-    return kept
+            spans.append((name, index, index))
+            pending, opener, depth = None, "", 0
+    if pending is not None:
+        # An unterminated body runs to the end of the file, which is
+        # what the shell would also refuse to run.
+        spans.append((pending[0], pending[1], len(lines) - 1))
+    if not only_uncalled:
+        return spans
+    return [span for span in spans if not _is_used_outside(span, lines)]
+
+
+def _is_used_outside(span: tuple[str, int, int], lines: list[str]) -> bool:
+    """Whether a function's name appears as a word outside its own span."""
+    name, start, end = span
+    for index, line in enumerate(lines):
+        if start <= index <= end:
+            continue
+        if name in _SHELL_WORD_SEPARATOR.split(line):
+            return True
+    return False
 
 
 def _pytest_command_lines(text: str) -> str:
@@ -2550,12 +2621,38 @@ def test_the_installer_views_reject_text_that_never_runs() -> None:
         # and it is not hiding in the comment-stripped view either
         assert "cmake --build" not in script or "echo" in script
 
-    # A guarded body is rejected outright, for either installer.
+    # A guarded body is rejected outright, for either installer. The
+    # function has to be called for this to be the interesting case: a
+    # guard inside a function nothing calls hides a command that was
+    # never going to run anyway, and the case below covers that.
     with pytest.raises(AssertionError, match="if false"):
         _installer_views(
-            'run_build() {\n    if false; then\n    cmake --build "$dir"\n    fi\n}\n',
+            'run_build() {\n    if false; then\n    cmake --build "$dir"\n    fi\n}\n'
+            "run_build\n",
             "a guarded installer",
         )
+
+    # A command inside a function nothing calls is not a command the
+    # installer runs. `_shell_invocation_lines()` dropped the
+    # definition line but kept the body, so moving the installer's real
+    # work into `never_called() { ... }` left every "the installer does
+    # X" assertion satisfied by text that runs nothing - the same gap as
+    # the gate coverage checks, in the sibling reader.
+    hidden = "never_called() {\n    git config core.hooksPath .githooks\n}\n"
+    script, commands, invocations = _installer_views(hidden, "an unreachable installer")
+    assert "core.hooksPath" not in commands, commands
+    assert "core.hooksPath" not in invocations, invocations
+
+    # ...but a function that *is* called keeps its body, which the
+    # gate-command reader deliberately does not do. `install.sh` and
+    # `install_pyBumpHunter.sh` put nearly every command they run
+    # inside a function, so requiring top level there would drop over a
+    # hundred real commands; every pytest command in every gate source
+    # is already at top level, so requiring it costs nothing.
+    called = "does_work() {\n    git config core.hooksPath .githooks\n}\ndoes_work\n"
+    script, commands, invocations = _installer_views(called, "a real installer")
+    assert "core.hooksPath" in commands
+    assert "does_work" in invocations
 
 
 def test_the_disabling_detectors_actually_detect(tmp_path: Path) -> None:

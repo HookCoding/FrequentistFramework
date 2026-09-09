@@ -12973,3 +12973,83 @@ still yield the same pytest command lines (four in
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — The mirror of the heredoc gap: an installer command inside a function nothing calls
+
+The previous entry fixed a rule that existed in the installer reader
+and not the gate reader. Checking the same pair the other way round
+found the opposite gap. `_shell_invocation_lines()` dropped function
+*definition* lines but kept the bodies, and
+`_executable_command_lines()` - the view every "this installer really
+does X" assertion reads - kept both.
+
+Measured on the real `install.sh`: replacing its two build calls with
+`true` leaves a valid installer that builds nothing at all, and all
+forty-three policy tests still passed, because the two unreachable
+function bodies were still being read as commands the installer runs.
+With the fix, `test_install_script_is_non_destructive` fails on that
+sabotage.
+
+### Why this is not the same rule as the gate reader's
+
+The first attempt applied the gate reader's rule - a command has to sit
+at top level - to the installer view as well. Measured against the real
+sources, that dropped over a hundred real commands from `install.sh`
+and `scripts/install_pyBumpHunter.sh`, which put nearly everything they
+do inside functions they do call: `require_file`, `verify_dependency`,
+`build_cpp_dependency`, `fail`. The gate sources are the opposite -
+every pytest command in all five gate invocations is already at top
+level, `run_gate` receiving it as an argument - so the stronger rule
+costs nothing there.
+
+So the two readers keep different rules, deliberately and for a
+measured reason, but share one implementation:
+`_function_definition_spans(lines, only_uncalled=...)` returns each
+definition's span, and `_outside_function_bodies()` drops either every
+body or only the bodies of functions whose name is never used outside
+their own span. Stated plainly in the docstring: whether a function is
+*reachable* is a call-graph problem this does not solve - a name used
+inside another function that nothing calls still counts as a call - so
+it errs towards keeping a body rather than hiding one.
+
+### The wrong first attempt, recorded
+
+Applying the strict rule to the installer view was checked against all
+twenty-five real shell and workflow sources before being kept, which is
+how the over-reach was caught: six of them differed, listing the
+hundred-plus commands it would have hidden. The comparison across all
+real sources is now run for every change to these readers, and the
+narrow rule passes it with zero differences.
+
+One committed test changed rather than being added to: the guarded-body
+case in `test_the_installer_views_reject_text_that_never_runs` used a
+`run_build` that was never called, so under the new rule its body is
+dropped before the `if false` check can see it. The case now calls
+`run_build`, which is the realistic threat, and the uncalled variant is
+pinned separately as producing no commands at all.
+
+### Verification performed
+
+- `install.sh` sabotaged at both build call sites and run against the
+  pre-fix and fixed readers: 43 passed before, 1 failed after.
+  Restored.
+- The same sabotage attempted at one call site only, which proved
+  nothing - the assertion was satisfied by a second `cmake --build` in
+  the sibling function that is still called. Recorded because the first
+  run looked like a clean pass.
+- All four readers compared against all twenty-five real shell and
+  workflow sources: zero differences.
+- `only_uncalled=True` removed with the new cases kept: they fail.
+  Restored: they pass.
+- All twelve gate-reader forms re-measured after the refactor:
+  unchanged, and the real sources still yield four pytest command lines
+  in `scripts/run_all_gates.sh` and one in `.githooks/pre-commit`.
+- `python scripts/quality_check.py --mode full`: 247 collected, 227
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Test count unchanged, so the documented figures still hold.
+- Under the LCG Python 3.9.12: 2 passed for the prepared-dependency
+  gate.
+
+### Remaining open chunks
+
+None.
