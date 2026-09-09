@@ -13548,3 +13548,99 @@ written that way never runs, and reading it cannot mislead anything.
   0. Documented figures updated across the four living documents, and
   the prepared-dependency gate to 50 collected, 2 passed, 48
   deselected.
+
+## 2026-09-09 — The refusal added last pass read shell as YAML
+
+The previous entry drew a boundary: a workflow written in a form the
+line-based split cannot read is refused rather than misread. That
+refusal was applied to the whole file before the split, which is where
+it went wrong - a block scalar's body is shell, not YAML. Measured
+against the committed reader, three pieces of ordinary shell inside a
+`run: |` block were each refused as a YAML form it does not model:
+
+- `{ echo a; echo b; } > log`, a brace group, read as a flow mapping;
+- a heredoc body carrying `paths: *default`, read as a YAML alias;
+- a JSON object piped to `jq`, read as a flow mapping again.
+
+None of that is YAML. It is the same mistake these readers exist to
+prevent - text read as the wrong language - arriving inverted: not a
+step's name read as a command, but a command read as YAML. It is the
+loud direction, so it would have stopped the whole gate on a workflow
+the reader can in fact read. The refusal now runs inside the split,
+line by line, and only on the lines the split reads as YAML.
+
+Checking the refusal against the forms it names then found it missing
+the ones that matter. It matched a flow collection only at the start of
+a line, so `- {name: s, run: cmd}` was refused while
+
+    steps: [{name: s, run: python -m pytest tests/test_x.py}]
+    step: {run: python -m pytest tests/test_x.py}
+
+- both valid YAML that GitHub Actions runs - were read as ordinary
+configuration with their commands silently lost: no run lines, no
+refusal, no complaint. A flow collection is now refused wherever it
+opens, in a value as well as at the start of a line, and a flow
+sequence of settings (`python-version: [3.9, "3.12"]`) with it, since
+two settings on one line cannot be read as configuration either. An
+Actions expression is not a flow collection and is deliberately still
+accepted: its brace follows a `$`.
+
+Two further readings were measured wrong against PyYAML 6.0.3.
+
+Folding does not apply to a more-indented line. The fifth pass modelled
+the paragraph rule and stopped there, so every line of a folded block
+was joined, and
+
+    run: >
+      echo "about to run"
+        python -m pytest tests/test_x.py
+
+was reported as one long echo that runs no tests, while YAML really
+hands bash the pytest invocation on a line of its own. That is the
+silent direction: a real command lost. The same two lines after a bare
+`run:` are one command, because a plain scalar's folding ignores
+indentation - so the scalar's style is now carried through the split
+rather than a single folded flag, and all three styles are measured.
+
+A step name spanning two lines leaked into the configuration half.
+`_yaml_config_lines()` dropped the line carrying the `name:` key and
+nothing else, so
+
+    - name: install the pinned
+        tier-2-m365 dependencies
+
+left `tier-2-m365 dependencies` being read as configuration. Sabotaged
+on the real `tier1-root-comparison.yml` - its trigger branch repinned
+to `tier-9-none` and the old branch name moved into a two-line step
+name - the committed reader still reported the workflow as configured
+for `tier-2-m365`, so `test_ci_runs_locked_lightweight_full_gate` would
+have passed while CI ran on a branch the workflow no longer names.
+Every continuation line of a plain scalar is now dropped, whichever key
+opened it: a line that is neither a key nor a sequence item carries no
+setting of its own. A block sequence's items are values, and stay.
+
+### Verification performed
+
+- The reader's `run:` lines compared with PyYAML's across 381 valid
+  combinations of three key spellings, sixteen block headers and eight
+  body shapes, including more-indented and blank lines: identical
+  throughout, and still identical to every `run:` value in both real
+  workflow files. Three further combinations PyYAML rejects outright.
+- Five sabotages, each confirmed to fail exactly one test and to pass
+  when restored. The whole-file refusal restored fails
+  `test_shell_inside_a_run_block_is_not_read_as_yaml`; the flow
+  collection narrowed back to line-initial fails
+  `test_the_workflow_split_refuses_yaml_it_does_not_model`; folding a
+  more-indented line, and treating a plain scalar as a folded block,
+  each fail `test_a_folded_block_does_not_fold_a_more_indented_line`;
+  the continuation rule removed fails
+  `test_a_step_name_spanning_two_lines_is_not_configuration`.
+- Neither real workflow file uses a flow collection, an anchor or an
+  alias, and neither contains a line that is neither a key nor a
+  sequence item, so all four defects were dormant on the files as
+  written today.
+- `python scripts/quality_check.py --mode full`: 257 collected, 237
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented figures updated across the four living documents, and
+  the prepared-dependency gate to 53 collected, 2 passed, 51
+  deselected.

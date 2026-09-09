@@ -370,13 +370,38 @@ def _yaml_config_lines(text: str) -> str:
     So the two readers take opposite halves of one split. Use this for
     "the workflow is configured with X" assertions, and
     `_workflow_run_block_lines()` for "the workflow runs X".
+
+    A plain scalar spanning lines is free text too, and dropping only
+    the line that carries the `name:` key left the rest of it behind: a
+    step named
+
+        - name: install the pinned
+            tier-2-m365 dependencies
+
+    put `tier-2-m365 dependencies` in the configuration half, where
+    `"tier-2-m365" in config` then passed on a step's name - the very
+    false positive the `name:` filter exists to prevent, in the
+    two-line spelling. Every continuation line is dropped, whichever
+    key opened the scalar, because a line that is neither a key nor a
+    sequence item carries no setting of its own. A configuration search
+    for a value written that way therefore fails rather than passing on
+    free text.
     """
     kept: list[str] = []
+    scalar_column: int | None = None
     for raw in _workflow_lines(text)[1]:
         if raw.lstrip().startswith("#"):
             continue
         line = _strip_inline_comment(raw)
-        if line.strip() and not _YAML_NAME_KEY.match(line):
+        if not line.strip():
+            continue
+        column = len(line) - len(line.lstrip())
+        is_key = _YAML_BLOCK_KEY.match(line) is not None
+        is_item = line.lstrip().startswith("- ")
+        if scalar_column is not None and column > scalar_column and not (is_key or is_item):
+            continue
+        scalar_column = column if is_key else None
+        if not _YAML_NAME_KEY.match(line):
             kept.append(line)
     return "\n".join(kept)
 
@@ -406,9 +431,14 @@ _YAML_BLOCK_KEY = re.compile(
 _BLOCK_SCALAR_HEADER = re.compile(r"^(?P<style>[|>])(?:[1-9][+-]?|[+-][1-9]?)?\s*(?:#.*)?$")
 
 
-def _block_scalar_lines(block: list[str], folded: bool) -> list[str]:
+def _block_scalar_lines(block: list[str], style: str) -> list[str]:
     """A block scalar's body as the shell receives it, one command per
     line.
+
+    `style` is the scalar's YAML style: `"|"` literal, `">"` folded, or
+    `""` for the plain multi-line scalar a bare `run:` opens. All three
+    are measured against PyYAML 6.0.3, because they fold differently
+    and the difference decides whether a line is a command of its own.
 
     A folded block is not one command per line. YAML joins consecutive
     non-empty lines with a single space and only a blank line becomes a
@@ -426,6 +456,27 @@ def _block_scalar_lines(block: list[str], folded: bool) -> list[str]:
     by a new route. Confirmed against PyYAML 6.0.3 for the folded, the
     literal and the plain (no indicator) spellings.
 
+    Folding stops at a more-indented line in a `>` block: YAML keeps
+    such a line, and the breaks on either side of it, exactly as
+    written, so
+
+        run: >
+          echo "about to run"
+            python -m pytest tests/test_x.py
+
+    really does run the tests, on its own line, while the paragraph
+    rule alone joined it into the echo and reported a workflow that
+    runs no tests. Measured: PyYAML returns
+    `'echo "about to run"\\n  python -m pytest tests/test_x.py\\n'`
+    here.
+
+    A plain scalar folds the same two lines into one, because its
+    folding ignores indentation entirely - the same text is one command
+    after a bare `run:` and two after a `run: >`. That is why the style
+    is carried here rather than a single "folded" flag: the flag made
+    the plain spelling report a pytest invocation the shell never
+    receives, which is the loud direction of the same error.
+
     The body's own indentation is removed, because that is what YAML
     removes before bash sees it. The margin is taken from the content
     rather than computed from an explicit indentation indicator, which
@@ -438,35 +489,54 @@ def _block_scalar_lines(block: list[str], folded: bool) -> list[str]:
         return []
     margin = min(indents)
     content = [line[margin:] if line.strip() else "" for line in block]
-    if not folded:
+    if style == "|":
         return [line for line in content if line]
 
-    paragraphs: list[str] = []
+    lines: list[str] = []
     current: list[str] = []
-    for line in content:
-        if line:
-            current.append(line.strip())
-            continue
+
+    def close_paragraph() -> None:
         if current:
-            paragraphs.append(" ".join(current))
-            current = []
-    if current:
-        paragraphs.append(" ".join(current))
-    return paragraphs
+            lines.append(" ".join(current))
+            current.clear()
+
+    for line in content:
+        if not line:
+            close_paragraph()
+            continue
+        if style == ">" and line[0].isspace():
+            close_paragraph()
+            lines.append(line.rstrip())
+            continue
+        current.append(line.strip())
+    close_paragraph()
+    return lines
 
 
 # Forms of YAML this line-based split does not model, and refuses
-# rather than misreads. Measured against PyYAML 6.0.3: a flow mapping
-# (`- {name: s, run: cmd}`) hides its command on a line that is not a
-# `run:` key, so the command lands in the configuration half; an alias
-# (`run: *cmd`) names its command somewhere else entirely and yields
-# `*cmd`. Both are valid YAML that GitHub Actions would run. The
-# alternative to refusing them is widening the regexes until they are
-# a YAML parser, and PyYAML is not among the locked development
-# dependencies - so the boundary is drawn here, loudly, instead of
-# being discovered later as a check that read the wrong half.
+# rather than misreads. Measured against PyYAML 6.0.3: a flow
+# collection hides its contents on lines that are not `key: value`, so
+# `steps: [{name: s, run: cmd}]` puts a command in the configuration
+# half and `python-version: [3.9, "3.12"]` puts two settings on one
+# line where neither can be read; an alias (`run: *cmd`) names its
+# command somewhere else entirely and yields `*cmd`. All are valid
+# YAML that GitHub Actions would run. The alternative to refusing them
+# is widening the regexes until they are a YAML parser, and PyYAML is
+# not among the locked development dependencies - so the boundary is
+# drawn here, loudly, instead of being discovered later as a check that
+# read the wrong half.
+#
+# A flow collection is refused wherever it opens, not only at the start
+# of a line: `- {name: s, run: cmd}` was refused while the same mapping
+# as a value - `step: {run: cmd}`, or one line of
+# `steps: [{name: s, run: cmd}]` - was read as configuration and its
+# command silently lost. `${{ github.ref }}` is not a flow collection
+# and is deliberately not matched: the brace follows a `$`.
 _UNMODELLED_YAML = (
-    (re.compile(r"^\s*(?:-\s+)?\{"), "a flow mapping"),
+    (
+        re.compile(r"^\s*(?:-\s+)?(?:[\"']?[A-Za-z_][A-Za-z0-9_.-]*[\"']?:\s*)?[\[{]"),
+        "a flow collection",
+    ),
     (
         re.compile(r"^\s*(?:-\s+)?[\"']?[A-Za-z_][A-Za-z0-9_.-]*[\"']?:\s*[*&]"),
         "a YAML anchor or alias",
@@ -474,16 +544,33 @@ _UNMODELLED_YAML = (
 )
 
 
-def _assert_yaml_is_modelled(text: str) -> None:
-    """Refuse a workflow written in a form the split cannot read."""
-    for number, line in enumerate(text.splitlines(), start=1):
-        for pattern, description in _UNMODELLED_YAML:
-            assert not pattern.match(line), (
-                f"line {number} uses {description}, which this reader does not model: "
-                f"{line.strip()!r}. Rewrite it in block style, or teach "
-                "_workflow_lines() the form - it must not be read as if it were "
-                "block style, because the command would be read as configuration"
-            )
+def _assert_yaml_line_is_modelled(line: str, number: int) -> None:
+    """Refuse a YAML line written in a form the split cannot read.
+
+    Applied line by line from inside the split, and only to the lines
+    the split reads as YAML, because a block scalar's body is not YAML.
+    Scanning the whole file refused three pieces of ordinary shell -
+
+        run: |
+          { echo a; echo b; } > log
+          cat > cfg.yml <<'EOF'
+          paths: *default
+          EOF
+          jq -r . <<< '{"a": 1}'
+
+    - a brace group, a heredoc carrying a YAML alias and a JSON object,
+    each reported as a YAML form the reader cannot read. That is the
+    same "read as the wrong language" mistake these readers exist to
+    prevent, arriving inverted: not YAML text taken for a command, but
+    a command taken for YAML text.
+    """
+    for pattern, description in _UNMODELLED_YAML:
+        assert not pattern.match(line), (
+            f"line {number} uses {description}, which this reader does not model: "
+            f"{line.strip()!r}. Rewrite it in block style, or teach "
+            "_workflow_lines() the form - it must not be read as if it were "
+            "block style, because the command would be read as configuration"
+        )
 
 
 def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
@@ -497,20 +584,18 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
     false-positive path in both directions, so the split is made once
     here and the two readers below take a half each.
     """
-    _assert_yaml_is_modelled(text)
-
     run_lines: list[str] = []
     other_lines: list[str] = []
     block: list[str] = []
     block_key_column: int | None = None
     block_is_run = False
-    folded = False
+    style = "|"
 
     def close_block() -> None:
         if block_is_run:
-            run_lines.extend(_block_scalar_lines(block, folded))
+            run_lines.extend(_block_scalar_lines(block, style))
 
-    for raw in text.splitlines():
+    for number, raw in enumerate(text.splitlines(), start=1):
         if block_key_column is not None:
             indent = len(raw) - len(raw.lstrip())
             if not raw.strip() or indent > block_key_column:
@@ -520,16 +605,18 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
             block, block_key_column = [], None
         if not raw.strip():
             continue
+        _assert_yaml_line_is_modelled(raw, number)
         key = _YAML_BLOCK_KEY.match(raw)
         if key is not None:
             name = key.group("key")
             rest = key.group("rest").strip()
             header = _BLOCK_SCALAR_HEADER.match(rest)
             if name == "run" and (header is not None or not rest):
-                # A bare `run:` opens a multi-line plain scalar, which
-                # folds exactly as `>` does - measured, not assumed.
+                # A bare `run:` opens a multi-line plain scalar,
+                # which folds like `>` except that it folds a
+                # more-indented line too - measured, not assumed.
                 block, block_key_column, block_is_run = [], key.start("quote"), True
-                folded = rest == "" or header.group("style") == ">"
+                style = "" if not rest else header.group("style")
                 continue
             if name == "run":
                 run_lines.append(rest)
@@ -537,7 +624,6 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
             if header is not None:
                 # A block scalar under any other key. A bare `other:`
                 # is not one - it opens a mapping - so only an explicit
-                # `|` or `>` counts here.
                 block, block_key_column, block_is_run = [], key.start("quote"), False
                 continue
         other_lines.append(raw)
@@ -1836,6 +1922,35 @@ def test_yaml_config_lines_excludes_comments_and_step_names() -> None:
     assert 'python-version: "3.12.13"' in config
 
 
+def test_a_step_name_spanning_two_lines_is_not_configuration() -> None:
+    """A plain scalar's continuation lines are free text too.
+
+    Dropping the line that carries the `name:` key left the rest of a
+    two-line name behind in the configuration half, where a bare-token
+    search then passed on a step's name - `"tier-2-m365" in config` is
+    one of the real assertions this happens to satisfy. That is the
+    same false positive the `name:` filter exists to prevent, in a
+    spelling it did not cover; PyYAML 6.0.3 reads the two lines below
+    as one name and no setting at all.
+    """
+    spanning = (
+        "      - name: install the pinned\n"
+        "          tier-2-m365 dependencies\n"
+        "        uses: actions/nothing@v1\n"
+    )
+    config = _yaml_config_lines(spanning)
+
+    assert "tier-2-m365" not in config
+    # ...while the real key on the step is still configuration
+    assert "uses: actions/nothing@v1" in config
+
+    # A block sequence's items are values, not free text, so they stay:
+    # `- tier-2-m365` under `branches:` is what the same search reads on
+    # the real workflow.
+    listed = "    on:\n      push:\n        branches:\n          - tier-2-m365\n"
+    assert "tier-2-m365" in _yaml_config_lines(listed)
+
+
 def test_dependency_marker_is_recognised_however_it_is_written() -> None:
     # The per-test selector map guard is only as good as this detector:
     # a marker it fails to recognise means a marked test can exist with
@@ -1927,6 +2042,42 @@ def test_a_folded_run_block_is_not_one_command_per_line() -> None:
     assert "tests/test_pre_fit.py" in _pytest_command_lines(_workflow_run_block_lines(literal))
 
 
+def test_a_folded_block_does_not_fold_a_more_indented_line() -> None:
+    """Folding stops at a more-indented line, so that line is a command.
+
+    Modelling the paragraph rule alone joined every line of a folded
+    block, so the step below was reported as one long `echo` that runs
+    no tests while YAML really does hand bash the pytest invocation on
+    a line of its own - a real command lost, the silent direction.
+
+    The same two lines after a bare `run:` *are* one command, because a
+    plain scalar's folding ignores indentation. Both spellings are
+    measured against PyYAML 6.0.3, and the difference between them is
+    why the scalar's style is carried through the split rather than a
+    single folded flag.
+    """
+    folded = (
+        "      - name: An echo and a test\n"
+        "        run: >\n"
+        '          echo "about to run"\n'
+        "            python -m pytest tests/test_pre_fit.py\n"
+    )
+    run_lines, _config = _workflow_lines(folded)
+    assert run_lines == ['echo "about to run"', "  python -m pytest tests/test_pre_fit.py"]
+    assert "tests/test_pre_fit.py" in _pytest_command_lines(_workflow_run_block_lines(folded))
+
+    plain = (
+        "      - name: One long echo\n"
+        "        run:\n"
+        '          echo "about to run"\n'
+        "            python -m pytest tests/test_pre_fit.py\n"
+    )
+    assert _workflow_lines(plain)[0] == [
+        'echo "about to run" python -m pytest tests/test_pre_fit.py'
+    ]
+    assert _pytest_command_lines(_workflow_run_block_lines(plain)) == ""
+
+
 def test_every_block_scalar_header_opens_a_block() -> None:
     """`|2`, `|-2`, `>2+`, `| # note` and a bare `run:` are all blocks.
 
@@ -1998,9 +2149,22 @@ def test_the_workflow_split_refuses_yaml_it_does_not_model() -> None:
     for workflow, form in (
         ("steps:\n  - {name: s, run: python -m pytest tests/test_x.py}\n", "flow mapping"),
         ("x: &cmd python -m pytest\nsteps:\n  - name: s\n    run: *cmd\n", "alias"),
+        # A flow collection opening a value, not a line. Refusing only
+        # the line-initial spelling left `steps: [{...}]` and
+        # `step: {run: cmd}` read as configuration with their commands
+        # silently lost, which is the case this refusal is named after.
+        ("steps: [{name: s, run: python -m pytest tests/test_x.py}]\n", "flow sequence"),
+        ("step: {run: python -m pytest tests/test_x.py}\n", "flow mapping value"),
+        # ...and a flow sequence of settings, which cannot be read as
+        # configuration either: two settings share one line.
+        ('strategy:\n  matrix:\n    python-version: [3.9, "3.12"]\n', "flow sequence value"),
     ):
         with pytest.raises(AssertionError, match="does not model"):
-            _workflow_lines(workflow)
+            _workflow_lines(workflow), form
+
+    # An Actions expression is not a flow collection: its brace follows
+    # a `$`, and the real workflow uses one.
+    _workflow_lines("concurrency:\n  group: scientific-analysis-${{ github.ref }}\n")
 
     # Block style, including every spelling above, is still accepted.
     run_lines, _config = _workflow_lines(
@@ -2011,6 +2175,33 @@ def test_the_workflow_split_refuses_yaml_it_does_not_model() -> None:
     # And both real workflow files are written in the form it models.
     for workflow in sorted((find_repo_root() / ".github" / "workflows").glob("*.yml")):
         _workflow_lines(workflow.read_text(encoding="utf-8"))
+
+
+def test_shell_inside_a_run_block_is_not_read_as_yaml() -> None:
+    """A block scalar's body is shell, so the YAML refusal must skip it.
+
+    The refusal above was applied to the whole file before the split,
+    which made three pieces of ordinary shell fail as YAML forms the
+    reader cannot read: a brace group, a heredoc carrying a YAML alias,
+    and a JSON object piped to `jq`. That is the mistake these readers
+    exist to prevent, arriving inverted - not YAML text read as a
+    command, but a command read as YAML text - and it would have
+    stopped the whole gate on a workflow the reader can in fact read.
+    """
+    step = (
+        "      - name: A step with ordinary shell\n"
+        "        run: |\n"
+        "          { echo a; echo b; } > log\n"
+        "          cat > cfg.yml <<'EOF'\n"
+        "          paths: *default\n"
+        "          EOF\n"
+        "          python -m pytest tests/test_pre_fit.py\n"
+    )
+    run_lines, config_lines = _workflow_lines(step)
+
+    assert "{ echo a; echo b; } > log" in run_lines
+    assert "python -m pytest tests/test_pre_fit.py" in run_lines
+    assert not any("pytest" in line for line in config_lines)
 
 
 def test_a_block_scalar_under_another_key_is_neither_commands_nor_config() -> None:
