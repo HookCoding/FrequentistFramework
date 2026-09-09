@@ -12300,3 +12300,134 @@ gets that right too.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Close every remaining way to empty a gate without changing its command: --deselect, --collect-only, a workflow condition, an environment override, an addopts override, and the installer text views
+
+### Objective
+
+The previous round fixed the two pytest expression filters on the
+stated premise that `-k` and `-m` are what decide whether a test runs.
+Asked to sweep all 34 policy tests for anything of the same class, that
+premise turned out to be incomplete. Six more vectors were found, each
+confirmed by sabotage and measurement, each leaving every pytest
+command on the page untouched.
+
+### Correction to the previous entry
+
+That entry called all three of its findings cases where the gate ran
+nothing. Measured afterwards: an unsatisfiable extra term makes pytest
+collect nothing and exit **5**, and both `run_gate` and the CI step
+check the exit status, so that one would have failed loudly the first
+time it ran. It was a false pass in the *check*, not a silent hole in
+the gate. The other two exit 0 and were silent.
+
+### What was found, and how it was measured
+
+1. **`--deselect`** - a third filter, independent of both expressions,
+   whose whole purpose is to remove a named test. One `--deselect` took
+   the plotting gate from 18 dependency-marked tests to 17; pointed at
+   a file, to 16. Exit 0. Both coverage tests passed.
+2. **`--collect-only`** (and `--co`) - collects everything, runs none
+   of it, exits 0. The only veto that leaves no trace in the gate's own
+   result.
+3. **A workflow condition** - `if: false` on the scientific gate step
+   skipped it entirely and left all three CI policy tests passing. This
+   is the YAML twin of the shell `if false; then ... fi` that the
+   previous round *did* fix; the fix only ever covered shell, and the
+   CI text is reduced to `run:` block contents before the guard check
+   sees it, so `if:` is invisible there by construction.
+4. **`PYTEST_ADDOPTS`** - pytest applies it to every invocation, so one
+   line in a gate source filters every gate in it. A 5-test file went
+   to 0 selected.
+5. **pytest's `addopts` config** - applies repository-wide.
+   `-k nothing_matches_this` empties a gate *even though the gate
+   passes its own `-m`*, because the two options are independent and
+   both apply. An `addopts` `-m` is overridden by a command-line `-m`,
+   so that spelling alone cannot empty these gates.
+6. **The two installer tests** - about sixty "the script does X"
+   assertions against text with only whole-line comments removed: no
+   trailing-comment handling, no echo filtering, no guard check. That
+   is the state the gate checks were in five rounds ago. Three valid-
+   shell sabotages passed: both real `cmake --build` calls replaced by
+   `true # cmake --build --parallel`, the same replaced by
+   `echo "cmake --build --parallel"`, and `run_build()`'s entire body
+   wrapped in `if false`.
+
+Two candidates were tested and rejected rather than fixed:
+`--ignore=<file>` has no effect when the file is named explicitly on
+the command line, which it always is in these gates (18 tests before,
+18 after); and an `addopts` `-m`, as above.
+
+### What changed
+
+- `_filters_keep_test()` now judges every mechanism that can drop a
+  test, not the two it happened to know first: both expressions,
+  `--deselect`, and `--collect-only`. It also refuses a short option
+  glued to its value (`-knothing`), which it cannot parse - unparseable
+  counts as unproven, because "absent" means "filters nothing" and
+  would be the wrong answer.
+- `_pytest_option_values()` reads *every* occurrence of an option and
+  both the `--option value` and `--option=value` spellings.
+  `--deselect` is repeatable, and reading only the first was enough
+  only while nothing repeated.
+- `_deselects_test()` matches loosely on the path - any path ending in
+  the test's own file, or the tests directory - so an unfamiliar
+  spelling causes a false failure rather than a false pass.
+- `test_no_gate_source_can_be_disabled_or_globally_filtered()` rejects
+  any workflow condition, `PYTEST_ADDOPTS` in any gate source, and any
+  selection-affecting `addopts`. Conditions are rejected outright
+  rather than evaluated: a computed condition cannot be decided here,
+  and evaluating GitHub's expression language is as out of scope as
+  shell reachability analysis. No workflow uses `if:` at all, so this
+  costs nothing today and fails loudly if one is added.
+- `selection_affecting_addopts()` lives in `python/repo_utils.py`, and
+  `scripts/quality_check.py` applies it **before** starting pytest.
+  This is the one case a test cannot cover: `addopts =
+  "--collect-only"` makes the policy file itself collect and not run,
+  so the assertion would never execute. The gate has to refuse first.
+  One rule, two callers - duplicating it is what let the filter checks
+  drift a round apart.
+- `_installer_views()` gives both installer tests one hardened set of
+  views (comments stripped whole-line and trailing; a commands view
+  with echoes and heredocs dropped; an invocations view without
+  function definitions) and rejects an always-false guard once for
+  both. Seven claims that are about commands moved onto the commands
+  view; claims about messages the installer prints stay on the text
+  view, which is why echoes are not dropped there.
+
+### Verification performed
+
+- Every vector sabotaged against the real file and restored: six
+  spellings of the pytest vetoes in `scripts/run_all_gates.sh`
+  (`--collect-only`, `--co`, `--deselect` by node id, by file, with
+  `=`, and `-knothing`), `if: false` and a `PYTEST_ADDOPTS` env block
+  in the CI workflow, an exported `PYTEST_ADDOPTS` in the gate script,
+  three `addopts` values in `pyproject.toml`, and three sabotages of
+  `install.sh`. All passed before; all fail now.
+- Each fix individually reverted to its previous behaviour and
+  confirmed to fail a committed test - the deselect check, the
+  collect-only check, the multi-value option reader, the YAML
+  condition pattern, the `PYTEST_ADDOPTS` pattern, the addopts
+  unquoting, and the installer views.
+- Two vacuity traps found and closed while doing that. The workflow and
+  addopts checks read the repository's own files, which are clean, so
+  they passed with their detectors neutered; the installer wiring had
+  the same problem. `test_the_disabling_detectors_actually_detect()`
+  and `test_the_installer_views_reject_text_that_never_runs()` pin them
+  on synthetic input instead. Both were confirmed to fail when the
+  thing they pin is reverted.
+- One of my own bugs, found by measuring rather than reading: the
+  addopts check reported nothing on a real `addopts = "-k nothing"`,
+  because the option boundary was blocked by the opening quote. The
+  value is unquoted first now.
+- `python scripts/quality_check.py --mode full`: 242 collected, 222
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented lightweight (242/222/20) and prepared-dependency
+  (38/2/36) figures updated.
+- The new tests were run, not just collected, under the LCG Python
+  3.9.12: 7 passed.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.

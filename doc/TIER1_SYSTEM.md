@@ -169,8 +169,8 @@ python scripts/quality_check.py --mode full
 
 Latest verified result:
 
-- 238 collected;
-- 218 passed;
+- 242 collected;
+- 222 passed;
 - 20 prepared-dependency tests deselected;
 - 0 expected failures;
 - Ruff and Black passed;
@@ -183,7 +183,7 @@ python -m pytest tests/test_repo_utils.py \
   -m "requires_analysis_dependencies" -v
 ```
 
-Latest result: 34 collected, 2 passed, 32 deselected, exit code 0.
+Latest result: 38 collected, 2 passed, 36 deselected, exit code 0.
 
 ### Scientific runtime readiness
 

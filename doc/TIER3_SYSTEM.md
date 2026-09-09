@@ -49,7 +49,7 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 218 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 222 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
@@ -390,7 +390,7 @@ in no CI job for a time.
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 218 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 222 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)

@@ -87,8 +87,33 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _ensure_pytest_config_runs_tests(repo_root: Path) -> None:
+    """Refuse to run if pytest's own config would deselect everything.
+
+    `addopts` applies to every invocation, so `-k`, `--deselect` or
+    `--collect-only` there empties every gate in the repository while
+    pytest still exits 0. This has to be checked here, before pytest
+    starts: a test cannot catch a configuration that stops tests from
+    running. `tests/test_repo_utils.py` checks the same rule from the
+    other side, using this same function.
+    """
+    sys.path.insert(0, str(repo_root / "python"))
+    from repo_utils import selection_affecting_addopts
+
+    pyproject = repo_root / "pyproject.toml"
+    offending = selection_affecting_addopts(pyproject.read_text(encoding="utf-8"))
+    if offending:
+        print(
+            f"ERROR: pyproject.toml sets {offending} in pytest's addopts. Those apply to "
+            "every pytest invocation and can deselect every gate in this repository, so "
+            "this gate refuses to report a pass. Remove them from addopts."
+        )
+        raise SystemExit(2)
+
+
 def _run_fast_checks(repo_root: Path, test_targets: list[str]) -> None:
     _ensure_python_tools_available(["pytest"])
+    _ensure_pytest_config_runs_tests(repo_root)
     run_command(
         [
             sys.executable,

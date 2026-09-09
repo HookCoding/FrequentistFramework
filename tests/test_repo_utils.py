@@ -21,6 +21,7 @@ from python.repo_utils import (
     build_repo_snapshot,
     find_repo_root,
     read_repo_snapshot,
+    selection_affecting_addopts,
     write_repo_snapshot,
 )
 
@@ -505,7 +506,7 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
         scientific_test
     ]
     assert _invocation_runs_test_anywhere(
-        integration_lines, scientific_test, scientific_markers, "-m"
+        integration_lines, _INTEGRATION_TEST_FILE, scientific_test, scientific_markers, "-m"
     ), (
         ".githooks/pre-commit names the scientific gate but no invocation "
         "actually leaves test_authoritative_j100_j50_workflows_match_frozen_reference "
@@ -624,22 +625,70 @@ _PYTEST_NEGATION = re.compile(r"\bnot\b")
 _PYTEST_TOKEN = re.compile(r"\bpytest\b")
 
 
-def _pytest_option_value(line: str, option: str) -> str | None:
-    """The value passed to `option` on one pytest command line, unquoted.
+def _pytest_arguments(line: str) -> str:
+    """The part of a command line that pytest itself parses.
 
-    Only the text after the `pytest` token is searched: `python -m
-    pytest` carries an `-m` of its own for the module name, and reading
-    that as the marker filter would make every marker check compare
-    against the string "pytest".
-
-    Returns None when the option is absent from that line.
+    Only the text after the `pytest` token: `python -m pytest` carries
+    an `-m` of its own for the module name, and reading that as the
+    marker filter would make every marker check compare against the
+    string "pytest".
     """
     token = _PYTEST_TOKEN.search(line)
-    arguments = line[token.end() :] if token else line
-    match = re.search(rf"{re.escape(option)}\s+(\"[^\"]*\"|'[^']*'|\S+)", arguments)
-    if match is None:
-        return None
-    return match.group(1).strip("\"'")
+    return line[token.end() :] if token else line
+
+
+def _pytest_option_values(line: str, option: str) -> list[str]:
+    """Every value passed to `option` on one pytest command line, unquoted.
+
+    Reading only the first occurrence was enough while every option of
+    interest appeared at most once. `--deselect` is repeatable, and one
+    line can carry several, so all of them are returned. Both
+    `--option value` and `--option=value` are read, and the option has
+    to start a word, so `-m` inside `--maxfail` is not one.
+    """
+    pattern = rf"(?<!\S){re.escape(option)}(?:\s+|=)(\"[^\"]*\"|'[^']*'|\S+)"
+    return [match.group(1).strip("\"'") for match in re.finditer(pattern, _pytest_arguments(line))]
+
+
+def _pytest_option_value(line: str, option: str) -> str | None:
+    """The first value passed to `option`, or None when it is absent."""
+    values = _pytest_option_values(line, option)
+    return values[0] if values else None
+
+
+# A short option glued to its value (`-knothing`), which pytest accepts
+# and the readers above deliberately do not parse. Treated as
+# unparseable rather than absent: absent means "filters nothing", which
+# would be exactly the wrong answer.
+_GLUED_SHORT_OPTION = re.compile(r"(?<!\S)-[km](?=[^\s=])")
+
+# Collect but never run. Nothing executes and pytest still exits 0, so
+# this is the one veto that leaves no trace at all in the gate's
+# result.
+_COLLECT_ONLY = re.compile(r"(?<!\S)(?:--collect-only|--co)(?!\S)")
+
+
+def _deselects_test(line: str, test_file: str, test_name: str) -> bool:
+    """True when a `--deselect` on this line removes the mapped test.
+
+    `--deselect` is a third filter, independent of both `-k` and `-m`,
+    and its whole purpose is to remove a named test. Checking only the
+    two expression filters missed it: one `--deselect` took the
+    plotting gate from 18 dependency-marked tests to 17, and pointing
+    it at a file took it to 16, with pytest still exiting 0. Measured.
+
+    Path matching is deliberately loose - any path ending in the test's
+    own file, or the tests directory itself - so an unfamiliar spelling
+    causes a false failure rather than a false pass.
+    """
+    for value in _pytest_option_values(line, "--deselect"):
+        path, _, node = value.partition("::")
+        path = path.rstrip("/")
+        names = [part for part in node.split("::") if part]
+        targets_file = path in ("", "tests", f"tests/{test_file}") or path.endswith(f"/{test_file}")
+        if targets_file and (not names or names[-1] == test_name):
+            return True
+    return False
 
 
 def _expression_selects(expression: str, is_true: Callable[[str], bool]) -> bool:
@@ -685,13 +734,29 @@ def _expression_selects(expression: str, is_true: Callable[[str], bool]) -> bool
         return False
 
 
-def _filters_keep_test(line: str, test_name: str, markers: set[str]) -> bool:
-    """True when neither filter on this pytest line deselects the test.
+def _filters_keep_test(line: str, test_file: str, test_name: str, markers: set[str]) -> bool:
+    """True when nothing on this pytest line stops the test from running.
 
-    Both options are always evaluated, because pytest combines them
-    with AND and either one alone can empty the gate. An absent option
-    filters nothing.
+    Every mechanism pytest offers for removing a test has to be judged
+    here, not just the ones this check happened to know about first.
+    Each of these was found by sabotage, after the previous round fixed
+    the two expression filters and stopped there:
+
+    - `-k` and `-m`, evaluated as expressions, because pytest combines
+      them with AND and either alone can empty the gate;
+    - `--deselect`, a third filter that removes a named test or a whole
+      file regardless of both expressions;
+    - `--collect-only`, which collects everything and runs none of it,
+      while still exiting 0.
+
+    An absent option filters nothing. A short option glued to its value
+    is unparseable here, so it counts as not proven rather than absent.
     """
+    arguments = _pytest_arguments(line)
+    if _COLLECT_ONLY.search(arguments) or _GLUED_SHORT_OPTION.search(arguments):
+        return False
+    if _deselects_test(line, test_file, test_name):
+        return False
     for option, is_true in (
         ("-k", lambda term: term in test_name),
         ("-m", lambda term: term in markers),
@@ -720,6 +785,60 @@ _RECURSIVE_RM_FLAG = re.compile(r"-[A-Za-z]*[rR][A-Za-z]*|--recursive")
 # Where one command's arguments stop and the next command begins, so a
 # later command's flags are never attributed to `rm`.
 _ARGUMENT_LIST_END = re.compile(r"[;&|<>\n]")
+
+
+# A workflow step or job can be disabled by a condition while every
+# character of its command stays on the page - the YAML equivalent of
+# `if false; then ... fi`, which is rejected in shell above. Confirmed
+# by sabotage: `if: false` on the scientific gate step left all three
+# CI policy tests passing.
+#
+# Any condition is rejected, not only a literal false. A computed one
+# (`${{ github.event_name == 'never' }}`) cannot be decided here, and
+# evaluating GitHub's expression language is as out of scope as shell
+# reachability analysis. No workflow in this repository uses `if:` at
+# all, so a blanket rejection costs nothing today and fails loudly if
+# one is ever added - at which point this check has to be taught to
+# judge it rather than quietly widened.
+_YAML_CONDITION = re.compile(r"^\s*(?:-\s+)?if:\s*(.+?)\s*$", re.MULTILINE)
+
+# pytest reads this environment variable and applies whatever it
+# contains to every invocation, so one line anywhere in a gate source
+# can filter every gate in it. Confirmed: `PYTEST_ADDOPTS="-k
+# nothing_matches_this"` took a 5-test file to 0 selected.
+_PYTEST_ADDOPTS_ASSIGNMENT = re.compile(r"\bPYTEST_ADDOPTS\b")
+
+
+def _yaml_conditions(text: str) -> list[str]:
+    """Every `if:` condition in a workflow file."""
+    return [match.group(1) for match in _YAML_CONDITION.finditer(text)]
+
+
+def _installer_views(installer_text: str, description: str) -> tuple[str, str, str]:
+    """The three views of an installer these policy tests assert against.
+
+    `script` has comments removed whole-line *and* trailing, so no
+    assertion can be satisfied by commented-out text. `commands` is
+    only the lines that run something, for claims about what the
+    installer does; `invocations` drops function *definition* lines too,
+    for claims about what it calls. Echo lines survive in `script`
+    alone, because several assertions are about messages the installer
+    prints.
+
+    An always-false guard is rejected here, once, for both installers.
+    The previous version of these tests kept only whole-line comments
+    and never checked for a guard, so three sabotages passed: replacing
+    both real `cmake --build` calls with `true # cmake --build`, with
+    `echo "cmake --build"`, and guarding `run_build()`'s whole body -
+    each valid shell, each building nothing.
+    """
+    commands = _executable_command_lines(installer_text)
+    _assert_no_always_false_guard(commands, description)
+    return (
+        _uncommented_lines(installer_text),
+        commands,
+        _shell_invocation_lines(installer_text),
+    )
 
 
 def _recursive_delete(text: str) -> str | None:
@@ -751,6 +870,7 @@ def _recursive_delete(text: str) -> str | None:
 
 def _invocation_runs_test(
     line: str,
+    test_file: str,
     test_name: str,
     markers: set[str],
     designated_option: str,
@@ -775,7 +895,7 @@ def _invocation_runs_test(
     """
     if _pytest_option_value(line, designated_option) is None:
         return False
-    return _filters_keep_test(line, test_name, markers)
+    return _filters_keep_test(line, test_file, test_name, markers)
 
 
 def _assert_no_always_false_guard(commands: str, source_description: str) -> None:
@@ -788,9 +908,16 @@ def _assert_no_always_false_guard(commands: str, source_description: str) -> Non
 
 
 def _invocation_runs_test_anywhere(
-    lines: list[str], test_name: str, markers: set[str], designated_option: str
+    lines: list[str],
+    test_file: str,
+    test_name: str,
+    markers: set[str],
+    designated_option: str,
 ) -> bool:
-    return any(_invocation_runs_test(line, test_name, markers, designated_option) for line in lines)
+    return any(
+        _invocation_runs_test(line, test_file, test_name, markers, designated_option)
+        for line in lines
+    )
 
 
 def _defers_annotation_evaluation(path: Path) -> bool:
@@ -967,6 +1094,7 @@ def _assert_covers_every_dependency_marked_test(
         for test_name, designated_option in _INTEGRATION_TEST_DESIGNATED_OPTIONS.items()
         if not _invocation_runs_test_anywhere(
             [line for line in command_lines if f"tests/{_INTEGRATION_TEST_FILE}" in line],
+            _INTEGRATION_TEST_FILE,
             test_name,
             integration_marked_tests[test_name],
             designated_option,
@@ -1007,7 +1135,7 @@ def _assert_covers_every_dependency_marked_test(
             # filter can be judged. No file is in this state today;
             # this is the over-inclusive net, kept deliberately.
             if not any(
-                _filters_keep_test(line, "", {"requires_analysis_dependencies"})
+                _filters_keep_test(line, name, "", {"requires_analysis_dependencies"})
                 for line in lines_naming_file
             ):
                 uncovered.append(name)
@@ -1015,7 +1143,9 @@ def _assert_covers_every_dependency_marked_test(
         uncovered.extend(
             f"{name}::{test_name}"
             for test_name, markers in sorted(marked_tests.items())
-            if not any(_filters_keep_test(line, test_name, markers) for line in lines_naming_file)
+            if not any(
+                _filters_keep_test(line, name, test_name, markers) for line in lines_naming_file
+            )
         )
     assert not uncovered, (
         f"{source_description} names these files but does not actually run these "
@@ -1301,20 +1431,28 @@ def test_pytest_filters_are_evaluated_against_the_real_test() -> None:
     # with: an absent option filters nothing, and either option alone
     # can empty the gate.
     readiness_line = f"python -m pytest tests/{_INTEGRATION_TEST_FILE} -k {readiness} -v"
-    assert _invocation_runs_test(readiness_line, readiness, readiness_markers, "-k")
+    assert _invocation_runs_test(
+        readiness_line, _INTEGRATION_TEST_FILE, readiness, readiness_markers, "-k"
+    )
     assert not _invocation_runs_test(
         f'{readiness_line} -m "not requires_analysis_dependencies"',
+        _INTEGRATION_TEST_FILE,
         readiness,
         readiness_markers,
         "-k",
     )
     assert not _invocation_runs_test(
-        f"{readiness_line} -m nonexistent_marker", readiness, readiness_markers, "-k"
+        f"{readiness_line} -m nonexistent_marker",
+        _INTEGRATION_TEST_FILE,
+        readiness,
+        readiness_markers,
+        "-k",
     )
     # The designated option must be present at all: the gate has to
     # select the test deliberately, not merely fail to exclude it.
     assert not _invocation_runs_test(
         f"python -m pytest tests/{_INTEGRATION_TEST_FILE} -v",
+        _INTEGRATION_TEST_FILE,
         readiness,
         readiness_markers,
         "-k",
@@ -1323,12 +1461,22 @@ def test_pytest_filters_are_evaluated_against_the_real_test() -> None:
     scientific_line = (
         f'python -m pytest tests/{_INTEGRATION_TEST_FILE} -m "integration and requires_root" -v'
     )
-    assert _invocation_runs_test(scientific_line, scientific, scientific_markers, "-m")
-    assert not _invocation_runs_test(
-        f'{scientific_line} -k "not {scientific}"', scientific, scientific_markers, "-m"
+    assert _invocation_runs_test(
+        scientific_line, _INTEGRATION_TEST_FILE, scientific, scientific_markers, "-m"
     )
     assert not _invocation_runs_test(
-        f"{scientific_line} -k {readiness}", scientific, scientific_markers, "-m"
+        f'{scientific_line} -k "not {scientific}"',
+        _INTEGRATION_TEST_FILE,
+        scientific,
+        scientific_markers,
+        "-m",
+    )
+    assert not _invocation_runs_test(
+        f"{scientific_line} -k {readiness}",
+        _INTEGRATION_TEST_FILE,
+        scientific,
+        scientific_markers,
+        "-m",
     )
 
 
@@ -1355,12 +1503,19 @@ def test_a_named_command_is_not_a_command_that_runs() -> None:
     markers = {"integration", "requires_root", "requires_analysis_dependencies"}
     base = f'python -m pytest tests/test_analysis_workflows_integration.py -m "{marker}"'
 
-    assert _invocation_runs_test(base, test_name, markers, "-m")
-    assert _invocation_runs_test(f'{base} -k "{test_name}"', test_name, markers, "-m")
-    assert not _invocation_runs_test(f'{base} -k "not {test_name}"', test_name, markers, "-m")
-    assert not _invocation_runs_test(f'{base} -k "some_other_test"', test_name, markers, "-m")
+    assert _invocation_runs_test(base, _INTEGRATION_TEST_FILE, test_name, markers, "-m")
+    assert _invocation_runs_test(
+        f'{base} -k "{test_name}"', _INTEGRATION_TEST_FILE, test_name, markers, "-m"
+    )
+    assert not _invocation_runs_test(
+        f'{base} -k "not {test_name}"', _INTEGRATION_TEST_FILE, test_name, markers, "-m"
+    )
+    assert not _invocation_runs_test(
+        f'{base} -k "some_other_test"', _INTEGRATION_TEST_FILE, test_name, markers, "-m"
+    )
     assert not _invocation_runs_test(
         'python -m pytest tests/test_analysis_workflows_integration.py -m "not ' f'({marker})"',
+        _INTEGRATION_TEST_FILE,
         test_name,
         markers,
         "-m",
@@ -1470,6 +1625,7 @@ def test_a_trailing_comment_is_not_part_of_the_command() -> None:
     assert _pytest_option_value(commands, "-k") is None
     assert not _invocation_runs_test(
         commands,
+        _INTEGRATION_TEST_FILE,
         "test_authoritative_setup_provides_scientific_runtime",
         {"integration", "requires_analysis_dependencies"},
         "-k",
@@ -1626,6 +1782,7 @@ def test_a_second_filter_cannot_quietly_deselect_a_mapped_test() -> None:
     def runs(line: str, test_name: str) -> bool:
         return _invocation_runs_test(
             line,
+            _INTEGRATION_TEST_FILE,
             test_name,
             marked[test_name],
             _INTEGRATION_TEST_DESIGNATED_OPTIONS[test_name],
@@ -1729,6 +1886,215 @@ def test_gate_coverage_rejects_a_disabled_or_narrowed_gate() -> None:
         _assert_covers_every_dependency_marked_test(
             narrowed, "a narrowed gate script", non_pytest_sentinel=sentinel
         )
+
+    # The same gate emptied by the two vetoes that are not expression
+    # filters at all. Both were measured against real pytest: the
+    # --deselect drops one marked test, --collect-only runs none of
+    # them, and both leave pytest exiting 0.
+    for veto in (
+        f"--deselect tests/test_pre_fit.py::{one_test}",
+        "--deselect tests/test_pre_fit.py",
+        "--collect-only",
+    ):
+        vetoed = script.replace(plotting_filter, plotting_filter.replace(" -v", f" {veto} -v"), 1)
+        assert vetoed != script
+        with pytest.raises(AssertionError, match="does not actually run these"):
+            _assert_covers_every_dependency_marked_test(
+                vetoed, f"a gate script with {veto}", non_pytest_sentinel=sentinel
+            )
+
+
+def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
+    """`-k` and `-m` are not the only ways to remove a test.
+
+    The previous round fixed those two and stopped there, on the stated
+    premise that pytest combines them with AND. That premise was
+    incomplete. Each case below was measured against real pytest before
+    being pinned here:
+
+    - `--deselect <node id>` took the plotting gate from 18
+      dependency-marked tests to 17, and `--deselect <file>` took it to
+      16, with both expression filters still perfectly correct;
+    - `--collect-only` (and its `--co` alias) collects everything and
+      runs none of it, exiting 0 - the only veto that leaves no trace
+      in the gate's own result;
+    - a short option glued to its value (`-knothing`) is not parsed
+      here, so it must count as unproven rather than absent. Absent
+      means "filters nothing", which would be exactly the wrong answer.
+    """
+    test_file = "test_pre_fit.py"
+    test_name = "test_fit_returns_expected_shape_and_is_deterministic_for_real_fixture"
+    markers = {"requires_analysis_dependencies", "requires_root"}
+    base = f'python -m pytest tests/{test_file} -m "requires_analysis_dependencies"'
+
+    def keeps(extra: str = "") -> bool:
+        return _filters_keep_test(f"{base} {extra}".strip(), test_file, test_name, markers)
+
+    assert keeps()
+    assert keeps("-v")
+
+    # --deselect, in every spelling that reaches this test
+    assert not keeps(f"--deselect tests/{test_file}::{test_name}")
+    assert not keeps(f"--deselect=tests/{test_file}::{test_name}")
+    assert not keeps(f"--deselect tests/{test_file}")
+    assert not keeps("--deselect tests/")
+    # a repeated option: the second one is the one that bites, so
+    # reading only the first value is not enough
+    assert not keeps(f"--deselect tests/other.py --deselect tests/{test_file}")
+    # someone else's test being deselected does not deselect this one
+    assert keeps("--deselect tests/test_create_binning.py::test_other")
+    assert keeps(f"--deselect tests/{test_file}::test_a_different_test")
+
+    # collect-only, both spellings
+    assert not keeps("--collect-only")
+    assert not keeps("--co")
+    # not to be confused with an option that merely starts the same way
+    assert keeps("--color=yes")
+
+    # a glued short option cannot be read, so it is not proof
+    assert not keeps("-knothing")
+    assert not keeps("-mnothing")
+    # the same options written so they can be read are judged normally
+    assert keeps(f"-k {test_name}")
+    assert not keeps("-k nothing_matches_this")
+    assert keeps("-k=" + test_name)
+
+
+def test_the_installer_views_reject_text_that_never_runs() -> None:
+    """`_installer_views()`, pinned on synthetic scripts.
+
+    The two installer tests below read the repository's own installers,
+    which are clean, so they pass whether or not the hardening works -
+    the same vacuity as the workflow detectors above. These cases prove
+    it independently.
+    """
+    real = 'run_build() {\n    cmake --build "$dir" --parallel 4\n}\nrun_build\n'
+    script, commands, invocations = _installer_views(real, "a real installer")
+    assert "cmake --build" in commands
+    assert "run_build" in invocations
+
+    # The command replaced by a trailing comment, then by an echo.
+    for inert in (
+        "run_build() {\n    true # cmake --build --parallel\n}\nrun_build\n",
+        'run_build() {\n    echo "cmake --build --parallel"\n}\nrun_build\n',
+    ):
+        script, commands, invocations = _installer_views(inert, "an inert installer")
+        assert "cmake --build" not in commands, commands
+        # and it is not hiding in the comment-stripped view either
+        assert "cmake --build" not in script or "echo" in script
+
+    # A guarded body is rejected outright, for either installer.
+    with pytest.raises(AssertionError, match="if false"):
+        _installer_views(
+            'run_build() {\n    if false; then\n    cmake --build "$dir"\n    fi\n}\n',
+            "a guarded installer",
+        )
+
+
+def test_the_disabling_detectors_actually_detect(tmp_path: Path) -> None:
+    """The detectors used by the test below, exercised on real examples.
+
+    That test reads the repository's own files, which are clean - so it
+    passes whether or not the detectors work. Neutering
+    `_yaml_conditions()` left it green, which is the same vacuity these
+    policy tests exist to prevent. These cases are synthetic on
+    purpose, so the detectors are pinned independently of whatever the
+    workflows happen to contain today.
+    """
+    # Every way a workflow can carry a condition, including the two
+    # spellings that are not a plain literal.
+    assert _yaml_conditions("      - name: a step\n        if: false\n") == ["false"]
+    assert _yaml_conditions("        if: ${{ false }}\n") == ["${{ false }}"]
+    assert _yaml_conditions("        if: github.event_name == 'push'\n") == [
+        "github.event_name == 'push'"
+    ]
+    assert _yaml_conditions("    if: always()\n") == ["always()"]
+    # A step with no condition, and the word appearing in text that is
+    # not a condition key.
+    assert _yaml_conditions("      - name: a step\n        run: echo if: false\n") == []
+    assert _yaml_conditions("          # if: false\n") == []
+
+    # The environment override, in both the shell and the YAML spelling.
+    assert _PYTEST_ADDOPTS_ASSIGNMENT.search('export PYTEST_ADDOPTS="-k nothing"')
+    assert _PYTEST_ADDOPTS_ASSIGNMENT.search("          PYTEST_ADDOPTS: -k nothing")
+    assert not _PYTEST_ADDOPTS_ASSIGNMENT.search("python -m pytest -k something")
+
+    # The config override, via the function the gate runner shares.
+    section = '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n'
+    assert selection_affecting_addopts(section) == []
+    assert selection_affecting_addopts(section + 'addopts = "-ra --color=yes"\n') == []
+    assert selection_affecting_addopts(section + 'addopts = "-k nothing"\n') == ["-k"]
+    assert selection_affecting_addopts(section + 'addopts = "--collect-only"\n') == [
+        "--collect-only"
+    ]
+    assert selection_affecting_addopts(section + 'addopts = "--deselect tests/test_x.py"\n') == [
+        "--deselect"
+    ]
+    # A different tool's addopts is not pytest's.
+    assert selection_affecting_addopts('[tool.other]\naddopts = "-k nothing"\n') == []
+
+
+def test_no_gate_source_can_be_disabled_or_globally_filtered() -> None:
+    """Three ways to switch off every gate at once, none of which the
+    per-command coverage checks can see.
+
+    They all leave the pytest commands themselves untouched, which is
+    exactly why the checks that read those commands miss them. Each was
+    found by sabotage and measured:
+
+    - a workflow step condition (`if: false`), the YAML twin of the
+      shell `if false; then ... fi` already rejected above - it left
+      all three CI policy tests passing with the whole scientific gate
+      step skipped;
+    - `PYTEST_ADDOPTS`, which pytest applies to every invocation, so
+      one line in a gate source filters every gate in it (a 5-test
+      file went to 0 selected);
+    - pytest's `addopts` config, which applies repository-wide -
+      `-k nothing_matches_this` empties a gate even though the gate
+      passes its own `-m`, because the two options are independent and
+      both apply. (An `addopts` `-m` is overridden by a command-line
+      `-m`, so that one spelling cannot empty these gates; the option
+      is rejected anyway rather than relying on every gate continuing
+      to name its own marker filter.)
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+
+    workflows = sorted((repo_root / ".github" / "workflows").glob("*.yml"))
+    assert workflows, "no workflow files found to check"
+    for workflow in workflows:
+        text = workflow.read_text(encoding="utf-8")
+        conditions = _yaml_conditions(text)
+        assert not conditions, (
+            f"{workflow.name} makes a step or job conditional ({conditions}), which can "
+            "disable a gate while leaving every command in place - see _YAML_CONDITION"
+        )
+        assert not _PYTEST_ADDOPTS_ASSIGNMENT.search(text), (
+            f"{workflow.name} mentions PYTEST_ADDOPTS, which pytest applies to every "
+            "invocation and can deselect every gate in this workflow"
+        )
+
+    for source in (
+        repo_root / "scripts" / "run_all_gates.sh",
+        repo_root / ".githooks" / "pre-commit",
+    ):
+        text = source.read_text(encoding="utf-8")
+        assert not _PYTEST_ADDOPTS_ASSIGNMENT.search(text), (
+            f"{source.name} mentions PYTEST_ADDOPTS, which pytest applies to every "
+            "invocation and can deselect every gate it runs"
+        )
+
+    # The same function `scripts/quality_check.py` applies before it
+    # starts pytest - one rule, two callers. The gate has to refuse
+    # first, because a test cannot catch a configuration that stops
+    # tests from running: `addopts = "--collect-only"` makes this very
+    # file collect and not run, so this assertion would never execute.
+    offending = selection_affecting_addopts(
+        (repo_root / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    assert not offending, (
+        f"pyproject.toml's pytest addopts sets {offending}, which applies to every "
+        "pytest invocation in this repository and can empty every gate"
+    )
 
 
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:
@@ -1842,12 +2208,17 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     assert installer.stat().st_mode & 0o111
 
     installer_text = installer.read_text(encoding="utf-8")
-    active_lines = [
-        line.strip()
-        for line in installer_text.splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-    active_script = "\n".join(active_lines)
+    # Comments are stripped whole-line *and* trailing, so no assertion
+    # below can be satisfied by commented-out text. The previous
+    # version dropped only whole-line comments: replacing both real
+    # `cmake --build` invocations with `true # cmake --build --parallel`
+    # is valid shell, builds nothing, and left both of these tests
+    # passing. Echo lines are kept, because several assertions here are
+    # about messages this script prints; the ones that are about
+    # commands it runs go through `commands` below.
+    active_script, commands, invocations = _installer_views(
+        installer_text, str(installer.relative_to(repo_root))
+    )
 
     recursive = _recursive_delete(active_script)
     assert not recursive, f"this installer recursively deletes something: {recursive!r}"
@@ -1859,9 +2230,9 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     assert "LCG_105" not in active_script
 
     assert 'scientific_setup="$repo_root/scripts/setup_buildAndFit.sh"' in active_script
-    assert "--system-site-packages" in active_script
-    assert "--no-deps" in active_script
-    assert "--no-build-isolation" in active_script
+    assert "--system-site-packages" in commands
+    assert "--no-deps" in commands
+    assert "--no-build-isolation" in commands
     assert '"$pybh_source"' in active_script
 
     assert 'if [[ -e "$pybh_environment" ]]; then' in active_script
@@ -1883,7 +2254,7 @@ def test_pybumphunter_installer_is_non_destructive_and_reproducible() -> None:
     for required_import in required_imports:
         assert required_import in active_script
 
-    assert '"$environment_python" "$find_bh_window" --help' in active_script
+    assert '"$environment_python" "$find_bh_window" --help' in commands
 
 
 def test_install_script_is_non_destructive() -> None:
@@ -1894,12 +2265,17 @@ def test_install_script_is_non_destructive() -> None:
     assert installer.stat().st_mode & 0o111
 
     installer_text = installer.read_text(encoding="utf-8")
-    active_lines = [
-        line.strip()
-        for line in installer_text.splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-    active_script = "\n".join(active_lines)
+    # Comments are stripped whole-line *and* trailing, so no assertion
+    # below can be satisfied by commented-out text. The previous
+    # version dropped only whole-line comments: replacing both real
+    # `cmake --build` invocations with `true # cmake --build --parallel`
+    # is valid shell, builds nothing, and left both of these tests
+    # passing. Echo lines are kept, because several assertions here are
+    # about messages this script prints; the ones that are about
+    # commands it runs go through `commands` below.
+    active_script, commands, invocations = _installer_views(
+        installer_text, str(installer.relative_to(repo_root))
+    )
 
     recursive = _recursive_delete(active_script)
     assert not recursive, f"this installer recursively deletes something: {recursive!r}"
@@ -1914,7 +2290,6 @@ def test_install_script_is_non_destructive() -> None:
     # its name, so searching `active_script` proved nothing. Replacing
     # every real `run_check` call with an echo left this test passing
     # until this was changed.
-    invocations = _shell_invocation_lines(installer_text)
 
     assert "--check" in active_script
     assert "run_check" in invocations
@@ -1937,9 +2312,9 @@ def test_install_script_is_non_destructive() -> None:
     assert 'install_jobs_value="${INSTALL_JOBS:-4}"' in active_script
     assert "INSTALL_JOBS must be a positive integer" in active_script
 
-    assert 'mkdir -p "$build_dir"' in active_script
-    assert "cmake --build" in active_script
-    assert "--parallel" in active_script
+    assert 'mkdir -p "$build_dir"' in commands
+    assert "cmake --build" in commands
+    assert "--parallel" in commands
 
     assert "cmake --install" not in installer_text
     assert "CMAKE_INSTALL_PREFIX=/usr/local" not in installer_text
