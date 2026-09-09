@@ -668,6 +668,76 @@ _GLUED_SHORT_OPTION = re.compile(r"(?<!\S)-[km](?=[^\s=])")
 _COLLECT_ONLY = re.compile(r"(?<!\S)(?:--collect-only|--co)(?!\S)")
 
 
+# Options that consume the word after them, so that word is a value
+# and not a test path. Without this, `--deselect tests/x.py::y` would
+# be read as the invocation *selecting* x.py::y.
+_VALUE_TAKING_OPTIONS = (
+    "-k",
+    "-m",
+    "-p",
+    "-n",
+    "-o",
+    "--deselect",
+    "--ignore",
+    "--ignore-glob",
+    "--maxfail",
+    "--rootdir",
+    "--junitxml",
+    "--override-ini",
+)
+
+
+def _pytest_positional_arguments(line: str) -> list[str]:
+    """The words a pytest command line passes as test paths."""
+    words = [word.strip("\"'") for word in _pytest_arguments(line).split()]
+    positional: list[str] = []
+    skip = False
+    for word in words:
+        if skip:
+            skip = False
+            continue
+        if word.startswith("-"):
+            skip = word in _VALUE_TAKING_OPTIONS
+            continue
+        positional.append(word)
+    return positional
+
+
+def _file_references(line: str, test_file: str) -> list[str]:
+    """Every positional argument on this line that refers to `test_file`."""
+    target = f"tests/{test_file}"
+    return [
+        argument
+        for argument in _pytest_positional_arguments(line)
+        if argument == target or argument.startswith(f"{target}::")
+    ]
+
+
+def _selects_whole_file(line: str, test_file: str, test_name: str) -> bool:
+    """True when this line reaches `test_name` at all.
+
+    A pytest argument can name a single test rather than a file -
+    `tests/test_pre_fit.py::test_one` - and then only that test runs
+    from it. The coverage checks pick their lines by looking for the
+    filename, and a node id contains the filename, so a gate narrowed
+    this way looked fully covered: naming one node id took
+    `tests/test_pre_fit.py` from two dependency-marked tests to one and
+    both coverage tests still passed. Measured. This is the positional
+    spelling of the "node selectors" the `--deselect` check already
+    rejects.
+
+    Requiring a real positional reference also means a line that
+    mentions the file *only* in an option value - `--deselect
+    tests/test_pre_fit.py` - is correctly not treated as running it.
+    """
+    references = _file_references(line, test_file)
+    if not references:
+        return False
+    if any("::" not in reference for reference in references):
+        return True
+    return any(test_name in reference.split("::")[1:] for reference in references)
+
+
 def _deselects_test(line: str, test_file: str, test_name: str) -> bool:
     """True when a `--deselect` on this line removes the mapped test.
 
@@ -754,6 +824,8 @@ def _filters_keep_test(line: str, test_file: str, test_name: str, markers: set[s
     """
     arguments = _pytest_arguments(line)
     if _COLLECT_ONLY.search(arguments) or _GLUED_SHORT_OPTION.search(arguments):
+        return False
+    if not _selects_whole_file(line, test_file, test_name):
         return False
     if _deselects_test(line, test_file, test_name):
         return False
@@ -1903,6 +1975,21 @@ def test_gate_coverage_rejects_a_disabled_or_narrowed_gate() -> None:
                 vetoed, f"a gate script with {veto}", non_pytest_sentinel=sentinel
             )
 
+    # The gate narrowed by naming a node id instead of the file. The
+    # file's name is still right there, which is how the coverage
+    # checks pick their lines, so this one is invisible to a filename
+    # search by construction.
+    node_id = script.replace(
+        "          tests/test_pre_fit.py \\\n",
+        f"          tests/test_pre_fit.py::{one_test} \\\n",
+        1,
+    )
+    assert node_id != script
+    with pytest.raises(AssertionError, match="does not actually run these"):
+        _assert_covers_every_dependency_marked_test(
+            node_id, "a gate script naming one node id", non_pytest_sentinel=sentinel
+        )
+
 
 def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
     """`-k` and `-m` are not the only ways to remove a test.
@@ -1950,6 +2037,51 @@ def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
     assert not keeps("--co")
     # not to be confused with an option that merely starts the same way
     assert keeps("--color=yes")
+
+    # A node id in place of the file: only the named test runs from it.
+    # This is the positional spelling of a node selector, and it was
+    # missed when the --deselect spelling was fixed - naming one node id
+    # took this file from two marked tests to one and both coverage
+    # tests still passed.
+    node = f"python -m pytest tests/{test_file}::{test_name}"
+    assert _filters_keep_test(node, test_file, test_name, markers)
+    assert not _filters_keep_test(
+        f"python -m pytest tests/{test_file}::a_different_test",
+        test_file,
+        test_name,
+        markers,
+    )
+    # A class-qualified node id still names the test.
+    assert _filters_keep_test(
+        f"python -m pytest tests/{test_file}::SomeClass::{test_name}",
+        test_file,
+        test_name,
+        markers,
+    )
+    # Naming the file bare alongside a node id keeps the whole file.
+    assert _filters_keep_test(
+        f"python -m pytest tests/{test_file}::a_different_test tests/{test_file}",
+        test_file,
+        test_name,
+        markers,
+    )
+    # The file mentioned only inside an option value is not the file
+    # being run - which is why option values are skipped before the
+    # positional arguments are read. `--ignore` is the case that
+    # isolates that skipping: the `--deselect` spelling is caught by
+    # the deselect check as well, so it does not prove this on its own.
+    assert not _filters_keep_test(
+        f"python -m pytest tests/other.py --ignore tests/{test_file}",
+        test_file,
+        test_name,
+        markers,
+    )
+    assert not _filters_keep_test(
+        f"python -m pytest tests/other.py --deselect tests/{test_file}",
+        test_file,
+        test_name,
+        markers,
+    )
 
     # a glued short option cannot be read, so it is not proof
     assert not keeps("-knothing")

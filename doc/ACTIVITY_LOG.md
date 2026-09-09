@@ -12431,3 +12431,64 @@ the command line, which it always is in these gates (18 tests before,
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Reject a node id in place of a filename, the one half of Copilot's "node selectors" that the previous commit missed
+
+### Objective
+
+Re-reading the fifteenth review's own words against what was actually
+implemented. Its second finding asked for `-k` "and node selectors" to
+be validated. The previous commit implemented the `--deselect`
+spelling and treated the finding as closed. It is not the only
+spelling.
+
+### The gap, measured
+
+A pytest argument can name a single test instead of a file:
+
+```
+tests/test_pre_fit.py::test_fit_raises_indexerror_for_npars_above_seven_with_default_ranges
+```
+
+That took `tests/test_pre_fit.py` from two dependency-marked tests to
+one. Both coverage tests passed. This one is invisible to the previous
+checks by construction: they pick the lines to examine by looking for
+the filename, and a node id *contains* the filename.
+
+### What changed
+
+- `_selects_whole_file()` requires a real positional reference to the
+  test's file, and when every reference is a node id, the mapped test
+  has to be one of the tests named. Class-qualified node ids count, and
+  a bare filename alongside a node id still selects the whole file.
+- `_pytest_positional_arguments()` skips the values of options that
+  consume the following word, so the file named inside `--deselect
+  tests/x.py` or `--ignore tests/x.py` is no longer read as the
+  invocation *selecting* that file. A line that mentions the file only
+  in an option value now correctly counts as not running it.
+
+### Verification performed
+
+- The node-id narrowing sabotaged into the real `run_all_gates.sh`:
+  passed before, fails now.
+- The whole earlier battery re-run against the real script to confirm
+  nothing regressed - `--collect-only`, `--co`, `--deselect` by file
+  and by node id (both spellings), `-knothing`, a narrowing `-k`, an
+  unsatisfiable `-m` term, and a negated `-m`. Nine attacks, nine
+  failures, baseline clean.
+- Both new behaviours reverted individually and confirmed to fail a
+  committed test. The first attempt at pinning the option-value
+  skipping did not: the `--deselect` case it used is caught by the
+  deselect check as well, so it passed with the skipping removed.
+  `--ignore` isolates it, and that case is what pins it now.
+- `python scripts/quality_check.py --mode full`: 242 collected, 222
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. No test added or removed, so the documented figures are
+  unchanged.
+- Under the LCG Python 3.9.12: 2 passed for the extended tests, 2
+  passed for the prepared-dependency gate.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.
