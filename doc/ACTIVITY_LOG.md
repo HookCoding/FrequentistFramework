@@ -13164,3 +13164,83 @@ now at column 0, the way bash requires and every real script writes it.
   passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
   0. Existing tests extended rather than added, so the documented
   figures are unchanged.
+
+## 2026-09-09 — Fourth audit pass: the always-false guard was applied to four of six sources, and the wiring check read the wrong order
+
+Two findings, both of them Copilot comments applied as a class to the
+code written in answer to those same comments.
+
+### The guard rule reached four of the six real sources
+
+Copilot's suppressed comment at `tests/test_repo_utils.py:917` said the
+always-false-guard check was applied to the pre-commit hook and to
+neither gate source, so wrapping a gate's pytest command in
+`if false; then ... fi` left the coverage tests passing. The gate
+sources were fixed. Sweeping the same rule across every reader shows it
+was never applied to the other two:
+
+- `.github/workflows/tier1-root-comparison.yml`, whose `run:` block
+  carries the entire lightweight quality gate. Confirmed by sabotage
+  against the real file: both of its commands wrapped in
+  `if false; then ... fi`, and
+  `test_ci_runs_locked_lightweight_full_gate` passed.
+- `scripts/install_git_hooks.sh`. Confirmed the same way: its
+  `git config core.hooksPath .githooks` guarded, and both assertions
+  about that command passed while the mandatory local hook is never
+  installed.
+
+Rather than add the call in two more places, every real source now goes
+through one reader, `_gate_commands(text, description)`, which applies
+the guard once. This is the third time a rule has been present in one
+reader and absent in its sibling - the two pytest filter checks, the
+heredoc rule, and now this - so it is also pinned structurally:
+`test_every_real_source_is_read_through_the_guarded_reader` parses this
+test file with `ast` and refuses any new caller of
+`_executable_command_lines()` that is not on a named list. Adding a
+reader now fails until someone decides about the guard, instead of
+relying on remembering.
+
+### The wiring check compared positions in a breadth-first walk
+
+`test_the_lightweight_gate_applies_its_own_pytest_config_refusal` read
+`_run_fast_checks()`'s calls with `ast.walk()` and compared their
+positions in that walk. `ast.walk()` is breadth-first, not source
+order, so a shallower call reads as earlier however late it really is.
+Measured on synthetic source: with pytest started inside a conditional
+above the refusal - the exact order the check exists to forbid - the
+walk reported the refusal first and the assertion passed.
+
+It now reads the function's own statements in order, and requires the
+refusal to be a plain expression statement rather than anything
+conditional: it has to run every time, before the first statement that
+reaches `run_command`.
+
+### A candidate checked and rejected
+
+`effective_pytest_config_file()` was re-measured against real pytest
+on nine configuration layouts, including the four it had not been
+measured on: `tox.ini` with and without `[pytest]` beside a `setup.cfg`
+carrying `[tool:pytest]`, a `pyproject.toml` with no `ini_options`
+beside a `tox.ini` that has `[pytest]`, and `setup.cfg` alone. It
+agrees with pytest on all of them.
+
+The one divergence is an unparseable `pyproject.toml`: pytest exits 4
+with `ERROR: ...: Invalid value`, while the gate raises
+`TOMLDecodeError`. Both refuse loudly and neither can report a clean
+pass, so this is left as it is rather than given a separate error path -
+recorded because it was checked, not because it is a defect.
+
+### Verification performed
+
+- Both real sources sabotaged and restored: each is now rejected where
+  it passed before.
+- Four sabotages of the fix itself, each confirmed to fail and then to
+  pass when restored: the guard removed from the shared reader, each of
+  the two sources routed back around it, and the ordering check
+  returned to `ast.walk()` positions.
+- `python scripts/quality_check.py --mode full`: 248 collected, 228
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. The documented figures in `doc/TIER1_SYSTEM.md`,
+  `doc/TIER2_SYSTEM.md`, `doc/TIER3_SYSTEM.md` and
+  `doc/TIER1_ENVIRONMENT_PROVENANCE.md` are updated to match, and the
+  prepared-dependency gate to 44 collected, 2 passed, 42 deselected.

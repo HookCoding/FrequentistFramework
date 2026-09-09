@@ -613,7 +613,9 @@ def test_ci_runs_locked_lightweight_full_gate() -> None:
     # `name:`, because a YAML key is not an output-only command and
     # survives every shell-level filter. Same defect class as the
     # gate-coverage tests below.
-    commands = _executable_command_lines(_workflow_run_block_lines(workflow))
+    commands = _gate_commands(
+        _workflow_run_block_lines(workflow), ".github/workflows/tier1-root-comparison.yml"
+    )
     assert "python -m pip install -r requirements-dev-lock.txt" in commands
     assert "python scripts/quality_check.py --mode full" in commands
 
@@ -660,8 +662,7 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
     # Commenting the whole scientific gate out of this hook used to leave
     # this test passing - a false all-clear on the repository's mandatory
     # local gate. Same defect class as the two gate-coverage tests below.
-    hook_commands = _executable_command_lines(hook_text)
-    _assert_no_always_false_guard(hook_commands, ".githooks/pre-commit")
+    hook_commands = _gate_commands(hook_text, ".githooks/pre-commit")
     assert "scripts/quality_check.py --mode full" in hook_commands
     assert "setup_buildAndFit.sh" in hook_commands
 
@@ -688,7 +689,7 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
         "selected"
     )
 
-    installer_commands = _executable_command_lines(installer_text)
+    installer_commands = _gate_commands(installer_text, "scripts/install_git_hooks.sh")
     assert "core.hooksPath" in installer_commands
     assert ".githooks" in installer_commands
 
@@ -1129,8 +1130,7 @@ def _installer_views(installer_text: str, description: str) -> tuple[str, str, s
     `echo "cmake --build"`, and guarding `run_build()`'s whole body -
     each valid shell, each building nothing.
     """
-    commands = _executable_command_lines(installer_text)
-    _assert_no_always_false_guard(commands, description)
+    commands = _gate_commands(installer_text, description)
     return (
         _uncommented_lines(installer_text),
         commands,
@@ -1193,6 +1193,35 @@ def _invocation_runs_test(
     if _pytest_option_value(line, designated_option) is None:
         return False
     return _filters_keep_test(line, test_file, test_name, markers)
+
+
+def _gate_commands(text: str, source_description: str) -> str:
+    """The commands one real gate or installer source runs, with the
+    always-false guard refused here rather than by each caller.
+
+    `if false; then ... fi` leaves every character of a command on the
+    page while running none of it, so a reader that only extracts
+    commands cannot see it and every "this file runs X" assertion still
+    passes. Copilot raised that as a rule applied to the pre-commit
+    hook and to neither gate source; the gate sources were fixed, and
+    the same drift then survived in the two readers nobody swept:
+
+    - `.github/workflows/tier1-root-comparison.yml`, whose run block
+      carries the entire lightweight quality gate. Confirmed by
+      sabotage: wrapping both of its commands in `if false; then ... fi`
+      left `test_ci_runs_locked_lightweight_full_gate` passing.
+    - `scripts/install_git_hooks.sh`. Confirmed the same way: guarding
+      its `git config core.hooksPath .githooks` left both assertions
+      about it passing while the mandatory local hook is never
+      installed.
+
+    So it is one function every real source goes through, for the same
+    reason the heredoc rule and the two pytest filter checks were each
+    merged after drifting apart.
+    """
+    commands = _executable_command_lines(text)
+    _assert_no_always_false_guard(commands, source_description)
+    return commands
 
 
 def _assert_no_always_false_guard(commands: str, source_description: str) -> None:
@@ -1496,7 +1525,7 @@ def _assert_covers_every_dependency_marked_test(
     # that since it was found there; these two never did. Confirmed by
     # sabotage: wrapping run_all_gates.sh's whole scientific gate in a
     # multiline `if false` left both of these tests passing.
-    _assert_no_always_false_guard(_executable_command_lines(raw_text), source_description)
+    _gate_commands(raw_text, source_description)
 
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = repo_root / "tests"
@@ -2906,6 +2935,29 @@ def test_the_disabling_detectors_actually_detect(tmp_path: Path) -> None:
     # A different tool's addopts is not pytest's.
     assert selection_affecting_addopts('[tool.other]\naddopts = "-k nothing"\n') == []
 
+    # The always-false guard, through the one reader every real source
+    # goes through. Both of these were live: the lightweight CI gate's
+    # run block and the git-hook installer were the two readers the
+    # rule had never been applied to, and each sabotage below left the
+    # test that reads that source passing.
+    guarded_workflow = (
+        "if false; then\n"
+        "python -m pip install -r requirements-dev-lock.txt\n"
+        "python scripts/quality_check.py --mode full\n"
+        "fi\n"
+    )
+    with pytest.raises(AssertionError, match="guards a command with"):
+        _gate_commands(guarded_workflow, "a guarded workflow run block")
+
+    guarded_hook_installer = "if false; then\n    git config core.hooksPath .githooks\nfi\n"
+    with pytest.raises(AssertionError, match="guards a command with"):
+        _gate_commands(guarded_hook_installer, "a guarded hook installer")
+
+    # ...and an unguarded source still yields its commands.
+    assert "core.hooksPath" in _gate_commands(
+        "git config core.hooksPath .githooks\n", "an ordinary hook installer"
+    )
+
 
 def test_pytest_reads_its_configuration_from_pyproject_and_nothing_else(
     tmp_path: Path,
@@ -2965,13 +3017,34 @@ def test_pytest_reads_its_configuration_from_pyproject_and_nothing_else(
     assert effective_pytest_config_file(tmp_path) is None
 
 
-def _called_function_names(function: ast.FunctionDef) -> list[str]:
-    """The plain function names one function body calls, in order."""
-    names = []
-    for node in ast.walk(function):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            names.append(node.func.id)
-    return names
+def _statement_calls(statement: ast.stmt) -> set[str]:
+    """Every plain-name function called anywhere inside one statement."""
+    return {
+        node.func.id
+        for node in ast.walk(statement)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+
+
+def _unconditional_call_index(function: ast.FunctionDef, name: str) -> int | None:
+    """Which of `function`'s own statements calls `name` outright.
+
+    A plain expression statement, so a call buried in a conditional
+    does not count - it has to run every time.
+    """
+    for index, statement in enumerate(function.body):
+        if isinstance(statement, ast.Expr) and name in _statement_calls(statement):
+            return index
+    return None
+
+
+def _first_call_index(function: ast.FunctionDef, name: str) -> int | None:
+    """Which of `function`'s own statements first calls `name`, however
+    deeply that call is nested inside the statement."""
+    for index, statement in enumerate(function.body):
+        if name in _statement_calls(statement):
+            return index
+    return None
 
 
 def test_the_lightweight_gate_applies_its_own_pytest_config_refusal() -> None:
@@ -2998,16 +3071,59 @@ def test_the_lightweight_gate_applies_its_own_pytest_config_refusal() -> None:
         "that tests/test_repo_utils.py checks the other side of"
     )
 
-    called = _called_function_names(functions["_run_fast_checks"])
-    assert "_ensure_pytest_config_runs_tests" in called, (
+    fast_checks = functions["_run_fast_checks"]
+    refusal = _unconditional_call_index(fast_checks, "_ensure_pytest_config_runs_tests")
+    starts_pytest = _first_call_index(fast_checks, "run_command")
+    assert refusal is not None, (
         "scripts/quality_check.py's _run_fast_checks() does not call "
-        "_ensure_pytest_config_runs_tests(), so pytest's own configuration is never "
-        "checked and addopts can empty every gate while the gate reports a pass"
+        "_ensure_pytest_config_runs_tests() outright, so pytest's own configuration is "
+        "never checked and addopts can empty every gate while the gate reports a pass"
     )
-    assert called.index("_ensure_pytest_config_runs_tests") < called.index("run_command"), (
+    assert starts_pytest is not None, (
+        "_run_fast_checks() no longer starts pytest through run_command(), so this "
+        "check can no longer tell whether the refusal comes first"
+    )
+    assert refusal < starts_pytest, (
         "_run_fast_checks() starts pytest before checking pytest's configuration; the "
         "refusal has to come first or the run it is meant to prevent has already happened"
     )
+
+    # The two wirings this ordering check has to reject, pinned on
+    # synthetic source. Both were accepted by the first version, which
+    # read the calls with `ast.walk()` and compared their positions in
+    # that walk: `ast.walk()` is breadth-first, not source order, so a
+    # shallower call reads as earlier however late it really is.
+    wrong = {
+        # pytest started inside a conditional above the refusal, which
+        # is the real order this check exists to forbid
+        "pytest started before the refusal": (
+            "def _run_fast_checks(repo_root):\n"
+            '    if mode == "full":\n'
+            '        run_command(["python", "-m", "pytest"])\n'
+            "    _ensure_pytest_config_runs_tests(repo_root)\n"
+        ),
+        # the refusal present but conditional, so it need not run
+        "refusal buried in a conditional": (
+            "def _run_fast_checks(repo_root):\n"
+            "    if repo_root:\n"
+            "        _ensure_pytest_config_runs_tests(repo_root)\n"
+            '    run_command(["python", "-m", "pytest"])\n'
+        ),
+    }
+    for description, source in wrong.items():
+        function = ast.parse(source).body[0]
+        index = _unconditional_call_index(function, "_ensure_pytest_config_runs_tests")
+        starts = _first_call_index(function, "run_command")
+        assert index is None or starts is None or index >= starts, description
+
+    # ...and the real wiring, read the same way, is accepted.
+    right = ast.parse(
+        "def _run_fast_checks(repo_root):\n"
+        "    _ensure_pytest_config_runs_tests(repo_root)\n"
+        '    run_command(["python", "-m", "pytest"])\n'
+    ).body[0]
+    assert _unconditional_call_index(right, "_ensure_pytest_config_runs_tests") == 0
+    assert _first_call_index(right, "run_command") == 1
 
 
 # Test files the lightweight gate deliberately does not run, each named
@@ -3017,6 +3133,57 @@ def test_the_lightweight_gate_applies_its_own_pytest_config_refusal() -> None:
 _TEST_FILES_RUN_BY_ANOTHER_GATE = {
     "test_analysis_workflows_integration.py": "the scientific gates in scripts/run_all_gates.sh",
 }
+
+
+# Where `_executable_command_lines()` may be called from directly.
+# Everything that reads a *real* gate or installer source goes through
+# `_gate_commands()` instead, so the always-false guard is applied once
+# for all of them. This rule has now been broken twice - the pre-commit
+# hook had the guard and the gate sources did not, then the gate
+# sources had it and the lightweight CI workflow and the hook installer
+# did not - so it is pinned structurally rather than by remembering.
+_UNGUARDED_COMMAND_READERS = {
+    # the guarded reader itself, and the call-site view built on it
+    "_gate_commands",
+    "_shell_invocation_lines",
+    # regression tests for the readers' own contracts, on synthetic text
+    "test_executable_command_lines_ignores_comments_and_echoes",
+    "test_a_command_printed_by_a_heredoc_is_not_a_command_that_runs",
+    "test_a_command_inside_an_uncalled_function_is_not_a_command_that_runs",
+    "test_a_trailing_comment_is_not_part_of_the_command",
+}
+
+
+def test_every_real_source_is_read_through_the_guarded_reader() -> None:
+    """No new caller can quietly skip the always-false guard.
+
+    A reader that extracts commands cannot see `if false; then ... fi`:
+    every character of the command stays on the page. So each new place
+    that reads a real source has to decide about the guard, and the way
+    to force that decision is to make adding a caller fail here.
+    """
+    this_file = Path(__file__)
+    module = ast.parse(this_file.read_text(encoding="utf-8"))
+
+    callers = set()
+    for node in ast.walk(module):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if "_executable_command_lines" in _statement_calls(node):
+            callers.add(node.name)
+
+    unexpected = sorted(callers - _UNGUARDED_COMMAND_READERS)
+    assert not unexpected, (
+        f"{unexpected} call _executable_command_lines() directly. If any of them reads "
+        "a real gate or installer source, use _gate_commands() so the always-false "
+        "guard is applied; if it really is synthetic text, add it to "
+        "_UNGUARDED_COMMAND_READERS deliberately"
+    )
+    stale = sorted(_UNGUARDED_COMMAND_READERS - callers)
+    assert not stale, (
+        f"_UNGUARDED_COMMAND_READERS names {stale}, which no longer call "
+        "_executable_command_lines() - drop them so this list keeps meaning something"
+    )
 
 
 def test_every_test_file_is_registered_with_a_gate() -> None:
