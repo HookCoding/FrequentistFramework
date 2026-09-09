@@ -3572,8 +3572,8 @@ def _unconditional_call_index(function: ast.FunctionDef, name: str) -> int | Non
 
 
 def _callers_of(module: ast.Module, name: str) -> set[str]:
-    """Every function in `module` that calls `name`, and `"<module>"` if
-    any call is not inside a function at all.
+    """Every function in `module` that uses `name`, and `"<module>"` if
+    any use is not inside a function at all.
 
     Walking the function definitions alone missed a call at module
     scope entirely: a module-level `COMMANDS =
@@ -3582,21 +3582,39 @@ def _callers_of(module: ast.Module, name: str) -> set[str]:
     inside a nested function is attributed to that nested function, so
     it has to be named deliberately too rather than hiding behind the
     name of whatever encloses it.
+
+    Naming the reader counts as using it, not only calling it:
+    `list(map(_executable_command_lines, sources))` hands every real
+    source to the unguarded reader, and `reader =
+    _executable_command_lines` followed by `reader(text)` does the
+    same, while neither writes a call whose callee is that name. Both
+    left the check below reporting no callers at all - a check that
+    passes because the use was spelled differently.
+
+    A decorator, a default argument and an annotation are evaluated
+    where the function is defined rather than when it is called, so a
+    use in one of those is attributed to the enclosing scope. Otherwise
+    exempting the decorated function's own name in
+    `_UNGUARDED_COMMAND_READERS` would exempt a read that happens at
+    import time, which is the exemption hiding the case it exempts.
     """
     callers: set[str] = set()
 
     def visit(node: ast.AST, enclosing: str) -> None:
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                visit(child, child.name)
-                continue
-            if (
-                isinstance(child, ast.Call)
-                and isinstance(child.func, ast.Name)
-                and child.func.id == name
-            ):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for child in ast.iter_child_nodes(node):
+                visit(child, node.name if child in node.body else enclosing)
+            return
+        called: ast.AST | None = None
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id == name:
                 callers.add(enclosing)
-            visit(child, enclosing)
+                called = node.func
+        elif isinstance(node, ast.Name) and node.id == name:
+            callers.add(enclosing)
+        for child in ast.iter_child_nodes(node):
+            if child is not called:
+                visit(child, enclosing)
 
     visit(module, "<module>")
     return callers
@@ -3732,14 +3750,14 @@ def test_every_real_source_is_read_through_the_guarded_reader() -> None:
 
     unexpected = sorted(callers - _UNGUARDED_COMMAND_READERS)
     assert not unexpected, (
-        f"{unexpected} call _executable_command_lines() directly. If any of them reads "
+        f"{unexpected} use _executable_command_lines() directly. If any of them reads "
         "a real gate or installer source, use _gate_commands() so the always-false "
         "guard is applied; if it really is synthetic text, add it to "
         "_UNGUARDED_COMMAND_READERS deliberately"
     )
     stale = sorted(_UNGUARDED_COMMAND_READERS - callers)
     assert not stale, (
-        f"_UNGUARDED_COMMAND_READERS names {stale}, which no longer call "
+        f"_UNGUARDED_COMMAND_READERS names {stale}, which no longer use "
         "_executable_command_lines() - drop them so this list keeps meaning something"
     )
 
@@ -3770,6 +3788,38 @@ def test_the_guarded_reader_check_sees_a_call_outside_every_function() -> None:
     assert _callers_of(nested, "_executable_command_lines") == {"inner"}
 
     assert _callers_of(ast.parse("x = 1\n"), "_executable_command_lines") == set()
+
+
+def test_the_guarded_reader_check_sees_a_use_that_is_not_a_call() -> None:
+    """Naming the reader hands it a source just as calling it does.
+
+    Looking for calls alone reported no callers at all for either
+    spelling below, so a real source could be read with no guard
+    applied while the check above passed - a check that misses the form
+    rather than the rule. A decorator and a default argument run where
+    the function is defined, so a use in one of those belongs to the
+    enclosing scope; attributing it to the decorated function would let
+    that function's entry in `_UNGUARDED_COMMAND_READERS` exempt a read
+    that happens at import time.
+    """
+    for source, description in (
+        ("SOURCES = list(map(_executable_command_lines, real_sources))\n", "passed by name"),
+        ("reader = _executable_command_lines\n", "aliased"),
+        (
+            "@pytest.mark.parametrize('c', _executable_command_lines(SRC))\n"
+            "def test_x(c):\n    pass\n",
+            "in a decorator",
+        ),
+        ("def test_x(cmds=_executable_command_lines(SRC)):\n    pass\n", "in a default"),
+    ):
+        callers = _callers_of(ast.parse(source), "_executable_command_lines")
+        assert callers == {"<module>"}, description
+
+    # A plain call inside a function is still that function's.
+    assert _callers_of(
+        ast.parse("def go():\n    _executable_command_lines(text)\n"),
+        "_executable_command_lines",
+    ) == {"go"}
 
 
 # How `doc/TIER3_SYSTEM.md` counts `python/repo_utils.py`'s public

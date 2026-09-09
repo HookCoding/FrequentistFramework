@@ -13644,3 +13644,52 @@ setting of its own. A block sequence's items are values, and stay.
   0. Documented figures updated across the four living documents, and
   the prepared-dependency gate to 53 collected, 2 passed, 51
   deselected.
+
+## 2026-09-09 — Naming the command reader is using it
+
+`_callers_of()` exists to force every new place that reads a real gate
+or installer source to decide about the always-false guard: adding a
+caller fails
+`test_every_real_source_is_read_through_the_guarded_reader` unless the
+caller is named in `_UNGUARDED_COMMAND_READERS` deliberately. It looked
+for calls, and only for calls, so two ways of handing the reader a real
+source reported no caller at all:
+
+    SOURCES = list(map(_executable_command_lines, real_sources))
+    reader = _executable_command_lines
+
+Neither writes a call whose callee is that name. Both read every source
+with the guard unapplied while the check reported nothing to decide
+about - a check that misses the form rather than the rule, which is the
+same shape as the block headers and the quoted keys in the entries
+above. Naming the reader now counts as using it.
+
+The same walk attributed a use in a decorator or a default argument to
+the function being defined, although both are evaluated where the
+function is defined rather than when it is called. That let the
+exemption list hide the case it exempts: naming a decorated test in
+`_UNGUARDED_COMMAND_READERS` would have exempted a read happening at
+import time. Definition-time uses are now attributed to the enclosing
+scope, which at module level is `<module>` - a name the exemption list
+does not contain.
+
+### Verification performed
+
+- Four spellings measured against the committed walk and the fixed one:
+  passed by name, aliased, used in a decorator, used in a default
+  argument. All four reported no caller before and `<module>` after,
+  and a plain call inside a function is still attributed to that
+  function.
+- Two sabotages, each confirmed to fail
+  `test_the_guarded_reader_check_sees_a_use_that_is_not_a_call` and to
+  pass when restored: the name detection removed, and the decorator
+  attributed to the decorated function again.
+- Every use of `_executable_command_lines()` in this file is a direct
+  call, so the widened rule adds no caller and
+  `_UNGUARDED_COMMAND_READERS` is unchanged - the fix closes a hole
+  without loosening anything.
+- `python scripts/quality_check.py --mode full`: 258 collected, 238
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented figures updated across the four living documents, and
+  the prepared-dependency gate to 54 collected, 2 passed, 52
+  deselected.
