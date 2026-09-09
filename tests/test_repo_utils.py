@@ -624,7 +624,12 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
             if header is not None:
                 # A block scalar under any other key. A bare `other:`
                 # is not one - it opens a mapping - so only an explicit
+                # `|` or `>` counts here. The key line itself stays
+                # configuration; only the body it opens is free text.
+                # Dropping the line as well hid a condition written as
+                # `if: >` from the refusal that exists to catch one.
                 block, block_key_column, block_is_run = [], key.start("quote"), False
+                other_lines.append(raw)
                 continue
         other_lines.append(raw)
 
@@ -1343,7 +1348,13 @@ _ARGUMENT_LIST_END = re.compile(r"[;&|<>\n]")
 # all, so a blanket rejection costs nothing today and fails loudly if
 # one is ever added - at which point this check has to be taught to
 # judge it rather than quietly widened.
-_YAML_CONDITION = re.compile(r"^\s*(?:-\s+)?if:\s*(.+?)\s*$", re.MULTILINE)
+# A step's or job's `if:`, whichever way the key is written. A quoted
+# key is the same key - `"if": false` is valid YAML that GitHub Actions
+# honours - and was missed here for exactly the reason `"run": |` was
+# missed by the block-scalar reader.
+_YAML_CONDITION = re.compile(
+    r"^\s*(?:-\s+)?(?P<quote>[\"']?)if(?P=quote):\s*(?P<condition>.+?)\s*$"
+)
 
 # pytest reads this environment variable and applies whatever it
 # contains to every invocation, so one line anywhere in a gate source
@@ -1353,8 +1364,23 @@ _PYTEST_ADDOPTS_ASSIGNMENT = re.compile(r"\bPYTEST_ADDOPTS\b")
 
 
 def _yaml_conditions(text: str) -> list[str]:
-    """Every `if:` condition in a workflow file."""
-    return [match.group(1) for match in _YAML_CONDITION.finditer(text)]
+    """Every `if:` condition in a workflow file.
+
+    Read from the configuration half of the split rather than from the
+    raw text, so the refusal that bounds the rest of this reader
+    applies here too. A step written as a flow mapping -
+    `- {name: s, if: false, run: cmd}` - carries its `if:` on a line
+    that is not an `if:` key, and this check reported no condition at
+    all for it while the step really was conditional and the gate
+    inside it really could be skipped. Refusing the form is the only
+    honest answer a line-based reader has; silently reporting no
+    condition is not.
+    """
+    return [
+        match.group("condition")
+        for line in _yaml_config_lines(text).splitlines()
+        if (match := _YAML_CONDITION.match(line))
+    ]
 
 
 def _installer_views(installer_text: str, description: str) -> tuple[str, str, str]:
@@ -2236,12 +2262,49 @@ def test_a_block_scalar_under_another_key_is_neither_commands_nor_config() -> No
     # has not simply thrown the step away.
     assert any("actions/github-script" in line for line in config_lines)
 
+    # The block scalar's own key line is still configuration: only the
+    # body it opens is free text.
+    assert any("script: |" in line for line in config_lines)
+
     # A bare key with no block indicator opens a mapping, not a block
     # scalar, so what follows it is still read as configuration.
     _run, mapping_config = _workflow_lines(
         "      - name: A step\n" "        with:\n" '          python-version: "3.12.13"\n'
     )
     assert any('python-version: "3.12.13"' in line for line in mapping_config)
+
+
+def test_a_conditional_step_is_recognised_however_it_is_written() -> None:
+    """A condition can disable a gate, so no spelling of one may hide.
+
+    The detector read the workflow's raw text and matched a line-initial
+    `if:` only, so two valid spellings of a really conditional step
+    reported no condition at all: a flow mapping, whose `if:` shares a
+    line with the rest of the step, and a quoted `"if":` key - the same
+    two forms that hid a `run:` block from the command half. Reading
+    the configuration half instead of the raw text is what brings the
+    flow mapping under the refusal, rather than leaving it silently
+    unseen.
+    """
+    conditional = "steps:\n  - name: s\n    if: false\n    run: make test\n"
+    assert _yaml_conditions(conditional) == ["false"]
+
+    for quoted in ('"if"', "'if'"):
+        step = f"steps:\n  - name: s\n    {quoted}: false\n    run: make test\n"
+        assert _yaml_conditions(step) == ["false"], quoted
+
+    # A condition written as a block scalar still shows up, which is why
+    # the key line of a block scalar stays in the configuration half.
+    folded = "steps:\n  - name: s\n    if: >\n      false\n    run: make test\n"
+    assert _yaml_conditions(folded) == [">"]
+
+    # The flow mapping is refused rather than reported as unconditional.
+    with pytest.raises(AssertionError, match="does not model"):
+        _yaml_conditions("steps:\n  - {name: s, if: false, run: make test}\n")
+
+    # An unconditional workflow still reports nothing, so the detector
+    # has not simply become noisy.
+    assert _yaml_conditions("steps:\n  - name: s\n    run: make test\n") == []
 
 
 def test_pytest_command_lines_ignores_echoed_commands() -> None:

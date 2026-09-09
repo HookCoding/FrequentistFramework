@@ -13693,3 +13693,75 @@ does not contain.
   0. Documented figures updated across the four living documents, and
   the prepared-dependency gate to 54 collected, 2 passed, 52
   deselected.
+
+## 2026-09-09 — The conditional-step check was a second workflow reader
+
+`_yaml_conditions()` refuses a workflow that makes a step or job
+conditional, because a condition can skip a gate while every command
+stays on the page. It read the workflow's raw text with a line-anchored
+`if:` pattern, and so was a second reader of the same file that never
+went through the split - which meant the refusal drawn two entries ago
+never applied to it. Three spellings of a really conditional step were
+invisible to it, all three confirmed with PyYAML 6.0.3 to load with a
+real `if` key:
+
+    - {name: s, if: false, run: make test}
+      "if": false
+      'if': false
+
+The flow mapping is the same form the split refuses; read as raw text
+it simply reported no condition. The two quoted keys are the same key,
+missed here for exactly the reason `"run": |` was missed by the
+block-scalar reader - the finding that produced its own entry above,
+unapplied to this pattern because nothing had looked at this pattern
+since.
+
+The detector now reads the configuration half of the split, so the
+refusal reaches it and a flow mapping fails loudly instead of being
+reported as unconditional, and it accepts a quoted `if:` key.
+
+Making that change exposed one more swallow in the split itself: a
+block scalar under a key other than `run:` had its key line dropped
+along with its body. Only the body is free text - the key is
+configuration - and with the key gone a condition written as `if: >`
+would have disappeared from the very check being wired up here. The key
+line now stays in the configuration half.
+
+### Verification performed
+
+- Six spellings of a condition measured against the committed detector
+  and the fixed one: block style plain, both quoted keys, `if: >`,
+  `if: |`, and the flow mapping. The three that were invisible are now
+  reported or refused; the two block-scalar spellings still report, and
+  an unconditional workflow still reports nothing.
+- Three sabotages, each confirmed to fail exactly the intended test and
+  to pass when restored: the detector reading raw text again, and the
+  quoted key dropped, both fail
+  `test_a_conditional_step_is_recognised_however_it_is_written`; the
+  block scalar's key line dropped again fails that test and
+  `test_a_block_scalar_under_another_key_is_neither_commands_nor_config`.
+- Both real workflow files report no condition, before and after, and
+  their `run:` lines are still identical to PyYAML's.
+- Eight more block-header spellings checked for the opposite error, a
+  form read as a header that PyYAML does not accept: `|#note`, `| note`,
+  `|-+`, `|+-`, `|2 3`, `>>`, `|0` and `|9`. PyYAML rejects every one of
+  them outright, so a workflow written that way never runs and reading
+  it either way cannot mislead a check - the same conclusion reached for
+  `run:|` and a tab after the header, and the reason none of them is
+  worth further widening.
+- `python scripts/quality_check.py --mode full`: 259 collected, 239
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented figures updated across the four living documents, and
+  the prepared-dependency gate to 55 collected, 2 passed, 53
+  deselected.
+
+### On the seven passes so far
+
+Every pass has found defects in the code the previous pass added, and
+this one is no different: four of the eight defects fixed today are in
+the fixes committed yesterday, including the refusal that was meant to
+mark where the reader stops. That is not an argument against the
+passes - each defect was real, and two would have let a broken CI
+configuration report itself as correct - but it is an argument against
+reading any of these entries as a closing statement. The sweep is
+finished when a pass finds nothing. This one found eight.
