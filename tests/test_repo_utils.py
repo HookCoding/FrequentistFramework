@@ -105,44 +105,130 @@ def _executable_command_lines(text: str) -> str:
     return "\n".join(
         line
         for line in _outside_function_bodies(
-            _outside_heredoc_bodies(_join_continuations(_uncommented_lines(text))),
-            only_uncalled=True,
+            _join_continuations(_command_text(text)), only_uncalled=True
         )
         if line and not _OUTPUT_ONLY_COMMANDS.search(line)
     )
 
 
-_HEREDOC_OPENER = re.compile(r"<<-?\s*'?\"?([A-Za-z_][A-Za-z0-9_]*)'?\"?")
+# The delimiter word of a heredoc, read from just after the `<<`: an
+# optional `-` (which lets the terminator line be indented with tabs),
+# optional quotes around the word, then the word.
+_HEREDOC_DELIMITER = re.compile(r"(?P<dash>-?)\s*['\"]?(?P<word>[A-Za-z_][A-Za-z0-9_]*)['\"]?")
 
 
-def _outside_heredoc_bodies(lines: list[str]) -> list[str]:
-    """The logical lines that are not the body of a heredoc.
+def _heredoc_opener(line: str) -> tuple[str, bool] | None:
+    """The (delimiter, may-be-tab-indented) of a heredoc this line
+    opens, or None.
+
+    `<<` is a heredoc only where the shell reads it as one, and three
+    other constructs spell it the same way. Searching for `<<` anywhere
+    in the line counted all three, and each was measured:
+
+    - `<<<` is a here-string. Its operand is data on this same line,
+      not a body on the lines below, and `bc <<< 'scale=2; 30/1.015'`
+      is in this repository's own launcher scripts - read as a heredoc
+      named `scale`, whose delimiter never appears again.
+    - `<<` inside an arithmetic expansion is a left shift, so
+      `mask=$(( 1 << bits ))` opened a heredoc named `bits`.
+    - `<<` inside quotes is text: `echo "write it as <<STOP"`.
+
+    All three then hid every following line to the end of the file -
+    253 of `install.sh`'s 253 command lines - which leaves the
+    always-false-guard check with nothing to read and every "this file
+    runs X" assertion failing on valid shell. So the line is scanned
+    the way the shell reads it: quoted spans skipped, arithmetic
+    expansions skipped, and `<<<` distinguished from `<<`.
+    """
+    quote: str | None = None
+    arithmetic = 0
+    index = 0
+    while index < len(line):
+        if quote is not None:
+            if line[index] == quote:
+                quote = None
+            index += 1
+            continue
+        if line[index] in "\"'":
+            quote = line[index]
+            index += 1
+            continue
+        if line.startswith("((", index):
+            arithmetic += 1
+            index += 2
+            continue
+        if line.startswith("))", index) and arithmetic:
+            arithmetic -= 1
+            index += 2
+            continue
+        if line.startswith("<<", index):
+            if line.startswith("<<<", index):
+                index += 3
+                continue
+            match = None if arithmetic else _HEREDOC_DELIMITER.match(line, index + 2)
+            if match is not None:
+                return match.group("word"), bool(match.group("dash"))
+            index += 2
+            continue
+        index += 1
+    return None
+
+
+def _command_text(text: str) -> str:
+    """`text` with everything that is not part of a command removed:
+    comments, whole-line and trailing, and heredoc bodies.
 
     A heredoc body is data, not commands: `cat <<EOF` followed by a
     gate's own pytest command prints that command and runs nothing.
-    Every spelling behaves the same way and each was measured -
-    `<<EOF`, `<<'EOF'`, `<<"EOF"`, `<<-EOF`, a heredoc redirected into
-    a file, and one inside a workflow `run:` block.
+    Every spelling was measured - `<<EOF`, `<<'EOF'`, `<<"EOF"`,
+    `<<-EOF`, a heredoc redirected into a file, and one inside a
+    workflow `run:` block.
 
-    This started as part of `_executable_command_lines()` alone, which
-    left `_pytest_command_lines()` without it: all six spellings hid a
-    gate command from the coverage checks while the installer checks
-    caught them. That is the same drift that put the two filter checks
-    a review round apart, so it is one rule with two callers now.
+    These are one pass because the order they are applied in is itself
+    a correctness question, and applying them separately got it wrong
+    twice:
+
+    - a full-line comment has to go *before* heredoc openers are looked
+      for, or `# cat <<EOF` starts a heredoc and hides the rest of the
+      file;
+    - a body line has to be compared against its *raw* text, because
+      bash ends a body only at a line that is exactly the delimiter.
+      Measured: an indented `  EOF` does not end a `<<EOF` body, nor
+      does `EOF ` with a trailing space, and `<<-EOF` accepts leading
+      tabs but not leading spaces. So stripping a trailing comment
+      first would turn `EOF # done` into a terminator the shell does
+      not see;
+    - and the body has to be found before continuations are joined,
+      because joining strips the indentation that exact match needs.
+      The previous order joined first and compared `line.strip()`, so
+      an indented copy of the delimiter inside a body ended it early
+      and every line after it - a real pytest command among them - was
+      read back as a command the file runs.
+
+    Heredoc removal started in `_executable_command_lines()` alone,
+    which left `_pytest_command_lines()` without it: all six spellings
+    hid a gate command from the coverage checks while the installer
+    checks caught them. That is the same drift that put the two filter
+    checks a review round apart, so it is one rule with two callers.
     """
     kept: list[str] = []
     terminator: str | None = None
-    for line in lines:
+    tabs_may_indent = False
+    for raw in text.splitlines():
         if terminator is not None:
-            if line.strip() == terminator:
+            candidate = raw.lstrip("\t") if tabs_may_indent else raw
+            if candidate == terminator:
                 terminator = None
             continue
-        opener = _HEREDOC_OPENER.search(line)
-        if opener:
-            terminator = opener.group(1)
+        if raw.lstrip().startswith("#"):
+            continue
+        line = _strip_inline_comment(raw)
+        opener = _heredoc_opener(line)
+        if opener is not None:
+            terminator, tabs_may_indent = opener
             continue
         kept.append(line)
-    return kept
+    return "\n".join(kept)
 
 
 # A shell function definition in every form bash accepts: the POSIX
@@ -153,9 +239,17 @@ def _outside_heredoc_bodies(lines: list[str]) -> list[str]:
 # admitted here was first confirmed to be valid bash whose body runs
 # nothing; the earlier version of this pattern recognised only one of
 # them, which left three ways to hide a gate command in plain sight.
+#
+# `=` is excluded from the POSIX-form name and kept in the keyword
+# form, which is what bash accepts: `foo=bar() { :; }` is a syntax
+# error, `function foo=bar { :; }` defines a function. Allowing it in
+# both read an ordinary empty array initialisation - `built_targets=()`
+# - as a definition named `built_targets=`, which then took the
+# following line as the start of its body and dropped it; with the
+# keyword form on that line, it dropped a whole real function body.
 _SHELL_FUNCTION_DEFINITION = re.compile(
     r"^\s*(?:function\s+(?P<keyword_name>[^\s(){};&|<>]+)(?:\s*\(\s*\))?"
-    r"|(?P<name>[^\s(){};&|<>]+)\s*\(\s*\))\s*(?P<opener>[{(])?"
+    r"|(?P<name>[^\s(){};&|<>=]+)\s*\(\s*\))\s*(?P<opener>[{(])?"
 )
 _FUNCTION_BODY_CLOSERS = {"{": "}", "(": ")"}
 _QUOTED_SPAN = re.compile(r"'[^']*'|\"[^\"]*\"")
@@ -285,18 +379,29 @@ def _workflow_run_block_lines(text: str) -> str:
     carries no output-only command word, so it survives every filter
     and satisfies the search after the real `run:` command is deleted.
     Only `run:` contents are commands, so only they are returned.
+
+    A block scalar's own indentation is removed, because that is what
+    the shell is actually given: YAML strips it, so a `run: |` block
+    reaches bash at column 0. Keeping it mattered once heredoc bodies
+    began to be matched the way bash matches them - against the exact
+    delimiter line - since an indented `EOF` then never ended its
+    body and everything after it in the block vanished from the
+    commands these tests read.
     """
     kept: list[str] = []
     block_key_column: int | None = None
+    block_indent: int | None = None
     for raw in text.splitlines():
         if not raw.strip():
             continue
         indent = len(raw) - len(raw.lstrip())
         if block_key_column is not None:
             if indent > block_key_column:
-                kept.append(raw)
+                if block_indent is None:
+                    block_indent = indent
+                kept.append(raw[block_indent:] if indent >= block_indent else raw.lstrip())
                 continue
-            block_key_column = None
+            block_key_column, block_indent = None, None
         if re.match(r"\s*(?:-\s+)?run:", raw):
             inline = raw.split("run:", 1)[1].strip()
             if inline.strip("|>+-") == "":
@@ -1327,14 +1432,11 @@ def _pytest_command_lines(text: str) -> str:
     Lines inside a shell function body are dropped too, because a
     command in a function nothing calls never runs - see
     `_outside_function_bodies()`; so are heredoc bodies, because a
-    heredoc body is printed rather than run - see
-    `_outside_heredoc_bodies()`.
+    heredoc body is printed rather than run - see `_command_text()`.
     """
     return "\n".join(
         line
-        for line in _outside_function_bodies(
-            _outside_heredoc_bodies(_join_continuations(_uncommented_lines(text)))
-        )
+        for line in _outside_function_bodies(_join_continuations(_command_text(text)))
         if _PYTEST_INVOCATION.search(line)
     )
 
@@ -1483,7 +1585,7 @@ def test_executable_command_lines_ignores_comments_and_echoes() -> None:
         printf '%s\\n' "core.hooksPath"
         cat <<'EOF'
         scripts/quality_check.py --mode full
-        EOF
+EOF
     """
     assert _executable_command_lines(inert) == ""
 
@@ -2418,9 +2520,36 @@ def test_a_command_inside_an_uncalled_function_is_not_a_command_that_runs() -> N
         "command substitution in the command": """
             python -m pytest "$(dirname tests/x)/test_pre_fit.py" -m "marker" -v
         """,
+        # An empty array initialisation is not a function definition.
+        # Measured: `built_targets=()` initialises an array - `type
+        # built_targets` reports no such command - and bash rejects
+        # `foo=bar() { :; }` as a syntax error, so no POSIX-form
+        # function name can contain `=`. Read as a definition, it took
+        # the following line as the start of its body and dropped it.
+        "after an empty array initialisation": """
+            built_targets=()
+            python -m pytest tests/test_pre_fit.py -m "marker" -v
+        """,
     }
     for description, source in visible_forms.items():
         assert "test_pre_fit.py" in _pytest_command_lines(source), description
+
+    for initialisation in ("built_targets=()", "files=()", "declare -a targets=()"):
+        assert _SHELL_FUNCTION_DEFINITION.match(initialisation) is None, initialisation
+
+    # The same misreading immediately above a real function, where it
+    # stole that function's definition line and took its whole body as
+    # its own. Checked against the installer view, which is the one
+    # that keeps a *called* function's body: the gate view drops every
+    # body by design, so it cannot show this.
+    above_a_called_function = """
+        built_targets=()
+        function build_all {
+            cmake --build build --parallel
+        }
+        build_all
+    """
+    assert "cmake --build" in _executable_command_lines(above_a_called_function)
 
 
 def test_a_command_printed_by_a_heredoc_is_not_a_command_that_runs() -> None:
@@ -2463,6 +2592,58 @@ def test_a_command_printed_by_a_heredoc_is_not_a_command_that_runs() -> None:
     # which is what the shell does too.
     unterminated = "cat <<EOF\nusage text\n%s\n" % command
     assert _pytest_command_lines(unterminated) == ""
+
+    # The body ends only where bash ends it: at a line that is exactly
+    # the delimiter. Measured - an indented `  EOF` does not end a
+    # `<<EOF` body, and `EOF ` with a trailing space does not either.
+    # Reading the joined, stripped line ended the body at both, and
+    # then read the real command below it as a command this file runs.
+    for spelling in ("  EOF", "EOF "):
+        early = "cat <<EOF\nusage text\n%s\n%s\nEOF\n" % (spelling, command)
+        assert _pytest_command_lines(early) == "", spelling
+
+    # `<<-` is the one form where the terminator may be indented, and
+    # with tabs only: measured, a tab-indented terminator ends a
+    # `<<-EOF` body and a space-indented one does not.
+    assert _pytest_command_lines("cat <<-EOF\ntext\n\tEOF\n%s\n" % command) != ""
+    assert _pytest_command_lines("cat <<-EOF\ntext\n  EOF\n%s\n" % command) == ""
+
+    # Three constructs spell `<<` the same way and open no heredoc at
+    # all. Each was read as one, and each then hid every line after it
+    # to the end of the file - which leaves the always-false-guard
+    # check with nothing to read and fails every coverage assertion on
+    # valid shell. The here-string is not hypothetical: it is in this
+    # repository's own launcher scripts, where 24 real command lines
+    # per script were being dropped.
+    not_heredocs = {
+        "here-string with a quoted operand": "scalefactor=$( bc <<< 'scale=2; 3.3/0.342' )",
+        "here-string with a variable": 'read -r mode path <<<"$index_entry"',
+        "here-string with a spaced operand": 'grep foo <<< "$var"',
+        "arithmetic left shift": "mask=$(( 1 << bits ))",
+        "`<<` inside a quoted string": 'echo "write it as <<STOP to end"',
+    }
+    for description, prefix in not_heredocs.items():
+        source = "%s\n%s\n" % (prefix, command)
+        assert "test_pre_fit.py" in _pytest_command_lines(source), description
+        assert _heredoc_opener(prefix) is None, description
+
+    # ...while every real spelling still opens one.
+    for spelling in ("cat <<EOF", "cat <<'EOF'", 'cat <<"EOF"', "cat << EOF", "cat <<-EOF"):
+        assert _heredoc_opener(spelling) is not None, spelling
+
+    # A heredoc inside a workflow `run:` block ends where the block's
+    # own text says it does. YAML strips a block scalar's indentation
+    # before the shell sees it, so `_workflow_run_block_lines()` has to
+    # strip it too: read at its YAML indentation, the terminator no
+    # longer matches its delimiter exactly, the body never ends, and
+    # the real gate command below it disappears with it.
+    block = (
+        "    - name: a step\n      run: |\n        cat <<EOF\n        %s\n        EOF\n"
+        '        python -m pytest tests/test_find_bh_window.py -m "marker"\n' % command
+    )
+    block_commands = _pytest_command_lines(_workflow_run_block_lines(block))
+    assert "test_pre_fit.py" not in block_commands
+    assert "test_find_bh_window.py" in block_commands
 
 
 def test_every_way_pytest_can_drop_a_test_is_judged() -> None:

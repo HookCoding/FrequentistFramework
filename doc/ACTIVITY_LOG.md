@@ -13053,3 +13053,114 @@ pinned separately as producing no commands at all.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Third audit pass: the two shell readers misread ordinary bash, and one of them was already doing it
+
+Copilot's `rm report.txt` finding said the recursive-delete detector
+accepted a pattern with no leading dash at all, so an ordinary operand
+counted as a flag, and asked for the pattern to be made precise rather
+than left over-inclusive. Applied as a class to the two readers added
+in the two commits before this one, the same defect is in both, and in
+one of them it is not hypothetical.
+
+### A here-string is not a heredoc
+
+`_HEREDOC_OPENER` searched for `<<` anywhere in a line. Three other
+constructs spell it the same way, and all three were read as heredoc
+openers:
+
+- `<<<`, a here-string, whose operand is data on the same line rather
+  than a body below it. `bc <<< 'scale=2; 30/1.015'` was read as a
+  heredoc named `scale`, whose delimiter never appears again.
+- `<<` inside an arithmetic expansion, where it is a left shift:
+  `mask=$(( 1 << bits ))` opened a heredoc named `bits`.
+- `<<` inside quotes, where it is text: `echo "write it as <<STOP"`.
+
+Each then hid every line to the end of the file. Measured on the real
+sources: 253 of `install.sh`'s 253 command lines, 42 of 42 in
+`scripts/run_all_gates.sh`, 23 of 23 in `.githooks/pre-commit`. That
+leaves the always-false-guard check with nothing to read at all, and
+every "this file runs X" assertion failing on valid shell.
+
+This one was already live. `scripts/run_anaFit_flowchart.sh` and
+`scripts/run_nloFit_flowchart.sh` both contain
+`scalefactor=$( bc <<< 'scale=2; 3.3/0.342' )`, and each was losing 24
+real command lines to it. Neither file is read by a gate check today,
+so nothing failed - but the construct is in this repository already,
+not a hypothetical.
+
+The fix scans the line the way the shell reads it: quoted spans
+skipped, arithmetic expansions skipped, and `<<<` distinguished from
+`<<` before a delimiter is read.
+
+### An empty array initialisation is not a function definition
+
+`_SHELL_FUNCTION_DEFINITION` excluded shell metacharacters from a
+function name but not `=`, so `built_targets=()` matched as a
+definition named `built_targets=`. It then took the following line as
+the start of its body and dropped it; with a keyword-form definition on
+that line, it took that function's whole body as its own.
+
+Measured against bash: `built_targets=()` initialises an array and
+`type built_targets` reports no such command; `foo=bar() { :; }` is a
+syntax error, so no POSIX-form function name can contain `=`; but
+`function foo=bar { :; }` does define a function. So `=` is excluded
+from the POSIX form and kept in the keyword form, which is exactly what
+bash accepts.
+
+### The body ends where bash ends it
+
+Fixing the first two exposed a third, in the same code. Heredoc removal
+ran *after* continuations were joined, and `_join_continuations()`
+strips each line, so the terminator could only ever be compared against
+stripped text. Measured against bash: a plain `<<EOF` body ends only at
+a line that is exactly the delimiter - an indented `  EOF` does not end
+it, and neither does `EOF ` with a trailing space - while `<<-EOF`
+accepts leading tabs and not leading spaces. Comparing stripped text
+therefore ended a body early at an indented copy of its own delimiter,
+and read the real command below it as a command the file runs.
+
+The three rules are now one pass, `_command_text()`, because the order
+they are applied in is itself a correctness question and applying them
+separately got it wrong twice: a full-line comment has to go before
+openers are looked for, or `# cat <<EOF` hides the rest of the file; a
+body line has to be compared against its raw text, or a trailing
+comment turns `EOF # done` into a terminator bash does not see; and the
+body has to be found before continuations are joined, because joining
+strips the indentation the exact match needs.
+
+One consequence, found the same way: `_workflow_run_block_lines()`
+returned a `run:` block at its YAML indentation, but YAML strips a
+block scalar's indentation before the shell sees it. Once terminators
+were matched exactly, an indented `EOF` in a run block no longer ended
+its body and the real gate command below it disappeared. The reader now
+strips the block's own indentation, which is what GitHub actually feeds
+to bash.
+
+### One committed fixture changed rather than added to
+
+`test_executable_command_lines_ignores_comments_and_echoes` wrote its
+heredoc at Python indentation, so its terminator was indented too. It
+was passing because the body was never terminated, not because the body
+was dropped - the right answer for the wrong reason. Its terminator is
+now at column 0, the way bash requires and every real script writes it.
+
+### Verification performed
+
+- All four readers compared against all twenty-five real shell and
+  workflow sources: four differences, all of them the intended fix -
+  the two flowchart launchers gaining back the 24 command lines each
+  had been losing. The six gate and installer sources: byte-identical.
+- Every heredoc spelling re-measured against real bash before the fix
+  was written: plain, quoted, double-quoted, `<<-` with tabs, `<<-`
+  with spaces, a terminator with a trailing space, and an indented
+  terminator.
+- Four sabotages, each reverting one part of the fix, each confirmed to
+  fail the new cases and to pass again when restored: the opener
+  ignoring `<<<`/arithmetic/quotes, `=` allowed back into the POSIX
+  name, the terminator matched with `strip()`, and the run block kept
+  at its YAML indentation.
+- `python scripts/quality_check.py --mode full`: 247 collected, 227
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Existing tests extended rather than added, so the documented
+  figures are unchanged.
