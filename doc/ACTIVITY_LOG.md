@@ -12199,3 +12199,104 @@ Copilot suggested.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Evaluate pytest's filter expressions instead of pattern-matching them, and check every marked test rather than every file (fifteenth Copilot review round)
+
+### Objective
+
+Three suppressed findings, all in the gate-coverage checks, all real:
+
+1. the always-false-guard check was applied to `.githooks/pre-commit`
+   only, never to the two gate sources these checks read;
+2. the file-level check validated only the `-m` filter, so a `-k` could
+   drop most of a file's marked tests while the file was still named;
+3. `_selects_positively()` accepted an unsatisfiable expression -
+   `<name> and nonexistent` contains the name and carries no `not`.
+
+### Independently verified, all three, before changing anything
+
+Finding 3 against real pytest: `-k "authoritative_setup_provides_
+scientific_runtime and nonexistent"` collected **0 of 3** tests, and
+`-m "integration and requires_root and nonexistent_marker"` collected
+0 of 3, while the predicate returned True for both.
+
+Finding 1 by sabotage: the whole scientific gate wrapped in a multiline
+`if false; then ... fi` - valid shell, confirmed with `bash -n` - left
+both gate-coverage tests passing.
+
+Finding 2 by measurement, and it was the worst of the three: adding one
+`-k <test name>` to the plotting gate took it from **48 dependency-
+marked tests to 1**, with every filename still present and the marker
+filter still keeping the marker. Both tests passed.
+
+### The root cause was approximating a language instead of evaluating it
+
+`-k` and `-m` are boolean expressions, and pytest combines them with
+AND. Three successive rounds each replaced one approximation with a
+slightly better one:
+
+- substring membership - broken by `not <expression>`;
+- substring plus "reject any `not`" - broken by
+  `<expression> and nonexistent`;
+- and each fix was written to defeat the specific example given.
+
+So the expressions are now parsed and evaluated against the mapped
+test's real name and markers. Negation, extra conjunctions, `or`,
+parentheses and mixed expressions are all handled by construction
+rather than by rule. A side effect worth naming: the previous rule
+rejected a legitimate `-m "requires_analysis_dependencies and not
+slow"`, which was documented as deliberately conservative. Evaluating
+gets that right too.
+
+### What changed
+
+- `_expression_selects(expression, is_true)` evaluates one `-k`/`-m`
+  expression over `and`/`or`/`not`/parentheses. Anything unparseable,
+  or any other construct, returns False - unproven counts as not
+  selected, so the check fails loudly rather than accepting what it did
+  not understand.
+- `_filters_keep_test()` always judges both options.
+  `_invocation_runs_test()` adds the one policy requirement on top: the
+  designated option must be present, so a gate selects its test
+  deliberately rather than merely failing to exclude it.
+- `_selects_positively()`, `_marker_filter_keeps()` and
+  `_keeps_test_selected()` are gone. They were three spellings of the
+  same approximation, and the duplication is what let one of them drift
+  a round behind the others.
+- `_dependency_marked_tests()` reads each marked test's real markers
+  from the AST, so `_INTEGRATION_TEST_SELECTORS`' restated expressions
+  are gone too - the map now records only which option selects which
+  test.
+- The file-level loop became a per-test loop: every dependency-marked
+  test is checked against the invocations that name its file. Files are
+  still enumerated by the over-inclusive text scan, and a flagged file
+  with no AST-visible marked test still gets the file-level check, so
+  that net is not lost.
+- `_assert_no_always_false_guard()` now runs on both gate sources.
+
+### Verification performed
+
+- Four end-to-end sabotages of the real gate sources, each restored:
+  the `if false` wrapper, the narrowing `-k`, and the unsatisfiable
+  extra term in both `scripts/run_all_gates.sh` and
+  `.github/workflows/scientific-analysis.yml`. All four previously
+  passed; all four now fail, each on the correct source.
+- Each of the three fixes was individually reverted to its exact
+  previous rule and confirmed to fail a committed test:
+  `test_gate_coverage_rejects_a_disabled_or_narrowed_gate` for the
+  first two, `test_pytest_filters_are_evaluated_against_the_real_test`
+  and `test_a_second_filter_cannot_quietly_deselect_a_mapped_test` for
+  the third. The first attempt at the second revert was not faithful -
+  it went through the new code path and still raised - so it was redone
+  as the actual `-m`-only rule.
+- The new tests were also run under the LCG Python 3.9.12, not just
+  collected there: 6 passed.
+- `python scripts/quality_check.py --mode full`: 238 collected, 218
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit
+  code 0. Documented lightweight (238/218/20) and prepared-dependency
+  (34/2/32) figures updated.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.

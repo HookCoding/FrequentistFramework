@@ -12,6 +12,7 @@ import json
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -499,10 +500,12 @@ def test_git_hook_pre_commit_gate_matches_authoritative_commands() -> None:
     assert integration_lines, (
         ".githooks/pre-commit runs no pytest command naming " f"tests/{_INTEGRATION_TEST_FILE}"
     )
-    assert _keeps_test_selected_anywhere(
-        integration_lines,
-        "integration and requires_root",
-        "authoritative_j100_j50_workflows_match_frozen_reference",
+    scientific_test = "test_authoritative_j100_j50_workflows_match_frozen_reference"
+    scientific_markers = _dependency_marked_tests(repo_root / "tests" / _INTEGRATION_TEST_FILE)[
+        scientific_test
+    ]
+    assert _invocation_runs_test_anywhere(
+        integration_lines, scientific_test, scientific_markers, "-m"
     ), (
         ".githooks/pre-commit names the scientific gate but no invocation "
         "actually leaves test_authoritative_j100_j50_workflows_match_frozen_reference "
@@ -554,6 +557,25 @@ def _pytest_marker_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[st
     return names
 
 
+def _dependency_marked_tests(test_file: Path) -> dict[str, set[str]]:
+    """Every requires_analysis_dependencies-marked test in one file, each
+    with the full set of markers it carries.
+
+    The markers are read from the file rather than restated in this
+    test, so a gate selector is always checked against the test's real
+    markers. Restating them is how the map below drifted from the file
+    once already.
+    """
+    tree = ast.parse(test_file.read_text(encoding="utf-8"))
+    marked: dict[str, set[str]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            markers = _pytest_marker_names(node)
+            if "requires_analysis_dependencies" in markers:
+                marked[node.name] = markers
+    return marked
+
+
 def _dependency_marked_test_names(test_file: Path) -> list[str]:
     """Names of every requires_analysis_dependencies-marked test in one file.
 
@@ -574,13 +596,7 @@ def _dependency_marked_test_names(test_file: Path) -> list[str]:
     equality true, so nothing would force a gate selector for it and it
     would never run anywhere.
     """
-    tree = ast.parse(test_file.read_text(encoding="utf-8"))
-    return [
-        node.name
-        for node in ast.walk(tree)
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and "requires_analysis_dependencies" in _pytest_marker_names(node)
-    ]
+    return list(_dependency_marked_tests(test_file))
 
 
 # Matches a real pytest invocation, anchored at the *command position*
@@ -626,39 +642,64 @@ def _pytest_option_value(line: str, option: str) -> str | None:
     return match.group(1).strip("\"'")
 
 
-def _selects_positively(value: str | None, expression: str) -> bool:
-    """True when a `-k`/`-m` value selects `expression` rather than excluding it.
+def _expression_selects(expression: str, is_true: Callable[[str], bool]) -> bool:
+    """Evaluate one pytest `-k`/`-m` expression against a single test.
 
-    Substring membership is not enough. `-k "not <test-name>"` and
-    `-m "not <marker>"` both *contain* the expression while selecting the
-    opposite tests, so a coverage check built on membership alone stays
-    green after the real gate has been inverted. Confirmed by sabotage
-    for both options: negating the runtime-readiness `-k` selector and
-    the prepared-dependency `-m` filter each left the coverage tests
-    passing.
+    pytest's filters are boolean expressions, and `-k` and `-m` are
+    combined with AND, so the only sound way to answer "does this
+    invocation still run that test" is to evaluate them the way pytest
+    does. Every approximation tried here has been wrong in a different
+    direction:
 
-    Any `not` in the value is treated as disqualifying. That is
-    deliberately conservative: neither `scripts/run_all_gates.sh` nor
-    `.github/workflows/scientific-analysis.yml` uses a mixed expression
-    such as `-m "requires_analysis_dependencies and not slow"`, and if
-    one ever legitimately needs to, this helper must be taught to parse
-    the expression rather than silently accept the negation.
+    - substring membership accepted `-k "not <name>"`, which runs the
+      opposite tests;
+    - rejecting any `not` accepted `-k "<name> and nonexistent"`, which
+      contains the name, carries no negation, and selects *nothing*.
+      Confirmed against real pytest: it collected 0 of 3 tests while the
+      check reported the gate covered. The same trick works on `-m`,
+      by appending `and nonexistent_marker`.
+
+    `is_true` decides one bare term: for `-m`, whether the test carries
+    that marker; for `-k`, whether the term appears in its name, which
+    is pytest's own substring rule.
+
+    An expression this cannot parse, or one using any construct beyond
+    `and`/`or`/`not`/parentheses, returns False - unproven counts as not
+    selected, so the coverage check fails loudly rather than passing on
+    something it did not understand.
     """
-    if value is None or expression not in value:
+
+    def evaluate(node: ast.expr) -> bool:
+        if isinstance(node, ast.BoolOp):
+            results = [evaluate(value) for value in node.values]
+            return all(results) if isinstance(node.op, ast.And) else any(results)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return not evaluate(node.operand)
+        if isinstance(node, ast.Name):
+            return is_true(node.id)
+        raise ValueError(f"unsupported term in a pytest expression: {ast.dump(node)}")
+
+    try:
+        return evaluate(ast.parse(expression, mode="eval").body)
+    except (SyntaxError, ValueError):
         return False
-    return not _PYTEST_NEGATION.search(value)
 
 
-def _marker_filter_keeps(value: str | None, marker: str) -> bool:
-    """True when a `-m` value leaves `marker`-marked tests selected.
+def _filters_keep_test(line: str, test_name: str, markers: set[str]) -> bool:
+    """True when neither filter on this pytest line deselects the test.
 
-    No `-m` at all deselects nothing, so absence is acceptable here -
-    unlike `_selects_positively()`, where the option is the only thing
-    that picks the test out.
+    Both options are always evaluated, because pytest combines them
+    with AND and either one alone can empty the gate. An absent option
+    filters nothing.
     """
-    if value is None:
-        return True
-    return _selects_positively(value, marker)
+    for option, is_true in (
+        ("-k", lambda term: term in test_name),
+        ("-m", lambda term: term in markers),
+    ):
+        value = _pytest_option_value(line, option)
+        if value is not None and not _expression_selects(value, is_true):
+            return False
+    return True
 
 
 # A command wrapped in an always-false guard still appears in the
@@ -710,44 +751,31 @@ def _recursive_delete(text: str) -> str | None:
 
 def _invocation_runs_test(
     line: str,
-    designated: tuple[str, str],
-    guard: tuple[str, str],
+    test_name: str,
+    markers: set[str],
+    designated_option: str,
 ) -> bool:
     """True when one pytest command line really runs the mapped test.
 
-    `designated` is the option that *selects* the test - `("-k", name)`
-    for the runtime-readiness gate, `("-m", marker)` for the scientific
-    one - and it must positively carry its expression. `guard` is the
-    other option, which must not deselect the test: absent is fine,
-    present means it has to name the test's own marker or name.
+    Two separate requirements, and both have been the hole here at
+    different times:
 
-    Checking only the designated half is not enough, and this was the
-    hole: the readiness line could add
-    `-m "not requires_analysis_dependencies"`, and the scientific line
-    could add `-k "not authoritative_j100_j50_..."`. Either deselects
-    the test while the designated selector is still right there.
+    - `designated_option` - `-k` for the runtime-readiness gate, `-m`
+      for the scientific one - must be present, so the gate selects the
+      test deliberately rather than merely failing to exclude it;
+    - both filters must actually leave the test selected, evaluated
+      against its real name and markers.
+
+    Checking only one option let the other empty the gate: the
+    readiness line could add `-m "not requires_analysis_dependencies"`,
+    the scientific line `-k "not authoritative_j100_j50_..."`.
     Confirmed by sabotage against both `scripts/run_all_gates.sh` and
-    the CI workflow.
-
-    Both halves live in one predicate on purpose. A second, parallel
-    implementation of this rule is what let the gate-coverage checks
-    keep the weaker single-option version after the pre-commit hook's
-    check was fixed.
+    the CI workflow. Checking the *expression* by substring then let an
+    unsatisfiable extra term through - see `_expression_selects()`.
     """
-    designated_option, designated_expression = designated
-    if not _selects_positively(
-        _pytest_option_value(line, designated_option), designated_expression
-    ):
+    if _pytest_option_value(line, designated_option) is None:
         return False
-    guard_option, guard_expression = guard
-    guard_value = _pytest_option_value(line, guard_option)
-    return guard_value is None or _selects_positively(guard_value, guard_expression)
-
-
-def _keeps_test_selected(line: str, marker: str, test_name: str) -> bool:
-    """The marker-designated case of `_invocation_runs_test()`, used by
-    the pre-commit hook's own gate check."""
-    return _invocation_runs_test(line, ("-m", marker), ("-k", test_name))
+    return _filters_keep_test(line, test_name, markers)
 
 
 def _assert_no_always_false_guard(commands: str, source_description: str) -> None:
@@ -759,8 +787,10 @@ def _assert_no_always_false_guard(commands: str, source_description: str) -> Non
     )
 
 
-def _keeps_test_selected_anywhere(lines: list[str], marker: str, test_name: str) -> bool:
-    return any(_keeps_test_selected(line, marker, test_name) for line in lines)
+def _invocation_runs_test_anywhere(
+    lines: list[str], test_name: str, markers: set[str], designated_option: str
+) -> bool:
+    return any(_invocation_runs_test(line, test_name, markers, designated_option) for line in lines)
 
 
 def _defers_annotation_evaluation(path: Path) -> bool:
@@ -880,32 +910,17 @@ def _pytest_command_lines(text: str) -> str:
 # checks below assert each test's own dedicated selector by name
 # instead of exempting the file outright.
 _INTEGRATION_TEST_FILE = "test_analysis_workflows_integration.py"
-# Each test, with the pytest option that selects it and the expression
-# that option must positively carry. Checked with
-# `_selects_positively()` rather than by substring membership: a bare
-# search for the expression also matches `-k "not <name>"`, which runs
-# the opposite tests. Confirmed by sabotage - negating the -k selector
-# left the old check passing.
-_INTEGRATION_TEST_SELECTORS = {
-    # For each test: the option that must positively select it, and the
-    # other option, which must not deselect it. Both halves are
-    # required - validating only the designated one let a second filter
-    # on the same line remove the test while the check stayed green.
-    "test_authoritative_setup_provides_scientific_runtime": {
-        # -k substring selector used by the dedicated runtime-readiness
-        # invocation; also a substring of the test's own full name.
-        "designated": ("-k", "authoritative_setup_provides_scientific_runtime"),
-        # the marker this test carries, so an -m filter here must keep it
-        "guard": ("-m", "requires_analysis_dependencies"),
-    },
-    "test_authoritative_j100_j50_workflows_match_frozen_reference": {
-        # this exact marker combination ("integration" and
-        # "requires_root" together) is unique in the whole test suite to
-        # this one test - confirmed by grepping every
-        # @pytest.mark.integration test.
-        "designated": ("-m", "integration and requires_root"),
-        "guard": ("-k", "authoritative_j100_j50_workflows_match_frozen_reference"),
-    },
+# Which pytest option each of that file's marked tests is expected to
+# be selected *with*. Only the option, not the expression: the test's
+# real name and markers are read from the file by
+# `_dependency_marked_tests()` and the invocation's filters are
+# evaluated against them, so there is nothing here to drift out of step
+# with the test itself.
+_INTEGRATION_TEST_DESIGNATED_OPTIONS = {
+    # the dedicated runtime-readiness invocation selects this one by name
+    "test_authoritative_setup_provides_scientific_runtime": "-k",
+    # the scientific gate selects this one by marker
+    "test_authoritative_j100_j50_workflows_match_frozen_reference": "-m",
 }
 
 
@@ -928,12 +943,20 @@ def _assert_covers_every_dependency_marked_test(
         "assertions below would no longer prove anything"
     )
 
+    # A gate wrapped in `if false; then ... fi` still contributes its
+    # pytest command to the lines above, so every assertion here would
+    # pass while the gate never ran. The hook's own check has rejected
+    # that since it was found there; these two never did. Confirmed by
+    # sabotage: wrapping run_all_gates.sh's whole scientific gate in a
+    # multiline `if false` left both of these tests passing.
+    _assert_no_always_false_guard(_executable_command_lines(raw_text), source_description)
+
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = repo_root / "tests"
 
     integration_test_file = tests_dir / _INTEGRATION_TEST_FILE
-    integration_marked_tests = set(_dependency_marked_test_names(integration_test_file))
-    assert integration_marked_tests == set(_INTEGRATION_TEST_SELECTORS), (
+    integration_marked_tests = _dependency_marked_tests(integration_test_file)
+    assert set(integration_marked_tests) == set(_INTEGRATION_TEST_DESIGNATED_OPTIONS), (
         f"{_INTEGRATION_TEST_FILE}'s requires_analysis_dependencies tests changed "
         f"({sorted(integration_marked_tests)}) without updating this test's own "
         "per-test selector map"
@@ -941,11 +964,12 @@ def _assert_covers_every_dependency_marked_test(
     command_lines = command_text.splitlines()
     missing_integration_selectors = [
         test_name
-        for test_name, selectors in _INTEGRATION_TEST_SELECTORS.items()
-        if not any(
-            _invocation_runs_test(line, selectors["designated"], selectors["guard"])
-            for line in command_lines
-            if f"tests/{_INTEGRATION_TEST_FILE}" in line
+        for test_name, designated_option in _INTEGRATION_TEST_DESIGNATED_OPTIONS.items()
+        if not _invocation_runs_test_anywhere(
+            [line for line in command_lines if f"tests/{_INTEGRATION_TEST_FILE}" in line],
+            test_name,
+            integration_marked_tests[test_name],
+            designated_option,
         )
     ]
     assert not missing_integration_selectors, (
@@ -953,27 +977,49 @@ def _assert_covers_every_dependency_marked_test(
         f"{_INTEGRATION_TEST_FILE} tests: {missing_integration_selectors}"
     )
 
-    # Naming the file is not enough: if the invocation's own marker
-    # filter deselects `requires_analysis_dependencies`, every filename
-    # is still present while none of the marked tests runs. Confirmed by
-    # sabotage - inverting that filter left the old check passing. So a
-    # file counts as covered only when some pytest line both names it
-    # and carries a marker filter that keeps the marker (or none at
-    # all, which deselects nothing).
+    # Naming the file is not enough, and neither is naming it alongside
+    # a marker filter that keeps the marker. This assertion promises
+    # that every dependency-marked test runs, so every one of them is
+    # checked individually against the invocations that name its file.
+    # Two sabotages got past the weaker versions of this:
+    #
+    # - `-m "not requires_analysis_dependencies"`, which left every
+    #   filename present while deselecting all of them;
+    # - a single `-k <one test name>` added to the plotting gate, which
+    #   took it from 48 marked tests to 1 while every file was still
+    #   named and the marker filter still kept the marker. Measured.
+    #
+    # Files are enumerated by the deliberately over-inclusive text scan
+    # and their tests by the AST. If a flagged file has no marked test
+    # the AST can see, the file-level check still applies, so the
+    # over-inclusive net is not lost.
     marked_files = _tests_dir_files_marked_requires_analysis_dependencies(tests_dir)
-    missing_files = [
-        name
-        for name in marked_files
-        if name != _INTEGRATION_TEST_FILE
-        and not any(
-            _marker_filter_keeps(_pytest_option_value(line, "-m"), "requires_analysis_dependencies")
-            for line in command_lines
-            if f"tests/{name}" in line
+    uncovered: list[str] = []
+    for name in marked_files:
+        if name == _INTEGRATION_TEST_FILE:
+            continue
+        lines_naming_file = [line for line in command_lines if f"tests/{name}" in line]
+        marked_tests = _dependency_marked_tests(tests_dir / name)
+        if not marked_tests:
+            # No test name here, so a `-k` on such a line cannot be
+            # shown to keep anything and is treated as deselecting -
+            # which is what the empty name below means. Only the marker
+            # filter can be judged. No file is in this state today;
+            # this is the over-inclusive net, kept deliberately.
+            if not any(
+                _filters_keep_test(line, "", {"requires_analysis_dependencies"})
+                for line in lines_naming_file
+            ):
+                uncovered.append(name)
+            continue
+        uncovered.extend(
+            f"{name}::{test_name}"
+            for test_name, markers in sorted(marked_tests.items())
+            if not any(_filters_keep_test(line, test_name, markers) for line in lines_naming_file)
         )
-    ]
-    assert not missing_files, (
-        f"{source_description} is missing these requires_analysis_dependencies "
-        f"test files: {missing_files}"
+    assert not uncovered, (
+        f"{source_description} names these files but does not actually run these "
+        f"requires_analysis_dependencies tests: {uncovered}"
     )
 
 
@@ -1182,57 +1228,108 @@ def test_declared_submodule_paths_ignores_commented_out_declarations(tmp_path: P
     assert "semicolon" not in declared
 
 
-def test_pytest_selectors_are_read_positively_and_reject_negation() -> None:
+def test_pytest_filters_are_evaluated_against_the_real_test() -> None:
     """A selector that names a test is not a selector that runs it.
 
-    Pins the three sabotages that found this: inverting the
-    runtime-readiness `-k`, the scientific `-m`, or the
-    prepared-dependency `-m` each left the two gate-coverage tests
-    passing, because they searched for the expression as a substring and
-    `not <expression>` contains it.
+    Pins every sabotage that has found this check wrong, in both
+    directions:
+
+    - inverting the runtime-readiness `-k`, the scientific `-m`, or the
+      prepared-dependency `-m`, each of which left the gate-coverage
+      tests passing while running the opposite tests, because the check
+      searched for the expression as a substring and `not <expression>`
+      contains it;
+    - adding an unsatisfiable term - `-k "<name> and nonexistent"`, or
+      `-m "integration and requires_root and nonexistent_marker"` -
+      which contains the expected text, carries no negation, and
+      selects nothing. Confirmed against real pytest: 0 of 3 tests
+      collected, while the check reported the gate covered.
+
+    The second kind is why these filters are now evaluated rather than
+    matched. Approximating pytest's boolean language was wrong twice,
+    each time in a way the previous fix did not cover.
     """
-    marker = 'python -m pytest tests/test_x.py -m "requires_analysis_dependencies" -v'
-    marker_negated = 'python -m pytest tests/test_x.py -m "not requires_analysis_dependencies" -v'
-    selector = (
-        "python -m pytest tests/test_x.py -k authoritative_setup_provides_scientific_runtime -v"
-    )
-    selector_negated = (
-        "python -m pytest tests/test_x.py"
-        ' -k "not authoritative_setup_provides_scientific_runtime" -v'
-    )
-    unfiltered = "python -m pytest tests/test_x.py -v"
+    readiness = "test_authoritative_setup_provides_scientific_runtime"
+    readiness_markers = {"integration", "requires_analysis_dependencies"}
+    scientific = "test_authoritative_j100_j50_workflows_match_frozen_reference"
+    scientific_markers = {"integration", "requires_root", "requires_analysis_dependencies"}
 
     # `python -m pytest`'s own -m names the module, not a marker filter.
+    marker = 'python -m pytest tests/test_x.py -m "requires_analysis_dependencies" -v'
+    unfiltered = "python -m pytest tests/test_x.py -v"
     assert _pytest_option_value(marker, "-m") == "requires_analysis_dependencies"
     assert _pytest_option_value(unfiltered, "-m") is None
-    assert _pytest_option_value(selector, "-k") == "authoritative_setup_provides_scientific_runtime"
 
-    assert _selects_positively(_pytest_option_value(marker, "-m"), "requires_analysis_dependencies")
-    assert not _selects_positively(
-        _pytest_option_value(marker_negated, "-m"), "requires_analysis_dependencies"
+    # Plain terms, evaluated against the test's real markers and name.
+    assert _expression_selects("requires_analysis_dependencies", lambda t: t in scientific_markers)
+    assert not _expression_selects("requires_root", lambda t: t in readiness_markers)
+    assert _expression_selects("authoritative_j100_j50", lambda t: t in scientific)
+
+    # Negation, including the parenthesised negation of a compound
+    # expression, which no simple `not`-rejecting rule handles.
+    assert not _expression_selects(
+        "not requires_analysis_dependencies", lambda t: t in scientific_markers
     )
-    assert _selects_positively(
-        _pytest_option_value(selector, "-k"), "authoritative_setup_provides_scientific_runtime"
+    assert _expression_selects("integration and requires_root", lambda t: t in scientific_markers)
+    assert not _expression_selects(
+        "not (integration and requires_root)", lambda t: t in scientific_markers
     )
-    assert not _selects_positively(
-        _pytest_option_value(selector_negated, "-k"),
-        "authoritative_setup_provides_scientific_runtime",
+    # `not` on an unrelated term does not disqualify a real selection -
+    # the blanket "any `not` is fatal" rule got this wrong and was
+    # documented as deliberately conservative. Evaluating gets it right.
+    assert _expression_selects(
+        "requires_analysis_dependencies and not slow", lambda t: t in scientific_markers
     )
 
-    # The parenthesised negation of a compound marker expression.
-    assert _selects_positively("integration and requires_root", "integration and requires_root")
-    assert not _selects_positively(
-        "not (integration and requires_root)", "integration and requires_root"
+    # An extra term that nothing satisfies, in both options.
+    assert not _expression_selects(f"{scientific} and nonexistent", lambda t: t in scientific)
+    assert not _expression_selects(
+        "integration and requires_root and nonexistent_marker",
+        lambda t: t in scientific_markers,
+    )
+    # `or` keeps it selected, which is not something to reject.
+    assert _expression_selects(
+        "nonexistent_marker or requires_root", lambda t: t in scientific_markers
     )
 
-    # No -m deselects nothing, so the marker survives; an inverted or
-    # unrelated filter does not.
-    assert _marker_filter_keeps(None, "requires_analysis_dependencies")
-    assert _marker_filter_keeps("requires_analysis_dependencies", "requires_analysis_dependencies")
-    assert not _marker_filter_keeps(
-        "not requires_analysis_dependencies", "requires_analysis_dependencies"
+    # Anything unparseable, or beyond and/or/not, is not proof of
+    # selection.
+    assert not _expression_selects("requires_root and", lambda t: True)
+    assert not _expression_selects("requires_root == 1", lambda t: True)
+
+    # Both filters are always judged, whichever one the gate selects
+    # with: an absent option filters nothing, and either option alone
+    # can empty the gate.
+    readiness_line = f"python -m pytest tests/{_INTEGRATION_TEST_FILE} -k {readiness} -v"
+    assert _invocation_runs_test(readiness_line, readiness, readiness_markers, "-k")
+    assert not _invocation_runs_test(
+        f'{readiness_line} -m "not requires_analysis_dependencies"',
+        readiness,
+        readiness_markers,
+        "-k",
     )
-    assert not _marker_filter_keeps("requires_root", "requires_analysis_dependencies")
+    assert not _invocation_runs_test(
+        f"{readiness_line} -m nonexistent_marker", readiness, readiness_markers, "-k"
+    )
+    # The designated option must be present at all: the gate has to
+    # select the test deliberately, not merely fail to exclude it.
+    assert not _invocation_runs_test(
+        f"python -m pytest tests/{_INTEGRATION_TEST_FILE} -v",
+        readiness,
+        readiness_markers,
+        "-k",
+    )
+
+    scientific_line = (
+        f'python -m pytest tests/{_INTEGRATION_TEST_FILE} -m "integration and requires_root" -v'
+    )
+    assert _invocation_runs_test(scientific_line, scientific, scientific_markers, "-m")
+    assert not _invocation_runs_test(
+        f'{scientific_line} -k "not {scientific}"', scientific, scientific_markers, "-m"
+    )
+    assert not _invocation_runs_test(
+        f"{scientific_line} -k {readiness}", scientific, scientific_markers, "-m"
+    )
 
 
 def test_a_named_command_is_not_a_command_that_runs() -> None:
@@ -1254,17 +1351,19 @@ def test_a_named_command_is_not_a_command_that_runs() -> None:
       allowed zero dashes and so matched the operand.
     """
     marker = "integration and requires_root"
-    test_name = "authoritative_j100_j50_workflows_match_frozen_reference"
+    test_name = "test_authoritative_j100_j50_workflows_match_frozen_reference"
+    markers = {"integration", "requires_root", "requires_analysis_dependencies"}
     base = f'python -m pytest tests/test_analysis_workflows_integration.py -m "{marker}"'
 
-    assert _keeps_test_selected(base, marker, test_name)
-    assert _keeps_test_selected(f'{base} -k "{test_name}"', marker, test_name)
-    assert not _keeps_test_selected(f'{base} -k "not {test_name}"', marker, test_name)
-    assert not _keeps_test_selected(f'{base} -k "some_other_test"', marker, test_name)
-    assert not _keeps_test_selected(
+    assert _invocation_runs_test(base, test_name, markers, "-m")
+    assert _invocation_runs_test(f'{base} -k "{test_name}"', test_name, markers, "-m")
+    assert not _invocation_runs_test(f'{base} -k "not {test_name}"', test_name, markers, "-m")
+    assert not _invocation_runs_test(f'{base} -k "some_other_test"', test_name, markers, "-m")
+    assert not _invocation_runs_test(
         'python -m pytest tests/test_analysis_workflows_integration.py -m "not ' f'({marker})"',
-        marker,
         test_name,
+        markers,
+        "-m",
     )
 
     for guard in ("if false; then run_gate; fi", "if false && ! run_gate; then", "while false"):
@@ -1369,9 +1468,11 @@ def test_a_trailing_comment_is_not_part_of_the_command() -> None:
     commands = _pytest_command_lines(line)
     assert "-k" not in commands
     assert _pytest_option_value(commands, "-k") is None
-    assert not _selects_positively(
-        _pytest_option_value(commands, "-k"),
-        "authoritative_setup_provides_scientific_runtime",
+    assert not _invocation_runs_test(
+        commands,
+        "test_authoritative_setup_provides_scientific_runtime",
+        {"integration", "requires_analysis_dependencies"},
+        "-k",
     )
 
     # A `#` inside quotes, or with no leading whitespace, is data - not a
@@ -1501,75 +1602,133 @@ def test_marked_tests_are_found_whatever_decorators_surround_them(tmp_path: Path
 
 
 def test_a_second_filter_cannot_quietly_deselect_a_mapped_test() -> None:
-    """`-m` and `-k` are independent filters combined with AND.
+    """The same rule, driven by the real map and the real markers.
 
-    So proving that one of them selects a test says nothing about
-    whether the other vetoes it. Both attacks below carry exactly the
-    selector the map demands and still run nothing, and both passed the
-    coverage checks until `_invocation_runs_test()` validated the guard
-    half too - confirmed against `scripts/run_all_gates.sh` and
+    `-m` and `-k` are independent filters combined with AND, so proving
+    that one selects a test says nothing about whether the other vetoes
+    it. Both attacks below carry exactly the selector the map demands
+    and still run nothing; both passed the coverage checks until
+    `_invocation_runs_test()` judged both options. Confirmed against
+    `scripts/run_all_gates.sh` and
     `.github/workflows/scientific-analysis.yml`.
+
+    Where the test above exercises the expression evaluator directly,
+    this one goes through the map and the markers read from the
+    integration file, so a change to either is exercised here too.
     """
-    readiness = _INTEGRATION_TEST_SELECTORS["test_authoritative_setup_provides_scientific_runtime"]
-    scientific = _INTEGRATION_TEST_SELECTORS[
-        "test_authoritative_j100_j50_workflows_match_frozen_reference"
-    ]
-    base = "python -m pytest tests/test_analysis_workflows_integration.py"
+    repo_root = Path(__file__).resolve().parents[1]
+    marked = _dependency_marked_tests(repo_root / "tests" / _INTEGRATION_TEST_FILE)
+    readiness = "test_authoritative_setup_provides_scientific_runtime"
+    scientific = "test_authoritative_j100_j50_workflows_match_frozen_reference"
+    assert _INTEGRATION_TEST_DESIGNATED_OPTIONS[readiness] == "-k"
+    assert _INTEGRATION_TEST_DESIGNATED_OPTIONS[scientific] == "-m"
+
+    def runs(line: str, test_name: str) -> bool:
+        return _invocation_runs_test(
+            line,
+            test_name,
+            marked[test_name],
+            _INTEGRATION_TEST_DESIGNATED_OPTIONS[test_name],
+        )
+
+    base = f"python -m pytest tests/{_INTEGRATION_TEST_FILE}"
+    readiness_line = f"{base} -k authoritative_setup_provides_scientific_runtime -v"
+    scientific_line = f'{base} -m "integration and requires_root" -v'
 
     # The real invocations, which must keep passing.
-    assert _invocation_runs_test(
-        f"{base} -k authoritative_setup_provides_scientific_runtime -v",
-        readiness["designated"],
-        readiness["guard"],
-    )
-    assert _invocation_runs_test(
-        f'{base} -m "integration and requires_root" -v',
-        scientific["designated"],
-        scientific["guard"],
-    )
+    assert runs(readiness_line, readiness)
+    assert runs(scientific_line, scientific)
 
-    # A guard filter that deselects the test, beside a correct designated one.
-    assert not _invocation_runs_test(
+    # A second filter that deselects the test, beside a correct one.
+    assert not runs(
         f"{base} -k authoritative_setup_provides_scientific_runtime "
         '-m "not requires_analysis_dependencies" -v',
-        readiness["designated"],
-        readiness["guard"],
+        readiness,
     )
-    assert not _invocation_runs_test(
-        f'{base} -m "integration and requires_root" '
-        '-k "not authoritative_j100_j50_workflows_match_frozen_reference" -v',
-        scientific["designated"],
-        scientific["guard"],
+    assert not runs(
+        f'{base} -m "integration and requires_root" -k "not {scientific}" -v',
+        scientific,
     )
 
-    # A guard filter that keeps the test is fine, and so is no guard at all.
-    assert _invocation_runs_test(
+    # An unsatisfiable extra term on either option, which contains the
+    # expected text and selects nothing.
+    assert not runs(
+        f'{base} -k "authoritative_setup_provides_scientific_runtime and nonexistent" -v',
+        readiness,
+    )
+    assert not runs(
+        f'{base} -m "integration and requires_root and nonexistent_marker" -v',
+        scientific,
+    )
+
+    # A second filter that keeps the test is fine, and so is none at all.
+    assert runs(
         f"{base} -k authoritative_setup_provides_scientific_runtime "
         '-m "requires_analysis_dependencies" -v',
-        readiness["designated"],
-        readiness["guard"],
+        readiness,
     )
-    assert _invocation_runs_test(
-        f'{base} -m "integration and requires_root" '
-        '-k "authoritative_j100_j50_workflows_match_frozen_reference" -v',
-        scientific["designated"],
-        scientific["guard"],
+    assert runs(f'{scientific_line[:-3]} -k "{scientific}" -v', scientific)
+
+    # The designated option must be there: selecting the test by marker
+    # is not the readiness gate's contract, and vice versa.
+    assert not runs(f'{base} -m "requires_analysis_dependencies" -v', readiness)
+    assert not runs(f"{base} -k {scientific} -v", scientific)
+
+
+def test_gate_coverage_rejects_a_disabled_or_narrowed_gate() -> None:
+    """Two sabotages of the real gate script that the coverage checker
+    used to accept, both measured before this test existed.
+
+    - The whole scientific gate wrapped in a multiline
+      `if false; then ... fi`. Valid shell, gate never runs, every
+      pytest command still present - and both gate-coverage tests
+      passed. The pre-commit hook's own check had rejected this since
+      it was found there; these two had never applied it.
+    - A single `-k <one test name>` added to the plotting gate. It took
+      that gate from 48 dependency-marked tests to 1, while every
+      filename was still named and the marker filter still kept the
+      marker, and both tests passed.
+
+    Both are applied to the real script rather than a synthetic one, so
+    this keeps testing the shipping gate. Each edit asserts its own
+    anchor matched, so a restructured script fails loudly here instead
+    of quietly testing nothing.
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    script = (repo_root / "scripts" / "run_all_gates.sh").read_text(encoding="utf-8")
+    sentinel = "[run-all-gates]"
+
+    # Control: the real script must pass, or neither sabotage below
+    # proves anything.
+    _assert_covers_every_dependency_marked_test(
+        script, "scripts/run_all_gates.sh", non_pytest_sentinel=sentinel
     )
 
-    # A wrong designated selector still fails, guard or no guard.
-    assert not _invocation_runs_test(
-        f'{base} -m "requires_analysis_dependencies" -v',
-        scientific["designated"],
-        scientific["guard"],
+    gate_4 = '    run_gate "scientific gate (J100/J50 authoritative workflows)"'
+    gate_5 = '    echo "[run-all-gates] Gate 5/5'
+    assert script.count(gate_4) == 1 and script.count(gate_5) == 1
+    guarded = script.replace(gate_4, f"    if false; then\n{gate_4}", 1).replace(
+        gate_5, f"    fi\n{gate_5}", 1
     )
+    with pytest.raises(AssertionError, match="if false"):
+        _assert_covers_every_dependency_marked_test(
+            guarded, "a guarded gate script", non_pytest_sentinel=sentinel
+        )
 
-    # The hook's helper is the marker-designated case of the same rule,
-    # not a second implementation of it.
-    assert _keeps_test_selected(
-        f'{base} -m "integration and requires_root" -v',
-        "integration and requires_root",
-        "authoritative_j100_j50_workflows_match_frozen_reference",
+    one_test = "test_fit_raises_indexerror_for_npars_above_seven_with_default_ranges"
+    plotting_filter = (
+        "          tests/test_pre_fit.py \\\n" '          -m "requires_analysis_dependencies" -v'
     )
+    assert script.count(plotting_filter) == 1
+    narrowed = script.replace(
+        plotting_filter,
+        plotting_filter.replace(" -v", f' \\\n          -k "{one_test}" -v'),
+        1,
+    )
+    with pytest.raises(AssertionError, match="does not actually run these"):
+        _assert_covers_every_dependency_marked_test(
+            narrowed, "a narrowed gate script", non_pytest_sentinel=sentinel
+        )
 
 
 def test_run_all_gates_script_covers_every_requires_analysis_dependencies_test_file() -> None:
