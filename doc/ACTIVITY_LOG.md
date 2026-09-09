@@ -12786,3 +12786,134 @@ and the reason is recorded where the surviving one is defined.
 ### Remaining open chunks
 
 None.
+
+## 2026-09-09 — Second audit pass against Copilot's comments: the gate can read the wrong pytest config file, and three more shell forms hide a command
+
+Re-pulled all thirteen Copilot reviews and twenty-six inline comments
+from the GitHub API rather than working from the earlier verdicts. The
+last review (11:51 UTC) reviewed `09f56ae`; `e562019` and `c51c881`
+came after it, so this pass audited those two commits against the
+comment classes instead of waiting for a review of them. All
+forty-four earlier findings are still fixed. Three new instances were
+found, all in code committed earlier today, plus one factually wrong
+comment.
+
+### 1. `_outside_function_bodies()` recognised one shell function form
+
+Yesterday's commit `c51c881` added the rule that a gate command inside
+a function nothing calls is not a command that runs. The rule matched
+only `name() {`. Every other form bash accepts still hid the same
+command in plain sight, each confirmed valid shell whose body never
+runs, and each measured as counted-as-coverage before the fix:
+
+- `function never_called {` - the keyword form without parentheses;
+- `never-called() {` - a hyphenated name, which bash allows;
+- `never_called() (` - a parenthesis body;
+- `never_called() {` followed by `echo "}}"` - an unbalanced brace in
+  a string, which drove the depth count negative and exposed every
+  line after it as top-level text. `echo }}` unquoted did the same.
+
+The fix is one wider rule, not four patches: the definition pattern
+now covers the keyword form, any name that is not a shell
+metacharacter, and both body delimiters, with the body opener allowed
+on the following line; and `_body_depth_change()` counts delimiters
+the way the shell does - quoted text removed first, braces counted
+only as whole words - so a brace that is not a delimiter cannot end a
+body early. `${HOME}`, `awk '{...}'`, `echo "}}"` and `echo }}` all
+leave the depth alone.
+
+Checked for over-reach: all three readers were run over all
+twenty-five shell sources and workflow files at the old and new rule,
+with zero differences, and the real gate sources still yield all five
+pytest command lines.
+
+### 2. The addopts guard was reading a file pytest might not read
+
+`e562019` parses `pyproject.toml`'s `addopts` with a real TOML parser.
+That is only worth anything if `pyproject.toml` is the file pytest
+reads. Measured with pytest 9.1.1: a `pytest.ini` takes precedence and
+pytest then prints "configfile: pytest.ini (WARNING: ignoring pytest
+config in pyproject.toml!)" and ignores pyproject entirely -
+testpaths, pythonpath and all three markers with it. `.pytest.ini`
+behaves identically. `tox.ini` and `setup.cfg` are inert while
+pyproject keeps its `[tool.pytest.ini_options]` table, and were
+measured to be.
+
+A bare `pytest.ini` is caught anyway, loudly: it takes `pythonpath`
+with it, so collection fails with four errors at exit code 2. The
+silent one copies this repository's testpaths, pythonpath and markers
+across and adds `addopts = --collect-only`. Measured against the real
+gate: pre-fix it printed "224/244 tests collected" and exit code 0,
+having executed nothing, while the addopts check read a perfectly
+clean `pyproject.toml`. Post-fix it is refused at exit code 2.
+
+`effective_pytest_config_file(repo_root)` resolves pytest's real
+precedence order and the gate refuses anything but `pyproject.toml`,
+including no configuration file at all. One rule closes all five
+candidate files at once, which is why no second INI `addopts` parser
+was added - the redundant-rule mistake from the previous entry.
+
+### 3. Nothing pinned that the gate calls its own refusal
+
+Deleting `_ensure_pytest_config_runs_tests(repo_root)` from
+`_run_fast_checks()` left the entire test file passing: every test
+proved the rule worked, none proved the gate used it. This is the
+vacuity class Copilot raised against the installer views, one file
+further along. `test_the_lightweight_gate_applies_its_own_pytest_config_refusal`
+reads `scripts/quality_check.py` with `ast` - a name in a comment or a
+string cannot satisfy it - and checks both that the call exists and
+that it comes before pytest starts, since a refusal applied after
+pytest has reported a pass proves nothing. Both sabotages fail it.
+
+### 4. A comment that was wrong
+
+`_selection_option()` said "argparse accepts any unambiguous prefix,
+so `--col` is `--collect-only`". Measured: pytest rejects `--col`,
+`--desel` and `--ign` with "unrecognized arguments" and exit code 4.
+The behaviour is kept - refusing an abbreviation costs nothing and
+does not depend on that staying true - but it is now recorded as
+deliberately stricter than pytest rather than as a fact about
+argparse.
+
+### Candidates tested and rejected
+
+- Abbreviated long selection options in a gate command: pytest exits 4
+  on every abbreviation measured, so they are loud, not silent. No
+  reader change.
+- `tox.ini` and `setup.cfg` `addopts`: inert while pyproject.toml
+  carries the pytest table. Covered by the precedence rule above
+  rather than by parsing them.
+- Defined-but-never-called checks elsewhere: every function in
+  `scripts/quality_check.py`, `python/repo_utils.py` and
+  `scripts/compare_root_outputs.py` is either called in its own file
+  or referenced by another, and all five gates in
+  `scripts/run_all_gates.sh` are wrapped in `run_gate`.
+
+### Verification performed
+
+- Eight hidden shell forms, each run under `bash -n` and then executed
+  to confirm it is valid shell whose body never runs, and each pinned
+  as a test case; five visible controls that must still be read as
+  real commands.
+- The rule reverted with the new cases kept: they fail. Restored: they
+  pass.
+- The real repository sabotaged with a `pytest.ini` twice - bare, and
+  copying pyproject's settings - each measured before and after the
+  fix, and removed both times.
+- The guard call deleted, and moved after pytest: both fail the new
+  wiring test.
+- `python scripts/quality_check.py --mode full`: 246 collected, 226
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented lightweight (246/226/20) and prepared-dependency
+  (42/2/40) figures updated.
+- Under the LCG Python 3.9.12: 2 passed for the prepared-dependency
+  gate, 3 passed for the new and extended checks, and
+  `effective_pytest_config_file()` resolves correctly there (`tomli`
+  and `configparser` both present).
+- CI for `c51c881`: run 34351580191, attempt 1, success - all seven
+  gate steps including the scientific and real-ROOT plotting gates.
+- `grep -nE '[[:blank:]]+$'` and `git diff --check`: clean.
+
+### Remaining open chunks
+
+None.

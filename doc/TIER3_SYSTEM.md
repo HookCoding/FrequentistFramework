@@ -49,7 +49,7 @@ test file exercising its real behavior directly, and each is registered
 in `scripts/quality_check.py`.
 
 Latest full lightweight gate (`python scripts/quality_check.py --mode
-full`): 224 passed, 20 deselected, Ruff clean, Black clean (39 files
+full`): 226 passed, 20 deselected, Ruff clean, Black clean (39 files
 unchanged), exit code 0.
 
 Latest scientific gate (`python -m pytest
@@ -141,15 +141,23 @@ ones deliberately left in place).
 `find_repo_root()` is called by `run_provenance.py`'s
 `get_repository_root()` on every run - but it needed no work under this
 document, because Tier 1/2's own earlier work already brought it to the
-same standard this document requires: five small, single-purpose,
+same standard this document requires: six small, single-purpose,
 individually-tested functions (`find_repo_root()`; `build_repo_snapshot()`;
 `write_repo_snapshot(path, snapshot)`; `read_repo_snapshot(path)`;
-`selection_affecting_addopts(pyproject_text)` - only the first is on the
+`selection_affecting_addopts(pyproject_text)`;
+`effective_pytest_config_file(repo_root)` - only the first is on the
 J100/J50 hot path, the next three support Tier 2's own repo-snapshot
-comparison feature, and the last is gate-critical policy shared with
-`scripts/quality_check.py`, which applies it before starting pytest so
-that a configuration which would stop tests from running is refused
-rather than reported clean), registered in `scripts/quality_check.py`. See `doc/TIER1_SYSTEM.md`'s own
+comparison feature, and the last two are gate-critical policy shared
+with `scripts/quality_check.py`, which applies both before starting
+pytest so that a configuration which would stop tests from running is
+refused rather than reported clean. The second of them answers *which*
+file that configuration comes from: a `pytest.ini` outranks
+pyproject.toml and makes pytest ignore it entirely, so a `pytest.ini`
+copying this repository's testpaths, pythonpath and markers across and
+adding `addopts = --collect-only` was measured to make the lightweight
+gate report "224/244 tests collected" at exit code 0 having executed
+nothing, while the addopts check read a clean pyproject.toml),
+registered in `scripts/quality_check.py`. See `doc/TIER1_SYSTEM.md`'s own
 "Authoritative files" for its ownership.
 
 ## Module map: `python/run_anaFit.py` -> 7 modules + coordinator
@@ -334,7 +342,7 @@ while `nPars` can be requested up to 10; see "Known limitations" below.
 | `python/ExtractFitParameters.py` | `tests/test_extract_fit_parameters.py` | Only the real-fixture `Extract()`/accessors/`WriteRoot()` test (real-ROOT subprocess snippet against the committed J100 `FitResult_*.root` fixture); the two `GetNsig()`/`GetNsigErr()` falsy-refire tests stub `sys.modules["ROOT"]` |
 | `python/ExtractPostfitFromWS.py` | `tests/test_extract_postfit_from_ws.py` | Yes, always - every test is a real-ROOT subprocess snippet against committed J100 fixtures (no ROOT-free fragment exists in this file) |
 | `python/PreFit.py` | `tests/test_pre_fit.py` | Only the two `Fit()` tests (real-ROOT subprocess snippet against the committed J100 `mjj_spectra_J100_dataAll.root` fixture); `_build_candidate_functions()`/`_select_best_parameter_sets()` tests stub `sys.modules["ROOT"]` |
-| `python/repo_utils.py` | `tests/test_repo_utils.py` | No for `find_repo_root()`/`build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s own tests (pure `pathlib`/`json`), nor for `selection_affecting_addopts()`'s, which parses TOML text supplied by the test (`test_the_disabling_detectors_actually_detect`); two other, unrelated tests in this same file (external-submodule-revision checks, Tier 1/2's own installation policy) are separately marked `requires_analysis_dependencies` |
+| `python/repo_utils.py` | `tests/test_repo_utils.py` | No for `find_repo_root()`/`build_repo_snapshot()`/`write_repo_snapshot()`/`read_repo_snapshot()`'s own tests (pure `pathlib`/`json`), nor for `selection_affecting_addopts()`'s, which parses TOML text supplied by the test (`test_the_disabling_detectors_actually_detect`), `effective_pytest_config_file()`'s, which resolves pytest's configuration-file precedence against files the test writes into a `tmp_path` (`test_pytest_reads_its_configuration_from_pyproject_and_nothing_else`), or the check that the gate really applies both before starting pytest, read from `scripts/quality_check.py` with `ast` (`test_the_lightweight_gate_applies_its_own_pytest_config_refusal`); two other, unrelated tests in this same file (external-submodule-revision checks, Tier 1/2's own installation policy) are separately marked `requires_analysis_dependencies` |
 
 Every real-ROOT/CVMFS-needing test above is marked
 `@pytest.mark.requires_analysis_dependencies`, and every one of them
@@ -393,7 +401,7 @@ in no CI job for a time.
 python scripts/quality_check.py --mode full
 ```
 
-Latest verified result: 224 passed, 20 deselected, Ruff clean, Black
+Latest verified result: 226 passed, 20 deselected, Ruff clean, Black
 clean (39 files unchanged), exit code 0.
 
 ### Plotting-layer real-ROOT gate (not part of the ordinary gate above)

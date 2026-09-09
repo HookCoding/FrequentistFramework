@@ -95,10 +95,27 @@ def _ensure_pytest_config_runs_tests(repo_root: Path) -> None:
     pytest still exits 0. This has to be checked here, before pytest
     starts: a test cannot catch a configuration that stops tests from
     running. `tests/test_repo_utils.py` checks the same rule from the
-    other side, using this same function.
+    other side, using these same functions.
+
+    Which file that configuration comes from is checked first, because
+    reading pyproject.toml only proves anything if pyproject.toml is
+    the file pytest reads. A `pytest.ini` - even an empty one - takes
+    precedence over it and makes pytest ignore it completely.
     """
     sys.path.insert(0, str(repo_root / "python"))
-    from repo_utils import selection_affecting_addopts
+    from repo_utils import effective_pytest_config_file, selection_affecting_addopts
+
+    config_file = effective_pytest_config_file(repo_root)
+    if config_file != "pyproject.toml":
+        found = f"from {config_file}" if config_file else "from no file at all"
+        print(
+            f"ERROR: pytest would read its configuration {found}, not pyproject.toml. "
+            "testpaths, pythonpath and all three markers live in pyproject.toml, and "
+            "pytest ignores it entirely once a higher-precedence file exists, so this "
+            "gate cannot report a pass. Remove the other file, or move the "
+            "configuration into it deliberately and update this check."
+        )
+        raise SystemExit(2)
 
     pyproject = repo_root / "pyproject.toml"
     offending = selection_affecting_addopts(pyproject.read_text(encoding="utf-8"))

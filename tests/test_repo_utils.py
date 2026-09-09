@@ -20,6 +20,7 @@ import pytest
 
 from python.repo_utils import (
     build_repo_snapshot,
+    effective_pytest_config_file,
     find_repo_root,
     read_repo_snapshot,
     selection_affecting_addopts,
@@ -108,9 +109,39 @@ def _executable_command_lines(text: str) -> str:
     return "\n".join(kept)
 
 
+# A shell function definition in every form bash accepts: the POSIX
+# `name()` form and the `function name` keyword form, with or without
+# parentheses, with the body's opening `{` or `(` on the same line or
+# the next one. Function names are constrained only by shell
+# metacharacters, so `deploy-gate() {` is a definition too. Each form
+# admitted here was first confirmed to be valid bash whose body runs
+# nothing; the earlier version of this pattern recognised only one of
+# them, which left three ways to hide a gate command in plain sight.
 _SHELL_FUNCTION_DEFINITION = re.compile(
-    r"^\s*(?:function\s+)?[A-Za-z_][A-Za-z0-9_]*\s*\(\s*\)\s*\{?\s*$"
+    r"^\s*(?:function\s+[^\s(){};&|<>]+(?:\s*\(\s*\))?"
+    r"|[^\s(){};&|<>]+\s*\(\s*\))\s*(?P<opener>[{(])?"
 )
+_FUNCTION_BODY_CLOSERS = {"{": "}", "(": ")"}
+_QUOTED_SPAN = re.compile(r"'[^']*'|\"[^\"]*\"")
+
+
+def _body_depth_change(line: str, opener: str) -> int:
+    """How much one line opens or closes a shell function body.
+
+    Quoted text is removed first, and braces are then counted only
+    where the shell itself would treat them as the body's delimiters:
+    as whole words. Both matter, because a brace that is not a
+    delimiter must not look like one - `echo "}}"`, `echo }}` and
+    `${HOME}` all leave the depth alone, where a plain character count
+    would end the body early and expose every line after it as
+    top-level text. Parenthesis bodies are counted by character, which
+    is how the shell nests them, and `$(...)` is balanced.
+    """
+    visible = _QUOTED_SPAN.sub("", line)
+    if opener == "(":
+        return visible.count("(") - visible.count(")")
+    words = re.split(r"[\s;]+", visible)
+    return words.count("{") - words.count("}")
 
 
 def _shell_invocation_lines(text: str) -> str:
@@ -1144,21 +1175,45 @@ def _outside_function_bodies(lines: list[str]) -> list[str]:
     command is passed to it as an *argument* from top level, not
     written inside its body.
 
-    Braces are counted per line, which `${var}` and `awk '{...}'`
-    survive because they are balanced. An unbalanced brace inside a
-    string would confuse it, and there is none in any gate source.
+    Every form bash accepts is recognised, not just the one this rule
+    was first written against: the `function name` keyword form, a
+    hyphenated name, a parenthesis body, and a body whose opening
+    brace sits on the following line. Depth is counted by
+    `_body_depth_change()`, so a brace that is not a delimiter cannot
+    end a body early and expose the rest of it as top-level text.
     """
     kept: list[str] = []
+    opener = ""
     depth = 0
+    awaiting_body = False
     for line in lines:
-        opening = line.count("{") - line.count("}")
-        if depth == 0 and _SHELL_FUNCTION_DEFINITION.match(line):
-            depth += max(opening, 1)
+        if opener:
+            depth += _body_depth_change(line, opener)
+            if depth <= 0:
+                opener, depth = "", 0
             continue
-        if depth > 0:
-            depth += opening
+        if awaiting_body:
+            awaiting_body = False
+            openers = [char for char in _FUNCTION_BODY_CLOSERS if char in line]
+            if not openers:
+                kept.append(line)
+                continue
+            opener = min(openers, key=line.index)
+            depth = _body_depth_change(line, opener)
+            if depth <= 0:
+                opener, depth = "", 0
             continue
-        kept.append(line)
+        match = _SHELL_FUNCTION_DEFINITION.match(line)
+        if match is None:
+            kept.append(line)
+            continue
+        if match.group("opener") is None:
+            awaiting_body = True
+            continue
+        opener = match.group("opener")
+        depth = _body_depth_change(line, opener)
+        if depth <= 0:
+            opener, depth = "", 0
     return kept
 
 
@@ -2185,6 +2240,89 @@ def test_a_command_inside_an_uncalled_function_is_not_a_command_that_runs() -> N
     """
     assert "tests/test_pre_fit.py" in _pytest_command_lines(after_a_function)
 
+    # Every other way bash lets a function be written. The rule above
+    # first recognised only `name() {`, so each of these hid the same
+    # gate command in plain sight: measured before the fix, the keyword
+    # form, a hyphenated name, a parenthesis body and an unbalanced
+    # brace in the body were all counted as coverage. Each one was run
+    # under `bash -n` and then executed first, to confirm it really is
+    # valid shell whose body never runs.
+    hidden_forms = {
+        "function keyword, no parentheses": """
+            function never_called {
+                python -m pytest tests/test_pre_fit.py -m "marker" -v
+            }
+        """,
+        "function keyword with parentheses": """
+            function never_called() {
+                python -m pytest tests/test_pre_fit.py -m "marker" -v
+            }
+        """,
+        "hyphenated function name": """
+            never-called() {
+                python -m pytest tests/test_pre_fit.py -m "marker" -v
+            }
+        """,
+        "parenthesis body": """
+            never_called() (
+                python -m pytest tests/test_pre_fit.py -m "marker" -v
+            )
+        """,
+        "opening brace on the next line": """
+            never_called()
+            {
+                python -m pytest tests/test_pre_fit.py -m "marker" -v
+            }
+        """,
+        "whole body on the definition line": """
+            never_called() { python -m pytest tests/test_pre_fit.py -m "marker" -v; }
+        """,
+        "quoted brace inside the body": """
+            never_called() {
+                echo "}}"
+                python -m pytest tests/test_pre_fit.py -m "marker" -v
+            }
+        """,
+        "unquoted brace word inside the body": """
+            never_called() {
+                echo }}
+                python -m pytest tests/test_pre_fit.py -m "marker" -v
+            }
+        """,
+    }
+    for description, source in hidden_forms.items():
+        assert _pytest_command_lines(source) == "", description
+
+    # ...and the same shapes at top level still read as real commands,
+    # so the wider rule cannot silently hide a gate that does run.
+    visible_forms = {
+        "brace word in a string": """
+            echo "}}"
+            python -m pytest tests/test_pre_fit.py -m "marker" -v
+        """,
+        "after a parenthesis-bodied function": """
+            helper() (
+                echo hello
+            )
+            python -m pytest tests/test_pre_fit.py -m "marker" -v
+        """,
+        "after a keyword-form function": """
+            function helper {
+                echo hello
+            }
+            python -m pytest tests/test_pre_fit.py -m "marker" -v
+        """,
+        "after a one-line function": """
+            helper() { echo hello; }
+            python -m pytest tests/test_pre_fit.py -m "marker" -v
+        """,
+        "command substitution in the command": """
+            python -m pytest "$(dirname tests/x)/test_pre_fit.py" -m "marker" -v
+        """,
+    }
+    for description, source in visible_forms.items():
+        assert "test_pre_fit.py" in _pytest_command_lines(source), description
+
 
 def test_every_way_pytest_can_drop_a_test_is_judged() -> None:
     """`-k` and `-m` are not the only ways to remove a test.
@@ -2407,7 +2545,11 @@ def test_the_disabling_detectors_actually_detect(tmp_path: Path) -> None:
     assert selection_affecting_addopts(section + 'addopts = """\n-ra\n--collect-only\n"""\n') == [
         "--collect-only"
     ]
-    # an unambiguous prefix, which argparse resolves to the full option
+    # A prefix of a selecting option, refused deliberately even though
+    # pytest is stricter than this: `--col`, `--desel` and `--ign` were
+    # measured to exit 4 with "unrecognized arguments", so an
+    # abbreviation is loud, not silent. Refusing it costs nothing and
+    # does not depend on that staying true.
     assert selection_affecting_addopts(section + 'addopts = "--co"\n') == ["--collect-only"]
     assert selection_affecting_addopts(section + 'addopts = "--col"\n') == ["--collect-only"]
     assert selection_affecting_addopts(section + 'addopts = "--ignore-glob=tests/*"\n') == [
@@ -2415,6 +2557,109 @@ def test_the_disabling_detectors_actually_detect(tmp_path: Path) -> None:
     ]
     # A different tool's addopts is not pytest's.
     assert selection_affecting_addopts('[tool.other]\naddopts = "-k nothing"\n') == []
+
+
+def test_pytest_reads_its_configuration_from_pyproject_and_nothing_else(
+    tmp_path: Path,
+) -> None:
+    """Checking pyproject.toml only proves anything if pytest reads it.
+
+    Measured with pytest 9.1.1: a `pytest.ini` takes precedence over
+    pyproject.toml and pytest then ignores it completely, printing
+    "configfile: pytest.ini (WARNING: ignoring pytest config in
+    pyproject.toml!)". A `pytest.ini` that copies this repository's
+    testpaths, pythonpath and markers across and adds
+    `addopts = --collect-only` made the real lightweight gate print
+    "224/244 tests collected" and exit 0, having executed nothing,
+    while the addopts check read a perfectly clean pyproject.toml. A
+    bare `pytest.ini` is caught anyway - it takes pythonpath with it,
+    so collection fails loudly - but the copied one was silent.
+
+    So the rule is which file pytest would read, not what one chosen
+    file says.
+    """
+    assert effective_pytest_config_file(find_repo_root()) == "pyproject.toml"
+
+    table = '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n'
+    (tmp_path / "pyproject.toml").write_text(table, encoding="utf-8")
+    assert effective_pytest_config_file(tmp_path) == "pyproject.toml"
+
+    # Both spellings of the file that outranks it, including the empty
+    # one: pytest honours it whether or not it configures anything.
+    for name in ("pytest.ini", ".pytest.ini"):
+        override = tmp_path / name
+        override.write_text("", encoding="utf-8")
+        assert effective_pytest_config_file(tmp_path) == name
+        override.unlink()
+    assert effective_pytest_config_file(tmp_path) == "pyproject.toml"
+
+    # The two lower-precedence files, which only count when they carry
+    # pytest's own section - and only when pyproject.toml does not.
+    (tmp_path / "tox.ini").write_text("[flake8]\nmax-line-length = 100\n", encoding="utf-8")
+    assert effective_pytest_config_file(tmp_path) == "pyproject.toml"
+    (tmp_path / "tox.ini").write_text("[pytest]\naddopts = -ra\n", encoding="utf-8")
+    assert effective_pytest_config_file(tmp_path) == "pyproject.toml"
+    (tmp_path / "pyproject.toml").write_text("[tool.other]\nx = 1\n", encoding="utf-8")
+    assert effective_pytest_config_file(tmp_path) == "tox.ini"
+    (tmp_path / "tox.ini").unlink()
+    (tmp_path / "setup.cfg").write_text("[tool:pytest]\naddopts = -ra\n", encoding="utf-8")
+    assert effective_pytest_config_file(tmp_path) == "setup.cfg"
+
+    # A file that cannot be parsed is not a file that can be shown to
+    # be harmless, so it counts rather than being skipped.
+    (tmp_path / "setup.cfg").write_text("this is not ini at all\n", encoding="utf-8")
+    assert effective_pytest_config_file(tmp_path) == "setup.cfg"
+
+    # No configuration at all is not a pass either: pyproject.toml's
+    # table is where testpaths, pythonpath and the markers live.
+    for name in ("pyproject.toml", "setup.cfg"):
+        (tmp_path / name).unlink()
+    assert effective_pytest_config_file(tmp_path) is None
+
+
+def _called_function_names(function: ast.FunctionDef) -> list[str]:
+    """The plain function names one function body calls, in order."""
+    names = []
+    for node in ast.walk(function):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            names.append(node.func.id)
+    return names
+
+
+def test_the_lightweight_gate_applies_its_own_pytest_config_refusal() -> None:
+    """The refusal has to be wired in, and wired in before pytest.
+
+    Checked because the rule and its wiring are separate things:
+    deleting the `_ensure_pytest_config_runs_tests(repo_root)` line
+    from `_run_fast_checks()` left the whole of this file passing, so
+    every test above proved the rule works while nothing proved the
+    gate uses it. Ordering matters for the same reason the refusal
+    exists at all - a check applied after pytest has already reported
+    a pass proves nothing about that pass.
+
+    Read from the source with `ast`, not by searching its text: an
+    `_ensure_pytest_config_runs_tests` inside a comment, a docstring or
+    a string would satisfy a text search while calling nothing.
+    """
+    gate = find_repo_root() / "scripts" / "quality_check.py"
+    module = ast.parse(gate.read_text(encoding="utf-8"))
+    functions = {node.name: node for node in module.body if isinstance(node, ast.FunctionDef)}
+
+    assert "_ensure_pytest_config_runs_tests" in functions, (
+        "scripts/quality_check.py no longer defines the pytest-configuration refusal "
+        "that tests/test_repo_utils.py checks the other side of"
+    )
+
+    called = _called_function_names(functions["_run_fast_checks"])
+    assert "_ensure_pytest_config_runs_tests" in called, (
+        "scripts/quality_check.py's _run_fast_checks() does not call "
+        "_ensure_pytest_config_runs_tests(), so pytest's own configuration is never "
+        "checked and addopts can empty every gate while the gate reports a pass"
+    )
+    assert called.index("_ensure_pytest_config_runs_tests") < called.index("run_command"), (
+        "_run_fast_checks() starts pytest before checking pytest's configuration; the "
+        "refusal has to come first or the run it is meant to prevent has already happened"
+    )
 
 
 # Test files the lightweight gate deliberately does not run, each named

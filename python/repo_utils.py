@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import configparser
 import json
 from pathlib import Path
 
@@ -141,9 +142,12 @@ def _selection_option(word: str) -> str | None:
         matched = [
             option for option in LONG_SELECTION_OPTIONS if option.startswith(name) and len(name) > 2
         ]
-        # argparse accepts any unambiguous prefix, so `--col` is
-        # `--collect-only`; a prefix of a selecting option counts as
-        # that option.
+        # A prefix of a selecting option counts as that option. This
+        # is deliberately stricter than pytest: measured with pytest
+        # 9.1.1, `--col`, `--desel` and `--ign` are all rejected with
+        # "unrecognized arguments" and exit code 4, so an abbreviation
+        # is loud rather than silent. Refusing it anyway costs nothing
+        # and does not depend on that staying true.
         return matched[0] if matched else None
     if word.startswith("-") and len(word) > 1:
         for option in SHORT_SELECTION_OPTIONS:
@@ -160,3 +164,59 @@ def selection_affecting_addopts(pyproject_text: str) -> list[str]:
         if (option := _selection_option(word)) is not None
     }
     return sorted(found)
+
+
+# Every file pytest reads its configuration from, in the order it
+# prefers them, with the section that has to be present for the file to
+# count at all (`None` means the file counts even when it is empty).
+#
+# Checking `addopts` in pyproject.toml was checking the wrong file.
+# Measured with pytest 9.1.1: adding a `pytest.ini` makes pytest print
+# "configfile: pytest.ini (WARNING: ignoring pytest config in
+# pyproject.toml!)" and every setting the gates depend on - testpaths,
+# pythonpath, and all three markers - stops applying, with the marker
+# turning into a PytestUnknownMarkWarning rather than an error. A
+# `pytest.ini` holding `addopts = --collect-only` therefore runs
+# nothing, exits 0, and leaves pyproject.toml untouched for any check
+# that only reads pyproject.toml. `.pytest.ini` behaves identically.
+PYTEST_CONFIG_FILES: tuple[tuple[str, str | None], ...] = (
+    ("pytest.ini", None),
+    (".pytest.ini", None),
+    ("pyproject.toml", "tool.pytest.ini_options"),
+    ("tox.ini", "pytest"),
+    ("setup.cfg", "tool:pytest"),
+)
+
+
+def _declares_pytest_configuration(name: str, text: str, section: str) -> bool:
+    """Whether one candidate file really carries pytest's configuration."""
+    if name.endswith(".toml"):
+        return "ini_options" in _load_toml(text).get("tool", {}).get("pytest", {})
+    parser = configparser.ConfigParser()
+    try:
+        parser.read_string(text)
+    except configparser.Error:
+        # An unreadable file cannot be shown to be harmless, and
+        # "cannot parse" must not read as "does not configure pytest" -
+        # the same reason `_load_toml()` raises instead of returning
+        # nothing.
+        return True
+    return parser.has_section(section)
+
+
+def effective_pytest_config_file(repo_root: Path) -> str | None:
+    """The name of the single configuration file pytest would read.
+
+    `None` means pytest would find no configuration at all, which for
+    this repository means pyproject.toml's `[tool.pytest.ini_options]`
+    table has gone - testpaths, pythonpath and the markers with it.
+    """
+    for name, section in PYTEST_CONFIG_FILES:
+        candidate = repo_root / name
+        if not candidate.is_file():
+            continue
+        if section is None:
+            return name
+        if _declares_pytest_configuration(name, candidate.read_text(encoding="utf-8"), section):
+            return name
+    return None
