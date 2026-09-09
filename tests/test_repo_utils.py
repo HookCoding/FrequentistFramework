@@ -381,6 +381,75 @@ def _yaml_config_lines(text: str) -> str:
     return "\n".join(kept)
 
 
+# Any YAML key, and whatever follows it on the same line. Every key is
+# matched, not just `run:`, because only `run:` carries commands: any
+# other key's block scalar holds free text - `actions/github-script`'s
+# `script: |` is a real example - and free text is neither a command
+# nor a configuration setting, so it belongs to neither half of the
+# split. Tracking `run:` alone left such a body being read as YAML
+# keys, so a `run:` line inside one counted as a step that runs.
+_YAML_BLOCK_KEY = re.compile(r"\s*(?:-\s+)?(?P<key>[A-Za-z_][A-Za-z0-9_.-]*):(?P<rest>.*)$")
+
+# A YAML block scalar's header: the style, then an indentation
+# indicator and a chomping indicator in either order, then an optional
+# comment. Measured against PyYAML 6.0.3, which accepts `|2`, `|-2`,
+# `>2+` and `| # note` as readily as a plain `|`. The previous test -
+# "is what follows `run:` empty once `|>+-` are stripped" - called
+# every one of those an inline command, which moved the block's whole
+# body from the command half of the split into the YAML half: invisible
+# to every command check, and searched as configuration instead.
+_BLOCK_SCALAR_HEADER = re.compile(r"^(?P<style>[|>])(?:[1-9][+-]?|[+-][1-9]?)?\s*(?:#.*)?$")
+
+
+def _block_scalar_lines(block: list[str], folded: bool) -> list[str]:
+    """A block scalar's body as the shell receives it, one command per
+    line.
+
+    A folded block is not one command per line. YAML joins consecutive
+    non-empty lines with a single space and only a blank line becomes a
+    newline, so
+
+        run: >
+          echo "about to run"
+          python -m pytest tests/test_x.py
+
+    reaches bash as a single `echo` whose arguments happen to include
+    the word pytest, and runs no tests at all. Read line by line it
+    looked like an echo that gets dropped followed by a real pytest
+    invocation - the exact "text that is only printed read as a command
+    that runs" false positive these readers exist to prevent, arriving
+    by a new route. Confirmed against PyYAML 6.0.3 for the folded, the
+    literal and the plain (no indicator) spellings.
+
+    The body's own indentation is removed, because that is what YAML
+    removes before bash sees it. The margin is taken from the content
+    rather than computed from an explicit indentation indicator, which
+    is deliberately not modelled: no workflow here uses one, and the
+    indicator's arithmetic is relative to the parent node rather than
+    to the block.
+    """
+    indents = [len(line) - len(line.lstrip()) for line in block if line.strip()]
+    if not indents:
+        return []
+    margin = min(indents)
+    content = [line[margin:] if line.strip() else "" for line in block]
+    if not folded:
+        return [line for line in content if line]
+
+    paragraphs: list[str] = []
+    current: list[str] = []
+    for line in content:
+        if line:
+            current.append(line.strip())
+            continue
+        if current:
+            paragraphs.append(" ".join(current))
+            current = []
+    if current:
+        paragraphs.append(" ".join(current))
+    return paragraphs
+
+
 def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
     """A workflow split into (the shell inside `run:` blocks, the YAML
     around them).
@@ -394,27 +463,49 @@ def _workflow_lines(text: str) -> tuple[list[str], list[str]]:
     """
     run_lines: list[str] = []
     other_lines: list[str] = []
+    block: list[str] = []
     block_key_column: int | None = None
-    block_indent: int | None = None
+    block_is_run = False
+    folded = False
+
+    def close_block() -> None:
+        if block_is_run:
+            run_lines.extend(_block_scalar_lines(block, folded))
+
     for raw in text.splitlines():
+        if block_key_column is not None:
+            indent = len(raw) - len(raw.lstrip())
+            if not raw.strip() or indent > block_key_column:
+                block.append(raw)
+                continue
+            close_block()
+            block, block_key_column = [], None
         if not raw.strip():
             continue
-        indent = len(raw) - len(raw.lstrip())
-        if block_key_column is not None:
-            if indent > block_key_column:
-                if block_indent is None:
-                    block_indent = indent
-                run_lines.append(raw[block_indent:] if indent >= block_indent else raw.lstrip())
+        key = _YAML_BLOCK_KEY.match(raw)
+        if key is not None:
+            name = key.group("key")
+            rest = key.group("rest").strip()
+            header = _BLOCK_SCALAR_HEADER.match(rest)
+            if name == "run" and (header is not None or not rest):
+                # A bare `run:` opens a multi-line plain scalar, which
+                # folds exactly as `>` does - measured, not assumed.
+                block, block_key_column, block_is_run = [], raw.index("run:"), True
+                folded = rest == "" or header.group("style") == ">"
                 continue
-            block_key_column, block_indent = None, None
-        if re.match(r"\s*(?:-\s+)?run:", raw):
-            inline = raw.split("run:", 1)[1].strip()
-            if inline.strip("|>+-") == "":
-                block_key_column = raw.index("run:")
-            else:
-                run_lines.append(inline)
-            continue
+            if name == "run":
+                run_lines.append(rest)
+                continue
+            if header is not None:
+                # A block scalar under any other key. A bare `other:`
+                # is not one - it opens a mapping - so only an explicit
+                # `|` or `>` counts here.
+                block, block_key_column, block_is_run = [], raw.index(f"{name}:"), False
+                continue
         other_lines.append(raw)
+
+    if block_key_column is not None:
+        close_block()
     return run_lines, other_lines
 
 
@@ -1757,6 +1848,125 @@ def test_workflow_run_block_lines_excludes_yaml_metadata() -> None:
     assert "Run the gate" not in commands
 
 
+def test_a_folded_run_block_is_not_one_command_per_line() -> None:
+    """A folded `run: >` block reaches bash as one command, not many.
+
+    YAML joins a folded block's consecutive lines with a single space,
+    so the step below runs one `echo` and no tests at all. Read line by
+    line it looked like an echo that gets dropped followed by a real
+    pytest invocation, and the coverage checks called the workflow
+    covered - the same "printed text read as a command that runs"
+    false positive as an echoed command, arriving through the YAML
+    layer instead of the shell one. Measured against PyYAML 6.0.3: the
+    folded block's value is one line.
+    """
+    folded = """
+      - name: Looks like two commands
+        run: >
+          echo "about to run"
+          python -m pytest tests/test_pre_fit.py
+    """
+    assert _pytest_command_lines(_workflow_run_block_lines(folded)) == ""
+
+    # A blank line inside a folded block *is* a break, so these are two
+    # commands and the second one really does run.
+    with_break = """
+      - name: Really two commands
+        run: >
+          echo "about to run"
+
+          python -m pytest tests/test_pre_fit.py
+    """
+    assert "tests/test_pre_fit.py" in _pytest_command_lines(_workflow_run_block_lines(with_break))
+
+    # A literal block is one command per line, unchanged.
+    literal = """
+      - name: Two commands
+        run: |
+          echo "about to run"
+          python -m pytest tests/test_pre_fit.py
+    """
+    assert "tests/test_pre_fit.py" in _pytest_command_lines(_workflow_run_block_lines(literal))
+
+
+def test_every_block_scalar_header_opens_a_block() -> None:
+    """`|2`, `|-2`, `>2+`, `| # note` and a bare `run:` are all blocks.
+
+    Each is a header PyYAML 6.0.3 accepts, and each was previously read
+    as an inline command: the block's whole body then fell out of the
+    command half of the split and into the YAML half, invisible to
+    every check that asks what the workflow runs - including the
+    always-false-guard refusal - and searched as configuration instead.
+    """
+    literal_forms = ("|", "|-", "|+", "|2", "|2-", "|-2", "|+2", "| # note")
+    for header in literal_forms:
+        step = (
+            "      - name: A step\n"
+            f"        run: {header}\n"
+            "          python -m pytest tests/test_pre_fit.py\n"
+        )
+        run_lines, config_lines = _workflow_lines(step)
+        assert run_lines == ["python -m pytest tests/test_pre_fit.py"], header
+        assert not any("pytest" in line for line in config_lines), header
+
+    # The folding spellings, including the bare `run:` plain scalar.
+    for header in (">", ">-", ">2", ">2+", ""):
+        step = (
+            "      - name: A step\n"
+            f"        run:{(' ' + header) if header else ''}\n"
+            "          python -m pytest tests/test_pre_fit.py\n"
+        )
+        run_lines, config_lines = _workflow_lines(step)
+        assert run_lines == ["python -m pytest tests/test_pre_fit.py"], header
+        assert not any("pytest" in line for line in config_lines), header
+
+    # An inline command is still an inline command, not a header.
+    run_lines, _config = _workflow_lines(
+        "      - name: A step\n        run: python -m pytest tests/test_pre_fit.py\n"
+    )
+    assert run_lines == ["python -m pytest tests/test_pre_fit.py"]
+
+
+def test_a_block_scalar_under_another_key_is_neither_commands_nor_config() -> None:
+    """Free text in a block scalar must reach neither half of the split.
+
+    `actions/github-script`'s `script: |` is the realistic case: its
+    body is JavaScript, not shell and not YAML keys. Tracking `run:`
+    blocks alone left such a body being read line by line as ordinary
+    YAML, so a line inside it that happens to read `run: <command>`
+    counted as a step that runs the command, and a line that happens
+    to read `python-version: "..."` counted as the workflow's pin -
+    both false positives, in both halves at once.
+    """
+    step = (
+        "      - name: A github-script step\n"
+        "        uses: actions/github-script@v7\n"
+        "        with:\n"
+        "          script: |\n"
+        "            run: python -m pytest tests/test_pre_fit.py\n"
+        '            python-version: "3.9.0"\n'
+        "      - name: A real step\n"
+        "        run: |\n"
+        "          python scripts/quality_check.py --mode full\n"
+    )
+    run_lines, config_lines = _workflow_lines(step)
+
+    assert run_lines == ["python scripts/quality_check.py --mode full"]
+    assert not any("pytest" in line for line in config_lines)
+    assert not any("3.9.0" in line for line in config_lines)
+
+    # The keys around the block are still configuration, so the split
+    # has not simply thrown the step away.
+    assert any("actions/github-script" in line for line in config_lines)
+
+    # A bare key with no block indicator opens a mapping, not a block
+    # scalar, so what follows it is still read as configuration.
+    _run, mapping_config = _workflow_lines(
+        "      - name: A step\n" "        with:\n" '          python-version: "3.12.13"\n'
+    )
+    assert any('python-version: "3.12.13"' in line for line in mapping_config)
+
+
 def test_pytest_command_lines_ignores_echoed_commands() -> None:
     # Direct regression test for _pytest_command_lines()'s own contract,
     # so the two coverage tests below cannot quietly become vacuous. The
@@ -3084,6 +3294,37 @@ def _unconditional_call_index(function: ast.FunctionDef, name: str) -> int | Non
     return None
 
 
+def _callers_of(module: ast.Module, name: str) -> set[str]:
+    """Every function in `module` that calls `name`, and `"<module>"` if
+    any call is not inside a function at all.
+
+    Walking the function definitions alone missed a call at module
+    scope entirely: a module-level `COMMANDS =
+    _executable_command_lines(...)` would read a real source with no
+    guard applied and the check below would report no callers. A call
+    inside a nested function is attributed to that nested function, so
+    it has to be named deliberately too rather than hiding behind the
+    name of whatever encloses it.
+    """
+    callers: set[str] = set()
+
+    def visit(node: ast.AST, enclosing: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                visit(child, child.name)
+                continue
+            if (
+                isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Name)
+                and child.func.id == name
+            ):
+                callers.add(enclosing)
+            visit(child, enclosing)
+
+    visit(module, "<module>")
+    return callers
+
+
 def _first_call_index(function: ast.FunctionDef, name: str) -> int | None:
     """Which of `function`'s own statements first calls `name`, however
     deeply that call is nested inside the statement."""
@@ -3210,13 +3451,7 @@ def test_every_real_source_is_read_through_the_guarded_reader() -> None:
     """
     this_file = Path(__file__)
     module = ast.parse(this_file.read_text(encoding="utf-8"))
-
-    callers = set()
-    for node in ast.walk(module):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        if "_executable_command_lines" in _statement_calls(node):
-            callers.add(node.name)
+    callers = _callers_of(module, "_executable_command_lines")
 
     unexpected = sorted(callers - _UNGUARDED_COMMAND_READERS)
     assert not unexpected, (
@@ -3230,6 +3465,34 @@ def test_every_real_source_is_read_through_the_guarded_reader() -> None:
         f"_UNGUARDED_COMMAND_READERS names {stale}, which no longer call "
         "_executable_command_lines() - drop them so this list keeps meaning something"
     )
+
+
+def test_the_guarded_reader_check_sees_a_call_outside_every_function() -> None:
+    """The check above has to see a read at module scope too.
+
+    It used to walk function definitions only, so a module-level
+    constant built from a real source would have been read with no
+    guard applied and the check would have reported no callers at all -
+    a check that passes because it looked in the wrong place. Asserted
+    on synthetic source, since this module cannot hold the very call
+    the check refuses.
+    """
+    at_module_scope = ast.parse(
+        'COMMANDS = _executable_command_lines(open("install.sh").read())\n'
+        "def innocent() -> None:\n"
+        "    pass\n"
+    )
+    assert _callers_of(at_module_scope, "_executable_command_lines") == {"<module>"}
+
+    nested = ast.parse(
+        "def outer() -> None:\n"
+        "    def inner() -> None:\n"
+        "        _executable_command_lines(text)\n"
+        "    inner()\n"
+    )
+    assert _callers_of(nested, "_executable_command_lines") == {"inner"}
+
+    assert _callers_of(ast.parse("x = 1\n"), "_executable_command_lines") == set()
 
 
 # How `doc/TIER3_SYSTEM.md` counts `python/repo_utils.py`'s public

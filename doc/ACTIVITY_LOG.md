@@ -13321,3 +13321,151 @@ review. Nine further defects were found and fixed this way, in three
 commits; two candidates were checked and rejected with the measurement
 recorded. No Copilot finding remains unaddressed, and no new Copilot
 review has arrived since the one on `09f56ae`.
+
+## 2026-09-09 — Sixth audit pass: the YAML splitter added in the fifth pass misread three block-scalar cases
+
+The fifth pass split a workflow into the shell inside its `run:` blocks
+and the YAML around it, because reading the whole file for either
+question was unsound in both directions. That splitter is new code, and
+no Copilot review has seen it: the last review is still the one on
+`09f56ae`, submitted before any of the audit commits were pushed. So
+the same findings were re-applied to the fix itself, and the same
+generalisation rule that found the earlier defects found three more
+here.
+
+PyYAML is not among the locked development dependencies, so the
+splitter has to be correct on its own rather than deferring to a
+parser. It was checked against PyYAML 6.0.3 installed into a scratch
+directory outside the project environment, purely as a measuring
+instrument.
+
+### A folded block is not one command per line
+
+A `run: >` block is folded: YAML joins consecutive non-empty lines with
+a single space, and only a blank line becomes a newline. So
+
+```yaml
+run: >
+  echo "about to run"
+  python -m pytest tests/test_pre_fit.py
+```
+
+reaches bash as one `echo` whose arguments happen to contain the word
+pytest, and runs no tests at all. Read line by line it looked like an
+echo that gets dropped followed by a real pytest invocation, and the
+coverage checks called that step covered. This is the same defect class
+as Copilot's comment on an echoed command being read as a command that
+runs, arriving through the YAML layer rather than the shell one.
+
+Confirmed silent by sabotage on the real file: with
+`.github/workflows/scientific-analysis.yml`'s plotting-layer step
+rewritten as a folded block - a step that, so written, really would run
+one command and no tests - the pre-fix reader left
+`test_ci_scientific_workflow_covers_every_requires_analysis_dependencies_test_file`
+passing. Nothing else in the suite noticed either.
+
+A folded block's lines are now folded the way YAML folds them, one
+command per paragraph, before any command check sees them. A literal
+`|` block is still one command per line, and a blank line inside a
+folded block is still a break.
+
+### Five spellings of a block header were read as inline commands
+
+The previous test for "does this `run:` open a block" was whether what
+followed it was empty once the characters `|>+-` were stripped. Measured
+against PyYAML 6.0.3, that test is wrong for every header carrying an
+indentation indicator or a comment: `|2`, `|2-`, `|-2`, `>2+` and
+`| # note` are all accepted headers, as is a bare `run:`, which opens a
+multi-line plain scalar that folds exactly as `>` does. Each was read
+as an inline command instead, which moved the block's whole body out of
+the command half of the split and into the YAML half - invisible to
+every check that asks what the workflow runs, including the
+always-false-guard refusal, and searched as configuration instead.
+
+Sabotage on the real file records which direction this fails in: with
+both of `.github/workflows/tier1-root-comparison.yml`'s blocks written
+as `|2`, the pre-fix reader failed
+`test_ci_runs_locked_lightweight_full_gate` outright, so on that file
+it is loud. The silent direction is the other half of the split, where
+command text arrives as configuration - the same false-positive path
+the fifth pass had just closed.
+
+The header is now matched as YAML defines it: the style character, then
+an indentation indicator and a chomping indicator in either order, then
+an optional comment. The indicator's own column arithmetic is
+deliberately not modelled - it is relative to the parent node, and no
+workflow here uses one - so the body's margin is still taken from its
+content, which is what YAML does absent an indicator.
+
+After the fix the splitter's `run:` lines were compared with what
+PyYAML reports for every `run:` value in both real workflow files:
+identical, 194 lines for `scientific-analysis.yml` and 3 for
+`tier1-root-comparison.yml`, and each file still exposes exactly one
+`python-version:` pin to the configuration reader.
+
+### The structural check looked only inside functions
+
+`test_every_real_source_is_read_through_the_guarded_reader`, also added
+in the fifth pass, exists so that no new caller of
+`_executable_command_lines()` can quietly skip the always-false guard.
+It walked the module's function definitions, so a call at module scope
+was invisible to it: a module-level constant built from a real source
+would have been read with no guard applied and the check would have
+reported no callers at all. That is the same class as Copilot's comment
+on the decorator scanner missing forms it did not look for - a check
+that passes because it looked in the wrong place.
+
+Calls are now attributed to their enclosing function by descent rather
+than by walking definitions, and a call in no function is attributed to
+`"<module>"`, which is not on the exemption list and therefore fails. A
+call inside a nested function is attributed to that nested function, so
+it has to be named deliberately too rather than hiding behind whatever
+encloses it.
+
+### Only `run:` blocks were tracked, so other block scalars were read as YAML
+
+Generalising the two fixes above one step further: the splitter tracked
+a block scalar only under `run:`. Any other key's block body was read
+line by line as ordinary YAML, and free text is neither commands nor
+configuration. `actions/github-script`'s `script: |` is the realistic
+case - its body is JavaScript - and a line inside such a body that
+happens to read `run: <command>` counted as a step that runs the
+command, while a line that happens to read `python-version: "..."`
+counted as the workflow's pin. Both halves of the split wrong at once,
+from one hole.
+
+Every key is now matched, and a block scalar under any key other than
+`run:` is dropped from both halves. A bare key with no `|` or `>` still
+opens a mapping rather than a block, so ordinary configuration is
+unaffected - checked explicitly, since treating `with:` as a block
+would have discarded the very keys the configuration reader exists to
+read.
+
+### Verification performed
+
+- Four sabotages of the fixes, each confirmed to fail exactly one test
+  and to pass when restored: folded blocks read one command per line
+  again, the old strip-based header test restored, the caller walk
+  returned to visiting function definitions only, and block tracking
+  narrowed back to `run:` keys.
+- Two sabotages of the real workflow files, each measured against both
+  the pre-fix and the post-fix reader, recorded above.
+- The splitter's output compared line by line with PyYAML 6.0.3 across
+  fifteen block-header spellings and both real workflow files.
+- `python scripts/quality_check.py --mode full`: 253 collected, 233
+  passed, 20 deselected, Ruff clean, Black clean (39 files), exit code
+  0. Documented figures updated across the four living documents, and
+  the prepared-dependency gate to 49 collected, 2 passed, 47
+  deselected.
+
+### On the previous entry's closing statement
+
+The entry above closed the audit on the grounds that every Copilot
+finding had been re-applied to every commit since the last review. That
+was true of the commits that existed when it was written, and it did
+not hold for long: the fifth pass's own fix was the newest unreviewed
+code in the repository, and applying the findings to it produced these
+four defects. The findings themselves remain fully swept - all
+forty-four, as classes - and no new Copilot review has arrived. What is
+now recorded, rather than closed, is that each pass adds code no review
+has seen, so the sweep has a fixed point only when a pass finds nothing.

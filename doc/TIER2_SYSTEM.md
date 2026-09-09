@@ -13,8 +13,8 @@ Verified development baseline:
 
 Latest full lightweight gate:
 
-- 249 collected;
-- 229 passed;
+- 253 collected;
+- 233 passed;
 - 20 prepared-dependency tests deselected;
 - 0 expected failures;
 - Ruff passed;
