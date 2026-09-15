@@ -65,7 +65,8 @@ Output defaults to `<repo>/run/`; every output lands under
 toy studies fanned out over HTCondor — AFS home quotas are too small for hundreds of runs.
 
 ```
-. scripts/run_anaFit_run2.sh    # Run 2 dijet TLA  (13 TeV)
+. scripts/run_anaFit_run2.sh        # Run 2 dijet TLA J100  (13 TeV)
+. scripts/run_anaFit_run2_J50.sh    # Run 2 dijet TLA J50   (13 TeV)
 ```
 
 Other drivers: `scripts/run_nloFit.sh` (NLO-template fit), `scripts/run_anaFit_syst.sh`,
@@ -73,18 +74,18 @@ Other drivers: `scripts/run_nloFit.sh` (NLO-template fit), `scripts/run_anaFit_s
 
 # Configuration
 
-|  | Run 2 dijet TLA |
-|---|---|
-| Driver | `scripts/run_anaFit_run2.sh` |
-| √s | 13 TeV |
-| Fit range | 481 – 3000 GeV |
-| Bins in range | 2519 (1 GeV) |
-| Background parameters | six |
-| Channel name | `J100yStar06` |
-| Data file | `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root` |
-| Data histogram | `hists_yStar06_rejectEta_10_16/HLT_j0_perf_ds1_L1J100/h_mjj` |
-| Cards | `config/dijetTLA/` |
-| Rebinning | `Input/data/dijetTLA/fullRun2TLAJ100mjj.root` (57 bins, 481–2997) |
+|  | Run 2 dijet TLA J100 | Run 2 dijet TLA J50 |
+|---|---|---|
+| Driver | `scripts/run_anaFit_run2.sh` | `scripts/run_anaFit_run2_J50.sh` |
+| √s | 13 TeV | 13 TeV |
+| Fit range | 481 – 3000 GeV | 302 – 2997 GeV |
+| Bins in range | 2519 (1 GeV) | 2695 (1 GeV) |
+| Background parameters | six | six |
+| Channel name | `J100yStar06` | `J50yStar06` |
+| Data file | `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root` | `Input/data/dijetTLA/mjj_spectra_J50_dataAll.root` |
+| Data histogram | `hists_yStar06_rejectEta_10_16/HLT_j0_perf_ds1_L1J100/h_mjj` | `hists_yStar06_massCut/HLT_j0_perf_ds1_L1J50/h_mjj` |
+| Cards | `config/dijetTLA/` (top/background/signal cards shared; category card is per-channel) | same |
+| Rebinning | `Input/data/dijetTLA/fullRun2TLAJ100mjj.root` (57 bins, 481–2997) | `Input/data/dijetTLAnlo/binning2021/data_J100yStar06_range171_3217.root`, hist `data` (75 bins, 171–3217, clipped to range) |
 
 ## Run 2 input data
 
@@ -104,6 +105,17 @@ JES-varied copies of `h_mjj` alongside the nominal one):
 binning (`Dijet mass distribution (J100)/Hist1D_y1`, 57 bins from 481 to 2997). It is used as
 the rebinning target for the chi2/p-value, not as a fit input — its first bin edge is exactly
 481, which is why the fit range starts there.
+
+`Input/data/dijetTLA/mjj_spectra_J50_dataAll.root` holds the full Run 2 dijet TLA J50
+spectrum: `TH1F`, 4000 bins of 1 GeV over 0–4000 GeV, but a single selection only
+(`hists_yStar06_massCut/HLT_j0_perf_ds1_L1J50/`, plus five JES-varied copies of `h_mjj`) —
+no eta-veto variants and no `afterSelection/nominal` path. The J50 stream is prescaled: above
+~300 GeV it carries roughly 4–5× fewer events than J100 in the same bins, so statistics are
+thin at the top of its 302–2997 fit range. There is no published J50 analysis-binning file;
+the fit instead reuses `Input/data/dijetTLAnlo/binning2021/data_J100yStar06_range171_3217.root`,
+whose edges over 481–2997 are identical to the published J100 binning above, just extended
+down to 171 — this is what lets the two fits' rebinned results line up bin-for-bin where they
+overlap.
 
 # Outputs
 

@@ -33,6 +33,8 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-15 15:20 — Remove the 2026-09-04 plan archived here by mistake](#2026-09-15-1520--remove-the-2026-09-04-plan-archived-here-by-mistake)
 - [2026-09-15 15:40 — Make the output directory repository-relative](#2026-09-15-1540--make-the-output-directory-repository-relative)
 - [2026-09-15 16:40 — Remove Run 3 data and documentation](#2026-09-15-1640--remove-run-3-data-and-documentation)
+- [2026-09-15 17:16 — Add the Run 2 J50 driver and run the fit](#2026-09-15-1716--add-the-run-2-j50-driver-and-run-the-fit)
+- [2026-09-15 17:30 — Confirm the J100 fit is unaffected by the J50 work](#2026-09-15-1730--confirm-the-j100-fit-is-unaffected-by-the-j50-work)
 
 ---
 
@@ -414,3 +416,99 @@ to be deleted or repaired, so it is left as dead configuration rather than guess
 to remove Run 3 references, overriding this notebook's own "never rewrite" rule and the
 `plans/README.md` "archived as written" rule for this occasion only. The user was told
 explicitly that this meant altering the historical record before agreeing.
+
+---
+
+## 2026-09-15 17:16 — Add the Run 2 J50 driver and run the fit
+
+**Objective.** `Input/data/dijetTLA/mjj_spectra_J50_dataAll.root` (committed 2026-07-20, see
+the entry below) had no driver pointing at it — nothing in the repository fitted the J50
+stream. Add one, mirroring `scripts/run_anaFit_run2.sh`, and run it end to end. Plan:
+[plans/2026-09-15-run2-dijet-tla-j50.md](plans/2026-09-15-run2-dijet-tla-j50.md). Range
+(302–2997 GeV) and background parameters (six) were the user's choice, made when the plan
+was reviewed.
+
+**Found.** The J50 file carries a single selection
+(`hists_yStar06_massCut/HLT_j0_perf_ds1_L1J50/h_mjj`, `TH1F`, 4000×1 GeV bins, 0–4000 GeV) —
+no eta-veto variants and no `afterSelection/nominal` path, unlike the J100 file. Above ~300
+GeV it holds roughly 4–5× fewer events than J100 in the same bins (prescaled stream), so the
+top of the chosen range is stats-limited by design. There is no published J50
+analysis-binning file for the chi2 rebinning; `Input/data/dijetTLAnlo/binning2021/
+data_J100yStar06_range171_3217.root` (hist `data`, 75 bins, 171–3217) was used instead — its
+edges over 481–2997 are identical to the published J100 binning
+(`fullRun2TLAJ100mjj.root`), just extended down into the low-mass region J50 covers.
+
+**Added.**
+
+- `config/dijetTLA/category_dijetTLA_J50yStar06.template` — the J100 category card with
+  `Channel Name="J50yStar06"`. Needed because `run_anaFit.py` derives the channel name (and
+  hence every output directory/file name) from this card.
+- `scripts/run_anaFit_run2_J50.sh` — copy of `scripts/run_anaFit_run2.sh` with `rangelow`,
+  `rangehigh`, `datafile`, `datahist`, `folder`, `categoryfile`, `rebinfile`/`rebinhist`
+  changed as above. The top card, six-parameter background card and signal card are reused
+  unchanged from the J100 fit — they hold only placeholders and a trigger-independent dijet
+  function.
+
+**Verified** — clean run, 17:23–17:27 (a first attempt at 17:16 was killed mid-run by my own
+`timeout 300` wrapper right after the masked quickFit converged but before extraction; its
+partial output was overwritten by this run, nothing from it was kept):
+
+| Check | Result |
+|---|---|
+| Templated card | `HistName="hists_yStar06_massCut/HLT_j0_perf_ds1_L1J50/h_mjj"`, `Observable="obs_x_channel[302,2997]"`, `Binning="2695"` |
+| Background card | no `PAR` placeholders left unsubstituted |
+| `nbkg` (prefit) | 1.107e9 |
+| Fine binning, initial fit | 2695 bins, chi2/ndof = 1.039, p = 0.078 |
+| Rebinned, initial fit | 65 bins, chi2/ndof = 1.595, ndof = 59, **p = 0.0025** |
+
+p = 0.0025 is below the 0.01 mask threshold, so the BumpHunter masking loop ran:
+
+| Check | Result |
+|---|---|
+| BumpHunter window found | 582–662 GeV, global p = 0.0322 (1.85σ) |
+| Masked fit, fine binning | 2615 bins, chi2/ndof = 1.040, p = 0.075 |
+| Masked fit, rebinned | 62 bins, chi2/ndof = 1.430, ndof = 56, **p = 0.019** |
+| Masked fit status | `STATUS OK`, converged |
+| PostFit directories | `J50yStar06`, `J50yStar06_bkgonly`, `J50yStar06_rebinned`, `J50yStar06_bkgonly_rebinned` (masked file has the same set) |
+| Fitted parameters | `nbkg = 1.107e9`, `p2 = 2.474`, `p3 = 10.390`, `p4 = 1.733`, `p5 = 0.2815`, `p6 = 0.02134` (masked fit; `p1` pinned at 1, `nsig` constant at 0) |
+| Plots | `postFit.pdf`, `post_fit.pdf`, `edm_*.pdf` (unmasked and masked) all rendered |
+
+p = 0.019 passed the 0.01 threshold, so the masked fit is the accepted result. Both quickFit
+runs print one `Migrad did not converge (status 1). Retrying with higher strategy.` warning —
+the same conservative-Minuit-status-1 pattern noted in the 14:38 J100 entry, not a failure;
+both end `STATUS OK`.
+
+**Not independently re-verified this time:** `nbkg` against the histogram integral (done for
+the J100 run in the 14:38 entry; the same PreFit/XMLReader code path is unchanged here).
+
+**A window was masked to get a passing fit.** 582–662 GeV is the excluded region; the
+six-parameter background shape there should not be read as validated by this fit, only as
+consistent with data everywhere else in 302–2997 GeV. Whether that window is interesting is
+for the analysis, not this notebook.
+
+---
+
+## 2026-09-15 17:30 — Confirm the J100 fit is unaffected by the J50 work
+
+**Objective.** The J50 work above reuses the J100 fit's top, background and signal cards
+unchanged and does not touch `scripts/run_anaFit_run2.sh`. Confirm that by actually re-running
+it, rather than trusting file timestamps.
+
+**Verified.** Card timestamps first: `config/dijetTLA/category_dijetTLA.template`,
+`background_dijetTLA_J100yStar06_sixPar.template` and `dijetTLA_J100yStar06.template` are all
+dated 2026-07-21 11:36, and `scripts/run_anaFit_run2.sh` 2026-09-15 16:19 — both before this
+session's J50 work began (17:16). Then re-ran `scripts/run_anaFit_run2.sh` with
+`OUT_DIR` pointed at a scratch directory (so the recorded `run/run_481_3000_sixPar/` output
+from the 14:38 entry was left untouched) and compared:
+
+| Check | 14:38 recorded run | This re-run (17:30–17:34) |
+|---|---|---|
+| Fine binning | 2519 bins, p = 0.496 | 2519 bins, p = 0.4960 |
+| Rebinned | 57 bins, ndof = 51, p = 0.0149 | 57 bins, ndof = 51, p = 0.01486 |
+| BumpHunter masking | did not run (p above threshold) | did not run (p above threshold) |
+| Minimized NLL | 1259.1119375388664 | 1259.1119375388664 (bit-identical) |
+| `p6` | 0.0478363 | 0.0478363 (bit-identical) |
+| Status | `STATUS OK` | `STATUS OK` |
+
+Bit-identical NLL and fitted parameters confirm the J100 fit is unaffected by everything added
+for J50.

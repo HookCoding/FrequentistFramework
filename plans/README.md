@@ -14,6 +14,7 @@ and the notebook disagree, the notebook is right.
 |---|---|---|---|
 | [Run 2 dijet TLA, 481–3000 GeV, six parameters](2026-09-15-run2-dijet-tla-481-3000-sixpar.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
 | [Repository-relative output directory](2026-09-15-repo-relative-output-dir.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
+| [Run 2 dijet TLA J50, 302–2997 GeV, six parameters](2026-09-15-run2-dijet-tla-j50.md) | 2026-09-15 | `claude-skills` | Approved, implementation in progress |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -33,6 +34,13 @@ studies need because the repository sits on a nearly-full AFS volume.
 
 Implemented the same day. Verified end to end: `scripts/run_anaFit_run2.sh` with no `OUT_DIR`
 set now lands output at `run/run_481_3000_sixPar/` inside the repository.
+
+### Run 2 dijet TLA J50, 302–2997 GeV, six parameters
+
+The J50 mjj spectrum added in `858cf49` has no driver — nothing in the repository runs it, so
+the low-mass reach the J50 stream exists to provide goes unfitted. Adds a J50 driver mirroring
+the J100 one, plus the one new card it needs (the channel name), reusing every other card and
+an existing binning file that already covers 171–3217 GeV.
 
 ## Adding a plan
 
