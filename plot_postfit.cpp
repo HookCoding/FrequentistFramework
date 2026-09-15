@@ -28,7 +28,7 @@ string const
   atlas_label = "Work in progress",
   lumi_label = "#sqrt{s} = 13 TeV, 25 fb^{-1}";
 
-void plot_postfit(char const * in_dir, char const * pars_str) {
+void plot_postfit(char const * in_dir, char const * pars_str, char const * chan = "Run3TLA") {
 
   char const 
     * in_file_name_native = Form("%s/PostFit_anaFit_%sPar_bkgOnly.root", in_dir, pars_str),
@@ -57,20 +57,20 @@ void plot_postfit(char const * in_dir, char const * pars_str) {
 
   if (in_file_native) {
 
-    h_native = in_file_native->Get<TH1D>("Run3TLA_bkgonly/residuals");
-    h_native_rebinned = in_file_native->Get<TH1D>("Run3TLA_bkgonly_rebinned/residuals");
-    h_native_chi2 = in_file_native->Get<TH1D>("Run3TLA_bkgonly/chi2");
-    h_native_chi2_rebinned = in_file_native->Get<TH1D>("Run3TLA_bkgonly_rebinned/chi2");
+    h_native = in_file_native->Get<TH1D>(Form("%s_bkgonly/residuals", chan));
+    h_native_rebinned = in_file_native->Get<TH1D>(Form("%s_bkgonly_rebinned/residuals", chan));
+    h_native_chi2 = in_file_native->Get<TH1D>(Form("%s_bkgonly/chi2", chan));
+    h_native_chi2_rebinned = in_file_native->Get<TH1D>(Form("%s_bkgonly_rebinned/chi2", chan));
     h_native_params = in_file_native_params->Get<TH1D>("postfit_params");
 
   }
 
   if (in_file_masked) {
 
-    h_masked = in_file_masked->Get<TH1D>("Run3TLA_bkgonly/residuals");
-    h_masked_rebinned = in_file_masked->Get<TH1D>("Run3TLA_bkgonly_rebinned/residuals");
-    h_masked_chi2 = in_file_masked->Get<TH1D>("Run3TLA_bkgonly/chi2");
-    h_masked_chi2_rebinned = in_file_masked->Get<TH1D>("Run3TLA_bkgonly_rebinned/chi2");
+    h_masked = in_file_masked->Get<TH1D>(Form("%s_bkgonly/residuals", chan));
+    h_masked_rebinned = in_file_masked->Get<TH1D>(Form("%s_bkgonly_rebinned/residuals", chan));
+    h_masked_chi2 = in_file_masked->Get<TH1D>(Form("%s_bkgonly/chi2", chan));
+    h_masked_chi2_rebinned = in_file_masked->Get<TH1D>(Form("%s_bkgonly_rebinned/chi2", chan));
     h_masked_params = in_file_masked_params->Get<TH1D>("postfit_params");
 
     h_masked->SetLineColor(kRed);

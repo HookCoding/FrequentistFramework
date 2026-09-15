@@ -25,3 +25,9 @@ workspaceCombiner
 pyBumpHunter
 
 !doc/*
+
+# agent working files
+.claude/
+.aider*
+.env
+.venv/

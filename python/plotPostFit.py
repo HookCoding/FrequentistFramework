@@ -6,11 +6,14 @@ ROOT.gROOT.SetBatch(True)
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--inputFile', type=str, required=True)
 parser.add_argument('-o', '--output', type=str, required=True)
+parser.add_argument('-c', '--channel', type=str, default='Run3TLA',
+                    help='Channel name, i.e. the directory inside the PostFit file '
+                         '(Run3TLA for dijetisrTLA, J100yStar06 for dijetTLA)')
 args = parser.parse_args()
 
 postfit_file = ROOT.TFile.Open(args.inputFile, "READ")
-postfit = postfit_file.Get("Run3TLA/postfit")
-data = postfit_file.Get("Run3TLA/data")
+postfit = postfit_file.Get(args.channel+"/postfit")
+data = postfit_file.Get(args.channel+"/data")
 data.SetMarkerStyle(8)
 data.SetMarkerSize(0.5)
 data.SetMarkerColor(ROOT.kBlack)
@@ -36,7 +39,7 @@ text.SetTextSize(0.04)
 text.SetTextFont(42)
 text.SetNDC()
 string = "#chi^{2}/ndof = "
-h_rchi2 = postfit_file.Get("Run3TLA/chi2")
+h_rchi2 = postfit_file.Get(args.channel+"/chi2")
 rchi2 = h_rchi2.GetBinContent(6)
 string+= f"{rchi2:.3f}"
 text.DrawLatex(0.65,0.55, string)

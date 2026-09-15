@@ -30,7 +30,17 @@ def replaceinfile(f, old_new_list):
     with open(f, 'w') as file:
         file.write(filedata)
 
-def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, poi=None, maskrange=None):
+def getchannel(categoryfile):
+    # the channel name lives in the category card; deriving it beats hardcoding it per flavour
+    with open(categoryfile) as f:
+        m = re.search(r'Channel Name="([^"]+)"', f.read())
+    if not m:
+        print("ERROR: no 'Channel Name=' found in %s" % categoryfile)
+        sys.exit(-1)
+    return m.group(1)
+
+def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, poi=None, maskrange=None,
+                      channel="Run3TLA", rebinfile=None, rebinhist=None):
     rtv=execute('xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
     if rtv != 0:
         print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
@@ -44,7 +54,7 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         #bkgonly_opt = True
 
     if maskrange:
-        _range="--range SBLo_Run3TLA,SBHi_Run3TLA"
+        _range="--range SBLo_%s,SBHi_%s" % (channel, channel)
         maskmin=maskrange[0]
         maskmax=maskrange[1]
         print(">>>>>>>>>>>>>>>>>>>>>>>>>> BH mask range: "+str(maskmin)+","+str(maskmax))
@@ -72,13 +82,22 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     datafirstbin=d.FindBin(rangelow)-1
     f.Close()
     
-    # Define resolution binning for BH
-    #binningFileName = f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
-    binningFileName = f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+    # Define resolution binning for BH.
+    # An explicit --rebinfile/--rebinhist (e.g. the published Run 2 analysis binning) is used
+    # as-is; otherwise fall back to generating the dijetisrTLA resolution binning as before.
+    if rebinfile and rebinhist:
+        binningFileName = rebinfile
+        binningHistName = rebinhist
+    else:
+        #binningFileName = f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+        binningFileName = f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+        binningHistName = "mjjBinning"
 
-    print(binningFileName)
-    if not os.path.exists(binningFileName):
-        execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
+        print(binningFileName)
+        if not os.path.exists(binningFileName):
+            # NOTE: createBinning.py defaults to --end 1000, so this fallback truncates the
+            # rebinned chi2 for any rangehigh > 1000. Pass --rebinfile/--rebinhist instead.
+            execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
 
     print("EXECUTE: pfe = PostfitExtractor(")
     print("datafile=", datafile)
@@ -86,8 +105,8 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     print("datafirstbin=", datafirstbin)
     print("wsfile=", fitresultfile)
         #rebinfile=f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
-    print("rebinfile=", f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root")
-    print("rebinhist=", "mjjBinning")
+    print("rebinfile=", binningFileName)
+    print("rebinhist=", binningHistName)
     print("maskmin=", maskmin)
     print("bkgonly=", True)
     print(")")
@@ -98,8 +117,8 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         datafirstbin=datafirstbin,
         wsfile=fitresultfile,
         #rebinfile=f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
-        rebinfile=f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root",
-        rebinhist="mjjBinning",
+        rebinfile=binningFileName,
+        rebinhist=binningHistName,
         maskmin=maskmin,
         maskmax=maskmax,
         #bkgonly=bkgonly_opt
@@ -107,9 +126,9 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     )
     # If we used masking in a b-only fit then we need to calculate the p-val from the correctly normalized postfit distribution
     if maskmin > -1 or maskmax > -1:
-        pval = pfe.GetPval("Run3TLA_bkgonly_rebinned") #should be Run3TLA or Run3TLA_rebinned?
+        pval = pfe.GetPval(channel+"_bkgonly_rebinned") #should be <channel> or <channel>_rebinned?
     else:
-        pval = pfe.GetPval("Run3TLA_rebinned") #should be Run3TLA or Run3TLA_rebinned?
+        pval = pfe.GetPval(channel+"_rebinned") #should be <channel> or <channel>_rebinned?
     
     print("pfe.WriteRoot(", postfitfile, ", dirPerCategory=True)")
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
@@ -141,10 +160,19 @@ def run_anaFit(datafile,
                doprefit=False,
                folder="run/",
                systdict=None,
-               covariancedict=None):
+               covariancedict=None,
+               rebinfile=None,
+               rebinhist=None):
 
     nbins=rangehigh - rangelow
     print("Fitting", nbins, "bins in range", rangelow, "-", rangehigh)
+
+    # The channel name is authored once, in the category card. xmlAnaWSBuilder turns it into
+    # the RooCategory label, hence the PostFit_*.root directory names and the SBLo_/SBHi_
+    # blind ranges. Deriving it here keeps dijetisrTLA ("Run3TLA") and dijetTLA
+    # ("J100yStar06") working without a second place to keep in sync.
+    channel = getchannel(categoryfile)
+    print("Channel name from", categoryfile, "->", channel)
 
     args_names = locals()
     for key, value in args_names.items():
@@ -322,8 +350,11 @@ def run_anaFit(datafile,
                                                                 datahist=datahist, 
                                                                 rangelow=rangelow, 
                                                                 wsfile=wsfile, 
-                                                                fitresultfile=outputfile, 
+                                                                fitresultfile=outputfile,
                                                                 poi=poi,
+                                                                channel=channel,
+                                                                rebinfile=rebinfile,
+                                                                rebinhist=rebinhist,
 							                                )
                                                         
 
@@ -341,7 +372,7 @@ def run_anaFit(datafile,
 
         # need to unset pythonpath in order to not use cvmfs numpy
         #execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "J100yStar06_rebinned/postfit", "J100yStar06_rebinned/data", "{}/BHresults.json".format(folder)))
-        execute("source pyBumpHunter/pyBH_env/bin/activate; python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "Run3TLA_rebinned/postfit", "Run3TLA_rebinned/data", "{}/BHresults.json".format(folder)))
+        execute("source pyBumpHunter/pyBH_env/bin/activate; python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, channel+"_rebinned/postfit", channel+"_rebinned/data", "{}/BHresults.json".format(folder)))
 
 
         #blind_min = 135
@@ -382,8 +413,11 @@ def run_anaFit(datafile,
                                             rangelow=rangelow, 
                                             wsfile=wsfilemasked, 
                                             fitresultfile=outfilemasked, 
-                                            poi=poi, 
-                                            maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"]))
+                                            poi=poi,
+                                            maskrange=(int(BHresults["MaskMin"]), int(BHresults["MaskMax"])),
+                                            channel=channel,
+                                            rebinfile=rebinfile,
+                                            rebinhist=rebinhist,
                                             )
 
         print("Masked fit p(chi2)=%.3f" % pval_masked)
@@ -432,6 +466,13 @@ def main(args):
     parser.add_argument('--doprefit', dest='doprefit', action="store_true", help='Perform ROOT prefit before quickFit')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
     parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
+    parser.add_argument('--rebinfile', dest='rebinfile', type=str, default=None,
+                        help='ROOT file whose histogram bin edges define the rebinning used for the '
+                             'rebinned chi2/p-value and for BumpHunter. Default: auto-generate '
+                             'Input/data/dijetisrTLA/mjjResolutionBinning_<rangelow>.root')
+    parser.add_argument('--rebinhist', dest='rebinhist', type=str, default=None,
+                        help='Histogram name inside --rebinfile (may be a directory-qualified path). '
+                             'Default: mjjBinning')
 
     args = parser.parse_args(args)
     if not args.signame:
@@ -478,6 +519,8 @@ def main(args):
                signame=args.signame,
                maskthreshold=args.maskthreshold,
                doprefit=args.doprefit,
+               rebinfile=args.rebinfile,
+               rebinhist=args.rebinhist,
                systdict=systdict)
 
 

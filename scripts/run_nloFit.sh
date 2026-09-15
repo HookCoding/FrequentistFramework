@@ -1,7 +1,11 @@
 #!/bin/bash
 
+out_dir=${OUT_DIR:-$PWD/run}
+
 {
     . scripts/setup_buildCombineFit.sh
+
+    mkdir -p $out_dir
 
     # for constr in 1 2 5 10 20
     for constr in 5
@@ -10,7 +14,7 @@
 	for trig in J100
 	do
 	    
-	    folder=run/outOfTheBoxFit
+	    folder=$out_dir/outOfTheBoxFit
 	    modelfile=Input/model/dijetTLAnlo/templates2021/LO_CT14nnlo_reducedNPs_scaledOnly_reweightedNLO/HistFactory_dijetTLAnlo_J100yStar06_bkg_ws.root
 	    bkgfile=config/dijetTLAnlo/templates2021/background_dijetTLAnlo_J100yStar06_CT14nnlo.template
 	    sigfile=config/dijetTLAnlo/templates2021/signal/signal_dijetTLAnlo_J100yStar06.template

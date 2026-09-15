@@ -1,11 +1,11 @@
 #!/bin/bash
 
-out_dir=/eos/home-t/tofitsch/tlafits
-
-mkdir -p $out_dir
+out_dir=${OUT_DIR:-$PWD/run}
 
 {
     . scripts/setup_buildAndFit.sh
+
+    mkdir -p $out_dir
 
     # for pars in five six seven
     for pars in seven #eight nine ten #seven #ten #eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 

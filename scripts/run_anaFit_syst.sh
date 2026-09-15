@@ -1,7 +1,11 @@
 #!/bin/bash
 
+out_dir=${OUT_DIR:-$PWD/run}
+
 {
     . scripts/setup_buildAndFit.sh
+
+    mkdir -p $out_dir
 
     # for pars in five six seven
     for pars in eight # seven eight nine  #six seven eight #nine #four five six seven eight #six #four five seven 
@@ -21,7 +25,7 @@
 
 	    #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par
 	    #folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_${rangelow}_${rangehigh}_${pars}Par_BH # using BumpHunter !!!
-	    folder=/eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_systematics_${rangelow}_${rangehigh}_${pars}Par # using systematics !!!
+	    folder=$out_dir/run_systematics_${rangelow}_${rangehigh}_${pars}Par # using systematics !!!
 
 	    #signalfile=config/dijetisrTLA/signal/signal_dijetisrTLA.template
 	    signalfile=config/dijetisrTLA/signal/signal_dijetisrTLA_zprime_parametrized.template # using systematics !!!
