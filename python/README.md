@@ -80,7 +80,7 @@ Using Monte-Carlo histogram (preferred for realistic tails):
 ```
 python InjectZprime.py --infile /eos/user/l/lbazzano/TLA/FreqFrameOutputs/run_108_1000_tenPar/Run3_TLA108_1000_tenPar_finebinned_scale.root --histname pseudodata --sigfile /eos/user/l/lbazzano/TLA/tla-ntuple-analysis/condor_result/MGPy8EG_S1_qqa_Ph25_mRp400_gASp1_qContentUDSC/systematic_updown_mjj_MGPy8EG_S1_qqa_Ph25_mRp400_gASp1_qContentUDSC.root --sigfile_dscb /eos/user/l/lbazzano/TLA/tla-ntuple-analysis/condor_result/MGPy8EG_S1_qqa_Ph25_mRp400_gASp1_qContentUDSC/signalUncertainty_interpolated.json --sighist mjj_yStar_cut_nominal --sigamp 5 --firsttoy 0 --lasttoy 99 n
 ```
-In TLA Run 3 this was the chosen method to analyze Z′ injections because a DSCB fit to montecarlo spectrums may not perform well in the tails, leading to slow decays. This means that if this parametrized function was used for sampling, there would be a bias and many events would be sampled from these tails. In order to avoid this, the only use of the DSCB function was to find the range where we would sample from the original montecarlo histogram.
+This is the preferred method for Z′ injections because a DSCB fit to montecarlo spectrums may not perform well in the tails, leading to slow decays. This means that if this parametrized function was used for sampling, there would be a bias and many events would be sampled from these tails. In order to avoid this, the only use of the DSCB function was to find the range where we would sample from the original montecarlo histogram.
 
 ### Fitting Injected Toys
 

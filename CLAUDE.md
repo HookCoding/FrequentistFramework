@@ -82,8 +82,8 @@ with the toy fits fanned out over HTCondor via `submission/condor_handler.py` +
   formats need `git add -f`.
 - Shell drivers are heavily commented-out configuration history (alternative `datafile`,
   `folder`, `sysfile` paths). Prefer editing the live lines over deleting the record.
-- Analysis flavours live side by side under `config/` and `Input/`: `dijetisrTLA` (current Run 3
-  TLA work), `dijetTLA`, `dijetTLAnlo`, plus legacy `bbyy`, `ttHyy`, `high_mass_diphoton`.
+- Analysis flavours live side by side under `config/` and `Input/`: `dijetTLA`, `dijetTLAnlo`,
+  plus legacy `bbyy`, `ttHyy`, `high_mass_diphoton`.
 
 ## Branch scope
 

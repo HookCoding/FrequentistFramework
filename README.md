@@ -66,32 +66,25 @@ toy studies fanned out over HTCondor — AFS home quotas are too small for hundr
 
 ```
 . scripts/run_anaFit_run2.sh    # Run 2 dijet TLA  (13 TeV)
-. scripts/run_anaFit.sh         # Run 3 ISR TLA    (13.6 TeV)
 ```
 
 Other drivers: `scripts/run_nloFit.sh` (NLO-template fit), `scripts/run_anaFit_syst.sh`,
 `scripts/run_anaFitLoop.sh`, `scripts/run_swiftFit.py`.
 
-# Configurations
+# Configuration
 
-Two analysis flavours are live side by side. They differ in centre-of-mass energy, so the
-cards are **not** interchangeable.
-
-|  | Run 2 dijet TLA | Run 3 ISR TLA |
-|---|---|---|
-| Driver | `scripts/run_anaFit_run2.sh` | `scripts/run_anaFit.sh` |
-| √s | 13 TeV | 13.6 TeV |
-| Fit range | 481 – 3000 GeV | 135 – 1000 GeV |
-| Bins in range | 2519 (1 GeV) | 865 (1 GeV) |
-| Background parameters | six | seven |
-| Channel name | `J100yStar06` | `Run3TLA` |
-| Data file | `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root` | `data/data23_histos.root` |
-| Data histogram | `hists_yStar06_rejectEta_10_16/HLT_j0_perf_ds1_L1J100/h_mjj` | `mjj` |
-| Cards | `config/dijetTLA/` | `config/dijetisrTLA/` |
-| Rebinning | `Input/data/dijetTLA/fullRun2TLAJ100mjj.root` (57 bins, 481–2997) | auto-generated `mjjResolutionBinning_135.root` |
-
-The Run 3 data file `data/data23_histos.root` comes from
-<https://gitlab.cern.ch/tla-atlas-run3/tla-ntuple-analysis/-/tree/full-unblinding/outputs/FINAL_100pc_unblinding_histograms>.
+|  | Run 2 dijet TLA |
+|---|---|
+| Driver | `scripts/run_anaFit_run2.sh` |
+| √s | 13 TeV |
+| Fit range | 481 – 3000 GeV |
+| Bins in range | 2519 (1 GeV) |
+| Background parameters | six |
+| Channel name | `J100yStar06` |
+| Data file | `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root` |
+| Data histogram | `hists_yStar06_rejectEta_10_16/HLT_j0_perf_ds1_L1J100/h_mjj` |
+| Cards | `config/dijetTLA/` |
+| Rebinning | `Input/data/dijetTLA/fullRun2TLAJ100mjj.root` (57 bins, 481–2997) |
 
 ## Run 2 input data
 
@@ -150,10 +143,9 @@ The `chi2` histogram's bins are labelled, in order: `chi2`, `chi2/ndof`, `nbins`
   observable and the nuisance parameters, so it can disagree with the `<n>Par` in the card
   name. Read `npars` and `ndof` out of the `chi2` histogram rather than assuming them.
 - **`createBinning.py` is only a fallback** and has two defects: it reads a hardcoded path in
-  another user's work area (a readable copy is at
-  `Input/data/dijetisrTLA/resolutionFits.root`), and its `--end` defaults to 1000 GeV, so a
-  fit above 1000 GeV would silently get a truncated chi2 binning. Pass `--rebinfile` and
-  `--rebinhist` explicitly instead.
+  another user's work area, and its `--end` defaults to 1000 GeV, so a fit above 1000 GeV
+  would silently get a truncated chi2 binning. Pass `--rebinfile` and `--rebinhist` explicitly
+  instead.
 - **Sub-frameworks are both git submodules and gitignored.** `install.sh` clones them at
   pinned SHAs; never commit into them from here.
 - **`.gitignore` swallows `*.txt`, `*.pdf`, `*.png` and `run/`** — new docs or result lists in

@@ -8,6 +8,10 @@ places where the run contradicted this plan, is in the notebook entries for 2026
 out 51 (not the ~50 estimated here), and `nsig` is held constant at 0 in a
 background-only fit rather than floating.
 
+> **Note.** This plan originally explained the fix by contrasting it with the repository's
+> other, higher-energy analysis flavour, whose data has since been removed from this branch.
+> Those contrasts have been trimmed so the plan reads as a record of the Run 2 work alone.
+
 ---
 
 ## Context
@@ -15,16 +19,14 @@ background-only fit rather than floating.
 The last commit (`30b8164`, "uploaded run2 dijet tla mjj with tile gap veto") replaced
 [Input/data/dijetTLA/mjj_spectra_J100_dataAll.root](../Input/data/dijetTLA/mjj_spectra_J100_dataAll.root)
 with a 6.4× larger file containing the full Run 2 dijet TLA J100 mjj spectrum, including
-tile-gap-veto variants. Nothing in the repository points at it: the driver
-[scripts/run_anaFit.sh](../scripts/run_anaFit.sh) is still wired to Run 3 ISR TLA
-(`data/data23_histos.root`, 135–1000 GeV, 7 parameters, 13.6 TeV templates), and
-[README.md](../README.md) documents neither the new file nor any of the knobs you would
-change to use it.
+tile-gap-veto variants. Nothing in the repository points at it: the only existing driver
+was wired to a different configuration, and [README.md](../README.md) documented neither
+the new file nor any of the knobs you would change to use it.
 
 The goal is to run a background-only fit over **481–3000 GeV with 6 background parameters**
 on the tile-gap-veto spectrum, and to leave behind documentation that makes the run
 reproducible. Two things block this today beyond simple reconfiguration: the postfit
-channel name is hardcoded to the Run 3 value `Run3TLA` in five places, and the
+channel name is hardcoded to a single literal value in five places, and the
 resolution-binning step used for the chi2/p-value is broken for any range above 1000 GeV.
 
 Requested deliverables: this plan for review **before** any code changes, and a changelog
@@ -51,8 +53,7 @@ Verified directly against the files, not assumed:
   rebin target and needs no generation step.
 - **`config/dijetTLA/` is the correct flavour.** Its background templates use √s = `13000.`
   consistently, matching the Run 2 data — and matching [PreFit.py](../python/PreFit.py), whose
-  fit functions are hardcoded to `13000.`. The `dijetisrTLA` templates use `13600.` and
-  would silently prefit the wrong centre-of-mass energy.
+  fit functions are hardcoded to `13000.`.
 - **A 6-parameter Run 2 template already exists**:
   [config/dijetTLA/background_dijetTLA_J100yStar06_sixPar.template](../config/dijetTLA/background_dijetTLA_J100yStar06_sixPar.template).
   `nPars` is parsed from the *filename substring* `"six"`
@@ -65,36 +66,33 @@ Verified directly against the files, not assumed:
 
 ### The two real blockers
 
-**1. The channel name is hardcoded to `Run3TLA` in five places.** It comes from
-`Channel Name="..."` in the category card. `config/dijetisrTLA/category_dijetisrTLA.template`
-says `Run3TLA`; every `config/dijetTLA/` category card says `J100yStar06`. Switching flavour
-without fixing this gives a `KeyError` *after* the expensive fit has already run:
+**1. The channel name is hardcoded to a single literal value in five places.** It comes
+from `Channel Name="..."` in the category card. Every `config/dijetTLA/` category card
+says `J100yStar06`, but the code assumed the other flavour's value. Switching flavour
+without fixing this gives a `KeyError` *after* the expensive fit has already run, at:
 
-| Location | Hardcoded string |
-|---|---|
-| [run_anaFit.py:47](../python/run_anaFit.py#L47) | `--range SBLo_Run3TLA,SBHi_Run3TLA` |
-| [run_anaFit.py:110,112](../python/run_anaFit.py#L110) | `GetPval("Run3TLA_bkgonly_rebinned")`, `GetPval("Run3TLA_rebinned")` |
-| [run_anaFit.py:344](../python/run_anaFit.py#L344) | BumpHunter `Run3TLA_rebinned/postfit`, `Run3TLA_rebinned/data` |
-| [plotPostFit.py:12,13,39](../python/plotPostFit.py#L12) | `Run3TLA/postfit`, `Run3TLA/data`, `Run3TLA/chi2` |
-| [plot_postfit.cpp:60-63,70-73](../plot_postfit.cpp#L60) | `Run3TLA_bkgonly/...`, `Run3TLA_bkgonly_rebinned/...` ×8 |
+- [run_anaFit.py:47](../python/run_anaFit.py#L47) — the quickFit sideband `--range`
+- [run_anaFit.py:110,112](../python/run_anaFit.py#L110) — the `GetPval()` lookups
+- [run_anaFit.py:344](../python/run_anaFit.py#L344) — the BumpHunter histogram names
+- [plotPostFit.py:12,13,39](../python/plotPostFit.py#L12) — the postfit/data/chi2 paths
+- [plot_postfit.cpp:60-63,70-73](../plot_postfit.cpp#L60) — the same, ×8
 
 [run_anaFit.py:343](../python/run_anaFit.py#L343) is a commented-out `J100yStar06_rebinned`
 variant of line 344 — this switch has been done by hand before, which is exactly the kind of
 edit that should stop being manual.
 
 **2. The resolution-binning step is broken for `rangehigh=3000`.**
-[run_anaFit.py:77-81](../python/run_anaFit.py#L77) auto-generates
-`Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root` via `createBinning.py` when it
-is missing (and `_481.root` does not exist). Three independent faults:
+[run_anaFit.py:77-81](../python/run_anaFit.py#L77) auto-generates a resolution binning file
+via `createBinning.py` when it is missing. Three independent faults:
 
 - `createBinning.py` reads a hardcoded path in another user's work area,
   `/afs/cern.ch/work/t/tofitsch/.../resolutionFits.root` — **Permission denied** from this
-  account (a readable local copy exists at `Input/data/dijetisrTLA/resolutionFits.root`).
+  account.
 - Its `--end` defaults to **1000** and [run_anaFit.py:81](../python/run_anaFit.py#L81) never
   passes `-e`, so the generated binning would stop at ~1024 GeV. The chi2/p-value would be
   computed over 481–1024 while reporting a 481–3000 fit — a silent, wrong result.
-- Its `gsc_mjj_reso_fit` is fitted only over **90–2000 GeV** and is the Run 3 *ISR* TLA
-  resolution, i.e. the wrong analysis and an extrapolation at the top of our range.
+- Its resolution fit is only valid over **90–2000 GeV**, and belongs to a different analysis
+  entirely.
 
 Using the official Run 2 binning sidesteps all three.
 
@@ -111,15 +109,15 @@ to keep in sync and no way to get it wrong:
 channel = re.search(r'Channel Name="([^"]+)"', open(tmpcategoryfile).read()).group(1)
 ```
 
-Thread `channel` into `build_fit_extract()` (add a parameter defaulting to `"Run3TLA"`) and
-use it at lines 47, 110, 112 and 344 in place of the literal. Run 3 runs keep working
-untouched, because `category_dijetisrTLA.template` resolves to `Run3TLA`.
+Thread `channel` into `build_fit_extract()` (add a parameter defaulting to the existing
+literal) and use it at lines 47, 110, 112 and 344 in place of the literal. The other flavour
+keeps working untouched, because its category card resolves to the same default.
 
-**[python/plotPostFit.py](../python/plotPostFit.py)** — add `-c/--channel`, default `Run3TLA`;
-use it at lines 12, 13, 39.
+**[python/plotPostFit.py](../python/plotPostFit.py)** — add `-c/--channel`, defaulting to the
+existing literal; use it at lines 12, 13, 39.
 
-**[plot_postfit.cpp](../plot_postfit.cpp)** — add a third parameter
-`char const * channel = "Run3TLA"` and build the eight histogram paths with `Form()`.
+**[plot_postfit.cpp](../plot_postfit.cpp)** — add a third parameter `channel`, defaulting to
+the existing literal, and build the eight histogram paths with `Form()`.
 
 The plotters take the value explicitly rather than deriving it — they never see the category
 card. That is a small duplication of one string, accepted because a wrong value there costs a
@@ -130,19 +128,18 @@ missing plot, not a crashed fit.
 **[python/run_anaFit.py:77-81, 101-102](../python/run_anaFit.py#L77)** — add `--rebinfile` and
 `--rebinhist` arguments, both defaulting to `None`. When they are given, pass them straight
 to `PostfitExtractor` and **skip the `createBinning.py` block entirely**. When absent, keep
-the existing `dijetisrTLA` auto-generation path byte-for-byte so Run 3 behaviour is unchanged.
+the existing auto-generation path byte-for-byte so the other flavour's behaviour is unchanged.
 
 `createBinning.py` is deliberately **not** fixed — our run no longer touches it (see
 "Deliberately not changed" below).
 
 ### 3. Add a Run 2 driver
 
-Add **`scripts/run_anaFit_run2.sh`** rather than editing
-[scripts/run_anaFit.sh](../scripts/run_anaFit.sh). The Run 2 configuration differs in roughly
-ten variables; commenting out the Run 3 lines in a 10 KB file of live configuration history
-would both obscure that history and break the Run 3 workflow. The repo already keeps
-flavour-specific drivers side by side (`run_nloFit.sh`, `run_anaFit_syst.sh`). Zero regression
-risk on the existing driver.
+Add **`scripts/run_anaFit_run2.sh`** rather than editing the existing driver. The Run 2
+configuration differs in roughly ten variables; commenting out the existing lines in a
+10 KB file of live configuration history would both obscure that history and break the
+other workflow. The repo already keeps flavour-specific drivers side by side
+(`run_nloFit.sh`, `run_anaFit_syst.sh`). Zero regression risk on the existing driver.
 
 Contents — a trimmed copy of the existing driver with:
 
@@ -172,8 +169,8 @@ Three points worth stating explicitly:
 
 - Use `category_dijetTLA.template`, **not** `category_dijetTLA_J100yStar06_sixPar.template` —
   the latter is a legacy card with ~100 hardcoded signal samples and no placeholders.
-- `out_dir` must change: `/eos/home-t/tofitsch/tlafits` is owned by another user and is not
-  writable from this account, so the current driver cannot write output at all.
+- `out_dir` must change: the existing driver's output path is owned by another user and is
+  not writable from this account, so it cannot write output at all.
 - `sigmean=400` (the current value) falls *below* `rangelow=481`, putting the placeholder
   Gaussian outside the observable range. `dosignal=0` makes it harmless in principle, but
   1000 keeps it inside the range and avoids a degenerate normalisation.
@@ -181,13 +178,12 @@ Three points worth stating explicitly:
 ### 4. Rewrite [README.md](../README.md)
 
 Current content is 39 lines and stale: it clones branch `tofitsch_baseline_fit`, links a
-*different* branch, and its only "Files" entry is `./data/data23_histos.root`. Replace with:
+*different* branch, and its only "Files" entry is a single hardcoded data file. Replace with:
 
 - **Install / Setup / Run** — corrected, noting `install.sh` and `setup.sh` must be *sourced*,
   and that all commands run from the repository root.
-- **Configurations** — a table of the two live setups side by side (Run 3 ISR TLA via
-  `run_anaFit.sh`; Run 2 dijet TLA via `run_anaFit_run2.sh`) with data file, histogram,
-  range, parameter count, √s and channel name for each.
+- **Configuration** — driver, data file, histogram, range, parameter count, √s and channel
+  name for the Run 2 dijet TLA setup.
 - **Input data** — what is in `Input/data/dijetTLA/mjj_spectra_J100_dataAll.root`: the four
   selections, the two sub-paths, the 1 GeV binning, and which one is the tile gap veto.
 - **Output** — what lands in `$out_dir/run_481_3000_sixPar/`: `FitResult_*`, `PostFit_*`,
@@ -195,7 +191,7 @@ Current content is 39 lines and stale: it clones branch `tofitsch_baseline_fit`,
 - **Traps** — `nPars` comes from the background *filename*; `--doprefit` is required for
   parameter substitution; both sub-frameworks only warn on failure, so read the log.
 
-Keep the existing Links section; drop the stale clone branch and the `data23` "Files" section.
+Keep the existing Links section; drop the stale clone branch and the old "Files" section.
 
 ### 5. Add `CHANGELOG.md` — the requested timeline
 
@@ -209,8 +205,8 @@ real history from `git log` so it reads as a timeline rather than a single dump:
 - --rebinfile / --rebinhist options on run_anaFit.py
 - CHANGELOG.md
 ### Changed
-- Channel name derived from the category card instead of hardcoded "Run3TLA"
-- README.md rewritten: documents both configurations, input data and output layout
+- Channel name derived from the category card instead of a hardcoded literal
+- README.md rewritten: documents the configuration, input data and output layout
 ### Known issues
 - createBinning.py: unreadable hardcoded path; --end defaults to 1000 (see below)
 
@@ -226,14 +222,13 @@ real history from `git log` so it reads as a timeline rather than a single dump:
 | File | Change |
 |---|---|
 | [python/run_anaFit.py](../python/run_anaFit.py) | derive channel name; add `--rebinfile`/`--rebinhist` |
-| [python/plotPostFit.py](../python/plotPostFit.py) | add `-c/--channel` (default `Run3TLA`) |
-| [plot_postfit.cpp](../plot_postfit.cpp) | add `channel` parameter (default `Run3TLA`) |
+| [python/plotPostFit.py](../python/plotPostFit.py) | add `-c/--channel` (default preserved) |
+| [plot_postfit.cpp](../plot_postfit.cpp) | add `channel` parameter (default preserved) |
 | `scripts/run_anaFit_run2.sh` | **new** — Run 2 driver |
 | [README.md](../README.md) | rewritten |
 | `CHANGELOG.md` | **new** — change timeline |
 
-Not modified: [scripts/run_anaFit.sh](../scripts/run_anaFit.sh), every file under `config/`,
-and all input ROOT files.
+Not modified: every file under `config/`, and all input ROOT files.
 
 ## Deliberately not changed
 
@@ -254,7 +249,7 @@ Recorded here and in the changelog so the decisions are visible rather than sile
   `nPars`, and its randomised retry loop is effectively dead
   ([PreFit.py:110-119](../python/PreFit.py#L110) overwrite the randomised values every
   iteration). Pre-existing behaviour affecting starting values only; changing it would alter
-  Run 3 results and belongs in its own change.
+  results of the other flavour and belongs in its own change.
 
 ## Verification
 
@@ -274,7 +269,8 @@ Then check, in `$out_dir/run_481_3000_sixPar/`:
    should carry `obs_x_channel[481,3000]` and `Binning="2519"`.
 3. **`PostFit_anaFit_sixPar_bkgOnly.root` exists** and contains four directories named
    `J100yStar06`, `J100yStar06_bkgonly`, `J100yStar06_rebinned`, `J100yStar06_bkgonly_rebinned`
-   — the presence of `J100yStar06` rather than `Run3TLA` is the direct check that change 1 worked.
+   — the presence of `J100yStar06` rather than the other flavour's channel name is the direct
+   check that change 1 worked.
 4. **The rebinned histogram has 57 bins spanning 481–2997** — the direct check that change 2
    worked and that the binning was not silently truncated at 1000 GeV.
 5. **chi2/ndof and p-value** from the `chi2` histogram, whose bins are labelled
@@ -288,11 +284,6 @@ Then check, in `$out_dir/run_481_3000_sixPar/`:
 Neither XMLReader nor quickFit returns a non-zero exit code on failure — they only warn — so
 step 1 must read `quickFitLog_anaFit_sixPar_bkgOnly.log`, not the exit status.
 
-**Run 3 regression check** — confirm the defaults still hold, since every change is
-default-preserving: re-running `. scripts/run_anaFit.sh` (with `out_dir` pointed somewhere
-writable) must still produce `Run3TLA*` directories and a comparable p-value.
-
 A physics caveat to flag rather than bury: the p-value depends on the chi2 binning, and the
 Run 2 binning tops out at 2997 while the fit runs to 3000. The 2997–3000 sliver is excluded
 from the rebinned chi2 automatically — expected, and worth knowing when comparing numbers.
-
