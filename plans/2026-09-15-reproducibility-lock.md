@@ -1,6 +1,6 @@
 # Lock the software versions and the J50/J100 results before refactoring
 
-**Written** 2026-09-15 &nbsp;|&nbsp; **Amended** 2026-09-16 &nbsp;|&nbsp; **Branch** `claude-skills` &nbsp;|&nbsp; **Status** approved, implementation in progress
+**Written** 2026-09-15 &nbsp;|&nbsp; **Amended** 2026-09-16 &nbsp;|&nbsp; **Branch** `claude-skills` &nbsp;|&nbsp; **Status** approved and implemented
 
 Filed as written on 2026-09-15, and left alone through the first two implementation steps.
 

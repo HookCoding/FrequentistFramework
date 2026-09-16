@@ -41,6 +41,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-16 16:10 — Add the check subcommand](#2026-09-16-1610--add-the-check-subcommand)
 - [2026-09-16 16:35 — Diagnosable error when python3 itself lacks PyROOT](#2026-09-16-1635--diagnosable-error-when-python3-itself-lacks-pyroot)
 - [2026-09-16 17:00 — Close the gaps: dead installer, inert submodules, unreachable clone URLs](#2026-09-16-1700--close-the-gaps-dead-installer-inert-submodules-unreachable-clone-urls)
+- [2026-09-16 17:20 — Verify check on a real regression, close out the plan](#2026-09-16-1720--verify-check-on-a-real-regression-close-out-the-plan)
 
 ---
 
@@ -917,3 +918,47 @@ state, not `install.sh`'s text.
 **Left alone.** Plan Verification steps 6 (perturb an actual background-parameter card and
 confirm a readable failure from a real re-fit, not a hand-edited baseline) and 7 (confirm
 `run/run_481_3000_sixPar/` untouched and `git status` shows only intended files staged) — next.
+
+---
+
+## 2026-09-16 17:20 — Verify check on a real regression, close out the plan
+
+**Objective.** Run plan Verification steps 6 and 7 (see
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md)), the last
+two items in the reproducibility-lock plan: prove `check` catches a genuine re-fit regression
+rather than only round-tripping its own output, and confirm none of this session's runs touched
+the recorded `run/run_481_3000_sixPar/` or left an unexpected `git status`.
+
+**Changed (temporarily, then reverted).**
+`config/dijetTLA/background_dijetTLA_J100yStar06_sixPar.template`'s `p6` range was tightened from
+`p6[PAR6, -0.1, 0.1]` to `p6[PAR6, -0.1, 0.04]` — below `baseline_J100.json`'s recorded best-fit
+`p6` value of `0.0478`, so the constrained re-fit is forced away from the unconstrained optimum
+rather than merely nudged.
+
+**Verified.**
+
+- With the tightened card, `python3 tests/repro.py check --quick` ran the real
+  `scripts/run_anaFit_run2.sh` driver (not `--from`, not a hand-edited baseline) and printed
+  `FAIL: check` with dozens of `unmasked.postfit_bins.*.postfit[N]` mismatches, each showing the
+  baseline value, the new re-fit value, and by how much it exceeds tolerance — e.g. bin 0 of
+  `J100yStar06_rebinned` moved from `150599548.0` to `150601506.0`, a difference of `1.96e+03`
+  against a tolerance of `151`. A readable failure driven by an actual re-fit, exactly as the
+  plan's Verification step 6 asks for.
+- Restored the card to `p6[PAR6, -0.1, 0.1]`; `git diff` against the tracked file showed no
+  difference, confirming a clean revert. Re-ran `python3 tests/repro.py check --quick` for real
+  again: `PASS: check`.
+- `ls -la --time-style=full-iso run/run_481_3000_sixPar/` — every file's mtime is 2026-09-15, and
+  the directory's own mtime (which changes whenever an entry is added or removed) is also
+  2026-09-15 16:29:42, both predating every `check`/`record` run in this plan's implementation.
+  `check` writes only under the already-gitignored `run/check_scratch/`, as designed; the
+  recorded baseline run directory was never touched.
+- `git status --porcelain --ignored run/` shows only `!! run/` (the whole directory ignored, as
+  `.gitignore` declares); the overall `git status --porcelain` at the end of this session's work
+  shows only the pre-existing, unrelated `CLAUDE.md` modification that predates this plan
+  entirely.
+
+**Decided.** The plan's own status line and its row in `plans/README.md` are updated to "approved
+and implemented" — both implementation (§1–§6) and Verification (steps 1–7) are complete. The
+plan body itself is left exactly as archived, per this repository's own rule for plans.
+
+**Left alone.** Nothing remains open from this plan.

@@ -113,6 +113,13 @@ documentation (the `LCG_105` venv row, the missing RooFitExtensions/`cmake` pins
 "submodules" and "no test suite"/`requirements.txt` notes) is corrected. The README's
 "Reproducibility" section was added alongside `check` in the previous step.
 
-**What is next**: only the plan's Verification steps 6 (perturb a real background parameter,
-re-run J100 for real, confirm `check` catches it, then revert) and 7 (confirm
-`run/run_481_3000_sixPar/` is untouched and `git status` is clean) remain.
+Verification closed the plan out: `config/dijetTLA/background_dijetTLA_J100yStar06_sixPar.template`'s
+`p6` range was tightened from `[-0.1, 0.1]` to `[-0.1, 0.04]` — below its baseline best-fit value
+of `0.0478` — and `check --quick` re-ran the J100 driver for real and failed with dozens of
+readable postfit-bin mismatches, not a hand-edited baseline. Reverting the card and re-running
+produced a clean PASS again. `run/run_481_3000_sixPar/`'s file mtimes were confirmed to all
+predate this work, and the final `git status` carries no unexpected changes.
+
+**What is next**: nothing from this plan. The reproducibility-lock harness
+(`tests/repro.py`'s `selfcheck`/`env`/`record`/`check`) is built, documented and verified
+end to end; the gaps the original survey found are closed.

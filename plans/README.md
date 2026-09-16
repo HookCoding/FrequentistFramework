@@ -15,7 +15,7 @@ and the notebook disagree, the notebook is right.
 | [Run 2 dijet TLA, 481–3000 GeV, six parameters](2026-09-15-run2-dijet-tla-481-3000-sixpar.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
 | [Repository-relative output directory](2026-09-15-repo-relative-output-dir.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
 | [Run 2 dijet TLA J50, 302–2997 GeV, six parameters](2026-09-15-run2-dijet-tla-j50.md) | 2026-09-15 | `claude-skills` | Approved, implementation in progress |
-| [Lock the software versions and the J50/J100 results before refactoring](2026-09-15-reproducibility-lock.md) | 2026-09-15 | `claude-skills` | Approved, implementation in progress |
+| [Lock the software versions and the J50/J100 results before refactoring](2026-09-15-reproducibility-lock.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -68,9 +68,11 @@ both pass against the baselines cut from the runs already on disk; a hand-pertur
 confirmed to produce a readable failure before being restored. §6 followed: the dead
 `scripts/install_roofitext.sh` and inert `.gitmodules` are deleted, `install.sh` clones from the
 sub-frameworks' public GitHub mirrors instead of the unreachable CERN GitLab URLs, and the
-`README.md`/`CLAUDE.md` documentation is corrected to match. Only the plan's own Verification
-steps 6 and 7 — proving `check` catches a real re-fit regression, and confirming the recorded
-run directory and `git status` are untouched — remain.
+`README.md`/`CLAUDE.md` documentation is corrected to match. Verification closed it out: a real
+background-parameter perturbation, re-fit for real rather than hand-edited, produced a readable
+`check` failure and reverting it produced a clean PASS again; `run/run_481_3000_sixPar/` was
+confirmed untouched throughout (file mtimes all predate this work) and the final `git status` is
+clean. The harness is in place and the gaps it found are closed.
 
 ## Adding a plan
 
