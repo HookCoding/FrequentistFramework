@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -465,9 +466,11 @@ def run_env_checks(root=REPO_ROOT):
     return checks, pins, recorded
 
 
-def cmd_env(args):
-    checks, pins, recorded = run_env_checks()
-
+def _report_env(checks, recorded):
+    """Print every env check plus the recorded-but-unasserted versions and
+    any drift from an existing baseline's provenance (shared by `env` and
+    `check`, which runs the same checks before touching any fit). Returns
+    True iff every assertable check passed."""
     for name, ok, detail in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
 
@@ -500,9 +503,14 @@ def cmd_env(args):
     print()
     if failed:
         print(f"FAIL: {len(failed)}/{len(checks)} environment checks failed")
-        return 1
-    print(f"PASS: all {len(checks)} environment checks passed")
-    return 0
+    else:
+        print(f"PASS: all {len(checks)} environment checks passed")
+    return not failed
+
+
+def cmd_env(args):
+    checks, pins, recorded = run_env_checks()
+    return 0 if _report_env(checks, recorded) else 1
 
 
 # --- record: capture a baseline from an existing run directory -----------
@@ -510,6 +518,7 @@ def cmd_env(args):
 ANALYSES = {
     "J100": {
         "default_dir": "run/run_481_3000_sixPar",
+        "driver": "scripts/run_anaFit_run2.sh",
         "stem": "anaFit_sixPar_bkgOnly",
         "top_dir": "J100yStar06",
         "inputs": ["Input/data/dijetTLA/mjj_spectra_J100_dataAll.root",
@@ -517,6 +526,7 @@ ANALYSES = {
     },
     "J50": {
         "default_dir": "run/run_J50_302_2997_sixPar",
+        "driver": "scripts/run_anaFit_run2_J50.sh",
         "stem": "anaFit_sixPar_bkgOnly",
         "top_dir": "J50yStar06",
         "inputs": ["Input/data/dijetTLA/mjj_spectra_J50_dataAll.root",
@@ -525,9 +535,29 @@ ANALYSES = {
 }
 
 
+def _import_root():
+    """import ROOT with a diagnosable error instead of a bare traceback three
+    frames deep in extract_fit_result/extract_postfit. The plain lxplus
+    system python3 has PyROOT importable with no setup at all (see the
+    README's Reproducibility section) - but only when nothing upstream in
+    the invoking shell put a different python3 first on $PATH, e.g. an
+    activated pyBumpHunter/pyBH_env venv (which carries no ROOT bindings at
+    all, only the pyBumpHunter egg) or a sourced ATLAS/lsetup environment."""
+    try:
+        import ROOT
+    except ModuleNotFoundError as exc:
+        raise SystemExit(
+            f"ERROR: {sys.executable} has no ROOT module ({exc}). record/check need a "
+            "python3 with PyROOT already importable - the plain lxplus system python3 has "
+            "this with no setup. Deactivate any active virtualenv (check $VIRTUAL_ENV) and "
+            "unset any sourced ATLAS/lsetup environment in this shell, then re-run."
+        )
+    return ROOT
+
+
 def extract_fit_result(path):
     """fitResult's minNll/status/covQual and every floatParsFinal() entry."""
-    import ROOT
+    ROOT = _import_root()
     f = ROOT.TFile.Open(str(path))
     fr = f.Get("fitResult")
     pars = fr.floatParsFinal()
@@ -541,7 +571,7 @@ def extract_fit_result(path):
 def extract_postfit(path, top_dir):
     """The 6-bin chi2 block for every TDirectory, plus postfit bins and the
     data integral for the two *_rebinned directories only (plan section 3)."""
-    import ROOT
+    ROOT = _import_root()
     f = ROOT.TFile.Open(str(path))
     chi2, postfit_bins = {}, {}
     for name in (top_dir, f"{top_dir}_bkgonly", f"{top_dir}_rebinned", f"{top_dir}_bkgonly_rebinned"):
@@ -644,6 +674,124 @@ def cmd_record(args):
     return 0
 
 
+# --- check: the entry point ------------------------------------------------
+
+def _run_driver(driver_rel, out_dir, timeout=1800):
+    """Run a fit driver as a subprocess with OUT_DIR pointed at a scratch
+    directory, using the same setupATLAS preamble as _atlas_probe. Returns
+    None on a clean exit, else a short message - never raises and never
+    signals failure by itself: XMLReader/quickFit only warn and still
+    return 0 on failure (plan section 5), so the baseline diff below is the
+    real failure detector, not this exit code."""
+    preamble = "setupATLAS >/dev/null 2>&1\n"
+    script = f'cd "{REPO_ROOT}" && OUT_DIR="{out_dir}" bash {driver_rel}'
+    try:
+        proc = subprocess.run(["bash", "-c", preamble + script],
+                               text=True, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return f"driver timed out after {timeout}s"
+    except OSError as exc:
+        return str(exc)
+    if proc.returncode != 0:
+        return f"driver exited {proc.returncode} (non-fatal - see baseline diff): {proc.stderr.strip()[-500:]}"
+    return None
+
+
+def _check_one(analysis, out_dir_base, from_dir, rtol_scale):
+    spec = ANALYSES[analysis]
+    baseline_path = REPO_ROOT / "tests" / f"baseline_{analysis}.json"
+    if not baseline_path.is_file():
+        print(f"FAIL: no baseline at {baseline_path.relative_to(REPO_ROOT)}")
+        return False
+    baseline = json.loads(baseline_path.read_text())
+
+    mismatches = [f"  {rel}: baseline={expected} now={sha256_of(REPO_ROOT / rel)}"
+                  for rel, expected in sorted(baseline["provenance"]["input_sha256"].items())
+                  if sha256_of(REPO_ROOT / rel) != expected]
+    if mismatches:
+        print(f"FAIL: input spectrum changed for {analysis}:")
+        print("\n".join(mismatches))
+        return False
+    print(f"input hashes match baseline ({len(baseline['provenance']['input_sha256'])} files)")
+
+    if from_dir is not None:
+        folder = Path(from_dir)
+        print(f"comparing existing directory {folder} (--from)")
+    else:
+        folder = out_dir_base / Path(spec["default_dir"]).name
+        # Wiped first: a driver that crashes outright must not be masked by
+        # a stale FitResult/PostFit left over from a previous check run.
+        shutil.rmtree(folder, ignore_errors=True)
+        print(f"running {spec['driver']} with OUT_DIR={out_dir_base} ...")
+        warning = _run_driver(spec["driver"], out_dir_base)
+        if warning:
+            print(f"  note: {warning}")
+
+    if not folder.is_dir():
+        print(f"FAIL: {folder} does not exist")
+        return False
+
+    candidate_unmasked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=False)
+    if candidate_unmasked is None:
+        print(f"FAIL: {folder} has no FitResult/PostFit for {spec['stem']!r}")
+        return False
+    candidate = {"directory_listing": sorted(os.listdir(folder)), "unmasked": candidate_unmasked}
+    candidate_masked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=True)
+    if candidate_masked is not None:
+        candidate["masked"] = candidate_masked
+
+    expected = {"directory_listing": baseline["directory_listing"], "unmasked": baseline["unmasked"]}
+    if "masked" in baseline:
+        expected["masked"] = baseline["masked"]
+
+    failures, notes = compare(expected, candidate, rtol_scale=rtol_scale)
+    for note in notes:
+        print(f"  note: {note}")
+    if failures:
+        print(f"FAIL: {analysis} mismatches {baseline_path.relative_to(REPO_ROOT)} ({len(failures)}):")
+        for f in failures:
+            print(f"  {f}")
+        return False
+    print(f"PASS: {analysis} matches {baseline_path.relative_to(REPO_ROOT)}")
+    return True
+
+
+def cmd_check(args):
+    print("=== env ===")
+    checks, _, recorded = run_env_checks()
+    env_ok = _report_env(checks, recorded)
+    print()
+    if not env_ok:
+        print("FAIL: env checks failed - not running any fits (plan section 5)")
+        return 1
+
+    analysis = args.analysis
+    if args.from_dir and not analysis:
+        matches = [name for name, spec in ANALYSES.items()
+                   if Path(args.from_dir).name == Path(spec["default_dir"]).name]
+        if len(matches) != 1:
+            print("FAIL: --from's directory name doesn't identify an analysis; pass --analysis J100|J50 too")
+            return 1
+        analysis = matches[0]
+
+    if analysis:
+        analyses = [analysis]
+    elif args.quick:
+        analyses = ["J100"]
+    else:
+        analyses = ["J100", "J50"]
+
+    out_dir_base = REPO_ROOT / "run" / "check_scratch"
+    ok = True
+    for name in analyses:
+        print(f"\n=== {name} ===")
+        ok = _check_one(name, out_dir_base, args.from_dir, args.rtol) and ok
+
+    print()
+    print("PASS: check" if ok else "FAIL: check")
+    return 0 if ok else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -657,6 +805,18 @@ def main():
     record_parser.add_argument("--force", action="store_true", help="overwrite an existing baseline")
     record_parser.add_argument("--reason", help="required with --force: why this baseline is being re-cut")
 
+    check_parser = subparsers.add_parser(
+        "check", help="env + input hashes, then re-run the driver(s) and compare against the baseline(s)")
+    check_parser.add_argument("--quick", action="store_true",
+                               help="J100 only, skips J50's BumpHunter masking path (~1 min vs ~6 min)")
+    check_parser.add_argument("--from", dest="from_dir", metavar="DIR",
+                               help="compare this existing output directory instead of running the driver")
+    check_parser.add_argument("--analysis", choices=sorted(ANALYSES),
+                               help="which baseline --from's directory belongs to "
+                                    "(inferred from the directory name when omitted)")
+    check_parser.add_argument("--rtol", type=float, default=1.0, metavar="SCALE",
+                               help="scale the tight/pvalue tolerances by this factor (plan section 4)")
+
     args = parser.parse_args()
     if args.command == "selfcheck":
         return cmd_selfcheck(args)
@@ -664,6 +824,8 @@ def main():
         return cmd_env(args)
     if args.command == "record":
         return cmd_record(args)
+    if args.command == "check":
+        return cmd_check(args)
 
 
 if __name__ == "__main__":

@@ -10,12 +10,13 @@ this describes the *current* state, not history. History is [CHANGELOG.md](../CH
 change did not move a physics number. Plan:
 [plans/2026-09-15-reproducibility-lock.md](../plans/2026-09-15-reproducibility-lock.md).
 
-**What exists now.** Three subcommands:
+**What exists now.** Four subcommands:
 
 ```
 python3 tests/repro.py selfcheck
 python3 tests/repro.py env
 python3 tests/repro.py record {J100,J50} [DIR] [--force --reason "..."]
+python3 tests/repro.py check [--quick] [--from DIR [--analysis {J100,J50}]] [--rtol SCALE]
 ```
 
 `selfcheck` runs the comparator against synthetic data — no ROOT, no ATLAS environment, instant.
@@ -41,8 +42,29 @@ non-fatally on any difference and never failing the command. Before any baseline
 so and compares nothing. `env` never writes that record — only `record` does, and only when
 building a new baseline from scratch.
 
-`env` is not yet a reproducibility check of the fits themselves; `check` (which does that) is not
-built yet.
+`env` is not yet a reproducibility check of the fits themselves — that is `check`, below.
+
+`check` is the end-to-end entry point. It runs `env` first and stops (without touching any fit)
+if a pin check fails — `env`'s version *warnings* never stop it, but are printed before anything
+else so a mismatch further down is read with them already in view. For each analysis it then
+verifies the two input spectra's SHA-256 against the baseline's `provenance.input_sha256` and
+stops on a mismatch, wipes any stale scratch output from a previous run (so a driver that crashes
+outright cannot be masked by leftover files), runs the driver with `OUT_DIR` pointed at
+`run/check_scratch/` — `run/` is already gitignored wholesale, so nothing new needed adding there,
+and the recorded `run/run_481_3000_sixPar/`/`run/run_J50_302_2997_sixPar/` are never touched — and
+compares the result against the baseline with `compare()`. The comparison is baseline `unmasked`/
+`masked`/`directory_listing` against the freshly extracted equivalents; `provenance` is baseline-
+only metadata and is never fed through `compare()`, since the candidate has no provenance of its
+own to compare it against. It does not gate on the driver's own exit code — XMLReader/quickFit
+warn-and-return-0 on failure (`KNOWN_ISSUES.md`), so the baseline diff is the actual failure
+detector.
+
+Two speeds: `check --quick` runs J100 only, skipping J50's BumpHunter masking path; plain `check`
+runs both. `check --from DIR` compares an existing output directory instead of running a driver —
+the escape hatch for when a refactor has renamed the drivers or run directories and the built-in
+`ANALYSES` table has gone stale. It infers which baseline `DIR` belongs to from the directory's
+own name, falling back to an explicit `--analysis J100|J50` when that is ambiguous. `--rtol` scales
+the tight/pvalue tolerance classes for a cross-machine comparison (plan §4).
 
 ### Versions that cannot be pinned
 
@@ -78,10 +100,12 @@ A missing or extra key between baseline and candidate is always a failure. Every
 reported, not just the first. `rtol_scale` widens both float classes at once, for the
 cross-machine case.
 
-**What is next**, in the order the plan lays out: input-spectrum hashing, `record` (capture a
-baseline from a run directory), then `check` (the end-to-end entry point). `record` and `check`
-will need `env`'s checks too — `run_env_checks()` is already factored out so `check` can call it
-rather than re-implementing it. Only `record`/`check` touch the comparator above — they need to
-produce the nested dict it already knows how to compare; `env` deliberately does not use it (see
-the design note in `tests/repro.py` above the `env` code: most of its checks are mutual-agreement
-or dirty-file assertions, not a baseline-vs-candidate comparison).
+All four subcommands are built. `run_env_checks()` is shared by `env` and `check` rather than
+reimplemented in the latter; `compare()` is used by `record`'s own `selfcheck` test and by
+`check`, which is the only subcommand that builds a candidate to feed it — `env` deliberately does
+not use it (see the design note in `tests/repro.py` above the `env` code: most of its checks are
+mutual-agreement or dirty-file assertions, not a baseline-vs-candidate comparison).
+
+**What is next**: §6, closing the gaps the original survey found (the dead
+`scripts/install_roofitext.sh`, the inert `.gitmodules`, `install.sh`'s unreachable GitLab URLs,
+the stale `README.md`/`CLAUDE.md` documentation), then the README's own "Reproducibility" section.

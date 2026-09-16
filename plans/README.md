@@ -60,8 +60,13 @@ from the two runs already on disk, and `env` now reads whichever baseline exists
 (non-fatally) if the live ROOT/cmake/numpy/scipy/uproot versions drift from what is recorded
 there. Building `record` also caught a latent bug in `env`'s cmake/ROOT version probe and, from
 there, retracted the tenth known issue found while building `env` — it turned out to be a false
-alarm from the same class of probe bug, not a real limitation (see `CHANGELOG.md`). `check` — the
-part that actually re-runs the fits and compares against these baselines — is not built yet.
+alarm from the same class of probe bug, not a real limitation (see `CHANGELOG.md`). `check` came
+last: `env` plus the four input hashes first, then each driver re-run with `OUT_DIR` pointed at a
+scratch directory under the already-gitignored `run/`, compared against its baseline. `check
+--quick` (J100 only) and the full `check` (both analyses, including J50's BumpHunter masking path)
+both pass against the baselines cut from the runs already on disk; a hand-perturbed baseline was
+confirmed to produce a readable failure before being restored. Only §6 — closing the gaps the
+original survey found — and the README's own reproducibility section remain.
 
 ## Adding a plan
 

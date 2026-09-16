@@ -38,6 +38,8 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-16 13:13 — Begin the reproducibility-lock harness](#2026-09-16-1313--begin-the-reproducibility-lock-harness)
 - [2026-09-16 13:50 — Add the env subcommand](#2026-09-16-1350--add-the-env-subcommand)
 - [2026-09-16 15:35 — Add the record subcommand, cut the J100/J50 baselines, and correct issue 10](#2026-09-16-1535--add-the-record-subcommand-cut-the-j100j50-baselines-and-correct-issue-10)
+- [2026-09-16 16:10 — Add the check subcommand](#2026-09-16-1610--add-the-check-subcommand)
+- [2026-09-16 16:35 — Diagnosable error when python3 itself lacks PyROOT](#2026-09-16-1635--diagnosable-error-when-python3-itself-lacks-pyroot)
 
 ---
 
@@ -731,3 +733,120 @@ baselines — is not built yet, nor is §6's gap-closing (the dead installer, `.
 GitHub clone URLs, the README pins table). Both binaries' SHA-256 digests are now in the
 baselines' provenance, but nothing yet compares a freshly *rebuilt* binary against them — that
 arrives with `check`.
+
+---
+
+## 2026-09-16 16:10 — Add the check subcommand
+
+**Objective.** Continue [plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md):
+implement §5, `check` — the end-to-end entry point that runs `env` and the four input-spectrum
+hashes, re-runs both drivers into a scratch directory, and compares the result against the two
+committed baselines.
+
+**Added.**
+
+- `tests/repro.py check [--quick] [--from DIR [--analysis {J100,J50}]] [--rtol SCALE]`. Runs
+  `env`'s checks first (via the now-shared `_report_env()`, factored out of `cmd_env` rather than
+  duplicated) and stops without touching any fit if a pin check fails; `env`'s version *warnings*
+  are printed but never stop it, per the plan. For each analysis it then checks the two input
+  spectra's SHA-256 against `provenance.input_sha256` in that analysis's own baseline and stops
+  on a mismatch, wipes any stale output left in the scratch directory from a previous run, runs
+  the driver (`scripts/run_anaFit_run2.sh` / `run_anaFit_run2_J50.sh`) with `OUT_DIR` pointed at
+  `run/check_scratch/` — inside the already-gitignored `run/`, so nothing new needed adding to
+  `.gitignore` — and extracts the result with the same `extract_variant()` `record` already uses.
+  The comparison is `compare()` against the baseline's `unmasked`/`masked`/`directory_listing`
+  only; `provenance` is baseline-only metadata with no live counterpart to compare it against, so
+  it is never fed through `compare()`. It does not gate on the driver's own exit code (`XMLReader`
+  and `quickFit` warn-and-return-0 on failure per `KNOWN_ISSUES.md`) — the baseline diff is the
+  actual failure detector, exactly as the plan specifies. `--quick` runs J100 only, skipping J50's
+  BumpHunter masking path; `--from DIR` compares an existing directory instead of running a driver,
+  inferring which baseline it belongs to from the directory's own name (falling back to an
+  explicit `--analysis` when that is ambiguous) — the escape hatch the plan names for a refactor
+  that has renamed the drivers or run directories.
+- A "Reproducibility" section in `README.md`: the four commands, what `check` actually compares,
+  what the tolerance classes mean, and the standing rule that a baseline is re-cut only for an
+  intended physics change, with the reason recorded via `record --force --reason`.
+
+**Verified.**
+
+- `python3 tests/repro.py check --from run/run_481_3000_sixPar` and
+  `check --from run/run_J50_302_2997_sixPar` (no `--analysis`, inferred from the directory name):
+  both PASS against the baselines they were themselves cut from — the identity case.
+- Hand-perturbed `tests/baseline_J100.json`'s `unmasked.fitResult.minNll` by +1.0 and its `status`
+  to 99, re-ran `check --quick --from run/run_481_3000_sixPar`: reported exactly two failures,
+  `unmasked.fitResult.minNll` (tight-class, with the numeric diff shown) and
+  `unmasked.fitResult.status` (exact-class), then restored the file — `git diff` on it is empty
+  afterwards. This is plan section "Verification" step 6 in spirit (a checker that has only ever
+  printed PASS has not been tested) ahead of the physics-card perturbation step 6 asks for, which
+  is left for its own pass since it means re-running the real J100 fit.
+- `python3 tests/repro.py check --quick` (no `--from`): ran `scripts/run_anaFit_run2.sh` for real
+  with `OUT_DIR=run/check_scratch`, PASS against `tests/baseline_J100.json`, wall time 2m28s;
+  `run/run_481_3000_sixPar/` and the rest of `run/` untouched, only `run/check_scratch/` appeared,
+  and `git status` showed no unexpected changes (`run/` stays wholly gitignored).
+- `python3 tests/repro.py check` (full, both analyses): PASS against both baselines — plan
+  section "Verification" step 5 in full, the first genuine end-to-end proof rather than a
+  round-trip of the tool's own output. J50's masked BumpHunter refit ran and matched
+  `tests/baseline_J50.json`'s `masked` block, including `global_Pval` and `significance`.
+  Measured at roughly 4-5 minutes wall time by the scratch files' own timestamps, inside the
+  plan's ~6 minute estimate for the full run.
+- `python3 tests/repro.py env` and `selfcheck` re-run unchanged after the `_report_env()` refactor:
+  identical output and exit codes to before it.
+
+**Left alone.** §6 (the dead installer, `.gitmodules`, the unreachable GitLab URLs in
+`install.sh`, the stale `README.md`/`CLAUDE.md` prose about submodules and an empty `tests/`) and
+plan Verification steps 6 (perturb an actual background-parameter card and confirm a readable
+failure from a real re-fit, not a hand-edited baseline) and 7 (confirm `run/run_481_3000_sixPar/`
+untouched and `git status` shows only intended files staged) — both of which make more sense once
+§6 has also landed, since a "prove it can fail" run and a final `git status` check are more
+informative done once, at the end, than repeated after every remaining step.
+
+---
+
+## 2026-09-16 16:35 — Diagnosable error when python3 itself lacks PyROOT
+
+**Objective.** Fix a bug reported against the 16:10 entry's `check`: run from an interactive
+shell, it crashed with a raw `ModuleNotFoundError: No module named 'ROOT'` three frames deep in
+`extract_postfit`, rather than the PASS this notebook's previous entry recorded.
+
+**Found.** `extract_fit_result`/`extract_postfit` each do a bare `import ROOT` inside the same
+python3 process running `tests/repro.py` itself — a design choice from the plan's own survey
+("the system python3 already has PyROOT … so the comparison tool needs no `lsetup`"). That is
+true only of the *plain* lxplus system `python3`; it silently stops being true the moment a
+different `python3` resolves first on `$PATH` in the invoking shell. First reproduced with
+`pyBumpHunter/pyBH_env/bin/python3` (no ROOT bindings, only the pyBumpHunter egg) as a stand-in,
+since the reporter's actual shell state was not yet known. Asking turned up the real cause: a
+repository-root `.venv/` (Python 3.12, `black`/`ruff`/`mypy`/`pytest` — general dev tooling,
+unrelated to ROOT/ATLAS, gitignored under `.gitignore`'s "agent working files" section) that had
+been `source`d before running `check`. Same failure class, different interpreter — confirms the
+fix below needed to be generic rather than naming a specific venv. The driver subprocess `check`
+launches sources its own environment independently (`setupATLAS` + `scripts/setup_buildAndFit.sh`)
+and was never the problem; the failure is in the *parent* process's own `python3`. This was never
+checked against a python3 other than the one this session's own Bash tool happens to default to,
+which does have system PyROOT — so the 16:10 entry's "PASS" was real, just not representative of
+every shell this can be invoked from.
+
+**Added.** `_import_root()`, called by both `extract_fit_result` and `extract_postfit` in place of
+their own bare `import ROOT`: on `ModuleNotFoundError` it raises `SystemExit` with the failing
+interpreter's path, the underlying error, and a generic pointer at `$VIRTUAL_ENV` and any sourced
+ATLAS/lsetup environment — not a specific venv name, since the actual cause turned out to be
+neither of the two examples first suspected. One guard shared by both call sites rather than
+duplicated in each.
+
+A precondition paragraph in `README.md`'s Reproducibility section: `record`/`check` need `python3`
+itself to already have PyROOT, state what commonly breaks that, and what the resulting error
+looks like.
+
+**Verified.**
+
+- `pyBumpHunter/pyBH_env/bin/python3 tests/repro.py check --from run/run_481_3000_sixPar` prints
+  `ERROR: .../pyBH_env/bin/python3 has no ROOT module (No module named 'ROOT'). ...` and exits 1,
+  instead of a traceback. The same command with the plain system `python3` is unaffected: `check
+  --from run/run_481_3000_sixPar` still PASSes.
+- Reproduced the reporter's exact session (`source .venv/bin/activate; python3 tests/repro.py
+  check`, no `--from`): `env` and the input hashes pass, the J100 driver runs for real (its own
+  subprocess environment is unaffected by the parent's venv), and extraction now fails with
+  `ERROR: .../.venv/bin/python3 has no ROOT module ...` and exit 1 — the actual reported case,
+  not just the `pyBH_env` stand-in, confirmed fixed.
+
+**Left alone.** Everything the 16:10 entry left alone still is; this entry only fixes the
+diagnostic, it does not change what `check` verifies or how.

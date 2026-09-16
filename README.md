@@ -175,6 +175,41 @@ toy fits fanned out over HTCondor via `submission/condor_handler.py` + `condor_s
 Read it before touching anything under `python/` named `Inject*`, `create*Graph*`,
 `SpuriousSignal`, `BackgroundStability` or `FTest`.
 
+# Reproducibility
+
+`tests/repro.py` is a regression harness for the two Run 2 dijet TLA fits (J100 481-3000 GeV,
+J50 302-2997 GeV) — the only two analyses this repository currently produces. It cannot prove the
+physics is *right*, only that a change did not move it; see
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md) for the
+design and [doc/IMPROVEMENTS.md](doc/IMPROVEMENTS.md) for how it works.
+
+```
+python3 tests/repro.py selfcheck            # comparator's own test, no ROOT, instant
+python3 tests/repro.py env                  # software pins vs what's actually on disk/CVMFS
+python3 tests/repro.py check --quick        # J100 only, ~1-2 min
+python3 tests/repro.py check                # both analyses, incl. J50's BumpHunter masking, ~6 min
+```
+
+**`record`/`check` need `python3` itself to already have PyROOT importable** — the plain lxplus
+system `python3` has this with no setup at all, which is what the driver subprocesses they launch
+are sourced against anyway. Run them from a shell that has *not* activated
+`pyBumpHunter/pyBH_env` (it carries no ROOT bindings, only the pyBumpHunter egg) or sourced an
+ATLAS/lsetup environment that puts a different `python3` first on `$PATH` — either produces a
+clear `ERROR: ... has no ROOT module` rather than running.
+
+`check` re-runs the driver(s) with `OUT_DIR` pointed at a scratch directory — `run/` itself is
+never touched — and compares the fitted parameters, `minNll`, chi2/p-values, postfit bins and
+BumpHunter output against `tests/baseline_J100.json`/`baseline_J50.json`. Floats are compared
+within a tolerance (tight: `rtol=1e-6`; p-values: `rtol=1e-5`); most other fields must match
+exactly. Run `check --quick` while iterating and the full `check` before committing or merging —
+commit only on PASS.
+
+**Baselines are re-cut only when a physics change is intended**, with the reason recorded:
+`tests/repro.py record {J100,J50} --force --reason "..."`. Re-cutting to make an unexplained
+failure go away defeats the entire point of the harness — if `check` fails, read it in order:
+did `env` warn about a version drift, did an input spectrum's hash change, and only then look at
+which fitted quantity moved.
+
 # Links
 
 * [Falk's tutorial recording](https://indico.cern.ch/event/1266089/)
