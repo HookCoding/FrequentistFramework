@@ -2,11 +2,19 @@
 """Reproducibility regression harness for the J50/J100 dijet TLA fits.
 
 Subcommands land incrementally, see plans/2026-09-15-reproducibility-lock.md.
-Only `selfcheck` exists so far: it tests the comparator below against
-synthetic data, without touching ROOT or the ATLAS environment.
+`selfcheck` tests the comparator below against synthetic data, without
+touching ROOT or the ATLAS environment. `env` verifies the software stack
+(sub-framework SHAs, the CVMFS LCG view, the pyBumpHunter venv) against the
+files that already declare it, and records what cannot be pinned.
 """
 import argparse
+import hashlib
+import re
+import subprocess
 import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Tolerance classes, plan section 4. "exact" and "note" are markers;
 # anything else is an {"rtol":..., "atol":...} dict.
@@ -181,14 +189,276 @@ def cmd_selfcheck(args):
     return 0
 
 
+# --- env: verify the stack, without inventing a new source of truth -------
+#
+# Design note: unlike selfcheck's baseline/candidate JSON, most of env's
+# checks either compare two peer declarations that must mutually agree
+# (the three setup_lxplus.sh files), or assert a list is empty (no dirty
+# tracked files), or have no "expected" value to compare against at all
+# (cmake/numpy/scipy/uproot versions, which plan section 1 says to record
+# rather than assert). None of that is the nested-baseline-vs-candidate
+# shape compare() was built for, so env reports its own (name, ok, detail)
+# checks directly instead of forcing everything through flatten()/compare().
+
+FRAMEWORKS = ["xmlAnaWSBuilder", "quickFit", "workspaceCombiner", "pyBumpHunter"]
+ROOFIT_FRAMEWORKS = ["xmlAnaWSBuilder", "quickFit", "workspaceCombiner"]
+EXPECTED_PYBUMPHUNTER_EGG_VERSION = "0.4.3.dev16+g91f49a6"
+EXPECTED_PYBH_PYTHON_VERSION = "3.9.12"
+
+
+def _git(args, cwd):
+    return subprocess.run(["git", "-C", str(cwd), *args], text=True, capture_output=True)
+
+
+def parse_install_sh_pins(install_sh):
+    """Pair each `cd <dir>` with the checkout SHA that follows it."""
+    pins = {}
+    current_dir = None
+    for line in install_sh.read_text().splitlines():
+        line = line.strip()
+        m = re.match(r"cd\s+(\S+)$", line)
+        if m and m.group(1) != "..":
+            current_dir = m.group(1)
+            continue
+        m = re.match(r"git checkout\s+([0-9a-f]{40})$", line)
+        if m and current_dir:
+            pins[current_dir] = m.group(1)
+            current_dir = None
+    return pins
+
+
+def parse_checkout_sha(script_path):
+    m = re.search(r"git checkout\s+([0-9a-f]{40})", script_path.read_text())
+    return m.group(1) if m else None
+
+
+def parse_lsetup_view(setup_lxplus_path):
+    m = re.search(r'lsetup\s+"views\s+([^"]+)"', setup_lxplus_path.read_text())
+    return m.group(1).strip() if m else None
+
+
+def parse_pyvenv_cfg(pyvenv_cfg_path):
+    cfg = {}
+    for line in pyvenv_cfg_path.read_text().splitlines():
+        if "=" in line:
+            key, _, value = line.partition("=")
+            cfg[key.strip()] = value.strip()
+    return cfg
+
+
+def find_pybumphunter_egg_version(pyBH_env_dir):
+    eggs = sorted(pyBH_env_dir.glob("lib/python*/site-packages/pyBumpHunter-*.egg"))
+    if not eggs:
+        return None
+    m = re.match(r"pyBumpHunter-(.+)-py3\.\d+\.egg$", eggs[0].name)
+    return m.group(1) if m else eggs[0].name
+
+
+def sha256_of(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _atlas_probe(script, timeout=90):
+    """Run a snippet after sourcing the ATLAS/CVMFS environment.
+
+    Returns (stdout, error): error is None on success, a short string on
+    failure. Never raises - plan section 1 records these values rather
+    than asserting them, precisely because they cannot be pinned from
+    this repository.
+    """
+    preamble = "setupATLAS >/dev/null 2>&1\n"
+    try:
+        proc = subprocess.run(
+            ["bash", "-c", preamble + script],
+            text=True, capture_output=True, timeout=timeout,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return None, str(exc)
+    if proc.returncode != 0:
+        return None, (proc.stderr.strip()[-500:] or f"exit {proc.returncode}")
+    return proc.stdout.strip(), None
+
+
+def resolve_cmake_version(view):
+    out, err = _atlas_probe(
+        f'lsetup "views {view}" >/dev/null 2>&1\n'
+        "lsetup cmake >/dev/null 2>&1\n"
+        "cmake --version | head -1\n"
+    )
+    return out if out else f"unavailable ({err})"
+
+
+def resolve_bumphunter_pypackages(view, pyBH_env_dir):
+    """Import numpy/scipy/uproot exactly as python/FindBHWindow.py's own
+    activation line does (source pyBH_env/bin/activate, then python3),
+    after the same lsetup views the sub-frameworks use."""
+    script = f'''\
+lsetup "views {view}" >/dev/null 2>&1
+source "{pyBH_env_dir}/bin/activate"
+python3 <<'PYEOF'
+import importlib
+for m in ("numpy", "scipy", "uproot"):
+    try:
+        mod = importlib.import_module(m)
+        print(m, getattr(mod, "__version__", "?"))
+    except Exception as e:
+        print(m, "unavailable:", e)
+PYEOF
+deactivate
+'''
+    out, err = _atlas_probe(script)
+    if out is None:
+        return {pkg: f"probe failed ({err})" for pkg in ("numpy", "scipy", "uproot")}
+    versions = {}
+    for line in out.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            versions[parts[0]] = parts[1]
+    return versions
+
+
+def run_env_checks(root=REPO_ROOT):
+    """Run every check in plan section 1.
+
+    Returns (checks, recorded): checks is a list of (name, ok, detail)
+    covering every assertable pin; recorded is a dict of observe-only
+    values that plan section 1 says to record without asserting.
+    """
+    checks = []
+
+    def check(name, ok, detail):
+        checks.append((name, ok, detail))
+
+    pins = parse_install_sh_pins(root / "install.sh")
+
+    for fw in FRAMEWORKS:
+        expected = pins.get(fw)
+        clone_dir = root / fw
+        if expected is None:
+            check(f"install.sh pin: {fw}", False, "no cd/checkout pair found in install.sh")
+            continue
+        if not clone_dir.is_dir():
+            check(f"install.sh pin: {fw}", False, f"{fw}/ does not exist (not cloned)")
+            continue
+        actual = _git(["rev-parse", "HEAD"], clone_dir).stdout.strip()
+        check(f"install.sh pin: {fw}", actual == expected,
+              f"install.sh pins {expected}, HEAD is {actual or '(git rev-parse failed)'}")
+
+    roofit_shas = {}
+    for fw in ROOFIT_FRAMEWORKS:
+        script_path = root / fw / "scripts" / "install_roofitext.sh"
+        if not script_path.is_file():
+            check(f"RooFitExtensions pin: {fw}", False, f"{script_path} does not exist")
+            continue
+        expected = parse_checkout_sha(script_path)
+        rfe_dir = root / fw / "RooFitExtensions"
+        if not rfe_dir.is_dir():
+            check(f"RooFitExtensions pin: {fw}", False, f"{rfe_dir} does not exist (not built)")
+            continue
+        actual = _git(["rev-parse", "HEAD"], rfe_dir).stdout.strip()
+        roofit_shas[fw] = expected
+        check(f"RooFitExtensions pin: {fw}", actual == expected,
+              f"{script_path.relative_to(root)} pins {expected}, HEAD is {actual or '(git rev-parse failed)'}")
+
+    if len(set(roofit_shas.values())) > 1:
+        check("RooFitExtensions pin agreement", False, f"sub-frameworks disagree: {roofit_shas}")
+
+    views = {}
+    for fw in ROOFIT_FRAMEWORKS:
+        setup_path = root / fw / "setup_lxplus.sh"
+        if not setup_path.is_file():
+            check(f"lsetup view declared: {fw}", False, f"{setup_path} does not exist")
+            continue
+        view = parse_lsetup_view(setup_path)
+        views[fw] = view
+        check(f"lsetup view declared: {fw}", view is not None, f"{setup_path.relative_to(root)}: {view!r}")
+
+    distinct_views = {v for v in views.values() if v}
+    agreed_view = next(iter(distinct_views)) if len(distinct_views) == 1 else None
+    check("lsetup view agreement", agreed_view is not None,
+          f"all three agree on {agreed_view!r}" if agreed_view else f"sub-frameworks disagree: {views}")
+
+    pyvenv_path = root / "pyBumpHunter" / "pyBH_env" / "pyvenv.cfg"
+    if not pyvenv_path.is_file():
+        check("pyBH_env pyvenv.cfg", False, f"{pyvenv_path} does not exist (venv not created)")
+    else:
+        cfg = parse_pyvenv_cfg(pyvenv_path)
+        home = cfg.get("home", "")
+        version = cfg.get("version", "")
+        view_in_home = agreed_view is not None and all(part in home for part in agreed_view.split())
+        check("pyBH_env venv matches LCG view", view_in_home,
+              f"pyvenv.cfg home={home!r}, expected view {agreed_view!r}")
+        check("pyBH_env python version", version == EXPECTED_PYBH_PYTHON_VERSION,
+              f"pyvenv.cfg version={version!r}, expected {EXPECTED_PYBH_PYTHON_VERSION!r}")
+
+    pyBH_env_dir = root / "pyBumpHunter" / "pyBH_env"
+    egg_version = find_pybumphunter_egg_version(pyBH_env_dir) if pyBH_env_dir.is_dir() else None
+    check("pyBumpHunter installed egg version", egg_version == EXPECTED_PYBUMPHUNTER_EGG_VERSION,
+          f"installed egg is {egg_version!r}, expected {EXPECTED_PYBUMPHUNTER_EGG_VERSION!r}")
+
+    for fw in FRAMEWORKS:
+        clone_dir = root / fw
+        if not clone_dir.is_dir():
+            continue
+        dirty = [line for line in _git(["status", "--porcelain"], clone_dir).stdout.splitlines()
+                 if not line.startswith("??")]
+        check(f"no modified tracked files: {fw}", not dirty, "clean" if not dirty else "\n".join(dirty))
+
+    binary_hashes = {}
+    for rel_path in ("xmlAnaWSBuilder/build/bin/XMLReader", "quickFit/build/quickFit"):
+        full = root / rel_path
+        if full.is_file():
+            binary_hashes[rel_path] = sha256_of(full)
+            check(f"binary present: {rel_path}", True,
+                  f"sha256={binary_hashes[rel_path]} "
+                  f"(not yet compared: no baseline provenance exists until 'record' is built)")
+        else:
+            check(f"binary present: {rel_path}", False, "not built")
+
+    recorded = {"binary_sha256": binary_hashes}
+    if agreed_view:
+        recorded["cmake_version"] = resolve_cmake_version(agreed_view)
+        recorded["bumphunter_pypackages"] = resolve_bumphunter_pypackages(agreed_view, pyBH_env_dir)
+    else:
+        recorded["cmake_version"] = "skipped (no agreed LCG view)"
+        recorded["bumphunter_pypackages"] = {}
+
+    return checks, recorded
+
+
+def cmd_env(args):
+    checks, recorded = run_env_checks()
+
+    for name, ok, detail in checks:
+        print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
+
+    print("\nRecorded (not asserted, plan section 1 - cannot be pinned from this repository):")
+    print(f"  cmake: {recorded['cmake_version']}")
+    for pkg, value in recorded["bumphunter_pypackages"].items():
+        print(f"  {pkg} (as seen by the BumpHunter step): {value}")
+    for rel_path, digest in recorded["binary_sha256"].items():
+        print(f"  sha256 {rel_path}: {digest}")
+
+    failed = [c for c in checks if not c[1]]
+    print()
+    if failed:
+        print(f"FAIL: {len(failed)}/{len(checks)} environment checks failed")
+        return 1
+    print(f"PASS: all {len(checks)} environment checks passed")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("selfcheck", help="test the comparator itself; no ROOT, instant")
+    subparsers.add_parser("env", help="verify software pins vs what's actually on disk/CVMFS")
 
     args = parser.parse_args()
     if args.command == "selfcheck":
         return cmd_selfcheck(args)
+    if args.command == "env":
+        return cmd_env(args)
 
 
 if __name__ == "__main__":

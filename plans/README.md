@@ -52,8 +52,11 @@ eyeballed against the CHANGELOG. Scope is strictly those two analyses — 27 of 
 1570 tracked files participate in a J50 or J100 run.
 
 Implementation started 2026-09-16 with `tests/repro.py`'s comparator engine and its `selfcheck`
-subcommand, plus `doc/IMPROVEMENTS.md` and `KNOWN_ISSUES.md`. `env`, `record` and `check` — the
-parts that actually touch the fits — are not built yet.
+subcommand, plus `doc/IMPROVEMENTS.md` and `KNOWN_ISSUES.md`. `env` followed the same day,
+verifying the four sub-framework SHAs, the RooFitExtensions checkouts, the CVMFS LCG view and the
+pyBumpHunter venv against the files that already declare them — 20/20 checks pass against the
+current tree, and building it surfaced a tenth known issue (`KNOWN_ISSUES.md`). `record` and
+`check` — the parts that actually touch the fits — are not built yet.
 
 ## Adding a plan
 

@@ -1,9 +1,20 @@
 # Lock the software versions and the J50/J100 results before refactoring
 
-**Written** 2026-09-15 &nbsp;|&nbsp; **Branch** `claude-skills` &nbsp;|&nbsp; **Status** written, awaiting approval
+**Written** 2026-09-15 &nbsp;|&nbsp; **Amended** 2026-09-16 &nbsp;|&nbsp; **Branch** `claude-skills` &nbsp;|&nbsp; **Status** approved, implementation in progress
 
-Archived as written. Nothing has been implemented at the time of filing. What actually happens
-on implementation belongs in [CHANGELOG.md](../CHANGELOG.md).
+Filed as written on 2026-09-15, and left alone through the first two implementation steps.
+
+**One amendment has been made since, recorded here rather than applied silently.** On 2026-09-16,
+at the repository owner's explicit instruction, §1's treatment of the versions that cannot be
+pinned was rewritten — see *Versions that cannot be pinned* below, with matching edits in §3, §4,
+§5 and Verification. The original text said only that `env` "records without asserting" those
+versions. The first implementation read that as a local, self-updating cache of the last-observed
+values which warned when they changed and then overwrote itself; that leaves no durable statement
+of what the versions are *supposed* to be, which is the thing actually needed. That implementation
+is to be removed, not extended. Everything outside those sections stands as originally written.
+
+What actually happens on implementation belongs in [CHANGELOG.md](../CHANGELOG.md); where this
+plan and the notebook disagree, the notebook is right.
 
 ---
 
@@ -146,14 +157,55 @@ Every expected value is parsed from the file that already declares it:
 Reading from the gitignored clones is deliberate — that is where the truth lives, and catching
 a tree that has silently diverged from what `install.sh` declares is the whole point.
 
-`env` additionally **records without asserting**, into the baseline provenance block: the
-resolved `cmake` version, and the numpy, scipy and uproot versions visible to the BumpHunter
-step. None of these can be pinned from this repository — `lsetup cmake` floats and its line
-lives inside a gitignored clone, and the three Python packages are not installed in `pyBH_env`
-at all but leak in from the LCG view via `PYTHONPATH`. They are recorded rather than asserted
-because they drive the 10 000 pseudo-experiments behind `global_Pval`: when that number moves
-after an LCG bump, the recorded versions are what make it diagnosable as "numpy changed"
-instead of an unexplained physics shift.
+#### Versions that cannot be pinned
+
+*(Amended 2026-09-16 — see the note at the top of this file for what this replaced and why.)*
+
+Four things are left that this repository cannot pin at all: the resolved `cmake` version, and
+the numpy, scipy and uproot versions visible to the BumpHunter step. `lsetup cmake` floats and
+its line lives inside a gitignored clone; the three Python packages are not installed in
+`pyBH_env` and arrive from outside it. (By what route exactly turned out not to be what this
+plan assumed — the CHANGELOG has the correction.) The observed ROOT version belongs with them:
+the LCG view name is asserted, but a view name is a label, and recording the ROOT build actually
+in use is what makes "same view, different build" visible rather than silent.
+
+These are not a lesser class of dependency. They drive the 10 000 pseudo-experiments behind
+`global_Pval`, so a change in any of them moves a published number. What is missing is
+*enforcement*, not importance — nothing here can force `lsetup cmake` or the view's numpy to
+resolve to a given version. The answer to "cannot enforce" is to record, deliberately and
+durably:
+
+- **The record of what the versions are supposed to be is the baseline provenance block** (§3).
+  A baseline is the statement "these numbers were produced by this stack"; the versions are part
+  of that statement, committed beside the numbers they produced, and they change only when a
+  baseline is deliberately re-cut with a stated `--reason`. There is no other defensible
+  definition of "supposed to be" here, and it needs no new file — the provenance block already
+  exists and already has to say what the baseline was cut from.
+- **`env` reads that record and compares the live environment against it**, reporting every
+  difference as a warning naming both the recorded and the observed value. It never fails on
+  one. An LCG bump is not a broken checkout, the user usually cannot undo it, and a check that
+  fails for reasons nobody can act on is a check that gets ignored — which would cost far more
+  than it protects. Pin drift (§1's assertions) still fails; version drift warns.
+- **`env` never writes that record.** A local cache that quietly overwrites itself with each
+  run's observations is explicitly rejected. It answers "did this change since I last looked",
+  which is not the question being asked; two runs after a version moves it states the new
+  version as though it had always been the expectation, and the link between the recorded
+  numbers and the software that produced them is gone. The record has to outlive the drift it
+  exists to make visible.
+- **Before any baseline exists**, `env` says exactly that and compares nothing. It does not seed
+  an expectation from whatever the current machine happens to report: an expectation invented by
+  observation is the failure being designed out.
+- **Both baselines carry the same versions block**, since both are cut from one stack in one
+  session. `record` warns when it is about to write a versions block that disagrees with the
+  other baseline's — that means the stack moved mid-capture, which is a finding, not a detail.
+
+A version recorded as unavailable is recorded verbatim as unavailable: "numpy could not be
+imported here" is a true and useful thing for a baseline to say about the machine that cut it,
+and a later run finding numpy present is a difference worth the same warning as any other.
+
+This keeps §1's rule intact — nothing above invents a new source of truth. The baseline is
+already the reference the whole harness is built around; this only makes the versions inside it
+readable by the one subcommand that can see the live environment.
 
 ### 2. Input integrity — the only analysis files hashed
 
@@ -198,7 +250,7 @@ J100 does not).
 | `PostFit_*.root`, `*_rebinned` dirs only | `postfit` bin contents (57 J100 / 65 J50) and `data` **integral** |
 | `BHresults.json` (J50) | `MaskMin`, `MaskMax`, `BlindRange`, and from `pyBHresult`: `global_Pval`, `significance`, `seed`, `npe` |
 | directory listing | `sorted(os.listdir(folder))` |
-| provenance block | date cut, software pins from §1, SHA-256 of the four input spectra and of the two built binaries, the recorded cmake / numpy / scipy / uproot versions, and the `--reason` if it was ever re-cut |
+| provenance block | date cut, software pins from §1, SHA-256 of the four input spectra and of the two built binaries, the recorded ROOT / cmake / numpy / scipy / uproot versions — the durable record §1 has `env` compare the live environment against — and the `--reason` if it was ever re-cut |
 
 Reasoning for the inclusions and omissions:
 
@@ -243,12 +295,17 @@ run shows the full blast radius. A missing or extra key is a failure in its own 
 masked set appearing where it should not is real physics, not noise. Keys recording the
 observed environment (ROOT version, active view) are printed as notes and never fail: the ROOT
 version legitimately differs between a bare shell and a sourced one, and failing on that would
-train people to ignore the harness. Pin drift is `env`'s job and fails there.
+train people to ignore the harness. Pin drift is `env`'s job and fails there; drift in the
+versions that cannot be pinned is also `env`'s job and warns there, against the record in the
+baseline provenance (§1).
 
 ### 5. `check` — the entry point
 
 Runs `env` and the four input hashes first and stops if either fails — a moved number is not
-worth diagnosing until the stack is known good and the inputs are known untouched. Then runs
+worth diagnosing until the stack is known good and the inputs are known untouched. `env`'s
+version warnings (§1) do not stop it, but they are printed before the comparison so that a
+mismatch further down is read with them already in view: if numpy moved, that is the first
+suspect for a shifted `global_Pval`, and nobody should have to go looking for it. Then runs
 each driver with `OUT_DIR` set to a scratch directory so `run/` is never touched, and compares
 each output against its baseline.
 
@@ -316,8 +373,9 @@ The same stale GitLab URLs appear in `.gitmodules`, which this plan deletes outr
 
 ### 7. Bookkeeping the repo's conventions demand
 
-- **This plan**, archived as written, plus a row in the [plans/README.md](README.md) index and
-  its short descriptive paragraph.
+- **This plan**, archived as written — with any later change to the *design* made as a marked,
+  dated amendment that says what it replaced, never as a quiet rewrite to match what happened —
+  plus a row in the [plans/README.md](README.md) index and its short descriptive paragraph.
 - **[CHANGELOG.md](../CHANGELOG.md)** — appended entries in the existing **Objective / Found /
   Added / Changed / Verified / Decided / Left alone** form, plus rows in the Contents list.
   Append only; do not edit earlier entries. **Verified** must carry the real numbers the
@@ -432,7 +490,12 @@ resolved rather than recorded, and belong in the CHANGELOG instead.
    GitHub URL into the scratch directory and check out its pinned SHA. If the branch-scope hook
    blocks it, run it by hand outside the agent. Do not skip this — an `install.sh` naming a
    reachable-looking but wrong remote is the exact failure this change exists to remove.
-3. `python3 tests/repro.py env` on the current tree → all pins green.
+3. `python3 tests/repro.py env` on the current tree → all pins green. Before any baseline
+   exists it must say it has no version record to compare against, and must not write one.
+   After step 4, hand-edit a version in a baseline's provenance, re-run `env`, and confirm it
+   warns with both values, still exits 0, and leaves the baseline exactly as it found it —
+   `git diff` on the baseline must be empty afterwards. A record the tool can silently rewrite
+   is not a record.
 4. Record both baselines from the existing `run/` directories. Eyeball against the CHANGELOG:
    `minNll` 1259.1119375388664 and `p6` 0.0478363 for J100; rebinned `pval` 0.0024417, BH
    window 582–662, `global_Pval` 0.0322 for J50.

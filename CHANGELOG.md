@@ -36,6 +36,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-15 17:16 — Add the Run 2 J50 driver and run the fit](#2026-09-15-1716--add-the-run-2-j50-driver-and-run-the-fit)
 - [2026-09-15 17:30 — Confirm the J100 fit is unaffected by the J50 work](#2026-09-15-1730--confirm-the-j100-fit-is-unaffected-by-the-j50-work)
 - [2026-09-16 13:13 — Begin the reproducibility-lock harness](#2026-09-16-1313--begin-the-reproducibility-lock-harness)
+- [2026-09-16 13:50 — Add the env subcommand](#2026-09-16-1350--add-the-env-subcommand)
 
 ---
 
@@ -558,3 +559,91 @@ four input spectra and the software pins — are not built yet; they are bigger,
 and belong in their own sections. `plans/2026-09-15-reproducibility-lock.md` itself is not
 edited (archived as written, per `plans/README.md`'s own rule); its "written, awaiting approval"
 status line is superseded by the live status now recorded in `plans/README.md`'s index.
+
+---
+
+## 2026-09-16 13:50 — Add the env subcommand
+
+**Objective.** Continue [plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md):
+implement its §1 `env`, which verifies the software stack — the four sub-framework SHAs, the
+three RooFitExtensions checkouts, the CVMFS LCG view, the pyBumpHunter venv — against the files
+that already declare each pin, so nothing here becomes a second, driftable source of truth.
+
+**Found.** The plan's §1 states numpy/scipy/uproot "leak in from the LCG view via PYTHONPATH"
+during the BumpHunter step. Reproducing `python/run_anaFit.py`'s own activation line
+(`source pyBumpHunter/pyBH_env/bin/activate; python3 ...`) after the same
+`lsetup "views LCG_102a x86_64-centos9-gcc11-opt"` the sub-frameworks use shows that mechanism
+does not hold in this session's shell: `PYTHONPATH` is empty after `lsetup views`, the venv's own
+`sys.path` resolves to the base CPython install rather than the view's site-packages, and all
+three imports fail with `ModuleNotFoundError` — even though the view does ship them (confirmed at
+`/cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-centos9-gcc11-opt/lib/python3.9/site-packages/numpy`).
+This is not treated as an `env` failure — it is exactly the "record, don't assert" case §1
+anticipated for this fragility — but the *mechanism* the plan assumed is wrong, not just
+potentially the numbers, so it is recorded here rather than quietly reconciled.
+`run/run_J50_302_2997_sixPar/BHresults.json` exists, proving the BumpHunter step has completed
+successfully at least once, presumably from a genuine interactive lxplus login rather than this
+non-interactive AFS session — so this reads as environment-specific, not a repository-wide break.
+Added as `KNOWN_ISSUES.md` issue 10, the first one that is on the J50/J100 path rather than off
+it.
+
+**Added.**
+
+- `tests/repro.py env` — parses `install.sh`'s `cd`/checkout pairs and compares each against
+  `git rev-parse HEAD` in the corresponding gitignored clone; parses the checkout SHA from the
+  three live `<fw>/scripts/install_roofitext.sh` files and compares against
+  `git -C <fw>/RooFitExtensions rev-parse HEAD`; parses the `lsetup "views …"` line from all three
+  `setup_lxplus.sh` and asserts they agree; checks `pyBumpHunter/pyBH_env/pyvenv.cfg` against that
+  agreed view and Python 3.9.12; checks the installed pyBumpHunter egg's filename for the pinned
+  short SHA `0.4.3.dev16+g91f49a6`; asserts no modified tracked files (untracked build artefacts
+  ignored) across all four clones; computes the SHA-256 of `xmlAnaWSBuilder/build/bin/XMLReader`
+  and `quickFit/build/quickFit` and reports them (nothing to compare against until `record`
+  exists). Separately records, never asserting, the resolved `cmake` version and the
+  numpy/scipy/uproot import status seen by the real BumpHunter activation sequence.
+- `KNOWN_ISSUES.md` issue 10 — the numpy/scipy/uproot finding above.
+
+Design note: `env` reports its own `(name, ok, detail)` checks directly rather than going through
+`compare()`/`flatten()`. Most of its checks are either mutual-agreement checks across peer files
+(the three `setup_lxplus.sh`) or "no dirty files" assertions, neither of which is the
+baseline-vs-candidate shape `compare()` was built for; forcing them through it would need
+synthetic placeholder values with nothing real on one side.
+
+**Verified.** `python3 tests/repro.py env` against the current tree: 20/20 checks pass. Every
+asserted value was cross-checked against an independent manual `git rev-parse`/`cat`/`sha256sum`
+pass before trusting the tool's own output — all four clones sit at their `install.sh`-pinned SHA
+with no modified tracked files, all three RooFitExtensions checkouts agree at
+`ba94bfcbfa4f4a4e3541ade09580399e409e8514`, all three `setup_lxplus.sh` agree on
+`LCG_102a x86_64-centos9-gcc11-opt`, `pyvenv.cfg` matches, and the installed egg is
+`pyBumpHunter-0.4.3.dev16+g91f49a6-py3.9.egg`. The new parsing helpers
+(`parse_install_sh_pins`, `parse_lsetup_view`, `parse_pyvenv_cfg`) were additionally unit-tested
+against synthetic input covering a blank line between `cd` and its checkout, the literal `cd $x`
+from `install.sh`'s build loop (must not produce a spurious pin), and `cd ..` (must never be read
+as a directory name) — all passed.
+
+**Decided.** A wrong turn, recorded because it produced a design decision worth keeping. Asked
+for a non-fatal warning when the recorded-not-asserted versions change, this session went
+straight to implementing one: a local, gitignored `tests/env_recorded.json` holding the
+last-observed values, diffed each run, warned on any change, then overwritten with the new
+values. It was built, tested and working before anyone reviewed the idea — which is precisely
+what `CLAUDE.md`'s planning rule exists to prevent, and the change was not trivial enough to
+qualify for that rule's exemption.
+
+On review the design was rejected, for a reason worth writing down: a cache of the last
+observation answers "did this change since I last looked", which is not the question. What is
+needed is a record of the version each result was *produced* with. Two runs after a version
+moves, a self-overwriting cache asserts the new version as though it had always been expected,
+and the link between the recorded physics numbers and the software behind them is gone —
+exactly the link the harness exists to preserve.
+
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md) §1 was
+amended accordingly (marked and dated in the plan, not applied silently): the record of what the
+versions are supposed to be is the baseline provenance block, which is committed and changes
+only on a deliberate re-cut; `env` reads it, compares, warns non-fatally, and never writes it.
+The cache implementation and its `.gitignore` entry were removed rather than adapted. The
+comparison itself now arrives with `record` (§3), since until a baseline exists there is nothing
+to compare against — `env` is to say so rather than invent an expectation from the machine it
+happens to be running on.
+
+**Left alone.** The two binaries' SHA-256 digests are computed and printed but not compared
+against anything yet — plan §1 compares them to "the baseline provenance," which does not exist
+until `record` (§3) is built. `record`, `check` and the input-spectrum hashing are still not
+built.
