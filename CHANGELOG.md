@@ -37,6 +37,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-15 17:30 — Confirm the J100 fit is unaffected by the J50 work](#2026-09-15-1730--confirm-the-j100-fit-is-unaffected-by-the-j50-work)
 - [2026-09-16 13:13 — Begin the reproducibility-lock harness](#2026-09-16-1313--begin-the-reproducibility-lock-harness)
 - [2026-09-16 13:50 — Add the env subcommand](#2026-09-16-1350--add-the-env-subcommand)
+- [2026-09-16 15:35 — Add the record subcommand, cut the J100/J50 baselines, and correct issue 10](#2026-09-16-1535--add-the-record-subcommand-cut-the-j100j50-baselines-and-correct-issue-10)
 
 ---
 
@@ -586,6 +587,10 @@ non-interactive AFS session — so this reads as environment-specific, not a rep
 Added as `KNOWN_ISSUES.md` issue 10, the first one that is on the J50/J100 path rather than off
 it.
 
+**This finding was itself wrong — retracted in the 2026-09-16 15:35 entry below.** The probe
+above was an unfaithful reproduction of the real activation sequence, not a real limitation.
+Left as written here per this file's own rule for mistakes found later.
+
 **Added.**
 
 - `tests/repro.py env` — parses `install.sh`'s `cd`/checkout pairs and compares each against
@@ -647,3 +652,82 @@ happens to be running on.
 against anything yet — plan §1 compares them to "the baseline provenance," which does not exist
 until `record` (§3) is built. `record`, `check` and the input-spectrum hashing are still not
 built.
+
+---
+
+## 2026-09-16 15:35 — Add the record subcommand, cut the J100/J50 baselines, and correct issue 10
+
+**Objective.** Continue [plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md):
+implement §2 (hash the four input spectra) and §3 (`record`), and close the loop on §1's
+amendment by having `env` read and compare against the baseline provenance `record` produces
+(Verification step 3).
+
+**Found.** Two findings, the second only surfacing because of the first.
+
+1. §3's provenance block needs the ROOT version alongside `cmake` (§1's amendment). Checking
+   `resolve_cmake_version`'s existing `lsetup`-based probe against ground truth
+   (`/cvmfs/sft.cern.ch/lcg/views/LCG_102a/x86_64-centos9-gcc11-opt/bin/cmake`) showed it has been
+   silently wrong since the 13:50 entry above: a bare `lsetup "views …"` followed by `cmake
+   --version`/`root-config --version` resolves `/usr/bin`'s copies (cmake 3.31.8, ROOT 6.40.04)
+   instead of the view's (cmake 3.20.0, ROOT 6.26/08), because `lsetup`'s `PATH` edits do not
+   survive being probed in an isolated one-line snippet in this non-interactive session. Running
+   the real driver chain (`scripts/setup_buildAndFit.sh`) resolves both correctly; the simplified
+   probe does not. This value was never checked against ground truth in the 13:50 entry — its
+   "Verified" paragraph covered the *asserted* pins, not this recorded-not-asserted one.
+2. That raised the same question about `KNOWN_ISSUES.md` issue 10 (numpy/scipy/uproot "not
+   importable"), diagnosed with the same style of simplified probe. Rerunning the import behind
+   the *real* setup chain (`scripts/setup_buildAndFit.sh`, exactly as every driver sources it)
+   instead of a bare `lsetup views` line succeeds cleanly: `numpy 1.22.3`, `scipy 1.8.0`,
+   `uproot 4.2.0`. Issue 10 was a false alarm from an unfaithful reproduction, not a real
+   limitation. Retracted from `KNOWN_ISSUES.md`; this entry is the retraction, kept here rather
+   than erased, per this file's own rule for a mistake found later.
+
+**Added.**
+
+- `tests/repro.py record {J100,J50} [DIR] [--force --reason "..."]` — extracts, per plan §3:
+  `fitResult`'s `minNll`/`status`/`covQual` and every `floatParsFinal()` entry from
+  `FitResult_*.root`; the six-bin chi2 block from every `PostFit_*.root` TDirectory, plus
+  `postfit` bin contents and the `data` integral for the two `*_rebinned` directories only;
+  `MaskMin`/`MaskMax`/`BlindRange` and (from `pyBHresult`) `global_Pval`/`significance`/`seed`/
+  `npe` from `BHresults.json` when a masked set exists; and `sorted(os.listdir(folder))`. Refuses
+  to overwrite an existing baseline without `--force --reason "..."`. Builds the provenance block
+  from `run_env_checks()` — reused rather than reimplemented, as planned — recording the software
+  pins, the SHA-256 of the two input spectra each analysis actually uses (plan §2) and of the two
+  built binaries, and the ROOT/cmake/numpy/scipy/uproot versions. Warns, non-fatally, if the
+  versions block it is about to write disagrees with the other analysis's already-recorded
+  baseline.
+- `tests/baseline_J100.json` (6111 bytes) and `tests/baseline_J50.json` (11689 bytes), cut from
+  `run/run_481_3000_sixPar/` and `run/run_J50_302_2997_sixPar/` — the two runs already on disk.
+- `tests/repro.py env` now reads whichever baseline exists (preferring `baseline_J100.json`) and
+  compares the live-recorded versions against its `provenance.versions`, warning — never failing —
+  on any difference. Before either baseline existed it said so explicitly and compared nothing.
+
+**Changed.** `resolve_cmake_version` and the new `resolve_root_version` read the LCG view's own
+`bin/{cmake,root-config}` directly on CVMFS instead of asking `lsetup` to put them on `$PATH` —
+faster, and per the Found note above, actually correct in this session.
+`resolve_bumphunter_pypackages` now sources the real `scripts/setup_buildAndFit.sh` rather than a
+hand-rolled `lsetup "views …"` line, for the same reason; it no longer takes a `view` argument
+since the real chain resolves its own.
+
+**Verified.**
+
+- `python3 tests/repro.py selfcheck` still passes, unchanged.
+- `python3 tests/repro.py env`: 20/20 checks pass; the recorded root/cmake/numpy/scipy/uproot
+  values are now the view's real ones (`6.26/08`, `cmake version 3.20.0`, `1.22.3`, `1.8.0`,
+  `4.2.0`) rather than the bare-shell ones the unfixed probes reported before this entry.
+- `record J100` against `run/run_481_3000_sixPar/`: `minNll`=1259.1119375388664, rebinned
+  `pval`=0.01485624637096959. `record J50` against `run/run_J50_302_2997_sixPar/`:
+  `minNll`=1355.2659985827938, rebinned `pval`=0.0024417069875971894, `global_Pval`=0.0322, mask
+  window 582–662. All match the numbers already in this notebook's earlier entries. Both
+  baselines' `provenance.versions` blocks are identical (same session, same stack); `record`
+  printed no disagreement warning.
+- Hand-edited `numpy` in `tests/baseline_J100.json`'s provenance to `9.9.9` and re-ran `env`: it
+  printed `WARNING: versions differ from baseline_J100.json's provenance (non-fatal): numpy:
+  baseline='9.9.9' now='1.22.3'`, still exited 0, and the file's SHA-256 was identical before and
+  after — checked by hash, not by eye. This is plan section "Verification" step 3 in full.
+
+**Left alone.** `check` (§5) — the entry point that runs the drivers and compares against these
+baselines — is not built yet, nor is §6's gap-closing (the dead installer, `.gitmodules`, the
+GitHub clone URLs, the README pins table). Both binaries' SHA-256 digests are now in the
+baselines' provenance, but nothing yet compares a freshly *rebuilt* binary against them — that
+arrives with `check`.

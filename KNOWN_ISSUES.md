@@ -21,12 +21,20 @@ alone. Updated whenever an issue is found, fixed, or consciously accepted.
 | Hardcoded personal checkout path, so the HTCondor path runs someone else's framework at an unknown version | `submission/condor_script.sh:19,24` | HTCondor toy studies only, out of this plan's scope. Left alone. |
 | Absolute AFS/EOS paths in other people's accounts, live in tracked config | `config/dijetisrTLA/*`, `python/inject_zprime_dscblimits.sh` | The (already inert) Run 3 ISR TLA flavour and Z' injection limits. Left alone. |
 | Hardcoded input path returning *Permission denied*, and `--end` defaults to 1000 GeV | `python/createBinning.py` | The auto-rebinning fallback; both Run 2 drivers bypass it via `--rebinfile`/`--rebinhist`. Left alone. |
-| numpy/scipy/uproot are not importable via the documented BumpHunter activation sequence (`source pyBH_env/bin/activate` after `lsetup "views LCG_102a x86_64-centos9-gcc11-opt"`) in a non-interactive AFS session: `PYTHONPATH` is empty and the venv's `sys.path` never reaches the view's site-packages, though the view does ship all three | `python/run_anaFit.py:375` invokes `python/FindBHWindow.py` | The BumpHunter masking loop — **on** the J50/J100 path, triggered when p(chi2) < `--maskthreshold`. `run/run_J50_302_2997_sixPar/BHresults.json` proves the step has succeeded at least once elsewhere, so this looks environment-specific rather than universal; not confirmed on a genuine interactive lxplus login. `tests/repro.py env` records these versions rather than asserting them for exactly this reason. Left alone. |
 
 The first nine were found during the survey behind
 [plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md), verified,
 and confirmed off the J50/J100 path — which is why they are disclosed here rather than fixed.
-Issue 10 was found afterwards, while building that plan's `env` subcommand, and unlike the first
-nine it sits on the J50/J100 path rather than off it; it is disclosed rather than fixed because
-its scope (whether it is a real break or an artifact of this session's non-interactive shell)
-is not yet established, and establishing that is outside what `env` itself is for.
+
+**A tenth entry, retracted rather than kept.** While building `env`, a probe that ran a bare
+`lsetup "views …"` line and then tried to import numpy/scipy/uproot failed with
+`ModuleNotFoundError`, and was disclosed here as "numpy/scipy/uproot are not importable via the
+documented BumpHunter activation sequence." While building `record` it turned out the same
+simplified probe also mis-reported `cmake`/ROOT — both resolved to `/usr/bin` instead of the LCG
+view, because `lsetup`'s `PATH` edits do not survive outside the exact shell that ran them in this
+non-interactive session. Re-running the numpy/scipy/uproot probe behind the framework's *actual*
+setup (`scripts/setup_buildAndFit.sh`, which every real driver sources) instead of the simplified
+one-liner succeeds cleanly. The activation sequence was never broken; the first probe was an
+unfaithful reproduction of it. See the CHANGELOG entry for 2026-09-16 (the `record` section) for
+the full retraction, kept there rather than rewritten away, per this repository's own rule for
+mistakes recorded in the append-only notebook.

@@ -5,10 +5,16 @@ Subcommands land incrementally, see plans/2026-09-15-reproducibility-lock.md.
 `selfcheck` tests the comparator below against synthetic data, without
 touching ROOT or the ATLAS environment. `env` verifies the software stack
 (sub-framework SHAs, the CVMFS LCG view, the pyBumpHunter venv) against the
-files that already declare it, and records what cannot be pinned.
+files that already declare it, and records what cannot be pinned. `record`
+captures a baseline (fit results, chi2/postfit, BumpHunter output, the four
+input spectra's hashes and the software provenance) from an existing run
+directory.
 """
 import argparse
+import datetime
 import hashlib
+import json
+import os
 import re
 import subprocess
 import sys
@@ -279,21 +285,45 @@ def _atlas_probe(script, timeout=90):
     return proc.stdout.strip(), None
 
 
+def _lcg_view_dir(view):
+    return Path("/cvmfs/sft.cern.ch/lcg/views", *view.split())
+
+
+def _view_binary_version(view, binary, *version_args):
+    """Version string of a binary read directly from inside the LCG view,
+    bypassing `lsetup`: in this session lsetup's PATH edits never take
+    effect non-interactively, so a probe like `lsetup views; cmake
+    --version` silently reports /usr/bin's cmake instead of the view's
+    (see KNOWN_ISSUES.md). Going straight to the view's own bin/ is what
+    the framework's compiled binaries actually built against, and is both
+    faster and correct where the lsetup-based probe was not."""
+    exe = _lcg_view_dir(view) / "bin" / binary
+    if not exe.is_file():
+        return f"unavailable (no {exe})"
+    proc = subprocess.run([str(exe), *version_args], text=True, capture_output=True, timeout=30)
+    if proc.returncode != 0:
+        return f"unavailable (exit {proc.returncode}: {proc.stderr.strip()[-200:]})"
+    return proc.stdout.strip().splitlines()[0]
+
+
 def resolve_cmake_version(view):
-    out, err = _atlas_probe(
-        f'lsetup "views {view}" >/dev/null 2>&1\n'
-        "lsetup cmake >/dev/null 2>&1\n"
-        "cmake --version | head -1\n"
-    )
-    return out if out else f"unavailable ({err})"
+    return _view_binary_version(view, "cmake", "--version")
 
 
-def resolve_bumphunter_pypackages(view, pyBH_env_dir):
+def resolve_root_version(view):
+    return _view_binary_version(view, "root-config", "--version")
+
+
+def resolve_bumphunter_pypackages(pyBH_env_dir):
     """Import numpy/scipy/uproot exactly as python/FindBHWindow.py's own
-    activation line does (source pyBH_env/bin/activate, then python3),
-    after the same lsetup views the sub-frameworks use."""
+    activation line does (source pyBH_env/bin/activate, then python3) -
+    but preceded by the real scripts/setup_buildAndFit.sh, not a bare
+    `lsetup views` line. A bare line leaves PYTHONPATH empty in this
+    session; the real chain (both sub-frameworks' setup_lxplus.sh) does
+    not - confirmed by rerunning this probe both ways (see CHANGELOG)."""
     script = f'''\
-lsetup "views {view}" >/dev/null 2>&1
+cd "{REPO_ROOT}"
+source scripts/setup_buildAndFit.sh >/dev/null 2>&1
 source "{pyBH_env_dir}/bin/activate"
 python3 <<'PYEOF'
 import importlib
@@ -306,7 +336,7 @@ for m in ("numpy", "scipy", "uproot"):
 PYEOF
 deactivate
 '''
-    out, err = _atlas_probe(script)
+    out, err = _atlas_probe(script, timeout=240)
     if out is None:
         return {pkg: f"probe failed ({err})" for pkg in ("numpy", "scipy", "uproot")}
     versions = {}
@@ -320,8 +350,9 @@ deactivate
 def run_env_checks(root=REPO_ROOT):
     """Run every check in plan section 1.
 
-    Returns (checks, recorded): checks is a list of (name, ok, detail)
-    covering every assertable pin; recorded is a dict of observe-only
+    Returns (checks, pins, recorded): checks is a list of (name, ok, detail)
+    covering every assertable pin; pins is what those pins actually resolved
+    to (for `record`'s provenance block); recorded is a dict of observe-only
     values that plan section 1 says to record without asserting.
     """
     checks = []
@@ -329,10 +360,10 @@ def run_env_checks(root=REPO_ROOT):
     def check(name, ok, detail):
         checks.append((name, ok, detail))
 
-    pins = parse_install_sh_pins(root / "install.sh")
+    install_pins = parse_install_sh_pins(root / "install.sh")
 
     for fw in FRAMEWORKS:
-        expected = pins.get(fw)
+        expected = install_pins.get(fw)
         clone_dir = root / fw
         if expected is None:
             check(f"install.sh pin: {fw}", False, "no cd/checkout pair found in install.sh")
@@ -418,26 +449,52 @@ def run_env_checks(root=REPO_ROOT):
     recorded = {"binary_sha256": binary_hashes}
     if agreed_view:
         recorded["cmake_version"] = resolve_cmake_version(agreed_view)
-        recorded["bumphunter_pypackages"] = resolve_bumphunter_pypackages(agreed_view, pyBH_env_dir)
+        recorded["root_version"] = resolve_root_version(agreed_view)
+        recorded["bumphunter_pypackages"] = resolve_bumphunter_pypackages(pyBH_env_dir)
     else:
         recorded["cmake_version"] = "skipped (no agreed LCG view)"
+        recorded["root_version"] = "skipped (no agreed LCG view)"
         recorded["bumphunter_pypackages"] = {}
 
-    return checks, recorded
+    pins = {fw: install_pins.get(fw) for fw in FRAMEWORKS}
+    pins["RooFitExtensions"] = roofit_shas
+    pins["active_view"] = agreed_view
+    pins["pyBH_python_version"] = parse_pyvenv_cfg(pyvenv_path).get("version") if pyvenv_path.is_file() else None
+    pins["pyBumpHunter_egg_version"] = egg_version
+
+    return checks, pins, recorded
 
 
 def cmd_env(args):
-    checks, recorded = run_env_checks()
+    checks, pins, recorded = run_env_checks()
 
     for name, ok, detail in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
 
     print("\nRecorded (not asserted, plan section 1 - cannot be pinned from this repository):")
+    print(f"  root: {recorded['root_version']}")
     print(f"  cmake: {recorded['cmake_version']}")
     for pkg, value in recorded["bumphunter_pypackages"].items():
         print(f"  {pkg} (as seen by the BumpHunter step): {value}")
     for rel_path, digest in recorded["binary_sha256"].items():
         print(f"  sha256 {rel_path}: {digest}")
+
+    live_versions = {"root_version": recorded["root_version"], "cmake_version": recorded["cmake_version"],
+                      **recorded["bumphunter_pypackages"]}
+    baseline_paths = sorted((REPO_ROOT / "tests").glob("baseline_*.json"))
+    if not baseline_paths:
+        print("\nNo baseline exists yet - nothing to compare those versions against.")
+    else:
+        reference = json.loads(baseline_paths[0].read_text())["provenance"]["versions"]
+        diffs = {k: (reference.get(k), live_versions.get(k))
+                 for k in set(reference) | set(live_versions)
+                 if reference.get(k) != live_versions.get(k)}
+        if diffs:
+            print(f"\nWARNING: versions differ from {baseline_paths[0].name}'s provenance (non-fatal):")
+            for k, (was, now) in sorted(diffs.items()):
+                print(f"  {k}: baseline={was!r} now={now!r}")
+        else:
+            print(f"\nVersions match {baseline_paths[0].name}'s provenance.")
 
     failed = [c for c in checks if not c[1]]
     print()
@@ -448,17 +505,165 @@ def cmd_env(args):
     return 0
 
 
+# --- record: capture a baseline from an existing run directory -----------
+
+ANALYSES = {
+    "J100": {
+        "default_dir": "run/run_481_3000_sixPar",
+        "stem": "anaFit_sixPar_bkgOnly",
+        "top_dir": "J100yStar06",
+        "inputs": ["Input/data/dijetTLA/mjj_spectra_J100_dataAll.root",
+                   "Input/data/dijetTLA/fullRun2TLAJ100mjj.root"],
+    },
+    "J50": {
+        "default_dir": "run/run_J50_302_2997_sixPar",
+        "stem": "anaFit_sixPar_bkgOnly",
+        "top_dir": "J50yStar06",
+        "inputs": ["Input/data/dijetTLA/mjj_spectra_J50_dataAll.root",
+                   "Input/data/dijetTLAnlo/binning2021/data_J100yStar06_range171_3217.root"],
+    },
+}
+
+
+def extract_fit_result(path):
+    """fitResult's minNll/status/covQual and every floatParsFinal() entry."""
+    import ROOT
+    f = ROOT.TFile.Open(str(path))
+    fr = f.Get("fitResult")
+    pars = fr.floatParsFinal()
+    params = {pars.at(i).GetName(): {"value": pars.at(i).getVal(), "error": pars.at(i).getError()}
+              for i in range(pars.getSize())}
+    result = {"minNll": fr.minNll(), "status": fr.status(), "covQual": fr.covQual(), "params": params}
+    f.Close()
+    return result
+
+
+def extract_postfit(path, top_dir):
+    """The 6-bin chi2 block for every TDirectory, plus postfit bins and the
+    data integral for the two *_rebinned directories only (plan section 3)."""
+    import ROOT
+    f = ROOT.TFile.Open(str(path))
+    chi2, postfit_bins = {}, {}
+    for name in (top_dir, f"{top_dir}_bkgonly", f"{top_dir}_rebinned", f"{top_dir}_bkgonly_rebinned"):
+        d = f.Get(name)
+        if d is None:
+            raise RuntimeError(f"{path}: missing TDirectory {name!r}")
+        h = d.Get("chi2")
+        chi2[name] = {h.GetXaxis().GetBinLabel(i): h.GetBinContent(i) for i in range(1, h.GetNbinsX() + 1)}
+        if name.endswith("_rebinned"):
+            postfit, data = d.Get("postfit"), d.Get("data")
+            postfit_bins[name] = {
+                "postfit": [postfit.GetBinContent(i) for i in range(1, postfit.GetNbinsX() + 1)],
+                "data_integral": data.Integral(),
+            }
+    f.Close()
+    return chi2, postfit_bins
+
+
+def extract_bhresults(path):
+    bh = json.loads(path.read_text())
+    r = bh["pyBHresult"]
+    return {"MaskMin": bh["MaskMin"], "MaskMax": bh["MaskMax"], "BlindRange": bh["BlindRange"],
+            "global_Pval": r["global_Pval"], "significance": r["significance"],
+            "seed": r["seed"], "npe": r["npe"]}
+
+
+def extract_variant(folder, stem, top_dir, masked):
+    """None if the fit set (unmasked or masked) is not present in folder."""
+    suffix = "_masked" if masked else ""
+    fit_path = folder / f"FitResult_{stem}{suffix}.root"
+    post_path = folder / f"PostFit_{stem}{suffix}.root"
+    if not fit_path.is_file() or not post_path.is_file():
+        return None
+    chi2, postfit_bins = extract_postfit(post_path, top_dir)
+    variant = {"fitResult": extract_fit_result(fit_path), "chi2": chi2, "postfit_bins": postfit_bins}
+    if masked:
+        bh_path = folder / "BHresults.json"
+        if bh_path.is_file():
+            variant["bumphunter"] = extract_bhresults(bh_path)
+    return variant
+
+
+def cmd_record(args):
+    spec = ANALYSES[args.analysis]
+    folder = Path(args.dir) if args.dir else REPO_ROOT / spec["default_dir"]
+    if not folder.is_dir():
+        print(f"FAIL: {folder} does not exist")
+        return 1
+
+    baseline_path = REPO_ROOT / "tests" / f"baseline_{args.analysis}.json"
+    if baseline_path.exists() and not args.force:
+        print(f"FAIL: {baseline_path} already exists. Re-cut deliberately with --force --reason \"...\".")
+        return 1
+    if args.force and not args.reason:
+        print("FAIL: --force requires --reason \"...\" explaining why this baseline is being re-cut")
+        return 1
+
+    unmasked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=False)
+    if unmasked is None:
+        print(f"FAIL: no FitResult/PostFit files for {spec['stem']!r} found in {folder}")
+        return 1
+    document = {
+        "analysis": args.analysis,
+        "source_dir": str(folder.relative_to(REPO_ROOT)) if folder.is_relative_to(REPO_ROOT) else str(folder),
+        "directory_listing": sorted(os.listdir(folder)),
+        "unmasked": unmasked,
+    }
+    masked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=True)
+    if masked is not None:
+        document["masked"] = masked
+    else:
+        print(f"  note: no masked fit set in {folder} (p(chi2) presumably passed the threshold)")
+
+    _, pins, recorded = run_env_checks()
+    versions = {"root_version": recorded["root_version"], "cmake_version": recorded["cmake_version"],
+                **recorded["bumphunter_pypackages"]}
+
+    other = "J50" if args.analysis == "J100" else "J100"
+    other_path = REPO_ROOT / "tests" / f"baseline_{other}.json"
+    if other_path.exists():
+        other_versions = json.loads(other_path.read_text())["provenance"]["versions"]
+        diffs = {k: (other_versions.get(k), versions.get(k))
+                 for k in set(other_versions) | set(versions) if other_versions.get(k) != versions.get(k)}
+        if diffs:
+            print(f"WARNING: versions disagree with {other_path.name} (recording anyway):")
+            for k, (theirs, ours) in sorted(diffs.items()):
+                print(f"  {k}: {other}={theirs!r} {args.analysis}={ours!r}")
+
+    document["provenance"] = {
+        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "pins": pins,
+        "versions": versions,
+        "input_sha256": {rel: sha256_of(REPO_ROOT / rel) for rel in spec["inputs"]},
+        "binary_sha256": recorded["binary_sha256"],
+        "reason": args.reason,
+    }
+
+    baseline_path.write_text(json.dumps(document, indent=1, sort_keys=True) + "\n")
+    print(f"PASS: wrote {baseline_path.relative_to(REPO_ROOT)} ({baseline_path.stat().st_size} bytes)")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("selfcheck", help="test the comparator itself; no ROOT, instant")
     subparsers.add_parser("env", help="verify software pins vs what's actually on disk/CVMFS")
 
+    record_parser = subparsers.add_parser("record", help="capture a baseline from an existing run directory")
+    record_parser.add_argument("analysis", choices=sorted(ANALYSES))
+    record_parser.add_argument("dir", nargs="?", default=None,
+                                help=f"default: the run/ dir each analysis was last cut from")
+    record_parser.add_argument("--force", action="store_true", help="overwrite an existing baseline")
+    record_parser.add_argument("--reason", help="required with --force: why this baseline is being re-cut")
+
     args = parser.parse_args()
     if args.command == "selfcheck":
         return cmd_selfcheck(args)
     if args.command == "env":
         return cmd_env(args)
+    if args.command == "record":
+        return cmd_record(args)
 
 
 if __name__ == "__main__":

@@ -55,8 +55,13 @@ Implementation started 2026-09-16 with `tests/repro.py`'s comparator engine and 
 subcommand, plus `doc/IMPROVEMENTS.md` and `KNOWN_ISSUES.md`. `env` followed the same day,
 verifying the four sub-framework SHAs, the RooFitExtensions checkouts, the CVMFS LCG view and the
 pyBumpHunter venv against the files that already declare them — 20/20 checks pass against the
-current tree, and building it surfaced a tenth known issue (`KNOWN_ISSUES.md`). `record` and
-`check` — the parts that actually touch the fits — are not built yet.
+current tree. `record` followed next, cutting `tests/baseline_J100.json` and `baseline_J50.json`
+from the two runs already on disk, and `env` now reads whichever baseline exists and warns
+(non-fatally) if the live ROOT/cmake/numpy/scipy/uproot versions drift from what is recorded
+there. Building `record` also caught a latent bug in `env`'s cmake/ROOT version probe and, from
+there, retracted the tenth known issue found while building `env` — it turned out to be a false
+alarm from the same class of probe bug, not a real limitation (see `CHANGELOG.md`). `check` — the
+part that actually re-runs the fits and compares against these baselines — is not built yet.
 
 ## Adding a plan
 

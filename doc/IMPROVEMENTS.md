@@ -10,11 +10,12 @@ this describes the *current* state, not history. History is [CHANGELOG.md](../CH
 change did not move a physics number. Plan:
 [plans/2026-09-15-reproducibility-lock.md](../plans/2026-09-15-reproducibility-lock.md).
 
-**What exists now.** Two subcommands:
+**What exists now.** Three subcommands:
 
 ```
 python3 tests/repro.py selfcheck
 python3 tests/repro.py env
+python3 tests/repro.py record {J100,J50} [DIR] [--force --reason "..."]
 ```
 
 `selfcheck` runs the comparator against synthetic data — no ROOT, no ATLAS environment, instant.
@@ -26,20 +27,40 @@ own live `scripts/install_roofitext.sh`; agreement of the `lsetup "views …"` l
 three `setup_lxplus.sh`; the pyBumpHunter venv's `pyvenv.cfg` against that view and Python 3.9.12;
 the installed egg's pinned short SHA; and that none of the four clones have modified tracked
 files. It also computes (but cannot yet compare — there is no baseline until `record` exists) the
-SHA-256 of the two built binaries, and separately *records without asserting* the resolved
-`cmake` version and the numpy/scipy/uproot versions the BumpHunter step actually sees — see
-`KNOWN_ISSUES.md` issue 10 for what that last one currently turns up.
+SHA-256 of the two built binaries, and separately *records without asserting* the resolved ROOT,
+`cmake` and numpy/scipy/uproot versions the BumpHunter step actually sees, reading the LCG
+view's own `bin/` directly on CVMFS rather than through `lsetup` (see *Versions that cannot be
+pinned* below for why).
 
 Those versions matter to the analysis — they drive the 10 000 pseudo-experiments behind
 `global_Pval` — even though nothing here can pin them, so the plan's amended §1 requires a
 durable record of the versions each baseline was produced with, held in the baseline provenance
-block, which `env` reads and compares against, warning non-fatally on any difference. That record
-does not exist until `record` is built, so for now `env` only observes and prints. It does not
-keep a cache of its own observations: a record the tool overwrites with each run answers "did
-this change since I last looked", not "what produced these numbers".
+block. `env` reads whichever baseline exists (`tests/baseline_J100.json` if present, else
+`baseline_J50.json`) and compares the live values against its `provenance.versions`, warning
+non-fatally on any difference and never failing the command. Before any baseline exists it says
+so and compares nothing. `env` never writes that record — only `record` does, and only when
+building a new baseline from scratch.
 
-`env` is not yet a reproducibility check of the fits themselves; `record` and `check` (which do
-that) are not built yet.
+`env` is not yet a reproducibility check of the fits themselves; `check` (which does that) is not
+built yet.
+
+### Versions that cannot be pinned
+
+The resolved ROOT and `cmake` versions, and the numpy/scipy/uproot versions the BumpHunter step
+sees, are read straight from the LCG view's own directory on CVMFS
+(`/cvmfs/sft.cern.ch/lcg/views/<view>/bin/{root-config,cmake}`) rather than by asking `lsetup` to
+put them on `$PATH` first. In this session's non-interactive shell, `lsetup`'s `PATH` edits do
+not survive being probed in isolation — a bare `lsetup "views …"` followed by `cmake --version`
+silently resolves the system's `/usr/bin/cmake` instead of the view's. Going to the view's own
+`bin/` sidesteps that entirely and is what the framework's own compiled binaries were actually
+built against.
+
+The numpy/scipy/uproot probe is different: there is no file to read the answer from, because the
+question is whether `python/FindBHWindow.py`'s actual activation line
+(`source pyBH_env/bin/activate; python3 ...`) can import them at all. That probe replicates the
+real invocation context — `scripts/setup_buildAndFit.sh`, exactly as every driver sources it,
+not a simplified one-line stand-in — before activating the venv. See `CHANGELOG.md`'s 2026-09-16
+`record` entry for why the simplified version of this probe gave a false negative.
 
 **The comparator.** `compare(baseline, candidate, rtol_scale=1.0)` flattens two nested
 dict/list structures to dotted key paths and compares every leaf:
