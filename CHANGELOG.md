@@ -35,6 +35,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-15 16:40 — Remove Run 3 data and documentation](#2026-09-15-1640--remove-run-3-data-and-documentation)
 - [2026-09-15 17:16 — Add the Run 2 J50 driver and run the fit](#2026-09-15-1716--add-the-run-2-j50-driver-and-run-the-fit)
 - [2026-09-15 17:30 — Confirm the J100 fit is unaffected by the J50 work](#2026-09-15-1730--confirm-the-j100-fit-is-unaffected-by-the-j50-work)
+- [2026-09-16 13:13 — Begin the reproducibility-lock harness](#2026-09-16-1313--begin-the-reproducibility-lock-harness)
 
 ---
 
@@ -512,3 +513,48 @@ from the 14:38 entry was left untouched) and compared:
 
 Bit-identical NLL and fitted parameters confirm the J100 fit is unaffected by everything added
 for J50.
+
+---
+
+## 2026-09-16 13:13 — Begin the reproducibility-lock harness
+
+**Objective.** Start implementing
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md): a
+regression harness that can prove a later refactor did not move the J50/J100 physics numbers.
+This step is the smallest self-contained piece — the comparator itself — needing no ROOT or
+ATLAS environment.
+
+**Found.** The plan's flagged risk — whether the fit drivers survive being invoked as a
+subprocess, because `lsetup` might be a shell alias that does not expand non-interactively —
+does not materialize. `source atlasLocalSetup.sh` inside a fresh non-interactive `bash -c`
+defines `lsetup` as a shell function, and the full `scripts/setup_buildAndFit.sh` chain (both
+sub-frameworks' `setup_lxplus.sh`, the LCG_102a view, `cmake`) runs cleanly that way, ending with
+`_DIRFIT`/`_DIRXMLWSBUILDER` set correctly and `root-config` resolving to the pinned view's ROOT.
+`run/run_481_3000_sixPar/` and `run/run_J50_302_2997_sixPar/` are both present on disk, as the
+plan expects for cutting baselines in a later step.
+
+**Added.**
+
+- `tests/repro.py` — `compare(baseline, candidate, rtol_scale=1.0)`, implementing the three
+  tolerance classes from the plan's §4 (tight, pvalue, exact) plus a "note" class for
+  environment-observation keys that are recorded but never fail; and a `selfcheck` subcommand
+  exercising it against synthetic data.
+- `doc/IMPROVEMENTS.md` — new, describing the harness effort's purpose and current state.
+- `KNOWN_ISSUES.md` — new, populated with the nine issues the plan's survey found and verified
+  as off the J50/J100 path.
+- A row and paragraph for the reproducibility-lock plan in `plans/README.md`'s index.
+
+**Verified.** `python3 tests/repro.py selfcheck` →
+`PASS: comparator selfcheck (tolerance classes, missing/extra keys, notes, rtol scaling)`, exit
+code 0. The self-test asserts rather than just prints: a synthetic candidate within tolerance
+produces zero failures and exactly one note (a deliberately differing ROOT-version key); a
+synthetic candidate with a tight-class value, an exact-class value and a pvalue-class value all
+moved outside tolerance, one key removed and one key added, produces exactly five failures
+containing all five expected substrings; and one near-miss pvalue pair fails at the default
+tolerance and passes once `rtol_scale=100` is applied.
+
+**Left alone.** `env`, `record` and `check` — the subcommands that actually touch the fits, the
+four input spectra and the software pins — are not built yet; they are bigger, riskier pieces
+and belong in their own sections. `plans/2026-09-15-reproducibility-lock.md` itself is not
+edited (archived as written, per `plans/README.md`'s own rule); its "written, awaiting approval"
+status line is superseded by the live status now recorded in `plans/README.md`'s index.

@@ -15,6 +15,7 @@ and the notebook disagree, the notebook is right.
 | [Run 2 dijet TLA, 481–3000 GeV, six parameters](2026-09-15-run2-dijet-tla-481-3000-sixpar.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
 | [Repository-relative output directory](2026-09-15-repo-relative-output-dir.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
 | [Run 2 dijet TLA J50, 302–2997 GeV, six parameters](2026-09-15-run2-dijet-tla-j50.md) | 2026-09-15 | `claude-skills` | Approved, implementation in progress |
+| [Lock the software versions and the J50/J100 results before refactoring](2026-09-15-reproducibility-lock.md) | 2026-09-15 | `claude-skills` | Approved, implementation in progress |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -41,6 +42,18 @@ The J50 mjj spectrum added in `858cf49` has no driver — nothing in the reposit
 the low-mass reach the J50 stream exists to provide goes unfitted. Adds a J50 driver mirroring
 the J100 one, plus the one new card it needs (the channel name), reusing every other card and
 an existing binning file that already covers 171–3217 GeV.
+
+### Lock the software versions and the J50/J100 results before refactoring
+
+Before rewriting the code around the J50 and J100 fits, pins down the software stack (the four
+sub-framework SHAs, the CVMFS LCG view, the pyBumpHunter venv) and the two fits' outputs as a
+regression baseline, so later changes can be checked against known-good numbers instead of
+eyeballed against the CHANGELOG. Scope is strictly those two analyses — 27 of the repository's
+1570 tracked files participate in a J50 or J100 run.
+
+Implementation started 2026-09-16 with `tests/repro.py`'s comparator engine and its `selfcheck`
+subcommand, plus `doc/IMPROVEMENTS.md` and `KNOWN_ISSUES.md`. `env`, `record` and `check` — the
+parts that actually touch the fits — are not built yet.
 
 ## Adding a plan
 
