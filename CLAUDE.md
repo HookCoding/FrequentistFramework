@@ -30,9 +30,9 @@ EOS path for HTCondor toy studies; AFS home quotas are too small for hundreds of
 Other drivers: `scripts/run_nloFit.sh` (NLO-template fit, uses `setup_buildCombineFit.sh`),
 `scripts/run_anaFit_syst.sh`, `scripts/run_anaFitLoop.sh`, `scripts/run_swiftFit.py`.
 
-There is no test suite, linter config or CI on this branch, and `tests/` is empty.
-`requirements.txt` is untracked (`.gitignore` ignores `*.txt`) and its contents are a literal
-`\n`-escaped string, not three lines — don't `pip install -r` it blindly.
+There is no linter config or CI on this branch. `tests/repro.py` is a reproducibility-lock
+harness scoped to the J50/J100 fits only (`env`/`record`/`check`/`selfcheck` subcommands, see
+the README's Reproducibility section) — it is not a general test suite for the repository.
 
 ## Architecture
 
@@ -74,8 +74,6 @@ with the toy fits fanned out over HTCondor via `submission/condor_handler.py` +
 
 ## Conventions and traps
 
-- **Sub-frameworks are both submodules and gitignored.** `install.sh` clones them fresh at pinned
-  SHAs; `.gitmodules` also lists them. Never commit into them from here.
 - `sigwidth == -999` is the sentinel for "Z' sample" mode: it changes the signal name
   (`mR<mass>`), the POI name, and the temp card filenames.
 - `.gitignore` swallows `*.txt`, `*.pdf`, `*.png` and `run/` — new docs or result lists in those

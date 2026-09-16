@@ -106,6 +106,13 @@ reimplemented in the latter; `compare()` is used by `record`'s own `selfcheck` t
 not use it (see the design note in `tests/repro.py` above the `env` code: most of its checks are
 mutual-agreement or dirty-file assertions, not a baseline-vs-candidate comparison).
 
-**What is next**: §6, closing the gaps the original survey found (the dead
-`scripts/install_roofitext.sh`, the inert `.gitmodules`, `install.sh`'s unreachable GitLab URLs,
-the stale `README.md`/`CLAUDE.md` documentation), then the README's own "Reproducibility" section.
+§6 is done: the dead `scripts/install_roofitext.sh` and the inert `.gitmodules` are deleted,
+`install.sh` clones the three sub-frameworks from their public GitHub mirrors instead of the
+unreachable CERN GitLab URLs (SHA pins unchanged), and the stale `README.md`/`CLAUDE.md`
+documentation (the `LCG_105` venv row, the missing RooFitExtensions/`cmake` pins, the
+"submodules" and "no test suite"/`requirements.txt` notes) is corrected. The README's
+"Reproducibility" section was added alongside `check` in the previous step.
+
+**What is next**: only the plan's Verification steps 6 (perturb a real background parameter,
+re-run J100 for real, confirm `check` catches it, then revert) and 7 (confirm
+`run/run_481_3000_sixPar/` is untouched and `git status` is clean) remain.

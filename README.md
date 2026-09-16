@@ -45,13 +45,14 @@ ROOT stack comes from a pinned CVMFS LCG view, not from PyPI. The pins that defi
 | quickFit | `0408030b6c8d74a2e2c27a864a02756132d08f5a` | `install.sh` |
 | workspaceCombiner | `7d484ad3f89c4075d2c567aa4503fc56e1bb9468` | `install.sh` |
 | pyBumpHunter | `91f49a622bd77622edb02a1a2788fc12835e5b72` | `install.sh` |
-| pyBumpHunter venv | Python 3.9.12 from LCG_105; numpy, matplotlib, scipy, uproot (**unpinned**) | `scripts/install_pyBumpHunter.sh` |
+| RooFitExtensions | `ba94bfcbfa4f4a4e3541ade09580399e409e8514` | `<fw>/scripts/install_roofitext.sh` inside each pinned clone |
+| `cmake` | **unpinned** — resolved by `lsetup cmake` at build time | `<fw>/setup_lxplus.sh` |
+| pyBumpHunter venv | Python 3.9.12 from the same LCG_102a view; only the pyBumpHunter egg is installed in it, numpy/scipy/uproot leak in from the LCG view via `PYTHONPATH` (**unpinned**) | `pyBumpHunter/pyBH_env/pyvenv.cfg` |
 
 pyBumpHunter lives in its own virtualenv (`pyBumpHunter/pyBH_env`) because its numpy conflicts
 with the CVMFS one; `run_anaFit.py` activates it inline for the BumpHunter step only.
 
-The results recorded in [CHANGELOG.md](CHANGELOG.md) were produced with LCG_102a. The
-untracked `requirements.txt` is not a usable pip input — do not `pip install -r` it.
+The results recorded in [CHANGELOG.md](CHANGELOG.md) were produced with LCG_102a.
 
 `install.sh` and `setup.sh` must be **sourced**, not executed — they `cd` around and export
 `$_DIRFIT`, `$_DIRXMLWSBUILDER` and `$_DIRCOMB`. All commands must be run **from the
@@ -158,8 +159,6 @@ The `chi2` histogram's bins are labelled, in order: `chi2`, `chi2/ndof`, `nbins`
   another user's work area, and its `--end` defaults to 1000 GeV, so a fit above 1000 GeV
   would silently get a truncated chi2 binning. Pass `--rebinfile` and `--rebinhist` explicitly
   instead.
-- **Sub-frameworks are both git submodules and gitignored.** `install.sh` clones them at
-  pinned SHAs; never commit into them from here.
 - **`.gitignore` swallows `*.txt`, `*.pdf`, `*.png` and `run/`** — new docs or result lists in
   those formats need `git add -f`.
 - **`sigwidth == -999`** is the sentinel for "Z' sample" mode: it changes the signal name

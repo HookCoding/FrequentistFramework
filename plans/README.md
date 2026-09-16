@@ -65,8 +65,12 @@ last: `env` plus the four input hashes first, then each driver re-run with `OUT_
 scratch directory under the already-gitignored `run/`, compared against its baseline. `check
 --quick` (J100 only) and the full `check` (both analyses, including J50's BumpHunter masking path)
 both pass against the baselines cut from the runs already on disk; a hand-perturbed baseline was
-confirmed to produce a readable failure before being restored. Only §6 — closing the gaps the
-original survey found — and the README's own reproducibility section remain.
+confirmed to produce a readable failure before being restored. §6 followed: the dead
+`scripts/install_roofitext.sh` and inert `.gitmodules` are deleted, `install.sh` clones from the
+sub-frameworks' public GitHub mirrors instead of the unreachable CERN GitLab URLs, and the
+`README.md`/`CLAUDE.md` documentation is corrected to match. Only the plan's own Verification
+steps 6 and 7 — proving `check` catches a real re-fit regression, and confirming the recorded
+run directory and `git status` are untouched — remain.
 
 ## Adding a plan
 

@@ -40,6 +40,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-16 15:35 — Add the record subcommand, cut the J100/J50 baselines, and correct issue 10](#2026-09-16-1535--add-the-record-subcommand-cut-the-j100j50-baselines-and-correct-issue-10)
 - [2026-09-16 16:10 — Add the check subcommand](#2026-09-16-1610--add-the-check-subcommand)
 - [2026-09-16 16:35 — Diagnosable error when python3 itself lacks PyROOT](#2026-09-16-1635--diagnosable-error-when-python3-itself-lacks-pyroot)
+- [2026-09-16 17:00 — Close the gaps: dead installer, inert submodules, unreachable clone URLs](#2026-09-16-1700--close-the-gaps-dead-installer-inert-submodules-unreachable-clone-urls)
 
 ---
 
@@ -850,3 +851,69 @@ looks like.
 
 **Left alone.** Everything the 16:10 entry left alone still is; this entry only fixes the
 diagnostic, it does not change what `check` verifies or how.
+
+---
+
+## 2026-09-16 17:00 — Close the gaps: dead installer, inert submodules, unreachable clone URLs
+
+**Objective.** Implement plan §6 (see
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md)): fix the
+three things the original survey found genuinely wrong, not merely unpinned, plus the
+documentation that still described them incorrectly.
+
+**Changed.**
+
+- Deleted `scripts/install_roofitext.sh` — dead code, never sourced by anything; the copy inside
+  each pinned clone (`<fw>/scripts/install_roofitext.sh`) is the one `install.sh:28` actually
+  runs, and it disagreed with the deleted copy in three ways (arg-count check, an unconditional
+  `rm -r`, an extra cmake-config copy). Deleting rather than pinning it removes a second pin that
+  no build read, rather than adding one.
+- Deleted `.gitmodules` — declared four submodules that `git ls-tree`/`git submodule status` show
+  are not actually registered as submodules; the paths are plain gitignored directories that
+  `install.sh` clones fresh. The file asserted something untrue about the repository's own
+  structure.
+- `install.sh`'s three clone lines now clone `https://github.com/tofitsch/{xmlAnaWSBuilder,
+  quickFit,workspaceCombiner}.git` instead of the CERN GitLab URLs, which the survey confirmed
+  are unreachable (`gitlab.cern.ch` answers with the SSO login page, not the repository) — this
+  is where the clones on disk actually came from. Dropped `--branch tofitsch_baseline_fit` from
+  each: the following `git checkout <sha>` line already pins the revision, the branch flag only
+  requires that name to exist on the fork to clone at all, and it could not be confirmed to exist
+  (ref enumeration on someone else's fork is blocked by this repository's own branch-scope hook).
+  All three SHA pins are unchanged — this fixes where the code is fetched from, never which
+  commit.
+- `README.md`'s environment-pins table: corrected the pyBumpHunter venv row (`pyvenv.cfg` says
+  `LCG_102a`, not `LCG_105`; the venv holds only the pyBumpHunter egg, not numpy/matplotlib/
+  scipy/uproot — those leak in via the LCG view's `PYTHONPATH`), added the RooFitExtensions row
+  (`ba94bfcb…`, verified pinned in §1 of the plan despite `.gitmodules` never mentioning it), and
+  added a `cmake` row marked unpinned (`lsetup cmake` floats). Dropped the sentence about an
+  untracked `requirements.txt` that no longer exists on disk.
+- `README.md` and `CLAUDE.md` both dropped their "sub-frameworks are both submodules and
+  gitignored" note, which stopped being true the moment `.gitmodules` was deleted (and was never
+  quite true before that either — see the `.gitmodules` bullet above).
+- `CLAUDE.md`'s "there is no test suite … and `tests/` is empty" line, doubly stale after this
+  plan's own `tests/repro.py`, now names it directly and points at the README's Reproducibility
+  section rather than claiming no tests exist.
+
+**Found, left alone.** `scripts/install_pyBumpHunter.sh` disagrees with the pyBumpHunter install
+`install.sh` actually runs, in the same way the deleted `scripts/install_roofitext.sh` disagreed
+with the copy that runs: it hardcodes a Python from `LCG_105` and `pip install`s numpy/
+matplotlib/scipy/uproot straight into the venv, where `install.sh`'s own inline block
+(`install.sh:52-64`) uses the plain system `python3 -m venv` and installs only the pyBumpHunter
+egg. Nothing sources this script, and the venv actually on disk matches `install.sh`, not it.
+Out of §6's stated scope (that table names the venv's *documentation*, not this script), so
+recorded in `KNOWN_ISSUES.md` as an eleventh entry rather than fixed here.
+
+**Verified.** `git status --porcelain` shows exactly the intended changes (two deletions —
+`.gitmodules`, `scripts/install_roofitext.sh` — and seven modifications: `CLAUDE.md`, `README.md`,
+`install.sh`, `doc/IMPROVEMENTS.md`, `plans/README.md`, `KNOWN_ISSUES.md`, plus this entry in
+`CHANGELOG.md` itself) and nothing else; `python3 tests/repro.py check --from
+run/run_481_3000_sixPar --analysis J100` still PASSes (all 20 `env` checks plus the J100
+comparison), confirming none of this touched the analysis path itself. Did not re-run `install.sh`
+against the new URLs (no spare AFS quota to throw away the existing, working sub-framework
+checkouts on a one-off verification) — the GitHub URLs and SHAs themselves are already confirmed
+reachable and correct by `env`'s pin checks, which read the clones' actual `git remote`/`HEAD`
+state, not `install.sh`'s text.
+
+**Left alone.** Plan Verification steps 6 (perturb an actual background-parameter card and
+confirm a readable failure from a real re-fit, not a hand-edited baseline) and 7 (confirm
+`run/run_481_3000_sixPar/` untouched and `git status` shows only intended files staged) — next.
