@@ -4,8 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ATLAS statistical-fit framework for dijet/TLA bump-hunt analyses. It wraps three CERN GitLab
-C++ sub-frameworks (`xmlAnaWSBuilder`, `quickFit`, `workspaceCombiner`) plus `pyBumpHunter`
+ATLAS statistical-fit framework for dijet/TLA bump-hunt analyses. It wraps three C++
+sub-frameworks cloned at pinned SHAs from their public GitHub mirrors (`xmlAnaWSBuilder`,
+`quickFit`, `workspaceCombiner`) plus `pyBumpHunter`
 behind Python drivers that template XML workspace cards, run the fit, and extract postfit
 histograms, fit parameters and p-values.
 
@@ -82,6 +83,35 @@ with the toy fits fanned out over HTCondor via `submission/condor_handler.py` +
   `folder`, `sysfile` paths). Prefer editing the live lines over deleting the record.
 - Analysis flavours live side by side under `config/` and `Input/`: `dijetTLA`, `dijetTLAnlo`,
   plus legacy `bbyy`, `ttHyy`, `high_mass_diphoton`.
+
+## Planning
+
+Before starting non-trivial work, add a plan to `plans/` (see [plans/README.md](plans/README.md)
+for naming and the index) and get it approved. Trivial changes (typos, comment fixes) don't need
+one.
+
+### Implementing a plan
+
+**Never work through an approved plan end to end without stopping.** Plans are implemented in
+small, individually committable sections, with a human in the loop at every boundary. Running
+straight through is not efficiency — it produces a large diff nobody reviewed, and here a silent
+mistake reaches a physics number before anyone sees it.
+
+For each section:
+
+1. Do the smallest piece that stands on its own and could be committed by itself.
+2. Stop. Explain what was done: what changed, why, what was verified and how, and anything that
+   turned out differently from what the plan predicted.
+3. Wait for a human to review it. Do not commit, and do not begin the next section, until they
+   have replied.
+
+A section is not finished until its documentation is written, in the same section as the code.
+This is standing — it does not need to be asked for each time.
+
+If a section turns out to be bigger than expected, split it further rather than pressing on. If
+the plan turns out to be wrong mid-way, stop and say so rather than improvising around it: a
+plan contradicted by reality is a finding worth surfacing, and `plans/` keeps plans as written
+precisely so that stays visible.
 
 ## Branch scope
 
