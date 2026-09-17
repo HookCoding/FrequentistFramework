@@ -23,8 +23,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Tolerance classes, plan section 4. "exact" and "note" are markers;
-# anything else is an {"rtol":..., "atol":...} dict.
+# Tolerance classes, plan section 4. "exact" is a marker; anything else is
+# an {"rtol":..., "atol":...} dict.
 TIGHT = {"rtol": 1e-6, "atol": 1e-8}
 PVALUE = {"rtol": 1e-5, "atol": 1e-8}
 
@@ -52,8 +52,6 @@ TOLERANCE_BY_LEAF = {
     "directory_listing": "exact",
 }
 
-NOTE_LEAVES = {"root_version", "active_view"}
-
 
 def flatten(obj, prefix=""):
     """Yield (dotted.path, leaf_value) for every leaf in a nested dict/list."""
@@ -70,20 +68,17 @@ def flatten(obj, prefix=""):
 
 def classify(path):
     leaf = path.rsplit(".", 1)[-1].split("[", 1)[0]
-    if leaf in NOTE_LEAVES:
-        return "note"
     return TOLERANCE_BY_LEAF.get(leaf, "exact")
 
 
-def compare(baseline, candidate, rtol_scale=1.0):
+def compare(baseline, candidate, tol_scale=1.0):
     """Compare two nested baseline/candidate structures.
 
-    Returns (failures, notes), both lists of human-readable strings.
-    Reports every mismatch, not just the first; a missing or extra key
-    is a failure. Keys classified "note" are recorded but never fail.
+    Returns a list of human-readable failure strings, reporting every
+    mismatch rather than just the first; a missing or extra key is always
+    a failure.
     """
     failures = []
-    notes = []
     base_flat = dict(flatten(baseline))
     cand_flat = dict(flatten(candidate))
 
@@ -96,17 +91,12 @@ def compare(baseline, candidate, rtol_scale=1.0):
         b, c = base_flat[path], cand_flat[path]
         cls = classify(path)
 
-        if cls == "note":
-            if b != c:
-                notes.append(f"{path}: baseline={b!r} candidate={c!r} (informational)")
-            continue
-
         if cls == "exact" or isinstance(b, bool) or not isinstance(b, (int, float)):
             if b != c:
                 failures.append(f"{path}: expected {b!r}, got {c!r} (exact match required)")
             continue
 
-        rtol, atol = cls["rtol"] * rtol_scale, cls["atol"] * rtol_scale
+        rtol, atol = cls["rtol"] * tol_scale, cls["atol"] * tol_scale
         diff = abs(c - b)
         if diff > atol + rtol * abs(b):
             failures.append(
@@ -114,12 +104,24 @@ def compare(baseline, candidate, rtol_scale=1.0):
                 f"(|diff|={diff:.3g} > atol {atol:.3g} + rtol*|baseline| {rtol * abs(b):.3g})"
             )
 
-    return failures, notes
+    return failures
+
+
+class _Text:
+    """A read_text()-only stand-in for a Path, so the install.sh/setup_lxplus.sh/
+    pyvenv.cfg parsers below can be unit-tested against synthetic strings with
+    no real file on disk."""
+
+    def __init__(self, text):
+        self.text = text
+
+    def read_text(self):
+        return self.text
 
 
 def cmd_selfcheck(args):
     """Exercise compare() against synthetic data covering every tolerance
-    class, a missing key, an extra key, and a note-class difference."""
+    class, a missing key, and an extra key."""
     baseline = {
         "fitResult": {
             "minNll": 1259.1119375388664,
@@ -134,11 +136,9 @@ def cmd_selfcheck(args):
                                                     "data_integral": 6.0}},
         "directory_listing": ["FitResult_anaFit_sixPar_bkgOnly.root",
                                "PostFit_anaFit_sixPar_bkgOnly.root"],
-        "provenance": {"root_version": "6.26/08"},
     }
 
-    # Should PASS: every tight/pvalue float nudged well inside tolerance,
-    # one note-class field that legitimately differs (never fails).
+    # Should PASS: every tight/pvalue float nudged well inside tolerance.
     passing = {
         "fitResult": {
             "minNll": 1259.1119375388664 + 1e-9,
@@ -153,11 +153,9 @@ def cmd_selfcheck(args):
                                                     "data_integral": 6.0}},
         "directory_listing": ["FitResult_anaFit_sixPar_bkgOnly.root",
                                "PostFit_anaFit_sixPar_bkgOnly.root"],
-        "provenance": {"root_version": "6.40/04"},
     }
-    failures, notes = compare(baseline, passing)
+    failures = compare(baseline, passing)
     assert failures == [], f"expected a clean pass, got: {failures}"
-    assert len(notes) == 1 and "root_version" in notes[0], f"expected one root_version note, got: {notes}"
 
     # Should FAIL on the exact, tight and pvalue classes at once, plus a
     # missing key and an extra key.
@@ -174,25 +172,82 @@ def cmd_selfcheck(args):
                                                     "data_integral": 6.0}},
         "directory_listing": ["FitResult_anaFit_sixPar_bkgOnly.root",
                                "PostFit_anaFit_sixPar_bkgOnly.root"],
-        "provenance": {"root_version": "6.40/04"},
         "extra_key": 1,
     }  # fitResult.covQual is dropped above: a missing key
-    failures, notes = compare(baseline, failing)
+    failures = compare(baseline, failing)
     failure_text = "\n".join(failures)
     for expected in ("minNll", "status", "pval", "missing:", "unexpected:"):
         assert expected in failure_text, f"expected {expected!r} among failures, got:\n{failure_text}"
     assert len(failures) == 5, f"expected exactly 5 failures, got {len(failures)}:\n{failure_text}"
 
-    # --rtol scaling: the same near-miss must fail at the default scale
+    # --tol-scale scaling: the same near-miss must fail at the default scale
     # and pass once the tolerance is widened.
     tight_baseline = {"chi2": {"c": {"pval": 0.0149}}}
     tight_candidate = {"chi2": {"c": {"pval": 0.0149015}}}
-    at_default, _ = compare(tight_baseline, tight_candidate)
+    at_default = compare(tight_baseline, tight_candidate)
     assert at_default != [], "expected this near-miss to fail at the default tolerance"
-    at_100x, _ = compare(tight_baseline, tight_candidate, rtol_scale=100.0)
-    assert at_100x == [], f"expected rtol_scale=100 to absorb the same difference, got: {at_100x}"
+    at_100x = compare(tight_baseline, tight_candidate, tol_scale=100.0)
+    assert at_100x == [], f"expected tol_scale=100 to absorb the same difference, got: {at_100x}"
 
-    print("PASS: comparator selfcheck (tolerance classes, missing/extra keys, notes, rtol scaling)")
+    print("PASS: comparator selfcheck (tolerance classes, missing/extra keys, tol_scale scaling)")
+
+    # compare_binary_digests: no baseline, match, mismatch, missing digest.
+    observed = {"a/bin": "aaaa", "b/bin": "bbbb"}
+    assert compare_binary_digests(observed, None) == [], "no baseline means nothing to compare"
+    results = compare_binary_digests(observed, {"a/bin": "aaaa", "b/bin": "bbbb"})
+    assert all(ok for _, ok, _ in results), f"expected both digests to match, got: {results}"
+    results = compare_binary_digests(observed, {"a/bin": "aaaa", "b/bin": "cccc"})
+    by_name = {name: (ok, detail) for name, ok, detail in results}
+    assert by_name["binary matches baseline: a/bin"][0], "a/bin should still match"
+    mismatch_ok, mismatch_detail = by_name["binary matches baseline: b/bin"]
+    assert not mismatch_ok and "cccc" in mismatch_detail, f"expected a mismatch detail, got: {results}"
+    results = compare_binary_digests(observed, {"a/bin": "aaaa"})
+    missing_ok, missing_detail = dict((n, (o, d)) for n, o, d in results)["binary matches baseline: b/bin"]
+    assert not missing_ok and "no digest" in missing_detail, f"expected a missing-digest failure, got: {results}"
+
+    print("PASS: compare_binary_digests selfcheck (match, mismatch, missing digest, no baseline)")
+
+    # parse_install_sh_pins: a blank line between `cd` and its checkout (as
+    # pyBumpHunter's own block has), the literal `cd $x` from install.sh's
+    # build loop (must not produce a spurious pin), and `cd ..` immediately
+    # followed by a checkout line (must never be read as a directory name -
+    # a checkout right after plain `cd ..` with nothing in between is the
+    # only way to exercise that guard at all).
+    synthetic_install_sh = """\
+cd xmlAnaWSBuilder
+git checkout 6b84050f3c0206a6f30eb40b103cc101e68505cc
+cd ..
+git checkout deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+
+cd pyBumpHunter
+
+git checkout 91f49a622bd77622edb02a1a2788fc12835e5b72
+cd ..
+
+for x in xmlAnaWSBuilder quickFit; do
+  cd $x
+  . setup_lxplus.sh
+  cd ../..
+done
+"""
+    pins = parse_install_sh_pins(_Text(synthetic_install_sh))
+    assert pins == {
+        "xmlAnaWSBuilder": "6b84050f3c0206a6f30eb40b103cc101e68505cc",
+        "pyBumpHunter": "91f49a622bd77622edb02a1a2788fc12835e5b72",
+    }, f"unexpected pins: {pins}"
+    assert "$x" not in pins, "literal `cd $x` must not produce a pin"
+    assert ".." not in pins, "`cd ..` must never be read as a directory name"
+
+    # parse_lsetup_view: extracts the view, and is None when absent.
+    view = parse_lsetup_view(_Text('lsetup "views LCG_102a x86_64-centos9-gcc11-opt"\n'))
+    assert view == "LCG_102a x86_64-centos9-gcc11-opt", f"unexpected view: {view!r}"
+    assert parse_lsetup_view(_Text("# no lsetup line here\n")) is None
+
+    # parse_pyvenv_cfg: key = value pairs, blank/malformed lines ignored.
+    cfg = parse_pyvenv_cfg(_Text("home = /some/path\nversion = 3.9.12\n\nnot-a-pair\n"))
+    assert cfg == {"home": "/some/path", "version": "3.9.12"}, f"unexpected cfg: {cfg}"
+
+    print("PASS: parser selfcheck (install.sh pins, lsetup view, pyvenv.cfg)")
     return 0
 
 
@@ -363,6 +418,7 @@ def run_env_checks(root=REPO_ROOT):
 
     install_pins = parse_install_sh_pins(root / "install.sh")
 
+    observed_heads = {}
     for fw in FRAMEWORKS:
         expected = install_pins.get(fw)
         clone_dir = root / fw
@@ -373,6 +429,7 @@ def run_env_checks(root=REPO_ROOT):
             check(f"install.sh pin: {fw}", False, f"{fw}/ does not exist (not cloned)")
             continue
         actual = _git(["rev-parse", "HEAD"], clone_dir).stdout.strip()
+        observed_heads[fw] = actual or None
         check(f"install.sh pin: {fw}", actual == expected,
               f"install.sh pins {expected}, HEAD is {actual or '(git rev-parse failed)'}")
 
@@ -388,7 +445,7 @@ def run_env_checks(root=REPO_ROOT):
             check(f"RooFitExtensions pin: {fw}", False, f"{rfe_dir} does not exist (not built)")
             continue
         actual = _git(["rev-parse", "HEAD"], rfe_dir).stdout.strip()
-        roofit_shas[fw] = expected
+        roofit_shas[fw] = actual or None
         check(f"RooFitExtensions pin: {fw}", actual == expected,
               f"{script_path.relative_to(root)} pins {expected}, HEAD is {actual or '(git rev-parse failed)'}")
 
@@ -441,9 +498,7 @@ def run_env_checks(root=REPO_ROOT):
         full = root / rel_path
         if full.is_file():
             binary_hashes[rel_path] = sha256_of(full)
-            check(f"binary present: {rel_path}", True,
-                  f"sha256={binary_hashes[rel_path]} "
-                  f"(not yet compared: no baseline provenance exists until 'record' is built)")
+            check(f"binary present: {rel_path}", True, f"sha256={binary_hashes[rel_path]}")
         else:
             check(f"binary present: {rel_path}", False, "not built")
 
@@ -457,7 +512,7 @@ def run_env_checks(root=REPO_ROOT):
         recorded["root_version"] = "skipped (no agreed LCG view)"
         recorded["bumphunter_pypackages"] = {}
 
-    pins = {fw: install_pins.get(fw) for fw in FRAMEWORKS}
+    pins = {fw: observed_heads.get(fw) for fw in FRAMEWORKS}
     pins["RooFitExtensions"] = roofit_shas
     pins["active_view"] = agreed_view
     pins["pyBH_python_version"] = parse_pyvenv_cfg(pyvenv_path).get("version") if pyvenv_path.is_file() else None
@@ -466,11 +521,41 @@ def run_env_checks(root=REPO_ROOT):
     return checks, pins, recorded
 
 
+def compare_binary_digests(observed, baseline_digests):
+    """Compare observed {rel_path: sha256} against a baseline provenance's
+    own binary_sha256 dict. baseline_digests is None when no baseline exists
+    yet, in which case there is nothing to compare and this returns []."""
+    if baseline_digests is None:
+        return []
+    results = []
+    for rel_path, digest in sorted(observed.items()):
+        baseline_digest = baseline_digests.get(rel_path)
+        if baseline_digest is None:
+            results.append((f"binary matches baseline: {rel_path}", False,
+                             f"sha256={digest}, but the baseline provenance has no digest "
+                             f"recorded for this path"))
+        elif digest == baseline_digest:
+            results.append((f"binary matches baseline: {rel_path}", True, f"sha256={digest}"))
+        else:
+            results.append((f"binary matches baseline: {rel_path}", False,
+                             f"sha256={digest}, baseline recorded {baseline_digest}. If this "
+                             f"binary was deliberately rebuilt, re-cut the baseline with "
+                             f"'record --force --reason \"...\"' rather than ignoring this."))
+    return results
+
+
 def _report_env(checks, recorded):
     """Print every env check plus the recorded-but-unasserted versions and
-    any drift from an existing baseline's provenance (shared by `env` and
+    any drift from each existing baseline's provenance (shared by `env` and
     `check`, which runs the same checks before touching any fit). Returns
     True iff every assertable check passed."""
+    baseline_paths = sorted((REPO_ROOT / "tests").glob("baseline_*.json"))
+    provenances = [(p.name, json.loads(p.read_text())["provenance"]) for p in baseline_paths]
+
+    for name, provenance in provenances:
+        checks = checks + [(f"{check_name} ({name})", ok, detail) for check_name, ok, detail in
+                            compare_binary_digests(recorded["binary_sha256"], provenance["binary_sha256"])]
+
     for name, ok, detail in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
 
@@ -484,20 +569,20 @@ def _report_env(checks, recorded):
 
     live_versions = {"root_version": recorded["root_version"], "cmake_version": recorded["cmake_version"],
                       **recorded["bumphunter_pypackages"]}
-    baseline_paths = sorted((REPO_ROOT / "tests").glob("baseline_*.json"))
-    if not baseline_paths:
+    if not provenances:
         print("\nNo baseline exists yet - nothing to compare those versions against.")
     else:
-        reference = json.loads(baseline_paths[0].read_text())["provenance"]["versions"]
-        diffs = {k: (reference.get(k), live_versions.get(k))
-                 for k in set(reference) | set(live_versions)
-                 if reference.get(k) != live_versions.get(k)}
-        if diffs:
-            print(f"\nWARNING: versions differ from {baseline_paths[0].name}'s provenance (non-fatal):")
-            for k, (was, now) in sorted(diffs.items()):
-                print(f"  {k}: baseline={was!r} now={now!r}")
-        else:
-            print(f"\nVersions match {baseline_paths[0].name}'s provenance.")
+        for name, provenance in provenances:
+            reference = provenance["versions"]
+            diffs = {k: (reference.get(k), live_versions.get(k))
+                     for k in set(reference) | set(live_versions)
+                     if reference.get(k) != live_versions.get(k)}
+            if diffs:
+                print(f"\nWARNING: versions differ from {name}'s provenance (non-fatal):")
+                for k, (was, now) in sorted(diffs.items()):
+                    print(f"  {k}: baseline={was!r} now={now!r}")
+            else:
+                print(f"\nVersions match {name}'s provenance.")
 
     failed = [c for c in checks if not c[1]]
     print()
@@ -520,7 +605,6 @@ ANALYSES = {
         "default_dir": "run/run_481_3000_sixPar",
         "driver": "scripts/run_anaFit_run2.sh",
         "stem": "anaFit_sixPar_bkgOnly",
-        "top_dir": "J100yStar06",
         "inputs": ["Input/data/dijetTLA/mjj_spectra_J100_dataAll.root",
                    "Input/data/dijetTLA/fullRun2TLAJ100mjj.root"],
     },
@@ -528,7 +612,6 @@ ANALYSES = {
         "default_dir": "run/run_J50_302_2997_sixPar",
         "driver": "scripts/run_anaFit_run2_J50.sh",
         "stem": "anaFit_sixPar_bkgOnly",
-        "top_dir": "J50yStar06",
         "inputs": ["Input/data/dijetTLA/mjj_spectra_J50_dataAll.root",
                    "Input/data/dijetTLAnlo/binning2021/data_J100yStar06_range171_3217.root"],
     },
@@ -568,16 +651,24 @@ def extract_fit_result(path):
     return result
 
 
-def extract_postfit(path, top_dir):
+def extract_postfit(path):
     """The 6-bin chi2 block for every TDirectory, plus postfit bins and the
-    data integral for the two *_rebinned directories only (plan section 3)."""
+    data integral for the two *_rebinned directories only (plan section 3).
+    compare() catches a missing or renamed directory as a missing/unexpected
+    key, so nothing here needs to know the directory names in advance."""
     ROOT = _import_root()
     f = ROOT.TFile.Open(str(path))
     chi2, postfit_bins = {}, {}
-    for name in (top_dir, f"{top_dir}_bkgonly", f"{top_dir}_rebinned", f"{top_dir}_bkgonly_rebinned"):
+    seen = set()
+    for key in f.GetListOfKeys():
+        name = key.GetName()
+        if name in seen:
+            continue  # ROOT key cycles can list one name more than once
+        seen.add(name)
+        cls = ROOT.TClass.GetClass(key.GetClassName())
+        if cls is None or not cls.InheritsFrom("TDirectory"):
+            continue
         d = f.Get(name)
-        if d is None:
-            raise RuntimeError(f"{path}: missing TDirectory {name!r}")
         h = d.Get("chi2")
         chi2[name] = {h.GetXaxis().GetBinLabel(i): h.GetBinContent(i) for i in range(1, h.GetNbinsX() + 1)}
         if name.endswith("_rebinned"):
@@ -598,14 +689,14 @@ def extract_bhresults(path):
             "seed": r["seed"], "npe": r["npe"]}
 
 
-def extract_variant(folder, stem, top_dir, masked):
+def extract_variant(folder, stem, masked):
     """None if the fit set (unmasked or masked) is not present in folder."""
     suffix = "_masked" if masked else ""
     fit_path = folder / f"FitResult_{stem}{suffix}.root"
     post_path = folder / f"PostFit_{stem}{suffix}.root"
     if not fit_path.is_file() or not post_path.is_file():
         return None
-    chi2, postfit_bins = extract_postfit(post_path, top_dir)
+    chi2, postfit_bins = extract_postfit(post_path)
     variant = {"fitResult": extract_fit_result(fit_path), "chi2": chi2, "postfit_bins": postfit_bins}
     if masked:
         bh_path = folder / "BHresults.json"
@@ -629,7 +720,17 @@ def cmd_record(args):
         print("FAIL: --force requires --reason \"...\" explaining why this baseline is being re-cut")
         return 1
 
-    unmasked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=False)
+    env_checks, pins, recorded = run_env_checks()
+    failed_checks = [c for c in env_checks if not c[1]]
+    if failed_checks and not args.force:
+        print(f"FAIL: {len(failed_checks)}/{len(env_checks)} environment check(s) failed; "
+              f"refusing to record a baseline against a pin this tree does not meet:")
+        for name, ok, detail in failed_checks:
+            print(f"  [FAIL] {name}: {detail}")
+        print("Re-cut deliberately with --force --reason \"...\" if this is intentional.")
+        return 1
+
+    unmasked = extract_variant(folder, spec["stem"], masked=False)
     if unmasked is None:
         print(f"FAIL: no FitResult/PostFit files for {spec['stem']!r} found in {folder}")
         return 1
@@ -639,13 +740,12 @@ def cmd_record(args):
         "directory_listing": sorted(os.listdir(folder)),
         "unmasked": unmasked,
     }
-    masked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=True)
+    masked = extract_variant(folder, spec["stem"], masked=True)
     if masked is not None:
         document["masked"] = masked
     else:
         print(f"  note: no masked fit set in {folder} (p(chi2) presumably passed the threshold)")
 
-    _, pins, recorded = run_env_checks()
     versions = {"root_version": recorded["root_version"], "cmake_version": recorded["cmake_version"],
                 **recorded["bumphunter_pypackages"]}
 
@@ -697,12 +797,14 @@ def _run_driver(driver_rel, out_dir, timeout=1800):
     return None
 
 
-def _check_one(analysis, out_dir_base, from_dir, rtol_scale):
+def _check_input_hashes(analysis):
+    """Verify one analysis's input spectra against the baseline's recorded
+    sha256, printing the outcome. Returns (ok, baseline_or_None)."""
     spec = ANALYSES[analysis]
     baseline_path = REPO_ROOT / "tests" / f"baseline_{analysis}.json"
     if not baseline_path.is_file():
         print(f"FAIL: no baseline at {baseline_path.relative_to(REPO_ROOT)}")
-        return False
+        return False, None
     baseline = json.loads(baseline_path.read_text())
 
     mismatches = [f"  {rel}: baseline={expected} now={sha256_of(REPO_ROOT / rel)}"
@@ -711,8 +813,14 @@ def _check_one(analysis, out_dir_base, from_dir, rtol_scale):
     if mismatches:
         print(f"FAIL: input spectrum changed for {analysis}:")
         print("\n".join(mismatches))
-        return False
-    print(f"input hashes match baseline ({len(baseline['provenance']['input_sha256'])} files)")
+        return False, None
+    print(f"{analysis}: input hashes match baseline ({len(baseline['provenance']['input_sha256'])} files)")
+    return True, baseline
+
+
+def _check_one(analysis, baseline, out_dir_base, from_dir, tol_scale):
+    spec = ANALYSES[analysis]
+    baseline_path = REPO_ROOT / "tests" / f"baseline_{analysis}.json"
 
     if from_dir is not None:
         folder = Path(from_dir)
@@ -731,12 +839,12 @@ def _check_one(analysis, out_dir_base, from_dir, rtol_scale):
         print(f"FAIL: {folder} does not exist")
         return False
 
-    candidate_unmasked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=False)
+    candidate_unmasked = extract_variant(folder, spec["stem"], masked=False)
     if candidate_unmasked is None:
         print(f"FAIL: {folder} has no FitResult/PostFit for {spec['stem']!r}")
         return False
     candidate = {"directory_listing": sorted(os.listdir(folder)), "unmasked": candidate_unmasked}
-    candidate_masked = extract_variant(folder, spec["stem"], spec["top_dir"], masked=True)
+    candidate_masked = extract_variant(folder, spec["stem"], masked=True)
     if candidate_masked is not None:
         candidate["masked"] = candidate_masked
 
@@ -744,9 +852,7 @@ def _check_one(analysis, out_dir_base, from_dir, rtol_scale):
     if "masked" in baseline:
         expected["masked"] = baseline["masked"]
 
-    failures, notes = compare(expected, candidate, rtol_scale=rtol_scale)
-    for note in notes:
-        print(f"  note: {note}")
+    failures = compare(expected, candidate, tol_scale=tol_scale)
     if failures:
         print(f"FAIL: {analysis} mismatches {baseline_path.relative_to(REPO_ROOT)} ({len(failures)}):")
         for f in failures:
@@ -781,11 +887,20 @@ def cmd_check(args):
     else:
         analyses = ["J100", "J50"]
 
+    print("\n=== input hashes ===")
+    baselines = {}
+    for name in analyses:
+        ok, baseline = _check_input_hashes(name)
+        if not ok:
+            print("\nFAIL: input hash check failed - not running any fits (plan section 5)")
+            return 1
+        baselines[name] = baseline
+
     out_dir_base = REPO_ROOT / "run" / "check_scratch"
     ok = True
     for name in analyses:
         print(f"\n=== {name} ===")
-        ok = _check_one(name, out_dir_base, args.from_dir, args.rtol) and ok
+        ok = _check_one(name, baselines[name], out_dir_base, args.from_dir, args.tol_scale) and ok
 
     print()
     print("PASS: check" if ok else "FAIL: check")
@@ -814,8 +929,9 @@ def main():
     check_parser.add_argument("--analysis", choices=sorted(ANALYSES),
                                help="which baseline --from's directory belongs to "
                                     "(inferred from the directory name when omitted)")
-    check_parser.add_argument("--rtol", type=float, default=1.0, metavar="SCALE",
-                               help="scale the tight/pvalue tolerances by this factor (plan section 4)")
+    check_parser.add_argument("--tol-scale", dest="tol_scale", type=float, default=1.0, metavar="SCALE",
+                               help="scale both the rtol and atol terms of the tight/pvalue "
+                                    "tolerance classes by this factor (plan section 4)")
 
     args = parser.parse_args()
     if args.command == "selfcheck":

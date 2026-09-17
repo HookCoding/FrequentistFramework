@@ -42,6 +42,17 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-16 16:35 — Diagnosable error when python3 itself lacks PyROOT](#2026-09-16-1635--diagnosable-error-when-python3-itself-lacks-pyroot)
 - [2026-09-16 17:00 — Close the gaps: dead installer, inert submodules, unreachable clone URLs](#2026-09-16-1700--close-the-gaps-dead-installer-inert-submodules-unreachable-clone-urls)
 - [2026-09-16 17:20 — Verify check on a real regression, close out the plan](#2026-09-16-1720--verify-check-on-a-real-regression-close-out-the-plan)
+- [2026-09-16 18:05 — Audit the reproducibility-lock implementation against its plan](#2026-09-16-1805--audit-the-reproducibility-lock-implementation-against-its-plan)
+- [2026-09-16 18:40 — Fix issue 12: env compares the built binaries' SHA-256 against the baseline](#2026-09-16-1840--fix-issue-12-env-compares-the-built-binaries-sha-256-against-the-baseline)
+- [2026-09-16 19:05 — Close issue 13: verify the repointed install.sh clone URLs resolve](#2026-09-16-1905--close-issue-13-verify-the-repointed-installsh-clone-urls-resolve)
+- [2026-09-16 19:30 — Fix issue 14: record observed pins, not declared ones, and gate on a green env](#2026-09-16-1930--fix-issue-14-record-observed-pins-not-declared-ones-and-gate-on-a-green-env)
+- [2026-09-17 10:15 — Fix issue 15: env compares versions and binary digests against every baseline](#2026-09-17-1015--fix-issue-15-env-compares-versions-and-binary-digests-against-every-baseline)
+- [2026-09-17 10:40 — Fix issue 16: delete the unreachable "note" tolerance class](#2026-09-17-1040--fix-issue-16-delete-the-unreachable-note-tolerance-class)
+- [2026-09-17 11:05 — Fix issue 17: extract_postfit discovers TDirectories instead of naming them](#2026-09-17-1105--fix-issue-17-extract_postfit-discovers-tdirectories-instead-of-naming-them)
+- [2026-09-17 11:30 — Fix issue 18: check verifies every input hash before running any fit](#2026-09-17-1130--fix-issue-18-check-verifies-every-input-hash-before-running-any-fit)
+- [2026-09-17 11:50 — Fix issue 19: rename --rtol to --tol-scale](#2026-09-17-1150--fix-issue-19-rename---rtol-to---tol-scale)
+- [2026-09-17 12:05 — Fix issue 20: add the plan's global_Pval warning to the README](#2026-09-17-1205--fix-issue-20-add-the-plans-global_pval-warning-to-the-readme)
+- [2026-09-17 12:25 — Fix issue 21: re-add the parser unit tests, close out issues 12-21](#2026-09-17-1225--fix-issue-21-re-add-the-parser-unit-tests-close-out-issues-12-21)
 
 ---
 
@@ -962,3 +973,417 @@ and implemented" — both implementation (§1–§6) and Verification (steps 1�
 plan body itself is left exactly as archived, per this repository's own rule for plans.
 
 **Left alone.** Nothing remains open from this plan.
+
+**This entry's closing claim was wrong — see the 2026-09-16 18:05 entry below.** Two plan
+requirements were not implemented; the status line it set has been corrected. Left as written
+here per this file's own rule for mistakes found later.
+
+---
+
+## 2026-09-16 18:05 — Audit the reproducibility-lock implementation against its plan
+
+**Objective.** Asked to compare the work completed implementing
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md) against the
+plan itself, looking for shortfalls and for errors that were never disclosed. Read-only audit of
+the six commits `c1f4832`…`59b5a43`, then record what it found.
+
+**Found.** Ten items, now filed as issues 12–21 in [KNOWN_ISSUES.md](KNOWN_ISSUES.md), each with
+the fix it needs. Two are plan requirements that were never built, which makes the 17:20 entry
+above wrong where it says implementation and verification are complete:
+
+1. **`env` never compares the two built binaries' SHA-256 against the baseline provenance**
+   (issue 12), which plan §1 requires precisely because "the SHA pins cover the *sources*, not the
+   binaries actually built from them". The digests are computed, printed and written into both
+   baselines; nothing reads them back. Confirmed by experiment rather than by reading: setting
+   `quickFit`'s recorded digest in `tests/baseline_J100.json` to a bogus value left `env` at 20/20
+   PASS and `check --from run/run_481_3000_sixPar` at PASS, both exit 0. The file was restored from
+   a copy taken beforehand and `git status` confirmed clean afterwards. `env`'s own detail line
+   still says "not yet compared: no baseline provenance exists until 'record' is built", which has
+   been untrue since the baselines were cut at 15:35. The item was deferred from the 13:50 entry to
+   `record`, deferred again by the 15:35 entry to `check`, not mentioned by the 16:10 entry that
+   built `check`, and then closed out at 17:20 — it fell through the gap between two sections.
+2. **Plan Verification step 2 was skipped** (issue 13) — cloning one dependency from its new GitHub
+   URL and checking out its pinned SHA, which the plan says in terms not to skip, and for which it
+   pre-authorised running the command by hand outside the agent if the branch-scope hook blocked
+   it. The 17:00 entry's stated reason is that the URLs are "already confirmed reachable and
+   correct by `env`'s pin checks, which read the clones' actual `git remote`/`HEAD` state". `env`
+   reads neither: `run_env_checks()` runs `git rev-parse HEAD` and `git status --porcelain` against
+   clones that already exist, which cannot test whether a URL resolves. The substance is probably
+   fine — all four clones on disk have `origin` set to exactly the URLs `install.sh` now names,
+   checked during this audit — but that is corroboration, not the verification the plan demanded,
+   and the reason recorded for skipping it does not hold.
+
+The other eight are smaller: provenance recording declared rather than observed pins and `record`
+not gating on `env` (14); `env` comparing versions against only `sorted(glob)[0]` (15); the "note"
+tolerance class being unreachable now that `check` excludes `provenance` (16); `extract_postfit`
+hardcoding four TDirectory names where §3 says "every TDirectory" (17); input hashes checked inside
+the per-analysis loop rather than before it (18); `--rtol` scaling `atol` too (19); the README
+missing the `global_Pval`/numpy warning the plan's Risks section asked for (20); and the parser
+unit tests the 13:50 entry reports running never having been committed (21).
+
+Things the audit checked and found sound, recorded so the scope of the above is clear: the
+tolerance classes are correctly applied to the real key names in both baselines (including
+`chi2/ndof`, and the `postfit[N]` list elements); `check`'s scratch isolation is real; `--from`'s
+analysis inference works; the baselines' recorded numbers match this notebook's earlier entries;
+and the two retractions made during implementation (known issue 10, and the self-overwriting
+version cache) were handled properly — disclosed, the plan amended visibly rather than rewritten,
+the rejected code deleted rather than extended.
+
+**Added.** `KNOWN_ISSUES.md` issues 12–21, in a new section separated from the first eleven because
+they differ in kind: the first eleven are in the analysis code the harness guards and are recorded
+*because* they are being left alone, while these are in the harness itself and are meant to be
+fixed. Each carries a **Fix** paragraph — the proposed change, not work done. The section says so
+explicitly, twice, so no later reader mistakes a proposal for a record.
+
+**Changed.** Three documents carried statements that are false rather than merely incomplete, so
+they are corrected here rather than filed as issues — the same split the plan itself uses, where
+what gets fixed goes in this notebook and what gets left goes in `KNOWN_ISSUES.md`:
+
+- `doc/IMPROVEMENTS.md` said `env` "cannot yet compare" the binary digests "because there is no
+  baseline until `record` exists". Both baselines have existed since 15:35; the sentence now states
+  that the comparison is missing and points at issue 12. Its closing "What is next: nothing from
+  this plan" now names the ten open issues.
+- `KNOWN_ISSUES.md`'s XMLReader/quickFit row still said `tests/repro.py check` would diff baseline
+  outputs "once built". It is built; the row is now in the present tense.
+- The plan's status line and its row and paragraph in [plans/README.md](plans/README.md) said
+  "Approved and implemented"; all three now record the two open gaps and point at the issues. The
+  plan *body* is untouched, as this repository's rule for plans requires — only the status field,
+  which the 17:20 entry had itself just set.
+
+A one-line pointer was added to the 17:20 entry, per this file's own rule for an entry later found
+wrong: the claim stays as written, with a link to this entry.
+
+**Verified.** `python3 tests/repro.py selfcheck` passes and `git status --porcelain` shows only
+this session's four documentation files plus the pre-existing, unrelated `CLAUDE.md` modification.
+No code was changed, so nothing was re-run beyond the two experiments described above; the
+perturb-and-restore on `tests/baseline_J100.json` is the only write this audit made outside the
+documentation, and it was reverted from a copy and confirmed byte-identical by `git status`.
+
+**Left alone.** Every one of issues 12–21. None is fixed; they are recorded with fix plans awaiting
+review, and issue 13 cannot be closed from inside an agent session at all — `git ls-remote` is
+refused by the branch-scope hook, confirmed during this audit, exactly as the plan predicted.
+
+## 2026-09-16 18:40 — Fix issue 12: env compares the built binaries' SHA-256 against the baseline
+
+**Objective.** Close issue 12, the one High-severity finding from the 18:05 audit and the only
+plan §1 requirement that was silently skipped: `env` computed the two built binaries' SHA-256 but
+never compared them against the digests recorded in a baseline's provenance, so a rebuilt
+`XMLReader` or `quickFit` passed every check in the harness.
+
+**Added.** `compare_binary_digests(observed, baseline_digests)` in `tests/repro.py` — a pure
+function taking the live `{rel_path: sha256}` dict and a baseline's `provenance["binary_sha256"]`
+(or `None` when no baseline exists yet), returning `(name, ok, detail)` check tuples. `_report_env`
+now loads the first baseline's provenance once (reused for both the binary comparison and the
+existing version-drift report, replacing a second, redundant load) and appends the result to
+`checks` before printing, so both `env` and `check` (which calls `_report_env` via `run_env_checks`)
+inherit it. A mismatch is a hard failure, not a warning — plan §1 files this with the pins, which
+already fail `env` on mismatch. When no baseline exists the comparison is skipped, matching the
+existing "nothing to compare against yet" behaviour for versions. The failure detail names the way
+out (`record --force --reason "..."`) rather than a suppression flag, since a deliberate rebuild
+legitimately changes the digest and the harness should not make that harder than it needs to be.
+The stale "not yet compared: no baseline provenance exists until 'record' is built" detail string
+on the `binary present: ...` checks (written before `record` existed) is replaced with a plain
+`sha256=...`, since the comparison now happens immediately below it.
+
+`cmd_selfcheck` gained a second block covering `compare_binary_digests` directly: no baseline
+(returns `[]`), both digests matching, one matching and one mismatched (checking the mismatch
+detail names both digests), and one baseline digest missing entirely (checking the detail says so).
+
+**Changed.** `doc/IMPROVEMENTS.md`'s `env` paragraph no longer says the comparison is missing; it
+now describes what it does and states the rebuild-changes-the-digest trade-off. Its closing "What
+is next" paragraph now says issue 12 is fixed and only issue 13 (plus the eight smaller ones)
+remain before the plan is complete. `README.md`'s Reproducibility section gained a paragraph
+documenting the same trade-off for a user running `env` directly: a rebuild on another machine (or
+even a non-reproducible link step on the same one) legitimately changes the digest, so this check
+is expected to fire after every `install.sh` re-run, and the fix is `record --force --reason`, not
+a flag to skip it.
+
+**Verified.** `python3 tests/repro.py selfcheck` passes, including the new
+`compare_binary_digests` block. `python3 tests/repro.py env` against the current tree and the
+unmodified `baseline_J100.json`/`baseline_J50.json` prints two new PASS lines
+(`binary matches baseline: ...`) and stays at exit 0 (22 checks, up from 20). Repeated the 18:05
+audit's proof in reverse: set `baseline_J100.json`'s `quickFit/build/quickFit` digest to
+`deadbeef`×8 (via a scratchpad backup, restored afterwards) and confirmed `env` now FAILs with
+exactly the mismatch this issue was filed for, and exit code 1 — the hole is closed. Restored the
+baseline from the backup and confirmed `git status --porcelain tests/baseline_J100.json` is empty
+before and after. `python3 tests/repro.py check --from run/run_481_3000_sixPar` passes end to end
+against the restored baseline (`env`'s 22 checks plus the J100 comparison). `run/run_481_3000_sixPar`
+was not touched by any of this (`--from` only reads it).
+
+**Left alone.** Issues 13–21, unchanged, per plan.
+
+## 2026-09-16 19:05 — Close issue 13: verify the repointed install.sh clone URLs resolve
+
+**Objective.** Close issue 13, the second and last plan requirement the 18:05 audit found never
+implemented: Verification step 2 required cloning each repointed dependency from its new GitHub
+URL and checking out its pinned SHA, and was skipped for a reason (CHANGELOG, 17:00) that the
+audit found did not hold — `env`'s pin checks read only clones that already exist locally and
+cannot test whether a URL resolves.
+
+**Verified.** This check cannot run from inside an agent session — `git clone`/`git ls-remote`
+against an external URL is refused by the branch-scope hook (`.claude/hooks/no-other-branches.sh`,
+confirmed refusing `git ls-remote` during the 18:05 audit). The repository owner ran it directly,
+outside Claude Code:
+
+```bash
+cd "$(mktemp -d)"
+for r in xmlAnaWSBuilder quickFit workspaceCombiner; do
+  git clone --filter=blob:none --no-checkout "https://github.com/tofitsch/$r.git" "$r"
+done
+git -C xmlAnaWSBuilder   cat-file -e 6b84050f3c0206a6f30eb40b103cc101e68505cc && echo "xmlAnaWSBuilder ok"
+git -C quickFit          cat-file -e 0408030b6c8d74a2e2c27a864a02756132d08f5a && echo "quickFit ok"
+git -C workspaceCombiner cat-file -e 7d484ad3f89c4075d2c567aa4503fc56e1bb9468 && echo "workspaceCombiner ok"
+```
+
+All three printed `ok`: each URL resolves, and the exact commit `install.sh` pins is fetchable
+from it — not just present in some other ref's history, since `cat-file -e` needed the blobless
+clone to actually have fetched that object. This is the check the plan's Verification step 2
+asked for; it is now done, just not from inside this session.
+
+**Changed.** `KNOWN_ISSUES.md` issue 13 marked fixed in place, result recorded, original text kept
+per this file's own update-in-place rule. Both plan gaps the 18:05 audit found (12 and 13) are now
+closed; the eight smaller deviations (14–21) remain open.
+
+**Left alone.** Issues 14–21, unchanged, per plan.
+
+## 2026-09-16 19:30 — Fix issue 14: record observed pins, not declared ones, and gate on a green env
+
+**Objective.** Close issue 14 (Low): a baseline's `provenance.pins` was built from `install.sh`'s
+and each `install_roofitext.sh`'s *text* — the intended SHA — rather than each clone's actual
+`git rev-parse HEAD`, and `record` did not check `env` before writing. On a tree where a clone had
+drifted, `env` would fail but `record` would still write the pinned SHA into the baseline as
+though it had produced the numbers, which is exactly what a provenance block exists to prevent.
+
+**Changed.** [tests/repro.py](tests/repro.py): `run_env_checks()` now captures each framework's
+observed `HEAD` into `observed_heads` (and each `RooFitExtensions` checkout's observed `HEAD` into
+`roofit_shas`, replacing the parsed-declaration value it held before) inside the loops that already
+run `git rev-parse HEAD` to check them — no new git calls. `pins` is built from `observed_heads`
+instead of `install_pins`. `cmd_record` now calls `run_env_checks()` up front (removing the second,
+later call that duplicated it) and refuses to write a baseline if any check fails, unless `--force
+--reason "..."` is given — the same flags it already requires to overwrite an existing baseline,
+reused rather than adding a second gate.
+
+**Documented.** `doc/IMPROVEMENTS.md` gained a paragraph on `record`'s pins being observed rather
+than declared, why that's unchanged on a green tree, and the new gate.
+
+**Verified.** `selfcheck` and `env` both still pass (22/22) unchanged. Backed up
+`tests/baseline_J100.json`, ran `record J100 --force --reason "verify issue 14 fix: ..."` on the
+current (green) tree, and diffed the result against the backup: only `date` and `reason` differ —
+every pin, version, hash and fitted number is byte-identical, confirming the observed/declared
+switch changes nothing when the tree agrees with itself. Restored the baseline from the backup.
+Then corrupted `install.sh`'s `xmlAnaWSBuilder` SHA to force a real mismatch, moved
+`baseline_J100.json` aside so the "baseline already exists" gate could not mask the result, and ran
+`record J100` with no `--force`: it FAILed with the new environment-check message and wrote
+nothing (confirmed by `ls`). Restored both `baseline_J100.json` and `install.sh` from backups;
+`git status --porcelain` on both is empty; `env` and `check --from run/run_481_3000_sixPar` both
+pass cleanly again afterwards.
+
+**Left alone.** Issues 15–21, unchanged, per plan.
+
+## 2026-09-17 10:15 — Fix issue 15: env compares versions and binary digests against every baseline
+
+**Objective.** Close issue 15 (Low): the version-drift report in `_report_env()` read
+`sorted(glob("baseline_*.json"))[0]` — always `baseline_J100.json` when it exists —
+so `baseline_J50.json`'s recorded versions were never compared against. The same single-baseline
+read also applied to issue 12's binary-digest comparison, added the previous day, since it reused
+this function's baseline load.
+
+**Changed.** [tests/repro.py](tests/repro.py): `_report_env()` now loads every
+`tests/baseline_*.json` into a `(name, provenance)` list and loops over it for both checks it
+runs against a baseline — the binary-digest comparison (each check named
+`"... (<baseline file>)"` so J100's and J50's don't collide in the `checks` list) and the
+version-drift warning (each warning naming its file, as before). No baseline existing still
+prints the same "nothing to compare against yet" message it always did.
+
+**Documented.** `doc/IMPROVEMENTS.md` retired the "`tests/baseline_J100.json` if present, else
+`baseline_J50.json`" wording for both the versions paragraph and the binary-digest paragraph
+(the latter written the previous day for issue 12), now describing checking every baseline.
+
+**Verified.** `selfcheck` unaffected. `python3 tests/repro.py env` now reports 24 checks (up from
+22): two binary-digest comparisons per binary, once against each baseline, all PASS against the
+current tree, plus two "Versions match ..." lines naming `baseline_J100.json` and
+`baseline_J50.json` separately. `check --from run/run_481_3000_sixPar` still passes end to end.
+
+**Left alone.** Issues 16–21, unchanged, per plan.
+
+## 2026-09-17 10:40 — Fix issue 16: delete the unreachable "note" tolerance class
+
+**Objective.** Close issue 16 (Low): plan §4's "note" tolerance class (environment-observation
+keys like ROOT version, recorded when they differ but never failing) could never actually fire,
+because `check` deliberately excludes `provenance` — the only place a note-class leaf lives —
+from the comparison it builds (CHANGELOG, 2026-09-16 16:10, the right call, since a candidate has
+no provenance of its own to compare against). The class was exercised only by `selfcheck`'s
+synthetic data: dead code that reads as live, risking a future reader assuming `check` surfaces
+environment drift through it when `env` is the only thing that does.
+
+**Changed.** [tests/repro.py](tests/repro.py): deleted `NOTE_LEAVES`, the `"note"` branch in
+`classify()` and `compare()`, and the `notes` return value — `compare()` now returns just the
+failures list. Updated `compare()`'s docstring and its three callers (`cmd_selfcheck`'s two
+tolerance-class tests, the `--rtol` scaling test, and `_check_one`) to match the new single-value
+return. `cmd_selfcheck`'s synthetic baseline/passing/failing dicts dropped their `provenance`
+field, which existed only to exercise the note branch; the "clean pass" case no longer needs a
+deliberately-differing field to prove is ignored, since nothing plays that role in production
+either. Roughly fifteen lines removed net.
+
+**Documented.** `doc/IMPROVEMENTS.md`'s comparator description dropped the **note** bullet and
+gained a paragraph explaining that environment keys never reach `compare()` at all, and that
+`env` is what actually reports drift.
+
+**Verified.** `selfcheck` passes with the same three assertions it always had (tolerance classes,
+missing/extra keys, rtol scaling), minus the deleted note assertion. `env` (24/24) and
+`check --from run/run_481_3000_sixPar` both still pass end to end.
+
+**Left alone.** Issues 17–21, unchanged, per plan.
+
+## 2026-09-17 11:05 — Fix issue 17: extract_postfit discovers TDirectories instead of naming them
+
+**Objective.** Close issue 17 (Low): plan §3 says the chi2 block is captured for "every
+TDirectory" in a `PostFit_*.root` file, but `extract_postfit` actually iterated a fixed list of
+four names built from `top_dir` (`J100yStar06`, `_bkgonly`, `_rebinned`, `_bkgonly_rebinned`), and
+raised if one was missing. An extra or renamed directory was invisible to the harness, since
+`directory_listing` only covers the files in the run folder, not the structure inside one of them.
+
+**Changed.** [tests/repro.py](tests/repro.py): `extract_postfit` now iterates
+`f.GetListOfKeys()`, keeps keys whose class (`ROOT.TClass.GetClass(key.GetClassName())`) inherits
+from `TDirectory`, and dedupes by `GetName()` (ROOT key cycles can list one name twice). The
+`name.endswith("_rebinned")` rule for which directories also get postfit bins is unchanged.
+`compare()` now catches a missing directory as a missing key and an extra one as an unexpected
+key — the general case plan §3 actually asked for — so the explicit `RuntimeError` and the
+`top_dir` field it needed are both gone: `extract_postfit`, `extract_variant` and the `ANALYSES`
+entries all lost a parameter/field, net less code. Also fixed a comment at the top of the file
+(`# "exact" and "note" are markers`) left stale by the previous entry's `note`-class removal —
+missed there, caught while touching nearby code.
+
+**Verified.** `selfcheck` passes unchanged (this function has no synthetic-data path; it only
+runs against real `.root` files). `check --from run/run_481_3000_sixPar` (J100, unmasked) and
+`check --from run/run_J50_302_2997_sixPar --analysis J50` (J50, exercising the masked BumpHunter
+path with a different `top_dir` value) both pass byte-for-byte against their existing baselines —
+confirming, as the issue predicted, that discovery finds exactly the same four directories the
+hardcoded list named and nothing else, so neither baseline needed re-cutting.
+
+**Left alone.** Issues 18–21, unchanged, per plan.
+
+## 2026-09-17 11:30 — Fix issue 18: check verifies every input hash before running any fit
+
+**Objective.** Close issue 18 (Low, cosmetic): plan §5 says `check` "runs `env` and the four
+input hashes first and stops if either fails", but each analysis's two input hashes were actually
+checked inside `_check_one`, interleaved with that analysis's own driver run and comparison — so
+a full `check` would fit J100 to completion (minutes) before ever looking at whether a J50 input
+had moved, and `--quick` never looked at J50's inputs at all. Not a correctness gap — the mismatch
+was still caught, just later than it needed to be.
+
+**Changed.** [tests/repro.py](tests/repro.py): split the hash check out of `_check_one` into
+`_check_input_hashes(analysis)`, returning `(ok, baseline)`. `cmd_check` now runs it for every
+selected analysis in a loop ahead of the driver loop, under a new `=== input hashes ===` header,
+and returns immediately if any fails, before running or wiping anything. The already-loaded
+`baseline` dict is threaded into `_check_one` instead of being read from disk a second time.
+
+**Documented.** `doc/IMPROVEMENTS.md`'s `check` paragraph rewritten to describe input hashes for
+every selected analysis being verified up front, not per-analysis inside the loop.
+
+**Verified.** `selfcheck` unaffected. `check --from run/run_481_3000_sixPar` (J100 only) shows the
+new `=== input hashes ===` block ahead of `=== J100 ===` and still passes. A full `check` (no
+`--from`, both analyses, real driver runs) printed both `J100: input hashes match baseline
+(2 files)` and `J50: input hashes match baseline (2 files)` together under `=== input hashes ===`,
+before either `=== J100 ===` or `=== J50 ===` began — confirming both analyses' inputs are now
+verified up front rather than one at a time inside each driver run — and passed end to end,
+including J50's BumpHunter masking path. `run/run_481_3000_sixPar/` and
+`run/run_J50_302_2997_sixPar/`'s mtimes still predate this work, confirming `check`'s scratch
+isolation held; `git status` carries no unexpected changes.
+
+**Left alone.** Issues 19–21, unchanged, per plan.
+
+## 2026-09-17 11:50 — Fix issue 19: rename --rtol to --tol-scale
+
+**Objective.** Close issue 19 (Low, documentation): `--rtol` scaled both the `rtol` and `atol`
+terms of the tight/pvalue tolerance classes, but its name and plan §4's description ("scales both
+float classes", meaning tight and pvalue, not both tolerance terms) both implied `rtol` alone.
+The behaviour is the useful half — a baseline value near zero has `rtol * |baseline| ≈ 0`
+regardless of scale, so `atol` has to widen too for the flag to do anything for such a value — so
+the fix was to keep it and fix the name, per the issue's own two options and "nothing depends on
+the flag yet, so renaming costs nothing".
+
+**Changed.** [tests/repro.py](tests/repro.py): renamed the CLI flag `--rtol` to `--tol-scale`
+(`dest="tol_scale"`), with its help text now naming both `rtol` and `atol`. Renamed the internal
+`rtol_scale` parameter to `tol_scale` throughout — `compare()`, `_check_one()`, `cmd_selfcheck`'s
+scaling test and its assertion messages, and the `cmd_check` call site — so the same confusion
+does not persist internally once the flag it was named after is gone.
+
+**Documented.** `doc/IMPROVEMENTS.md`: the `check` usage line, the `--tol-scale` description (now
+explaining why both terms are scaled, with a pointer to this issue), and the comparator section's
+two remaining `rtol_scale` mentions all updated. `KNOWN_ISSUES.md` issue 19 marked fixed in place.
+The historical mentions of `--rtol` in `CHANGELOG.md`'s own earlier entries, in issue 12's kept
+original text, and in the archived plan body are left untouched — they describe what was written
+or true at the time, not the current interface.
+
+**Verified.** `selfcheck` passes, including the renamed scaling assertions and its updated PASS
+message. `check --help` shows `--tol-scale SCALE` with the updated help text. `check --from
+run/run_481_3000_sixPar --tol-scale 1.0` runs end to end and passes, confirming the renamed flag
+is wired all the way from argparse through to `compare()`.
+
+**Left alone.** Issues 20–21, unchanged, per plan.
+
+## 2026-09-17 12:05 — Fix issue 20: add the plan's global_Pval warning to the README
+
+**Objective.** Close issue 20 (Low): the plan's Risks section says `global_Pval` "will be the
+first number to move on any LCG bump" because numpy leaks into pyBumpHunter from the LCG view,
+and says explicitly "say so in the README, so such a failure is read as 'numpy changed', not 'the
+fit changed'". The README's Reproducibility section told the reader to check `env` for a version
+warning but never named `global_Pval` or numpy, so the connection the plan asked for was never
+made — whoever hits this first would have had to rediscover it.
+
+**Changed.** [README.md](README.md): added a paragraph to the Reproducibility section, right
+after the "read it in order" guidance it extends, stating that `global_Pval` is quantised at
+1e-4 from 10 000 seeded (`seed=666`) pseudo-experiments, that any numpy shift moves it by more
+than the p-value tolerance absorbs, and that a `global_Pval`/`significance` failure alongside an
+`env` numpy warning means the stack moved, not the fit. The wording is adapted from the plan's
+own Risks section rather than newly authored — that text was already approved, so restating it in
+the README is not a new physics claim, unlike inventing wording from scratch would have been
+(which is why the issue had left it "for the repository owner to word").
+
+**Documented.** `KNOWN_ISSUES.md` issue 20 marked fixed in place.
+
+**Verified.** No code changed; `selfcheck` unaffected (re-run to confirm the working tree is
+otherwise undisturbed).
+
+**Left alone.** Issue 21, unchanged, per plan.
+
+## 2026-09-17 12:25 — Fix issue 21: re-add the parser unit tests, close out issues 12-21
+
+**Objective.** Close issue 21 (Low), the last of the ten found in the 2026-09-16 audit: the
+2026-09-16 13:50 entry reported `parse_install_sh_pins`, `parse_lsetup_view` and
+`parse_pyvenv_cfg` "unit-tested against synthetic input covering a blank line between `cd` and
+its checkout, the literal `cd $x` from `install.sh`'s build loop … and `cd ..`" — true of what was
+run at the time, but those tests were never committed, so `selfcheck` re-running today exercised
+none of it. `install.sh`'s formatting is the input to the pin checks that gate everything else in
+`env`, so this closes the last gap between what the harness claims to cover and what it actually
+does.
+
+**Changed.** [tests/repro.py](tests/repro.py): added `_Text`, a five-line `read_text()`-only
+stand-in so the parsers (which take a `Path`) can run against inline strings with no real file on
+disk — no framework, no fixtures, no new file, matching the issue's own fix note. `cmd_selfcheck`
+gained a new block: `parse_install_sh_pins` against synthetic text with the three cases the
+2026-09-16 changelog entry named, plus basic positive/negative coverage for `parse_lsetup_view`
+(extracts the view; `None` when absent) and `parse_pyvenv_cfg` (key = value pairs; blank/malformed
+lines ignored).
+
+While writing it, caught that the first draft's `cd ..` case was vacuous: `cd ..` followed by
+nothing (as in the real `install.sh`, and as most naturally written) never gets a chance to
+misbehave, since no `git checkout` line follows it before the next `cd` overwrites `current_dir`
+either way — the `!= ".."` guard could be deleted and that draft would still pass. Fixed by putting
+a checkout line directly after `cd ..` in the synthetic text (the only arrangement that actually
+exercises the guard), then confirmed the fix mattered: reimplemented the parser without the guard
+in a scratch script and watched it produce `{"..": "deadbeef..."}` — the exact misreading the guard
+exists to prevent — before restoring the real guarded assertion.
+
+**Documented.** `KNOWN_ISSUES.md` issue 21 marked fixed in place. This closes all ten issues (12–21)
+found by the 2026-09-16 audit; `doc/IMPROVEMENTS.md` and `plans/README.md` updated in this same
+entry to say so.
+
+**Verified.** `selfcheck` passes, printing a new `PASS: parser selfcheck (install.sh pins, lsetup
+view, pyvenv.cfg)` line. Cross-checked `parse_install_sh_pins` against the real `install.sh`
+directly: it returns exactly the four correct pins and nothing spurious from the `for x in ...; do
+cd $x ... cd ../..; done` build loop, confirming the synthetic test matches production behaviour,
+not just itself. `env` (24/24) unaffected.
+
+**Left alone.** Nothing — this was the last of issues 12–21.

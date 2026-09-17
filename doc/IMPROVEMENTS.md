@@ -16,7 +16,7 @@ change did not move a physics number. Plan:
 python3 tests/repro.py selfcheck
 python3 tests/repro.py env
 python3 tests/repro.py record {J100,J50} [DIR] [--force --reason "..."]
-python3 tests/repro.py check [--quick] [--from DIR [--analysis {J100,J50}]] [--rtol SCALE]
+python3 tests/repro.py check [--quick] [--from DIR [--analysis {J100,J50}]] [--tol-scale SCALE]
 ```
 
 `selfcheck` runs the comparator against synthetic data — no ROOT, no ATLAS environment, instant.
@@ -27,29 +27,46 @@ inventing a second source of truth: the four sub-framework SHAs in `install.sh` 
 own live `scripts/install_roofitext.sh`; agreement of the `lsetup "views …"` line across all
 three `setup_lxplus.sh`; the pyBumpHunter venv's `pyvenv.cfg` against that view and Python 3.9.12;
 the installed egg's pinned short SHA; and that none of the four clones have modified tracked
-files. It also computes (but cannot yet compare — there is no baseline until `record` exists) the
-SHA-256 of the two built binaries, and separately *records without asserting* the resolved ROOT,
-`cmake` and numpy/scipy/uproot versions the BumpHunter step actually sees, reading the LCG
+files. It also computes the SHA-256 of the two built binaries and compares them against the
+digests in every existing baseline's provenance — a rebuilt `XMLReader` or `quickFit` now fails
+`env` (and therefore `check`, which runs `env` first) instead of passing silently. A deliberate
+rebuild is expected to change the digest; the fix is to re-cut the baseline (`record --force
+--reason "..."`), not to suppress the check. It separately *records without asserting* the
+resolved ROOT, `cmake` and numpy/scipy/uproot versions the BumpHunter
+step actually sees, reading the LCG
 view's own `bin/` directly on CVMFS rather than through `lsetup` (see *Versions that cannot be
 pinned* below for why).
 
 Those versions matter to the analysis — they drive the 10 000 pseudo-experiments behind
 `global_Pval` — even though nothing here can pin them, so the plan's amended §1 requires a
 durable record of the versions each baseline was produced with, held in the baseline provenance
-block. `env` reads whichever baseline exists (`tests/baseline_J100.json` if present, else
-`baseline_J50.json`) and compares the live values against its `provenance.versions`, warning
-non-fatally on any difference and never failing the command. Before any baseline exists it says
-so and compares nothing. `env` never writes that record — only `record` does, and only when
-building a new baseline from scratch.
+block. `env` reads every `tests/baseline_*.json` that exists and compares the live values against
+each one's own `provenance.versions` in turn, naming the file in the warning, non-fatally on any
+difference and never failing the command. Before any baseline exists it says so and compares
+nothing. `env` never writes that record — only `record` does, and only when building a new
+baseline from scratch.
+
+The pins `record` writes into a baseline's provenance are each clone's *observed* `git rev-parse
+HEAD` (including each sub-framework's `RooFitExtensions` checkout), not the declaration `env`
+parses out of `install.sh`/`install_roofitext.sh` — identical on a tree where `env`'s own checks
+already assert the two agree, so this changed nothing about the committed baselines, but a
+provenance block that recorded the *intended* SHA instead of the one that actually built the
+binaries would defeat its own purpose on a drifted tree. `record` also now runs the same checks
+`env` does and refuses to write a baseline if any of them fail, unless given the same `--force
+--reason "..."` it already requires to overwrite an existing one — a baseline is only useful if
+its provenance describes the tree that actually produced it.
 
 `env` is not yet a reproducibility check of the fits themselves — that is `check`, below.
 
 `check` is the end-to-end entry point. It runs `env` first and stops (without touching any fit)
 if a pin check fails — `env`'s version *warnings* never stop it, but are printed before anything
-else so a mismatch further down is read with them already in view. For each analysis it then
-verifies the two input spectra's SHA-256 against the baseline's `provenance.input_sha256` and
-stops on a mismatch, wipes any stale scratch output from a previous run (so a driver that crashes
-outright cannot be masked by leftover files), runs the driver with `OUT_DIR` pointed at
+else so a mismatch further down is read with them already in view. It then verifies every
+selected analysis's input spectra SHA-256 against its baseline's `provenance.input_sha256`,
+before running any driver, and stops on the first mismatch — so a full `check` never spends
+minutes fitting J100 only to discover afterwards that a J50 input moved. Only once every selected
+analysis's inputs check out does it, for each in turn, wipe any stale scratch output from a
+previous run (so a driver that crashes outright cannot be masked by leftover files), run the
+driver with `OUT_DIR` pointed at
 `run/check_scratch/` — `run/` is already gitignored wholesale, so nothing new needed adding there,
 and the recorded `run/run_481_3000_sixPar/`/`run/run_J50_302_2997_sixPar/` are never touched — and
 compares the result against the baseline with `compare()`. The comparison is baseline `unmasked`/
@@ -63,8 +80,11 @@ Two speeds: `check --quick` runs J100 only, skipping J50's BumpHunter masking pa
 runs both. `check --from DIR` compares an existing output directory instead of running a driver —
 the escape hatch for when a refactor has renamed the drivers or run directories and the built-in
 `ANALYSES` table has gone stale. It infers which baseline `DIR` belongs to from the directory's
-own name, falling back to an explicit `--analysis J100|J50` when that is ambiguous. `--rtol` scales
-the tight/pvalue tolerance classes for a cross-machine comparison (plan §4).
+own name, falling back to an explicit `--analysis J100|J50` when that is ambiguous. `--tol-scale`
+widens both the `rtol` and `atol` terms of the tight/pvalue tolerance classes for a cross-machine
+comparison (plan §4) — both terms, not just `rtol`, because a baseline value near zero needs its
+`atol` widened too for the scale to have any effect at all ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md)
+issue 19, fixed 2026-09-17: renamed from `--rtol`, which undersold what it actually does).
 
 ### Versions that cannot be pinned
 
@@ -84,7 +104,7 @@ real invocation context — `scripts/setup_buildAndFit.sh`, exactly as every dri
 not a simplified one-line stand-in — before activating the venv. See `CHANGELOG.md`'s 2026-09-16
 `record` entry for why the simplified version of this probe gave a false negative.
 
-**The comparator.** `compare(baseline, candidate, rtol_scale=1.0)` flattens two nested
+**The comparator.** `compare(baseline, candidate, tol_scale=1.0)` flattens two nested
 dict/list structures to dotted key paths and compares every leaf:
 
 - **tight** (`rtol=1e-6, atol=1e-8`): fitted parameters and errors, `minNll`, `chi2`,
@@ -93,12 +113,17 @@ dict/list structures to dotted key paths and compares every leaf:
   `significance`.
 - **exact**: `status`, `covQual`, `nbins`, `npars`, `ndof`, `MaskMin`, `MaskMax`, `BlindRange`,
   `seed`, `npe`, the directory listing, and anything not otherwise classified.
-- **note**: environment-observation keys (e.g. ROOT version) — recorded when they differ, never
-  fail. The ROOT version legitimately differs between a bare shell and a sourced one.
+
+Environment-observation keys (ROOT version, active view) never reach `compare()` at all — `check`
+deliberately excludes `provenance`, the baseline's own metadata, from the comparison, since a
+candidate has no provenance of its own to compare it against. `env` is what reports environment
+drift (see above); the comparator no longer carries a separate, weaker "note" class for the same
+job, which used to exist but could never fire in practice ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md)
+issue 16, fixed 2026-09-17).
 
 A missing or extra key between baseline and candidate is always a failure. Every mismatch is
-reported, not just the first. `rtol_scale` widens both float classes at once, for the
-cross-machine case.
+reported, not just the first. `tol_scale` widens both float classes' `rtol` and `atol` terms at
+once, for the cross-machine case.
 
 All four subcommands are built. `run_env_checks()` is shared by `env` and `check` rather than
 reimplemented in the latter; `compare()` is used by `record`'s own `selfcheck` test and by
@@ -120,6 +145,10 @@ readable postfit-bin mismatches, not a hand-edited baseline. Reverting the card 
 produced a clean PASS again. `run/run_481_3000_sixPar/`'s file mtimes were confirmed to all
 predate this work, and the final `git status` carries no unexpected changes.
 
-**What is next**: nothing from this plan. The reproducibility-lock harness
-(`tests/repro.py`'s `selfcheck`/`env`/`record`/`check`) is built, documented and verified
-end to end; the gaps the original survey found are closed.
+**What is next.** The harness (`tests/repro.py`'s `selfcheck`/`env`/`record`/`check`) is built,
+documented and verified end to end, and the gaps the original survey found are closed. An audit of
+this implementation against the plan, on 2026-09-16, found ten things outstanding, filed as issues
+12–21 in [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) with the fix each one needed; all ten are now fixed,
+the last (issue 21, re-adding the parser unit tests) on 2026-09-17. Nothing from that audit remains
+open. Nothing is "next" in the sense of outstanding work on this plan — it is done, not merely
+implemented.

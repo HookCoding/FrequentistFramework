@@ -74,6 +74,18 @@ background-parameter perturbation, re-fit for real rather than hand-edited, prod
 confirmed untouched throughout (file mtimes all predate this work) and the final `git status` is
 clean. The harness is in place and the gaps it found are closed.
 
+It was then declared complete, which it was not. An audit of the implementation against this plan,
+later the same day, found two of its requirements never built — `env` does not compare the two
+built binaries' SHA-256 against the baseline provenance (plan §1), and the repointed `install.sh`
+clone URLs were never verified to resolve (Verification step 2, which the plan says in terms not to
+skip) — plus eight smaller deviations. All ten are filed as issues 12–21 in
+[KNOWN_ISSUES.md](../KNOWN_ISSUES.md), each with the fix it needs. Both plan gaps were closed the
+same day: issue 12 (`env` now compares the built binaries' SHA-256 against the baseline and fails
+on a mismatch), and issue 13 (the repository owner ran the pinned-commit-resolves check outside an
+agent session; all three URLs confirmed). The eight smaller issues (14–21) were fixed over the
+following day, the last (21, re-adding the parser unit tests the 2026-09-16 13:50 entry claimed
+but never committed) on 2026-09-17. All ten issues this audit found are closed.
+
 ## Adding a plan
 
 Name the file `YYYY-MM-DD-short-slug.md`, add a row to the index above and a short paragraph

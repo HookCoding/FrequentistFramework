@@ -209,6 +209,20 @@ failure go away defeats the entire point of the harness — if `check` fails, re
 did `env` warn about a version drift, did an input spectrum's hash change, and only then look at
 which fitted quantity moved.
 
+**`global_Pval` will be the first number to move on any LCG bump.** numpy reaches pyBumpHunter by
+leaking from the LCG view, and its 10 000 pseudo-experiments are drawn from it; `seed=666` makes
+that deterministic for a fixed numpy, but the result is quantised at 1e-4, so any numpy shift
+moves it by far more than the p-value tolerance absorbs. A `global_Pval`/`significance` failure
+alongside an `env` numpy warning means the stack moved, not the fit — read it as "numpy changed",
+not "the fit changed".
+
+`env` also fails if the built `XMLReader`/`quickFit` binaries' SHA-256 no longer matches the
+baseline's provenance. A rebuild legitimately changes the digest even with identical source and
+pins — a different compiler, a different machine, or even a non-reproducible link step can do
+it — so this is expected to fire after every `install.sh` re-run, not just after a source change.
+The fix in that case is the same `record --force --reason "..."` as above, not a flag to skip the
+check: silently accepting a rebuilt binary is exactly the hole this check exists to close.
+
 # Links
 
 * [Falk's tutorial recording](https://indico.cern.ch/event/1266089/)

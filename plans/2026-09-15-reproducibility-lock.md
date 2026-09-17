@@ -1,6 +1,6 @@
 # Lock the software versions and the J50/J100 results before refactoring
 
-**Written** 2026-09-15 &nbsp;|&nbsp; **Amended** 2026-09-16 &nbsp;|&nbsp; **Branch** `claude-skills` &nbsp;|&nbsp; **Status** approved and implemented
+**Written** 2026-09-15 &nbsp;|&nbsp; **Amended** 2026-09-16 &nbsp;|&nbsp; **Branch** `claude-skills` &nbsp;|&nbsp; **Status** approved and implemented. A 2026-09-16 audit against this plan found ten deviations, filed as [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issues 12–21; all ten are fixed, the last on 2026-09-17.
 
 Filed as written on 2026-09-15, and left alone through the first two implementation steps.
 
