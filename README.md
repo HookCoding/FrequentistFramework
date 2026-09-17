@@ -208,11 +208,21 @@ within a tolerance (tight: `rtol=1e-6`; p-values: `rtol=1e-5`); most other field
 exactly. Run `check --quick` while iterating and the full `check` before committing or merging —
 commit only on PASS.
 
+`check --quick` verifies J100's two input hashes and not J50's, which is all a J100-only
+comparison depends on; the full `check` verifies all four.
+
 **Baselines are re-cut only when a physics change is intended**, with the reason recorded:
 `tests/repro.py record {J100,J50} --force --reason "..."`. Re-cutting to make an unexplained
 failure go away defeats the entire point of the harness — if `check` fails, read it in order:
 did `env` warn about a version drift, did an input spectrum's hash change, and only then look at
 which fitted quantity moved.
+
+**Re-run the fit before re-cutting.** `record` reads its numbers from a run directory but records
+the software provenance as it is *now*, so re-cutting from an older `run/…` directory pairs those
+numbers with binaries and versions that did not produce them
+([KNOWN_ISSUES.md](KNOWN_ISSUES.md) issue 32). `record` prints any failing `env` check whether or
+not `--force` is given, but with `--force` it prints them as a warning and writes anyway — read
+them before trusting the baseline.
 
 **`global_Pval` will be the first number to move on any LCG bump.** numpy reaches pyBumpHunter by
 leaking from the LCG view, and its 10 000 pseudo-experiments are drawn from it; `seed=666` makes
@@ -221,12 +231,16 @@ moves it by far more than the p-value tolerance absorbs. A `global_Pval`/`signif
 alongside an `env` numpy warning means the stack moved, not the fit — read it as "numpy changed",
 not "the fit changed".
 
-`env` also fails if the built `XMLReader`/`quickFit` binaries' SHA-256 no longer matches the
-baseline's provenance. A rebuild legitimately changes the digest even with identical source and
-pins — a different compiler, a different machine, or even a non-reproducible link step can do
-it — so this is expected to fire after every `install.sh` re-run, not just after a source change.
-The fix in that case is the same `record --force --reason "..."` as above, not a flag to skip the
-check: silently accepting a rebuilt binary is exactly the hole this check exists to close.
+`env` also fails if the built `XMLReader`/`quickFit` binaries' SHA-256, or any of the software
+pins, no longer match the baseline's provenance. A rebuild legitimately changes the digest even
+with identical source and pins — a different compiler, a different machine, or even a
+non-reproducible link step can do it — so this is expected to fire after every `install.sh`
+re-run, not just after a source change. A deliberate pin bump in `install.sh` fires the pin check
+the same way, and that check is what makes a bump visible at all: a re-cloned, rebuilt
+sub-framework agrees with `install.sh` by construction, so only the baseline can say the stack has
+moved. The fix in either case is the same `record --force --reason "..."` as above, not a flag to
+skip the check: silently accepting a rebuilt binary or a bumped pin is exactly the hole these
+checks exist to close.
 
 # Links
 

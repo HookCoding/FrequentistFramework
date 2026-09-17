@@ -56,6 +56,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-17 12:45 — Review the completed reproducibility lock; file issues 22–27](#2026-09-17-1245--review-the-completed-reproducibility-lock-file-issues-2227)
 - [2026-09-17 13:20 — Fix the five issues this work introduced; leave the inherited one recorded](#2026-09-17-1320--fix-the-five-issues-this-work-introduced-leave-the-inherited-one-recorded)
 - [2026-09-17 14:10 — Third review; file issues 28–31 and write down how issues are ranked](#2026-09-17-1410--third-review-file-issues-2831-and-write-down-how-issues-are-ranked)
+- [2026-09-17 15:05 — Fourth review, by false-pass/false-fail; file and fix issues 32–37](#2026-09-17-1505--fourth-review-by-false-passfalse-fail-file-and-fix-issues-3237)
 
 ---
 
@@ -1581,3 +1582,82 @@ and says that anything failing closed is a lower tier however ugly it looks.
 Issue 23 stays open as before. `doc/IMPROVEMENTS.md`'s closing section, which said issue 23 was the
 only thing left open, is updated to name 28–31 as well — it describes the present, so leaving it
 saying "one is left open" would have made it false.
+
+---
+
+## 2026-09-17 15:05 — Fourth review, by false-pass/false-fail; file and fix issues 32–37
+
+**Objective.** A fourth review of the reproducibility lock: re-check the plan for anything
+unimplemented, and look for problems the work introduced that nobody has disclosed. Then, on the
+repository owner's follow-up question, sort what was found by a sharper criterion than the first
+three reviews used — **which of these could make `check` reach the wrong verdict?** — and fix the
+ones reachable without touching the fit path.
+
+**Verified (the plan itself, first).** Nothing in
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md) is missing.
+§1–§7 and Verification steps 1–7 are all in place, including the two halves of step 3 (a
+hand-edited version warns non-fatally and leaves the baseline byte-identical) and step 2 (the
+clone URLs, checked outside an agent session). `selfcheck` passed all three blocks, `env` passed
+24/24, and `check --from` against **both** recorded run directories passed — so the committed
+baselines still describe the runs on disk. `.gitmodules` and `scripts/install_roofitext.sh` are
+gone, `install.sh` clones from GitHub at the unchanged SHAs, and §6's README/`CLAUDE.md`
+corrections are done.
+
+**Found.** Six things, filed as issues 32–37 in [KNOWN_ISSUES.md](KNOWN_ISSUES.md), with the
+false-pass/false-fail table there. Two have a route to `check` printing PASS while a number has
+moved — 32, where `record --force` bypassed *and silenced* the env gate on the only re-cut route
+the README documents, and 33, where `_check_one`'s top-level whitelist would ignore a section added
+to `record` later. One has a route to a false FAIL that the refactor reaches by itself — 34, the
+bit-exact default for unclassified leaves. The remaining three change no verdict: 35
+(`provenance.pins` recorded and never read back, which misattributes a real failure rather than
+hiding one), 36 (`parse_install_sh_pins` not voiding a pending pairing on `cd ..`) and 37 (issue
+18's `--quick` half left unfixed while recorded as Fixed).
+
+**Corrected a ranking of my own, again.** 35 was first reported to the owner as Medium, on the
+grounds that it is issue 12's twin and issue 12 was High. On the verdict question it is Low: it
+cannot let a wrong number pass, only send the reader to the wrong end of the diagnosis order. 33,
+first reported as Low, outranks it. The severity labels in `KNOWN_ISSUES.md` are the corrected ones.
+
+**Fixed.** All six, in [tests/repro.py](tests/repro.py) except 37 which is documentation only:
+
+- **32** — the failing `env` checks are printed whenever any fail; only the refusal stays
+  conditional on `--force`, which now prints them followed by `WARNING: recording anyway because
+  --force was given.` Two related limits are recorded under that issue and left alone: `record`'s
+  gate reads the pin checks only, not the binary digests, and `record` can pair an older run
+  directory's numbers with today's provenance.
+- **33** — `expected` is built by dropping `BASELINE_ONLY_KEYS` (`provenance`, `analysis`,
+  `source_dir`) instead of naming the three keys to keep. Identical selection today.
+- **34** — `leaf_name()` factored out of `classify()`; an unclassified *numeric* leaf now fails with
+  `compared exactly: leaf 'x' has no tolerance class …` rather than a bare `exact match required`.
+  The default itself is unchanged: it fails in the safe direction.
+- **35** — `compare_recorded_pins()` compares the live pins against each baseline's
+  `provenance.pins` and **fails** on any difference, reusing `compare()` rather than adding a
+  second comparison engine (every leaf there is a SHA or version string, which `classify()` already
+  treats as exact, and missing/extra pins are reported too). All three provenance blocks are now
+  read back.
+- **36** — a `cd` whose target starts with `..` voids the pending pairing instead of being skipped,
+  which also covers the `cd ../..` in `install.sh`'s build loop.
+- **37** — the README and `doc/IMPROVEMENTS.md` now say `check` verifies every *selected* analysis's
+  input hashes and that `--quick` covers J100's two, not all four.
+
+**Verified (the fixes).**
+
+- `selfcheck` passes, with new cases for an unclassified leaf's message (and that a classified leaf
+  of the same shape still passes the same nudge), `compare_recorded_pins` across agreement, a
+  drifted top-level SHA, a drifted nested `RooFitExtensions` SHA, a pin absent from the baseline and
+  the no-baseline case, and the two `cd ..`/`cd ../..` parser arrangements.
+- `env` now runs **26** checks (24 plus one pin check per baseline) and passes on this tree.
+- The new pin check was shown to fail: a throwaway `tests/baseline_ZZdrifttest.json`, copied from
+  `baseline_J100.json` with `pins.pyBumpHunter` set to a bogus SHA, made `env` report
+  `FAIL: 1/29 environment checks failed` — that check alone, naming both SHAs and the
+  `record --force --reason` way out — and exit 1. The file was deleted afterwards and `git status`
+  confirmed clean.
+- `record J100` (no flags) still refuses because the baseline exists; `record J100 --force` still
+  refuses for want of `--reason`. Neither wrote anything.
+- `check --from` against both `run/run_481_3000_sixPar/` and `run/run_J50_302_2997_sixPar/` passes
+  unchanged after all six fixes. That is what says the comparison semantics did not move.
+
+**Left alone.** The fit path — none of the six lived there, so none of them met the "pre-existing
+bugs are recorded, not fixed" rule that keeps issue 23 open. Issues 23 and 28–31 stay open as
+before. **No baseline was re-cut**, and no fit was re-run: every verification above used `--from`
+against the two recorded run directories, so `run/` is untouched.

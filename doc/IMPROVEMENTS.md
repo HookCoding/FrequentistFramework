@@ -33,7 +33,18 @@ the four clones have modified tracked files. It also computes the SHA-256 of the
 digests in every existing baseline's provenance — a rebuilt `XMLReader` or `quickFit` now fails
 `env` (and therefore `check`, which runs `env` first) instead of passing silently. A deliberate
 rebuild is expected to change the digest; the fix is to re-cut the baseline (`record --force
---reason "..."`), not to suppress the check. It separately *records without asserting* the
+--reason "..."`), not to suppress the check.
+
+It compares the live pins against each baseline's recorded `provenance.pins` on the same terms —
+the four clone SHAs, the three `RooFitExtensions` SHAs, the LCG view, the venv's Python version and
+the installed egg version — and fails on any difference, naming the pin and the way out. Without
+that, `env` passing meant only "this tree agrees with `install.sh` as it currently reads", not
+"this is the stack the baselines were cut with": a deliberate pin bump, re-clone and venv rebuild
+passed every check, because both the clone-SHA check and the egg check derive their expectation
+from the declaration that moved ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 35, fixed 2026-09-17).
+All three provenance blocks are now read back — `pins` and `binary_sha256` fail, `versions` warns.
+
+It separately *records without asserting* the
 resolved ROOT, `cmake` and numpy/scipy/uproot versions the BumpHunter
 step actually sees, reading the LCG
 view's own `bin/` directly on CVMFS rather than through `lsetup` (see *Versions that cannot be
@@ -56,7 +67,14 @@ provenance block that recorded the *intended* SHA instead of the one that actual
 binaries would defeat its own purpose on a drifted tree. `record` also now runs the same checks
 `env` does and refuses to write a baseline if any of them fail, unless given the same `--force
 --reason "..."` it already requires to overwrite an existing one — a baseline is only useful if
-its provenance describes the tree that actually produced it.
+its provenance describes the tree that actually produced it. **Which checks failed is printed
+either way**, because overwriting an existing baseline always needs `--force`, so gating the
+report on it meant the only route anyone is documented to take was also the one that never showed
+what was wrong with the tree it was cutting from ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 32,
+fixed 2026-09-17). Two limits of that gate are recorded under the same issue and left alone: it
+reads the pin checks only, not the binary digests, and `record` reads its numbers from a run
+directory that may predate the binaries whose digests it records — so **re-run the fit before
+re-cutting a baseline**, rather than re-cutting from an older run directory.
 
 `env` is not yet a reproducibility check of the fits themselves — that is `check`, below.
 
@@ -65,16 +83,21 @@ if a pin check fails — `env`'s version *warnings* never stop it, but are print
 else so a mismatch further down is read with them already in view. It then verifies every
 selected analysis's input spectra SHA-256 against its baseline's `provenance.input_sha256`,
 before running any driver, and stops on the first mismatch — so a full `check` never spends
-minutes fitting J100 only to discover afterwards that a J50 input moved. Only once every selected
+minutes fitting J100 only to discover afterwards that a J50 input moved. *Selected* is the
+operative word: `--quick` verifies J100's two inputs and not J50's, which is all a J100-only
+comparison depends on ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 37). Only once every selected
 analysis's inputs check out does it, for each in turn, wipe any stale scratch output from a
 previous run (so a driver that crashes outright cannot be masked by leftover files), run the
 driver with `OUT_DIR` pointed at
 `run/check_scratch/` — `run/` is already gitignored wholesale, so nothing new needed adding there,
 and the recorded `run/run_481_3000_sixPar/`/`run/run_J50_302_2997_sixPar/` are never touched — and
-compares the result against the baseline with `compare()`. The comparison is baseline `unmasked`/
-`masked`/`directory_listing` against the freshly extracted equivalents; `provenance` is baseline-
-only metadata and is never fed through `compare()`, since the candidate has no provenance of its
-own to compare it against. It does not gate on the driver's own exit code — XMLReader/quickFit
+compares the result against the baseline with `compare()`. The comparison is *everything the
+baseline holds* except the keys that describe the baseline rather than the fit — `provenance`,
+`analysis` and `source_dir`, none of which a candidate has a counterpart for. That is a blocklist
+rather than a whitelist deliberately: naming the three keys to compare, as this used to, meant a
+section added to `record` later would be recorded, committed and silently never checked
+([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 33, fixed 2026-09-17). Today it selects exactly
+`unmasked`, `masked` and `directory_listing`, as before. It does not gate on the driver's own exit code — XMLReader/quickFit
 warn-and-return-0 on failure (`KNOWN_ISSUES.md`), so the baseline diff is the actual failure
 detector.
 
@@ -114,7 +137,14 @@ dict/list structures to dotted key paths and compares every leaf:
 - **pvalue** (`rtol=1e-5, atol=1e-8`): the rebinned chi2 p-value, BumpHunter `global_Pval` and
   `significance`.
 - **exact**: `status`, `covQual`, `nbins`, `npars`, `ndof`, `MaskMin`, `MaskMax`, `BlindRange`,
-  `seed`, `npe`, the directory listing, and anything not otherwise classified.
+  `seed`, `npe`, the directory listing, and **anything not otherwise classified** — an
+  unclassified leaf fails on the last ULP rather than passing on a real move, which is the safe
+  direction, but a float compared that way fails for a reason that has nothing to do with the
+  physics. So an unclassified *numeric* leaf now says so in the failure text (`compared exactly:
+  leaf 'x' has no tolerance class …`) instead of reporting a bare `exact match required`, which
+  reads like a finding. A rewrite of `ExtractPostfitFromWS.py` that adds a labelled chi2 bin is
+  the expected way to reach this ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 34, fixed
+  2026-09-17): add the new leaf to `TOLERANCE_BY_LEAF`.
 
 Environment-observation keys (ROOT version, active view) never reach `compare()` at all — `check`
 deliberately excludes `provenance`, the baseline's own metadata, from the comparison, since a
@@ -175,6 +205,20 @@ there — outside the scratch directory, though still never touching `run/`. Tha
 `FindBHWindow.py` since 2021, so it is a fit-path bug this work inherited rather than caused; it is
 recorded and left for whenever the fit path is next opened. The isolation described above is
 accurate for everything else.
+
+A fourth review on 2026-09-17 sorted the harness by a sharper question than the earlier ones asked:
+**can this make `check` reach the wrong verdict?** It found six more things, filed as issues 32–37,
+and **all six are fixed** — every one lived in `tests/repro.py` or its documentation rather than on
+the fit path. Two of them had a false-pass route, which is the class
+[CLAUDE.md](../CLAUDE.md)'s triage rule puts first: `record --force` silenced the env gate on the
+only re-cut route anyone is documented to take (32), and `_check_one`'s top-level whitelist would
+have ignored a section added to `record` later (33). One had a false-fail route the refactor reaches
+by itself (34, the bit-exact default). The other three change no verdict: 35 closes the last
+provenance block that was recorded and never read back, 36 hardens a parser against an arrangement
+`install.sh` does not currently contain, and 37 corrects a stale claim about `--quick`. The question
+also **reordered** the earlier labels — 35 is issue 12's twin and was first reported as Medium, but
+it cannot move a verdict, only the diagnosis, so it ranks below 33. The committed baselines were not
+re-cut; `check --from` passes unchanged against both recorded run directories after the fixes.
 
 A third review on 2026-09-17 re-ran the harness — `selfcheck`, `env` 24/24 and `check --from`, the
 last of these a path nothing had exercised before — and confirmed again that every requirement of

@@ -96,6 +96,19 @@ the egg check's hardcoded constant (25), a stale sentence in `KNOWN_ISSUES.md` i
 the repository root, is a fit-path write dating from 2021 and stays open and recorded; only the
 documentation that overstated `check`'s isolation was corrected.
 
+A third review filed issues 28–31 — four places where the harness crashes on a condition it should
+report — and fixed none of them, deliberately: all four fail closed, so none can let an analysis
+complete with a silently wrong number. That call is now a written rule in
+[CLAUDE.md](../CLAUDE.md)'s *Triaging issues* section. A fourth review sorted the harness by which
+problems could make `check` reach the wrong *verdict* — PASS on a moved number, or FAIL on an
+unmoved one — and found six more, issues 32–37, **all six fixed**, since all six lived in
+`tests/repro.py` or its documentation rather than on the fit path. Two of them had a false-pass
+route: `record --force` silenced the env gate on the only re-cut route the README documents, and
+`check`'s top-level comparison was a whitelist that would have ignored a section added to `record`
+later. That review also closed the last provenance block that was recorded and never read back
+(the software pins), and corrected two severity rankings of its own. The committed baselines were
+not re-cut at any point.
+
 ## Adding a plan
 
 Name the file `YYYY-MM-DD-short-slug.md`, add a row to the index above and a short paragraph

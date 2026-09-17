@@ -67,9 +67,18 @@ def flatten(obj, prefix=""):
         yield prefix, obj
 
 
+def leaf_name(path):
+    """The final component of a dotted path, with any list index stripped:
+    `unmasked.postfit_bins.X_rebinned.postfit[3]` -> `postfit`."""
+    return path.rsplit(".", 1)[-1].split("[", 1)[0]
+
+
 def classify(path):
-    leaf = path.rsplit(".", 1)[-1].split("[", 1)[0]
-    return TOLERANCE_BY_LEAF.get(leaf, "exact")
+    # The default is "exact" deliberately: an unclassified leaf fails on the
+    # last ULP rather than passing on a real move. compare() says so in the
+    # failure text, because "exact match required" alone reads like a physics
+    # finding when the real cause is a leaf nobody added to the table.
+    return TOLERANCE_BY_LEAF.get(leaf_name(path), "exact")
 
 
 def compare(baseline, candidate, tol_scale=1.0):
@@ -98,8 +107,16 @@ def compare(baseline, candidate, tol_scale=1.0):
                 # A type change is reported as such rather than reaching the
                 # arithmetic below, where it used to raise TypeError three
                 # frames deep instead of being a readable failure.
-                why = ("exact match required" if type(b) is type(c)
-                       else f"type changed: {type(b).__name__} -> {type(c).__name__}")
+                if type(b) is not type(c):
+                    why = f"type changed: {type(b).__name__} -> {type(c).__name__}"
+                elif numeric and leaf_name(path) not in TOLERANCE_BY_LEAF:
+                    # A float quantity nobody classified. Say so, or this
+                    # reads as a physics move when it is a missing table
+                    # entry - the coming refactor is expected to add leaves.
+                    why = (f"compared exactly: leaf {leaf_name(path)!r} has no tolerance class. "
+                           f"If this is a float quantity, add one to TOLERANCE_BY_LEAF")
+                else:
+                    why = "exact match required"
                 failures.append(f"{path}: expected {b!r}, got {c!r} ({why})")
             continue
 
@@ -220,8 +237,20 @@ def cmd_selfcheck(args):
     assert len(type_changed) == 1 and "type changed" in type_changed[0], \
         f"expected a type-change failure, got: {type_changed}"
 
+    # An unclassified float leaf is compared exactly - the safe direction -
+    # but the failure has to name the missing tolerance class, or it reads as
+    # a physics move (KNOWN_ISSUES 34).
+    unclassified = compare({"fitResult": {"newQuantity": 1.0}},
+                           {"fitResult": {"newQuantity": 1.0 + 1e-15}})
+    assert len(unclassified) == 1 and "no tolerance class" in unclassified[0], \
+        f"expected the failure to name the missing tolerance class, got: {unclassified}"
+    assert "newQuantity" in unclassified[0], f"expected the leaf to be named, got: {unclassified}"
+    # A classified leaf of the same shape must still pass on the same nudge.
+    assert compare({"fitResult": {"minNll": 1.0}}, {"fitResult": {"minNll": 1.0 + 1e-15}}) == [], \
+        "a classified leaf must still compare within tolerance"
+
     print("PASS: comparator selfcheck (tolerance classes, missing/extra keys, tol_scale scaling, "
-          "NaN, type changes)")
+          "NaN, type changes, unclassified leaves)")
 
     # compare_binary_digests: no baseline, match, mismatch, missing digest.
     observed = {"a/bin": "aaaa", "b/bin": "bbbb"}
@@ -239,12 +268,33 @@ def cmd_selfcheck(args):
 
     print("PASS: compare_binary_digests selfcheck (match, mismatch, missing digest, no baseline)")
 
+    # compare_recorded_pins: no baseline, agreement, a drifted SHA, an extra
+    # pin the baseline never recorded.
+    live_pins = {"quickFit": "a" * 40, "RooFitExtensions": {"quickFit": "b" * 40},
+                 "active_view": "LCG_102a x86_64-centos9-gcc11-opt"}
+    assert compare_recorded_pins(live_pins, None) == [], "no baseline means nothing to compare"
+    agreed = compare_recorded_pins(live_pins, dict(live_pins))
+    assert len(agreed) == 1 and agreed[0][1], f"expected identical pins to pass, got: {agreed}"
+    drifted = compare_recorded_pins(live_pins, {**live_pins, "quickFit": "c" * 40})
+    assert len(drifted) == 1 and not drifted[0][1], f"expected a drifted pin to fail, got: {drifted}"
+    assert "quickFit" in drifted[0][2] and "record --force" in drifted[0][2], \
+        f"expected the failure to name the pin and the way out, got: {drifted}"
+    # A nested RooFitExtensions SHA must be reached too, not just top-level keys.
+    nested = compare_recorded_pins(live_pins,
+                                   {**live_pins, "RooFitExtensions": {"quickFit": "d" * 40}})
+    assert len(nested) == 1 and not nested[0][1] and "RooFitExtensions" in nested[0][2], \
+        f"expected a nested pin drift to fail, got: {nested}"
+    extra = compare_recorded_pins(live_pins, {k: v for k, v in live_pins.items() if k != "quickFit"})
+    assert len(extra) == 1 and not extra[0][1] and "unexpected" in extra[0][2], \
+        f"expected a pin absent from the baseline to fail, got: {extra}"
+
+    print("PASS: compare_recorded_pins selfcheck (agreement, drifted SHA, nested SHA, extra pin, "
+          "no baseline)")
+
     # parse_install_sh_pins: a blank line between `cd` and its checkout (as
     # pyBumpHunter's own block has), the literal `cd $x` from install.sh's
     # build loop (must not produce a spurious pin), and `cd ..` immediately
-    # followed by a checkout line (must never be read as a directory name -
-    # a checkout right after plain `cd ..` with nothing in between is the
-    # only way to exercise that guard at all).
+    # followed by a checkout line (must never be read as a directory name).
     synthetic_install_sh = """\
 cd xmlAnaWSBuilder
 git checkout 6b84050f3c0206a6f30eb40b103cc101e68505cc
@@ -269,6 +319,16 @@ done
     }, f"unexpected pins: {pins}"
     assert "$x" not in pins, "literal `cd $x` must not produce a pin"
     assert ".." not in pins, "`cd ..` must never be read as a directory name"
+
+    # Stepping out of a directory voids a pending pairing: `cd quickFit` then
+    # `cd ..` then a checkout must pin nothing, not pin quickFit to a SHA the
+    # script checks out somewhere else entirely (KNOWN_ISSUES 36).
+    stepped_out = parse_install_sh_pins(_Text(
+        "cd quickFit\ncd ..\n" + f"git checkout {'e' * 40}\n"))
+    assert stepped_out == {}, f"a checkout after `cd ..` must pin nothing, got: {stepped_out}"
+    stepped_out_twice = parse_install_sh_pins(_Text(
+        "cd quickFit\ncd build\ncd ../..\n" + f"git checkout {'f' * 40}\n"))
+    assert stepped_out_twice == {}, f"`cd ../..` must void the pairing too, got: {stepped_out_twice}"
 
     # parse_lsetup_view: extracts the view, and is None when absent.
     view = parse_lsetup_view(_Text('lsetup "views LCG_102a x86_64-centos9-gcc11-opt"\n'))
@@ -310,8 +370,11 @@ def parse_install_sh_pins(install_sh):
     for line in install_sh.read_text().splitlines():
         line = line.strip()
         m = re.match(r"cd\s+(\S+)$", line)
-        if m and m.group(1) != "..":
-            current_dir = m.group(1)
+        if m:
+            # A `cd ..`/`cd ../..` leaves the directory it was in, so any
+            # pending pairing is void: keeping it would attribute a later
+            # checkout to a clone the script has already stepped out of.
+            current_dir = None if m.group(1).startswith("..") else m.group(1)
             continue
         m = re.match(r"git checkout\s+([0-9a-f]{40})$", line)
         if m and current_dir:
@@ -590,7 +653,32 @@ def compare_binary_digests(observed, baseline_digests):
     return results
 
 
-def _report_env(checks, recorded):
+def compare_recorded_pins(observed, baseline_pins):
+    """Compare the live pins against a baseline provenance's own `pins` block.
+
+    Reuses compare(): every leaf here is a SHA, a view name or a version
+    string, which classify() already handles as an exact match, and it
+    reports a missing or extra key too. baseline_pins is None when there is
+    no baseline to compare against, in which case this returns [].
+
+    This closes the last of the three provenance blocks that was recorded and
+    never read back. `versions` warns (plan section 1: it cannot be enforced)
+    and `binary_sha256` fails (KNOWN_ISSUES 12); pins belong with the latter -
+    they *are* the enforceable part of the stack, and a baseline whose pins no
+    longer describe the tree has stopped saying which software produced its
+    numbers."""
+    if baseline_pins is None:
+        return []
+    failures = compare(baseline_pins, observed)
+    if not failures:
+        return [("pins match baseline", True, "every recorded pin agrees with this tree")]
+    return [("pins match baseline", False, "\n".join(failures) + "\n  If install.sh's pins "
+             "(or a sub-framework's RooFitExtensions pin, the LCG view or the pyBumpHunter "
+             "venv) were deliberately changed, re-cut the baseline with 'record --force "
+             "--reason \"...\"' rather than ignoring this.")]
+
+
+def _report_env(checks, recorded, pins):
     """Print every env check plus the recorded-but-unasserted versions and
     any drift from each existing baseline's provenance (shared by `env` and
     `check`, which runs the same checks before touching any fit). Returns
@@ -605,7 +693,7 @@ def _report_env(checks, recorded):
         except ValueError as exc:
             print(f"WARNING: {path.name} is not valid JSON ({exc}) - skipping its comparisons")
             continue
-        missing = [k for k in ("versions", "binary_sha256")
+        missing = [k for k in ("versions", "binary_sha256", "pins")
                    if not isinstance(provenance, dict) or k not in provenance]
         if missing:
             print(f"WARNING: {path.name} has no usable provenance block "
@@ -615,8 +703,10 @@ def _report_env(checks, recorded):
         provenances.append((path.name, provenance))
 
     for name, provenance in provenances:
-        checks = checks + [(f"{check_name} ({name})", ok, detail) for check_name, ok, detail in
-                            compare_binary_digests(recorded["binary_sha256"], provenance["binary_sha256"])]
+        against_baseline = (compare_binary_digests(recorded["binary_sha256"], provenance["binary_sha256"])
+                            + compare_recorded_pins(pins, provenance["pins"]))
+        checks = checks + [(f"{check_name} ({name})", ok, detail)
+                           for check_name, ok, detail in against_baseline]
 
     for name, ok, detail in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
@@ -657,7 +747,7 @@ def _report_env(checks, recorded):
 
 def cmd_env(args):
     checks, pins, recorded = run_env_checks()
-    return 0 if _report_env(checks, recorded) else 1
+    return 0 if _report_env(checks, recorded, pins) else 1
 
 
 # --- record: capture a baseline from an existing run directory -----------
@@ -784,13 +874,20 @@ def cmd_record(args):
 
     env_checks, pins, recorded = run_env_checks()
     failed_checks = [c for c in env_checks if not c[1]]
-    if failed_checks and not args.force:
-        print(f"FAIL: {len(failed_checks)}/{len(env_checks)} environment check(s) failed; "
-              f"refusing to record a baseline against a pin this tree does not meet:")
+    # Printed whether or not --force is given. Re-cutting an existing baseline
+    # always needs --force, so gating the *report* on it (as this used to)
+    # meant the only route anyone is documented to take was also the one that
+    # never showed what was wrong with the tree it was cutting from.
+    if failed_checks:
+        print(f"{len(failed_checks)}/{len(env_checks)} environment check(s) failed:")
         for name, ok, detail in failed_checks:
             print(f"  [FAIL] {name}: {detail}")
-        print("Re-cut deliberately with --force --reason \"...\" if this is intentional.")
-        return 1
+        if not args.force:
+            print("FAIL: refusing to record a baseline against a pin this tree does not meet. "
+                  "Re-cut deliberately with --force --reason \"...\" if this is intentional.")
+            return 1
+        print("WARNING: recording anyway because --force was given. The provenance block below "
+              "describes the tree as it actually is, not as install.sh declares it.")
 
     unmasked = extract_variant(folder, spec["stem"], masked=False)
     if unmasked is None:
@@ -837,6 +934,11 @@ def cmd_record(args):
 
 
 # --- check: the entry point ------------------------------------------------
+
+# Baseline keys that describe the baseline itself rather than the fit, and so
+# have no candidate counterpart to be compared against.
+BASELINE_ONLY_KEYS = {"provenance", "analysis", "source_dir"}
+
 
 def _run_driver(driver_rel, out_dir, timeout=1800):
     """Run a fit driver as a subprocess with OUT_DIR pointed at a scratch
@@ -910,9 +1012,14 @@ def _check_one(analysis, baseline, out_dir_base, from_dir, tol_scale):
     if candidate_masked is not None:
         candidate["masked"] = candidate_masked
 
-    expected = {"directory_listing": baseline["directory_listing"], "unmasked": baseline["unmasked"]}
-    if "masked" in baseline:
-        expected["masked"] = baseline["masked"]
+    # Everything the baseline holds is compared except the keys that are
+    # baseline-only metadata: a candidate has no `provenance` of its own, and
+    # `analysis`/`source_dir` describe where the baseline came from rather
+    # than what the fit produced. Dropping a blocklist rather than naming a
+    # whitelist means a section added to `record` later is compared by
+    # default - the old whitelist would have ignored it in silence, which is
+    # the one direction this harness must never fail in.
+    expected = {k: v for k, v in baseline.items() if k not in BASELINE_ONLY_KEYS}
 
     failures = compare(expected, candidate, tol_scale=tol_scale)
     if failures:
@@ -926,8 +1033,8 @@ def _check_one(analysis, baseline, out_dir_base, from_dir, tol_scale):
 
 def cmd_check(args):
     print("=== env ===")
-    checks, _, recorded = run_env_checks()
-    env_ok = _report_env(checks, recorded)
+    checks, pins, recorded = run_env_checks()
+    env_ok = _report_env(checks, recorded, pins)
     print()
     if not env_ok:
         print("FAIL: env checks failed - not running any fits (plan section 5)")

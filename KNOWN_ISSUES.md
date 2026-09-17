@@ -677,3 +677,217 @@ was fixed on a weaker trigger than any of these four — its own entry concedes 
 while the extractors and `record` are the only writers of these documents". The bar was set low
 there. That is a reason to leave the bar where it is wanted now, not a reason to chase parity with
 a past decision.
+
+## Harness issues — found 2026-09-17 in a fourth review
+
+Issues 32–37 come from a fourth review, after 28–31 were recorded. The plan is still fully
+implemented: `selfcheck`, `env` and `check --from` against both recorded run directories all pass
+on the tree as it stands, and both committed baselines still describe the runs on disk.
+
+These six were then sorted by a sharper question than the previous reviews asked — **can this make
+`check` reach the wrong verdict?** A *false pass* means `check` prints PASS while a physics number
+has moved; a *false fail* means it prints FAIL while nothing has moved. That question reorders them
+against the severity labels they were first reported with, and the reordering is the useful part of
+this review:
+
+| | False pass | False fail |
+|---|---|---|
+| 32 `record --force` silences the env gate | **yes**, via a baseline cut from an unpinned tree | yes, later, against a correct tree |
+| 33 `_check_one` whitelists three top-level keys | **yes**, if `record` ever gains a section | no |
+| 34 `classify()` defaults to bit-exact | no | **yes**, reached by the refactor itself |
+| 35 `provenance.pins` never compared | no | no — it misattributes a real failure |
+| 36 `parse_install_sh_pins` and `cd ..` | no | yes, unreachable as `install.sh` reads today |
+| 37 issue 18's `--quick` half left unfixed | no | no |
+
+So 32 and 33 are the two that can put a number in front of someone while `check` says PASS, which
+is the class [CLAUDE.md](CLAUDE.md)'s triage rule puts first. 35 was first reported as Medium and is
+ranked Low here: it cannot change a verdict, only the diagnosis.
+
+**All six are fixed, 2026-09-17 15:05.** All six lived in `tests/repro.py` or its documentation —
+none touched the fit path — so none of them ran into the "pre-existing bugs are recorded, not
+fixed" rule that keeps issue 23 open. The committed baselines were **not** re-cut: `check --from`
+against both recorded run directories passes unchanged after the fixes, which is what says the
+comparison semantics did not move.
+
+### 32. `record --force` bypasses *and silences* the env gate — **Medium** — **Fixed 2026-09-17 15:05**
+
+**Fixed.** The failing checks are now printed whenever any fail, and only the *refusal* is
+conditional on `--force`; a forced re-cut prints them followed by `WARNING: recording anyway
+because --force was given. The provenance block below describes the tree as it actually is, not as
+install.sh declares it.` See CHANGELOG.md's 2026-09-17 15:05 entry. The rest of this entry is kept
+as the record of what was wrong.
+
+**What.** Issue 14 added the rule "`record` refuses to write when any `env` check fails, unless
+given `--force --reason`". The refusal *and the report of what failed* were both inside
+`if failed_checks and not args.force:` — so on a forced re-cut nothing was printed at all. That
+matters more than it looks, because **re-cutting an existing baseline always needs `--force`**
+(`baseline_path.exists() and not args.force` a few lines above), and re-cutting is the only route
+the README documents. The gate therefore only ever fired on a *first* cut: on every re-cut it was
+both inactive and invisible.
+
+**Where.** [tests/repro.py:787-793](tests/repro.py#L787-L793), against
+[tests/repro.py:778](tests/repro.py#L778) for the `--force` that every re-cut needs.
+
+**Affects.** Both analyses, and it is the one issue in this review with a **false-pass** route
+reachable through documented use. Cut or re-cut a baseline on a tree where a sub-framework clone
+has hand-modified sources — which `env`'s "no modified tracked files" check exists to catch — and
+the baseline encodes numbers produced by an unpinned stack while its provenance records the pinned
+SHA. Every later `check` on that tree then passes, and the harness's green light stops meaning what
+the README says it means. The symmetric false-fail follows later, when the same baseline is checked
+against a correct tree and the failure reads as "the refactor moved the physics".
+
+**Fix.** Print the failed checks unconditionally; keep the refusal conditional on `--force`. Four
+lines moved, no behaviour change on a green tree.
+
+**Related, recorded rather than fixed.** Two smaller things in the same function, both left alone
+deliberately:
+
+- `record`'s gate reads `run_env_checks()` directly, so it does **not** include the binary-digest
+  comparison that `env` and `check` get from `_report_env()`. A baseline can be cut on a tree whose
+  binaries match no existing baseline without a word. Wiring it in would mean a first cut is gated
+  on the *other* analysis's digests, which is a defensible check but a new one, and not what issue
+  12 asked for.
+- `record` extracts numbers from a run directory that may predate the current binaries — by default
+  the *old* `run/…` directory — while recording the digests and versions as they are *now*. A
+  re-cut after a legitimate rebuild therefore pairs old numbers with a new digest, asserting that a
+  binary produced numbers it never produced. Detecting that properly needs the run directory to
+  carry its own provenance, which is a bigger change than the hole justifies; the honest mitigation
+  is to re-run the fit before re-cutting, and that is now stated in the README.
+
+### 33. `_check_one` compares a whitelist of three top-level keys — **Low** — **Fixed 2026-09-17 15:05**
+
+**Fixed.** `expected` is now built by dropping `BASELINE_ONLY_KEYS`
+(`provenance`, `analysis`, `source_dir`) from the baseline instead of naming the three keys to
+keep, so a section added to `record` later is compared by default. Identical behaviour on today's
+baselines — `check --from` still passes for both — and `check` now fails closed on a section the
+candidate does not produce, rather than ignoring it. See CHANGELOG.md's 2026-09-17 15:05 entry.
+
+**What.** `expected` was assembled as `{"directory_listing": …, "unmasked": …}` plus `"masked"`
+when present. Plan §4 says "a missing or extra key is a failure in its own right", and `compare()`
+enforces that at every level *below* the top — but the top level itself was a whitelist, so
+anything the baseline held and the whitelist did not name was never compared.
+
+**Where.** [tests/repro.py:913-916](tests/repro.py#L913-L916).
+
+**Affects.** Nothing today: the whitelist happened to name every non-metadata key both baselines
+carry. It becomes a **false pass** the moment `record` grows a section — a second fit variant, a
+new quantity block — and whoever adds it does not also edit `_check_one`. The new section would be
+recorded, committed, and silently never checked, with `check` printing PASS over it. The refactor
+this harness exists to guard is exactly when someone would add one.
+
+**Fix.** Invert it: drop the baseline-only metadata keys rather than naming the keys to compare.
+One line, and it fails in the safe direction — an unexpected baseline section shows up as missing
+from the candidate, which is loud.
+
+### 34. `classify()` defaults to bit-exact with nothing saying so — **Low** — **Fixed 2026-09-17 15:05**
+
+**Fixed.** The default is unchanged — it fails in the safe direction — but `compare()` now says
+why: an unclassified *numeric* leaf reports `compared exactly: leaf 'newQuantity' has no tolerance
+class. If this is a float quantity, add one to TOLERANCE_BY_LEAF` instead of the bare
+`exact match required`. A `leaf_name()` helper was factored out of `classify()` for it, and
+`selfcheck` covers both the new message and that a classified leaf of the same shape still passes
+the same nudge. See CHANGELOG.md's 2026-09-17 15:05 entry.
+
+**What.** `TOLERANCE_BY_LEAF.get(leaf, "exact")` — any leaf not in the table is compared bit-exactly.
+That is the right default, but neither the plan, `doc/IMPROVEMENTS.md` nor the failure message said
+it, and a float compared bit-exactly fails on the last ULP.
+
+**Where.** [tests/repro.py:70-72](tests/repro.py#L70-L72) (`classify`),
+[tests/repro.py:96-103](tests/repro.py#L96-L103) (the failure text).
+
+**Affects.** A **false fail**, and the only one in this review the refactor reaches by itself
+rather than through a mistake. Two steps to get there: a rewritten
+[python/ExtractPostfitFromWS.py](python/ExtractPostfitFromWS.py) adds a labelled chi2 bin, the
+baseline is re-cut so the new leaf is on the baseline side (before that it fails as `unexpected`
+regardless of class), and from then on that one leaf fails on any rebuild or other machine while
+its classified siblings pass within tolerance. One quantity moving alone is exactly the shape of a
+real physics finding, which is what made this worth a message rather than a comment.
+
+**Fix.** Keep the default, name it in the failure. Six lines.
+
+### 35. `provenance.pins` is recorded and never read back — **Low** — **Fixed 2026-09-17 15:05**
+
+**Fixed.** `compare_recorded_pins()` compares the live pins against each baseline's
+`provenance.pins` and fails `env` (and therefore `check`) on any difference, naming the pin and the
+way out. It reuses `compare()` rather than adding a second comparison engine — every leaf there is
+a SHA, a view name or a version string, which `classify()` already handles exactly, and missing and
+extra pins are reported too. `selfcheck` covers agreement, a drifted top-level SHA, a drifted
+nested `RooFitExtensions` SHA, a pin absent from the baseline, and the no-baseline case. `env` goes
+from 24 checks to 26 (one per baseline) and still passes on this tree; demonstrated failing against
+a throwaway baseline with one bogus pin, which failed that check alone and exited 1. See
+CHANGELOG.md's 2026-09-17 15:05 entry.
+
+**What.** A baseline's provenance holds three blocks describing the stack. `versions` is compared
+by `_report_env()` and warns (plan §1: it cannot be enforced); `binary_sha256` is compared and
+fails (issue 12). `pins` — the four clone SHAs, the three `RooFitExtensions` SHAs, the LCG view,
+the venv's Python version and the installed egg version — was written at
+[tests/repro.py:827](tests/repro.py#L827) and read by nothing. Same "records but never compares"
+defect as issue 12, which was ranked **High**.
+
+**Where.** [tests/repro.py:827](tests/repro.py#L827) (written),
+[tests/repro.py:617-647](tests/repro.py#L617-L647) (`_report_env`, which read the other two).
+
+**Affects.** Neither a false pass nor a false fail — which is why it is Low here despite being
+issue 12's twin, and a correction to the Medium it was first reported as. It is a *misattribution*:
+`env` passing meant only "this tree agrees with `install.sh` as it currently reads", not "this is
+the stack the baselines were cut with". The sharpest case is pyBumpHunter, which computes J50's
+`global_Pval`: bump its pin, re-clone, rebuild the venv, and every check passes — the clone-SHA
+check because the declaration moved with it, and the egg check because issue 25's fix derives its
+expectation from that same declaration. No pyBumpHunter binary is hashed. `check` would still fail
+on the moved `global_Pval`, correctly, but with `env` green the reader is pushed to the wrong end
+of the diagnosis order plan §5 and the README both set out — and the README's own `global_Pval`
+paragraph tells them to read such a failure as "numpy changed", when here it is "pyBumpHunter
+changed".
+
+**Fix.** Compare it, and fail rather than warn: pins are the enforceable half of the stack, plan §1
+files them with the assertions, and a deliberate bump is already expected to need a re-cut, exactly
+as a deliberate rebuild does under issue 12.
+
+### 36. `parse_install_sh_pins` does not void a pending pairing on `cd ..` — **Low** — **Fixed 2026-09-17 15:05**
+
+**Fixed.** A `cd` whose target starts with `..` now sets the pending directory to `None` instead of
+being skipped, so stepping out of a directory voids the pairing. `selfcheck` covers `cd quickFit` /
+`cd ..` / checkout and the `cd ../..` form, both of which must pin nothing. See CHANGELOG.md's
+2026-09-17 15:05 entry.
+
+**What.** The parser skipped `cd ..` (`if m and m.group(1) != ".."`) but left `current_dir` set, so
+`cd quickFit` → `cd ..` → `git checkout <sha>` attributed that SHA to `quickFit` — a directory the
+script had already left. Confirmed directly. `cd ../..`, which `install.sh`'s build loop does use,
+was not even recognised as stepping out.
+
+**Where.** [tests/repro.py:312-315](tests/repro.py#L312-L315).
+
+**Affects.** Nothing today — `install.sh` has no checkout after a `cd ..` that is not already
+paired, which is why `env` passes 24/24. If it ever did, the effect is a **false fail**: a
+mispaired SHA is compared against the wrong clone's HEAD and fails loudly, and a clone left with no
+pin fails as `no cd/checkout pair found in install.sh`. There is no route to a false pass — a
+mispairing cannot accidentally name the correct SHA.
+
+**Fix.** One line, plus the `selfcheck` case. Also retired a misleading comment in `selfcheck`
+claiming a checkout right after `cd ..` "is the only way to exercise that guard at all": true of
+the old `!= ".."` guard, but it read as though the case were covered when the missing reset was
+not.
+
+### 37. Issue 18's `--quick` half was left unfixed and recorded as Fixed — **Low** — **Fixed 2026-09-17 15:05**
+
+**Fixed.** Documentation only: the README and `doc/IMPROVEMENTS.md` now say that `check` verifies
+the input hashes of every *selected* analysis, and that `--quick` therefore checks J100's two and
+not J50's — which is all its comparison depends on. No code change. See CHANGELOG.md's 2026-09-17
+15:05 entry.
+
+**What.** Issue 18's own Objective named two defects: hashes checked inside the per-analysis loop,
+*and* "`--quick` never looked at J50's inputs at all". The fix addressed the first. The second is
+still true — `cmd_check` hashes only the selected analyses — but the entry is headed **Fixed**, the
+CHANGELOG entry is titled "check verifies every input hash before running any fit", and plan §5
+says "the four input hashes". Nothing says the second half was left deliberately.
+
+**Where.** `KNOWN_ISSUES.md` issue 18; CHANGELOG 2026-09-17 11:30; plan §5.
+
+**Affects.** No verdict, in either direction: `--quick` compares only J100's baseline, and J100's
+two inputs *are* checked. This is a stale claim about the harness, not a hole in it — the same
+failure mode as issue 24, in a file whose whole purpose is honest disclosure.
+
+**Fix.** Say "every selected analysis" rather than "the four", and say what `--quick` does not
+cover. Checking all four under `--quick` was considered and rejected: it would hash two files whose
+contents cannot affect the comparison being made, and the plan's own rationale for `--quick` is
+that a check people skip protects nothing.
