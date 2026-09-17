@@ -15,6 +15,10 @@ out_dir=${OUT_DIR:-$PWD/run}
 
     mkdir -p $out_dir
 
+    # Set if any fit below exits non-zero. Reset on every run, because this script is
+    # sourced and a stale value from a previous run would be reported as this one's.
+    anafit_failed=
+
     for pars in six #five seven
     do
         for rangelow in 481
@@ -93,11 +97,29 @@ out_dir=${OUT_DIR:-$PWD/run}
                 --rebinfile $rebinfile \
                 --rebinhist "$rebinhist" \
                 $flags
+            fitstatus=$?
+            if [[ $fitstatus -ne 0 ]]; then
+                anafit_failed=$fitstatus
+            fi
 
+            # The plots are still produced on a failed fit: they are the diagnostics you
+            # want in order to see why it failed. What must not happen is the run reporting
+            # success, which is what the status below is for.
             python python/plotPostFit.py -i ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root \
                                          -o ${folder}/postFit.pdf -c "$channel"
 
             root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\", \"$channel\")"
         done
     done
+
+    if [[ -n $anafit_failed ]]; then
+        echo
+        echo "ERROR: run_anaFit.py exited $anafit_failed - the fit did not pass p(chi2) even with"
+        echo "       the BumpHunter window masked, so this result must not be used. The plots in"
+        echo "       $out_dir are diagnostics only. See KNOWN_ISSUES.md issue 38."
+    fi
+    # Report the fit's own verdict as this script's status. Not `exit`: the header says to
+    # source this script, and tests/repro.py runs it with `bash` - a subshell exit sets $?
+    # for both without killing an interactive shell.
+    ( exit ${anafit_failed:-0} )
 }

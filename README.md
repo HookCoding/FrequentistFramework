@@ -74,6 +74,15 @@ toy studies fanned out over HTCondor — AFS home quotas are too small for hundr
 Other drivers: `scripts/run_nloFit.sh` (NLO-template fit), `scripts/run_anaFit_syst.sh`,
 `scripts/run_anaFitLoop.sh`, `scripts/run_swiftFit.py`.
 
+**Check the exit status of the two Run 2 drivers.** If a fit fails p(chi2), has its most
+significant window masked by BumpHunter, is re-fitted and *still* fails, `run_anaFit.py` reports
+that as a non-zero exit and the driver prints an `ERROR: … this result must not be used` banner
+and exits non-zero itself. The postfit plots are still written in that case — they are the
+diagnostics you need in order to see why — so the plots alone do not tell you whether the fit was
+accepted. Until 2026-09-17 this verdict was computed and then discarded, and a rejected fit exited
+0 ([KNOWN_ISSUES.md](KNOWN_ISSUES.md) issue 38); anything that checks these drivers' status will
+now start seeing failures it previously missed.
+
 # Configuration
 
 |  | Run 2 dijet TLA J100 | Run 2 dijet TLA J50 |

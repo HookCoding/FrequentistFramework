@@ -57,6 +57,8 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-17 13:20 — Fix the five issues this work introduced; leave the inherited one recorded](#2026-09-17-1320--fix-the-five-issues-this-work-introduced-leave-the-inherited-one-recorded)
 - [2026-09-17 14:10 — Third review; file issues 28–31 and write down how issues are ranked](#2026-09-17-1410--third-review-file-issues-2831-and-write-down-how-issues-are-ranked)
 - [2026-09-17 15:05 — Fourth review, by false-pass/false-fail; file and fix issues 32–37](#2026-09-17-1505--fourth-review-by-false-passfalse-fail-file-and-fix-issues-3237)
+- [2026-09-17 15:40 — Fifth review, over the fit path; file issues 38–42](#2026-09-17-1540--fifth-review-over-the-fit-path-file-issues-3842)
+- [2026-09-17 16:10 — Fix issues 38 and 42: a rejected fit no longer reports success](#2026-09-17-1610--fix-issues-38-and-42-a-rejected-fit-no-longer-reports-success)
 
 ---
 
@@ -1661,3 +1663,137 @@ first reported as Low, outranks it. The severity labels in `KNOWN_ISSUES.md` are
 bugs are recorded, not fixed" rule that keeps issue 23 open. Issues 23 and 28–31 stay open as
 before. **No baseline was re-cut**, and no fit was re-run: every verification above used `--from`
 against the two recorded run directories, so `run/` is untouched.
+
+---
+
+## 2026-09-17 15:40 — Fifth review, over the fit path; file issues 38–42
+
+**Objective.** The repository owner's question, after the fourth review sorted the harness by
+false-pass/false-fail: *what else could allow a mistaken, non-physical analysis to pass?* The first
+four reviews all worked over `tests/repro.py`. This one worked over the fit path — the drivers,
+`python/run_anaFit.py`, `python/ExtractPostfitFromWS.py` and the cards.
+
+**Found.** Five things, filed as issues 38–42 in [KNOWN_ISSUES.md](KNOWN_ISSUES.md). All five are
+pre-existing; none was introduced by the reproducibility lock.
+
+- **38 (High).** `run_anaFit()` returns `-1` when a fit fails p(chi2), gets its most significant
+  window masked by BumpHunter, is re-fitted, and *still* fails — the framework's only "this result
+  is not acceptable" verdict. `main()` calls `run_anaFit(…)` with no `return`, so the process exits
+  **0**; and the driver does not check the exit code in any case, going straight on to render
+  `postFit.pdf`, `post_fit.pdf` and the EDM plot. A twice-rejected fit is indistinguishable from an
+  accepted one in every artefact except a line in the log.
+- **39 (Medium).** The p(chi2) gate reads `<channel>_rebinned` when unmasked and
+  `<channel>_bkgonly_rebinned` when masked, with the code's own comment (`#should be <channel> or
+  <channel>_rebinned?`) showing the choice was never settled. The two differ by 1–2% relative.
+- **40 (Medium).** Nothing in `python/` or `scripts/` reads `status()` or `covQual()`. Every fit
+  this repository has recorded ran with `covQual=2` — `Full matrix, but forced positive-definite`,
+  `MINIMIZE=1 HESSE=1`, ~0.005 added to the diagonal at each retry — while the log's closing
+  summary prints `STATUS OK`.
+- **41 (Low, latent).** `getChi2` counts a bin only when the data error *and* the fit value are
+  positive, so empty bins leave both the chi2 and the dof count with nothing reported.
+- **42 (Low).** `nPars` is a substring match on the background file's path and silently defaults to
+  5 when no keyword matches, with no cross-check against the `PAR<n>` placeholders the same
+  function parses out of the card two lines later.
+
+**Verified.**
+
+- Issue 38's exit code: the same call shape as line 502 (`run_anaFit(…)` with no `return`) returns
+  `None`, and `sys.exit(None)` is exit code 0.
+- Issue 39's numbers, read from the committed baselines: J100 unmasked 0.0148562 (`_rebinned`, the
+  one the gate reads) vs 0.0148783 (`_bkgonly_rebinned`); J50 unmasked 0.0024417 vs 0.0024813; J50
+  masked 0.0190617 (`_bkgonly_rebinned`, the one the gate reads) vs 0.0188064. **No recorded
+  verdict changes** — all three are unambiguous against the 0.01 threshold — so nothing recorded in
+  this notebook is affected.
+- Issue 40's log lines, quoted verbatim in the issue, from
+  `run/run_481_3000_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`. `grep` for `covQual`/`status()`
+  over `python/` and `scripts/` returns nothing.
+- Issue 41 is **not currently triggered**: every bin of every `PostFit_*.root` directory in both
+  recorded runs has a positive data error and a positive fit value, and the recorded `nbins` equals
+  the histogram's own bin count (J100 2519 fine / 57 rebinned, J50 2695 / 65). The only reduction
+  anywhere is the masked J50 run dropping exactly its BumpHunter window (2695→2615, 65→62), by
+  design.
+- Issue 42 against all twelve tracked `background_*.template` files: every word-named card agrees
+  with the highest `PAR<n>` it declares. Also checked, and **found to be a smaller hazard than it
+  first looked**: the `elif` chain tests `four`/`five`/`six` before `seven`/`nine`/`ten`, so a
+  spurious keyword elsewhere in the path cannot override the real one — paths containing `stephen`
+  and `tenPar_studies` wrapped around a `sixPar` card both still give 6. That negative result is
+  recorded in the issue so nobody re-raises it.
+
+**Decided.** All five are **recorded and left alone**, under the repository owner's standing
+instruction that pre-existing fit-path bugs are recorded rather than fixed — the same rule that
+keeps issue 23 open. Issue 38 is flagged as the one to decide first: the fix is two words
+(`return run_anaFit(…)`) and changes nothing about a run that passes, but making the exit code
+meaningful may start surfacing real failures in anything that does check it, which is the point and
+is a behaviour change worth making deliberately rather than in passing.
+
+**Left alone.** All code. No file under `python/`, `scripts/` or `config/` was modified in this
+entry, no baseline was re-cut, and no fit was re-run — every check above read the two recorded run
+directories and the committed baselines. Issues 23 and 28–31 stay open as before.
+
+---
+
+## 2026-09-17 16:10 — Fix issues 38 and 42: a rejected fit no longer reports success
+
+**Objective.** Close the two fifth-review findings the repository owner chose to fix — 38 (the
+framework's "this fit is not acceptable" verdict was discarded) and 42 (`nPars` guessed from the
+file name with no cross-check against the card). This is the first time the standing "pre-existing
+fit-path bugs are recorded, not fixed" rule has been lifted, and it was lifted for these two
+specifically; 39, 40 and 41 stay open.
+
+**Fixed — issue 38, at the root and at both live callers.**
+
+- [python/run_anaFit.py](python/run_anaFit.py): `main()` now does `return run_anaFit(…)` instead of
+  calling it as a bare statement, so the `-1` returned by a fit that fails p(chi2) even with its
+  BumpHunter window masked reaches `sys.exit` instead of being replaced by `None` (exit 0).
+- [scripts/run_anaFit_run2.sh](scripts/run_anaFit_run2.sh) and
+  [scripts/run_anaFit_run2_J50.sh](scripts/run_anaFit_run2_J50.sh): each captures the fit's status,
+  prints an explicit `ERROR: run_anaFit.py exited N - … this result must not be used` banner, and
+  reports the status as its own.
+
+Two decisions inside that fix, both deliberate:
+
+- **The plots are still produced on a failure.** They are the diagnostics you want in order to see
+  *why* a fit failed, and suppressing them would trade one silent failure for another. What the fix
+  removes is the run *reporting success*.
+- **`( exit … )`, not `exit`.** Both drivers are `{ … }` brace groups whose own headers say to
+  source them (`. scripts/run_anaFit_run2.sh`), so a bare `exit` would kill an interactive shell;
+  `tests/repro.py` meanwhile runs them with `bash`. A subshell exit sets `$?` correctly for both.
+  `anafit_failed` is reset at the top of each run, because a sourced script would otherwise inherit
+  a stale value from the previous one.
+
+**Fixed — issue 42.** [python/run_anaFit.py](python/run_anaFit.py) now collects the card's
+`[PAR<n>,` matches into a list first, then compares the highest index against the `nPars` derived
+from the file name *before* the prefit runs and before the `parRange` assignment: a disagreement
+prints both numbers and exits, and a card declaring no `PAR` placeholders warns that `nPars` came
+from the name alone. The regex and the range assignment are unchanged — only reordered, so the
+check can run between them.
+
+**Verified.**
+
+- `python/run_anaFit.py` parses; `bash -n` clean on both drivers.
+- The `nPars` check against all twelve tracked `background_*.template` files: every one accepted
+  (`fivePar`→PAR5, `sixPar`→PAR6, `sevenPar`→PAR7, up to `tenPar`→PAR10), and
+  `background_dijetTLAnlo_J100yStar06_CT14nnlo.template` warns rather than failing, since it
+  declares no placeholders. A `sixPar` card renamed `…_6Par` is refused (card up to PAR6, nPars=5)
+  and renamed `…_tenPar` is refused (card up to PAR6, nPars=10).
+- The drivers' status idiom, in isolation: exit 0 when the fit passes; exit 255 with the banner when
+  it fails; and when *sourced* with a failing fit, `$?` is 255 and the shell survives.
+- **A full `python3 tests/repro.py check`** — both analyses, real driver runs through the modified
+  drivers and the modified `run_anaFit.py`, including J50's BumpHunter masking path — **passed in
+  3m41s**, with `env` 26/26 and both input-hash sets matching. No `note: driver exited …` was
+  printed for either driver, which is the evidence that the new `( exit 0 )` path reports success
+  correctly on a passing fit. **No recorded number moved**: both baselines matched unchanged, so the
+  fit-path edits changed no physics.
+
+**Corrected a claim of my own from the 15:40 entry.** Issue 42 said that with `nPars` too small a
+`PARn` placeholder goes unsubstituted and XMLReader then "warns and returns 0". That was wrong:
+`parRangeLow`/`parRangeHigh` are sized `nPars`, so a card declaring a higher index raised
+`IndexError: list assignment index out of range` on the range assignment, before any substitution —
+confirmed directly. That direction failed closed all along; only the opposite direction (`nPars`
+larger than the card declares) was silent. The correction is recorded in issue 42 itself; the 15:40
+entry stands as written, per this file's rule.
+
+**Left alone.** Issues 39, 40 and 41, deliberately — each needs a judgement rather than an edit: 39
+is which histogram the goodness-of-fit gate is defined on, 40 is whether `covQual=2` is acceptable
+for these fits, and 41 is a latent bin-exclusion verified not to be triggered by anything recorded.
+Issues 23 and 28–31 also stay open. No baseline was re-cut.

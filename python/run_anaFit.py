@@ -237,17 +237,35 @@ def run_anaFit(datafile,
             parRangeHigh = [1]+[30]*(nPars-1)
             
             # get prefit ranges from background file
+            cardmatches = []
             with open(tmpbackgroundfile) as f:
-                lines = f.readlines()
-                for line in lines:
+                for line in f:
                     if not "<!--" in line and "<ModelItem" in line:
-                        matches = re.findall('\[PAR(\d+),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?)[ ]*\]', line)
-                        for m in matches:
-                            #m[0] is parN
-                            #m[1] is rangeLow
-                            #m[2] is rangeHigh
-                            parRangeLow[int(m[0])-1] = float(m[1])
-                            parRangeHigh[int(m[0])-1] = float(m[2])
+                        cardmatches += re.findall('\[PAR(\d+),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?)[ ]*\]', line)
+
+            # The card is the authority on how many parameters it has; nPars above is a
+            # substring guess off the file name, which silently falls back to 5 when no
+            # keyword matches (KNOWN_ISSUES 42). Check the two agree before the prefit
+            # spends 2000*nPars retries fitting the wrong function order - and before the
+            # assignment below turns a card with more parameters than nPars into a bare
+            # IndexError.
+            cardpars = sorted({int(m[0]) for m in cardmatches})
+            if not cardpars:
+                print("WARNING: %s declares no [PARn, ...] placeholders, so the prefit has "
+                      "nothing to substitute into it; nPars=%d comes from the file name alone."
+                      % (backgroundfile, nPars))
+            elif max(cardpars) != nPars:
+                print("ERROR: %s declares parameters up to PAR%d, but nPars=%d was derived from "
+                      "its file name. Rename the card so the two agree, or correct the mapping "
+                      "in run_anaFit.py." % (backgroundfile, max(cardpars), nPars))
+                sys.exit(-1)
+
+            for m in cardmatches:
+                #m[0] is parN
+                #m[1] is rangeLow
+                #m[2] is rangeHigh
+                parRangeLow[int(m[0])-1] = float(m[1])
+                parRangeHigh[int(m[0])-1] = float(m[2])
 
             print("Starting PreFit in parameter ranges:")
             print(parRangeLow)
@@ -499,7 +517,11 @@ def main(args):
     #        covariancedict = json.load(f)[str(args.sigmean)]
 
     print(args.nbkg,args.nsig,args.dosignal,args.dolimit,args.sigmean,args.sigwidth,args.signame,args.maskthreshold,args.doprefit)
-    run_anaFit(datafile=args.datafile,
+    # `return`, not a bare call: run_anaFit gives -1 when a fit fails p(chi2), gets
+    # its most significant window masked, is re-fitted and fails again. Dropping
+    # that made sys.exit(None) exit 0, so the framework's own "this result is not
+    # acceptable" verdict reported success (KNOWN_ISSUES 38).
+    return run_anaFit(datafile=args.datafile,
                datahist=args.datahist,
                topfile=args.topfile,
                categoryfile=args.categoryfile,

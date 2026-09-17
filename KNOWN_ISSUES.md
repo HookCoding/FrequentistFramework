@@ -891,3 +891,211 @@ failure mode as issue 24, in a file whose whole purpose is honest disclosure.
 cover. Checking all four under `--quick` was considered and rejected: it would hash two files whose
 contents cannot affect the comparison being made, and the plan's own rationale for `--quick` is
 that a check people skip protects nothing.
+
+## Analysis-path issues — found 2026-09-17 in a fifth review
+
+Issues 38–42 come from a fifth review with a narrower brief than the earlier ones: **what could let
+a mistaken, non-physical analysis pass?** The first four reviews worked over `tests/repro.py`; this
+one worked over the fit path itself — the drivers, `python/run_anaFit.py`,
+`python/ExtractPostfitFromWS.py` and the cards.
+
+**All five are pre-existing, and none is introduced by the reproducibility lock.** They were
+first recorded and left alone under the repository owner's standing instruction that pre-existing
+fit-path bugs are recorded rather than fixed — the rule that keeps issue 23 open. **On 2026-09-17
+the owner lifted that rule for two of them: 38 and 42 are fixed (16:10); 39, 40 and 41 stay
+open.**
+
+The two that were fixed are the two with a route to a wrong result nobody is told about. The three
+left open are a question for whoever owns the statistics (39), a physics judgement about whether
+`covQual=2` is acceptable (40), and a latent case verified not to be triggered by anything recorded
+(41). None of the three can be settled by editing code.
+
+**What protects the two locked analyses, and what does not.** For J50 and J100, `tests/repro.py
+check` compares the recorded outputs, so any of these biting would move a number and fail. Every
+one of them is unguarded for *new* work — a different range, a different parameter count, the fits
+the coming refactor will add — because a new configuration has no baseline. That is where the
+exposure is.
+
+### 38. `main()` discards `run_anaFit`'s return value, so a rejected fit exits 0 — **High** — **Fixed 2026-09-17 16:10**
+
+**Fixed**, at the root and at both live callers. `main()` now does `return run_anaFit(…)`, so the
+verdict reaches `sys.exit`. Both Run 2 drivers capture the status, print an explicit
+`ERROR: … this result must not be used` banner, and report it as their own exit status. They still
+produce the postfit plots on a failure — those are the diagnostics you want in order to see *why*
+it failed; what is no longer possible is the run reporting success. The status is carried by a
+`( exit … )` subshell rather than `exit`, because both drivers are `{ … }` brace groups that their
+own headers tell you to **source** — a bare `exit` would kill an interactive shell — while
+`tests/repro.py` runs them with `bash`. Verified both ways. See CHANGELOG.md's 2026-09-17 16:10
+entry. The rest of this entry is kept as the record of what was wrong.
+
+**What.** `run_anaFit()` computes the framework's only "this result is not acceptable" verdict: if
+p(chi2) fails the mask threshold, BumpHunter finds the most significant window, the fit is repeated
+with that window blinded, and if p(chi2) *still* fails it prints `Exiting with failed fit status.`
+and returns `-1` (`python/run_anaFit.py` line 431). That verdict is then thrown away twice over:
+
+1. `main()` calls `run_anaFit(datafile=…)` as a bare statement with no `return` (line 502), so
+   `main()` returns `None` and `sys.exit(None)` exits **0**. Confirmed by running the same call
+   shape in isolation.
+2. The driver does not check the exit code in any case, and goes straight on to `plotPostFit.py`
+   and `plot_postfit.cpp` — so a rejected fit renders `postFit.pdf`, `post_fit.pdf` and the EDM
+   plot exactly as an accepted one does (`scripts/run_anaFit_run2.sh` lines 77–100, and the J50
+   driver likewise).
+
+**Where.** `python/run_anaFit.py` lines 502 and 529; `scripts/run_anaFit_run2.sh` line 77.
+
+**Affects.** Every analysis, and it is a **false pass** in the strictest sense: the code does the
+work of deciding the fit is unusable, says so on stdout, and then reports success. Nothing in the
+output distinguishes a twice-rejected fit from an accepted one except a line in the log. Same
+failure mode as the recorded "XMLReader and quickFit only warn and still return 0", but worse,
+because here the verdict is the framework's *own* and is deliberately computed.
+
+**Fix.** `return run_anaFit(…)` at line 502 — two words, and it changes nothing about any run that
+passes. Then decide separately whether the drivers should stop on it; note that making the exit
+code meaningful may start surfacing real failures in anything that does check it (the HTCondor path
+being the obvious one), which is the point, but is a behaviour change worth making deliberately.
+
+### 39. The p(chi2) gate reads a different histogram depending on whether a mask is active — **Medium** — **open; recorded, not fixed**
+
+**What.** `build_fit_extract` returns the p-value the threshold decision is made on, and picks its
+source by whether a mask range was passed:
+
+```python
+if maskmin > -1 or maskmax > -1:
+    pval = pfe.GetPval(channel+"_bkgonly_rebinned")  # should be <channel> or <channel>_rebinned?
+else:
+    pval = pfe.GetPval(channel+"_rebinned")          # should be <channel> or <channel>_rebinned?
+```
+
+So the *initial* gate reads `<channel>_rebinned` and the *masked* accept/reject decision reads
+`<channel>_bkgonly_rebinned`. The two are different numbers, and the comment — in the code as
+written — shows the choice was never settled.
+
+**Where.** `python/ExtractPostfitFromWS.py` is where both come from; the selection is
+`python/run_anaFit.py` lines 127–131.
+
+**Affects.** Both gates, in principle. From the recorded baselines the two differ by roughly 1–2%
+relative:
+
+| Fit | `_rebinned` | `_bkgonly_rebinned` | read by the gate |
+|---|---|---|---|
+| J100 unmasked | 0.0148562 | 0.0148783 | `_rebinned` |
+| J50 unmasked | 0.0024417 | 0.0024813 | `_rebinned` |
+| J50 masked | 0.0188064 | 0.0190617 | `_bkgonly_rebinned` |
+
+No recorded verdict changes — all three are unambiguous against the 0.01 threshold — so nothing
+published is affected. A fit landing between the two values would be accepted or rejected according
+to which histogram the gate happened to read, with no record of the choice. Left alone as a
+question for whoever owns the statistics, not a bug to be patched by picking one.
+
+**Fix.** Decide which histogram the goodness-of-fit gate is defined on, use it in both branches,
+and delete the comment. If the switch is deliberate — the masked fit's normalisation differs, which
+the comment above it hints at — say so there in a sentence instead.
+
+### 40. Nothing checks fit status or covariance quality; every recorded fit has a forced covariance — **Medium** — **open; recorded, not fixed**
+
+**What.** `grep` for `covQual` or `status()` across `python/` and `scripts/` returns **nothing**: no
+part of the framework reads either. Every fit this repository has recorded was minimised with a
+covariance matrix MINUIT had to force positive-definite. From
+`run/run_481_3000_sixPar/quickFitLog_anaFit_sixPar_bkgOnly.log`:
+
+```
+Warning in <Minuit2>: MnPosDef Matrix forced pos-def by adding to diagonal 0.00492847
+                covariance matrix quality: Full matrix, but forced positive-definite
+                Status : MINIMIZE=1 HESSE=1
+```
+
+at every one of the retries, while the run's closing summary prints `Fit Summary of POIs (STATUS
+OK)`. All three recorded fits carry `status=1, covQual=2` in their baselines.
+
+**Where.** `python/` and `scripts/` generally — the absence is the issue. The values are visible in
+`FitResult_*.root`'s `fitResult` and in `quickFitLog_*.log`.
+
+**Affects.** The **parameter errors** rather than the central values. `covQual=2` means the matrix
+was full but forced positive-definite, so the fitted uncertainties come from a matrix with ~0.005
+added to its diagonal; the minimum itself is reported `Valid` and the retries land on the same FCN,
+which is what the 2026-09-15 14:38 CHANGELOG entry reasoned about. That entry is right about the
+minimum and silent about the errors, and the errors are what the downstream studies — spurious
+signal, injection linearity, limits — consume. For J50/J100 the harness pins `status` and `covQual`
+exactly, so a *degradation* fails `check`; for any new configuration nothing checks, and `STATUS
+OK` is the last word the log prints.
+
+**Fix.** Read `fitResult.status()`/`covQual()` after the fit and print a clear line — ideally refuse
+to proceed below a configured `covQual`. Cheap, and it turns a property nobody sees into one
+decision. Whether `covQual=2` is acceptable for these fits is a physics judgement for the
+repository owner; this entry only records that the framework cannot currently tell you.
+
+### 41. `getChi2` silently excludes bins with no data error or a non-positive fit — **Low** (latent) — **open; recorded, not fixed**
+
+**What.** The chi2 loop accumulates a bin only under `if valueErrorData > 0. and postFitValue > 0.`,
+and a skipped bin is counted in neither `chi2` nor `chi2bins`. An unweighted bin with zero observed
+events has zero error, so **empty bins are dropped from the goodness-of-fit and from the degrees of
+freedom**, with nothing reported. The exclusion is not numerically necessary: with
+`useSumW2=False` the residual is `(data - fit)/sqrt(fit)`, whose denominator is the *fit*, so a bin
+with zero data is perfectly computable. A dropped bin removes `fit` from the chi2 and 1 from ndof,
+so for a bin where the fit predicts more than about one event — an observation of zero against a
+prediction of several, i.e. a real deficit — the discarded term is the discrepant one.
+
+**Where.** `python/ExtractPostfitFromWS.py`, the bin loop in `getChi2` (lines 59–76).
+
+**Affects.** Nothing recorded. **Verified inactive in all three recorded fits**: every bin of every
+`PostFit_*.root` directory has a positive data error and a positive fit value, and the recorded
+`nbins` equals the histogram's own bin count in each case (J100 2519 fine / 57 rebinned, J50 2695 /
+65) — the only reduction anywhere is the masked J50 run dropping exactly its BumpHunter window
+(2695→2615 fine, 65→62 rebinned), which is by design. It becomes reachable as soon as a fit range
+extends into the sparse high-mass tail where bins empty out, which is what a reach extension does.
+Left alone as latent.
+
+**Fix.** Guard on `postFitValue > 0` alone and let zero-data bins contribute, or keep the exclusion
+and report the count of skipped bins alongside `nbins` so it is visible in the chi2 block. The
+second is nearly free and does not change any recorded number.
+
+### 42. `nPars` is a substring match on the background file's path, silently defaulting to 5 — **Low** — **Fixed 2026-09-17 16:10**
+
+**Fixed.** `run_anaFit.py` now gathers the card's `[PAR<n>,` matches first, then compares the
+highest index against `nPars` before either the prefit or the range assignment runs: a disagreement
+prints both numbers and exits, and a card with no `PAR` placeholders at all warns that `nPars` came
+from the file name alone. Checked against all twelve tracked `background_*.template` files — every
+one is accepted — and against a `sixPar` card deliberately renamed `…_6Par` (refused: card up to
+PAR6, nPars=5) and `…_tenPar` (refused: card up to PAR6, nPars=10). See CHANGELOG.md's 2026-09-17
+16:10 entry.
+
+**One claim in this entry was wrong, and is corrected here rather than edited away.** It said that
+with `nPars` too small "a `PARn` placeholder is never substituted, so XMLReader fails — but warns
+and returns 0". That is not what happened: `parRangeLow`/`parRangeHigh` are sized `nPars`, so a
+card declaring a higher index raised `IndexError: list assignment index out of range` on the range
+assignment, well before any substitution — confirmed directly. That direction failed closed all
+along. The silent direction was only the other one, `nPars` *larger* than the card declares, where
+PreFit fits a higher-order function and hands wrong starting values to a card of a different order.
+The fix covers both and makes the first one readable instead of a traceback.
+
+**What.** The number of background parameters is decided by testing the path for the words
+`three`…`ten`, and if none matches, `nPars` stays at its initialised value of **5**, with no
+message. `nPars` then sizes the prefit's parameter ranges, selects the PreFit function order and
+bounds the `PAR1..PARn` substitution loop. Two lines further on, the same function already parses
+the card's actual `[PAR<n>,` placeholders with a regex — so the information needed to check the
+guess is in hand and unused.
+
+**Where.** `python/run_anaFit.py` lines 216–236 (the derivation) against lines 244–250 (the card's
+real PAR indices).
+
+**Affects.** No card on the J50/J100 path: checked all twelve tracked `background_*.template` files,
+and every word-named one agrees with the highest `PAR<n>` its card declares (`fivePar`→5,
+`sixPar`→6, `sevenPar`→7, up to `tenPar`→10). Two real cases do disagree:
+`config/dijetTLAnlo/background_dijetTLAnlo_J100yStar06_CT14nnlo.template` gets `nPars=5` by default
+(benign — it declares no `PAR` placeholders at all), and a digit-named variant such as
+`…_6Par.template` would silently get 5.
+
+The collision hazard this first looked like is **smaller than it appears**, and that is worth
+recording so nobody re-raises it: the `elif` chain tests `four`, `five`, `six` before `seven`,
+`nine`, `ten`, so a spurious keyword elsewhere in the path cannot override the real one — checked
+with paths containing `stephen` and `tenPar_studies` wrapped around a `sixPar` card, both of which
+still give 6.
+
+What remains is the silent default. Too small, and a `PARn` placeholder is never substituted, so
+XMLReader fails — but warns and returns 0, and per issue 38 the process still exits 0. Too large,
+and PreFit fits a higher-order function and hands wrong starting values to a card of a different
+order, which produces a complete and plausible result from the wrong starting point.
+
+**Fix.** Compare against the card: take the `max` of the `PAR<n>` indices already parsed at line
+244 and stop if it disagrees with `nPars`. Three lines, and it converts a naming slip from a silent
+wrong answer into a refusal.

@@ -4,6 +4,48 @@ One living document for the whole reproducibility/refactoring effort: what the f
 does, why it was changed, and how it is meant to be used. Rewritten in place as things evolve —
 this describes the *current* state, not history. History is [CHANGELOG.md](../CHANGELOG.md).
 
+## The fit path's own verdict (`run_anaFit.py` and the Run 2 drivers)
+
+The framework computes one verdict on whether a fit is usable at all. If p(chi2) falls below
+`--maskthreshold` (default 0.01), `python/FindBHWindow.py` locates the most significant window, the
+fit is repeated with that window blinded, and if p(chi2) *still* fails, `run_anaFit()` prints
+`Exiting with failed fit status.` and returns `-1`.
+
+**That verdict is now reported.** It used to be discarded twice over — `main()` called
+`run_anaFit(…)` as a bare statement, so `sys.exit(None)` exited 0, and neither driver checked the
+exit code anyway — which meant a twice-rejected fit produced the same files, the same plots and the
+same successful exit as an accepted one ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 38, fixed
+2026-09-17). Now:
+
+- `main()` returns `run_anaFit(…)`, so the status reaches `sys.exit`.
+- `scripts/run_anaFit_run2.sh` and `scripts/run_anaFit_run2_J50.sh` capture it, print an explicit
+  `ERROR: … this result must not be used` banner, and report it as their own exit status.
+- **The plots are still produced on a failure**, deliberately: they are the diagnostics you want in
+  order to see why the fit failed. What is no longer possible is the run reporting success.
+- The status is carried by a `( exit … )` subshell rather than `exit`, because both drivers are
+  `{ … }` brace groups their own headers tell you to *source* — a bare `exit` would kill an
+  interactive shell — while `tests/repro.py` runs them with `bash`.
+
+Anything that checks these drivers' exit status will therefore start seeing real failures it
+previously missed. That is the point of the change, but it is worth knowing before pointing the
+HTCondor path at it.
+
+**The parameter count is now cross-checked against the card.** `nPars` is derived by testing the
+background file's path for the words `three`…`ten`, falling back to 5 when none matches. The card
+itself is the authority — it declares `p1…pN` with `[PARn, …]` placeholders — so `run_anaFit.py`
+now compares the highest `PAR` index the card declares against `nPars` before the prefit runs, and
+stops with both numbers if they disagree; a card with no placeholders at all warns instead. All
+twelve tracked background cards pass; a `sixPar` card renamed `…_6Par` or `…_tenPar` is refused
+([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 42, fixed 2026-09-17).
+
+**Three related things are recorded and deliberately not fixed**, because each needs a judgement
+rather than an edit: which rebinned histogram the goodness-of-fit gate is defined on (issue 39 —
+the unmasked and masked branches read different ones, and the difference is 1–2%), whether
+`covQual=2` is acceptable for these fits (issue 40 — every recorded fit ran with a covariance
+matrix MINUIT forced positive-definite, and nothing in the framework reads `status()` or
+`covQual()`), and a latent exclusion of empty bins from the chi2 (issue 41 — verified not triggered
+by anything recorded).
+
 ## Reproducibility harness (`tests/repro.py`)
 
 **Why.** Before any significant change to the repository, there has to be a way to *prove* a
