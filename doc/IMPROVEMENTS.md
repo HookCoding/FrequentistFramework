@@ -175,3 +175,13 @@ there — outside the scratch directory, though still never touching `run/`. Tha
 `FindBHWindow.py` since 2021, so it is a fit-path bug this work inherited rather than caused; it is
 recorded and left for whenever the fit path is next opened. The isolation described above is
 accurate for everything else.
+
+A third review on 2026-09-17 re-ran the harness — `selfcheck`, `env` 24/24 and `check --from`, the
+last of these a path nothing had exercised before — and confirmed again that every requirement of
+the plan is implemented. It found four more problems, filed as issues 28–31, all of them one defect
+in four places: a condition the harness should *report* instead makes it raise. **All four are
+recorded and none is fixed**, under the triage rule now written into [CLAUDE.md](../CLAUDE.md):
+they all fail closed, so none can let an analysis complete with a silently wrong number, and two of
+the four are unreachable for anyone following the documentation. Issue 29 — the extractors crashing
+when a PostFit file's *contents*, rather than its name, have changed — is the one to revisit first
+if `ExtractPostfitFromWS.py` is opened, since a rewrite of it trips that path by itself.

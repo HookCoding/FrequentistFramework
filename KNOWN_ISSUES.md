@@ -532,3 +532,148 @@ is why they were repointed.
 keep the CERN GitLab reference where it is accurate (the upstream project and its documentation).
 `CLAUDE.md` carries unrelated uncommitted changes in the working tree — read it before editing, as
 the plan's §7 already warns.
+
+## Harness issues — found 2026-09-17 in a third review
+
+Issues 28–31 come from a third review of the reproducibility lock, after 22–27 were closed. The
+plan remains fully implemented: `selfcheck`, `env` (24/24) and `check --from` all pass on the tree
+as it stands, every §1–§7 requirement and Verification step 1–7 is in place, and the committed
+baselines still match the numbers the CHANGELOG records. These four are what was found on top of
+that.
+
+**All four are the same defect: a condition the harness should *report* instead makes it crash.**
+Four places raise a bare exception where they should print a failure line or a recorded value.
+
+**All four are recorded and none is being fixed**, which is a deliberate call rather than a
+backlog. Under the triage rule in [CLAUDE.md](CLAUDE.md) (*Triaging issues*), the class that comes
+first is anything that could let an analysis run to completion and produce a result that is now
+unphysical because of a code change. **None of these four can do that.** Every one fails closed: it
+crashes, so nothing completes, no number is produced, and nobody can be misled by one. They are
+ugly, not dangerous. Two of the four are also unreachable for anyone who follows the documentation
+— 31 needs a hand-edited baseline, which `README.md` tells you not to do, and 28 needs the four
+input spectra to have been moved.
+
+These were first reported with 28 ranked Medium, on how confusing the failure looks rather than on
+what it can cost. On the rule above all four are Low.
+
+**Issue 29 is the one to revisit first** if the extractors are ever opened: it is the only one the
+coming refactor will trip by itself rather than through a mistake, and it lands at the exact moment
+someone is asking whether their rewrite moved the physics.
+
+### 28. A missing input spectrum crashes `check` instead of failing it — **Low** — **open; recorded, not fixed**
+
+**What.** `sha256_of()` is `hashlib.sha256(path.read_bytes())` with no existence guard, so an input
+path recorded in a baseline that no longer exists raises `FileNotFoundError` out of the list
+comprehension that compares the hashes. Confirmed by running `_check_input_hashes` against a
+baseline naming a moved file: `FileNotFoundError: [Errno 2] No such file or directory:
+'.../Input/data/dijetTLA/moved_away.root'`. Plan §2 makes this function the gate that "verifies
+them before running anything and stops on a mismatch"; a moved or deleted input is the most
+serious form of that condition, since it means the baseline has stopped describing anything, and it
+is the one input state that produces no diagnosis. `record` has the same hole when it builds a new
+provenance block.
+
+**Where.** [tests/repro.py:872-874](tests/repro.py#L872-L874) (`_check_input_hashes`),
+[tests/repro.py:829](tests/repro.py#L829) (`cmd_record`), via
+[tests/repro.py:355](tests/repro.py#L355) (`sha256_of`).
+
+**Affects.** Both analyses, but only if the four tracked input spectra are moved or deleted —
+which is a deliberate act, not an accident. The traceback names the missing path in full, so the
+person who moved it has what they need to understand it. Left alone.
+
+**Fix.** Check `is_file()` before hashing and report a missing input as its own failure line
+alongside the mismatches, in the same shape §2 already specifies. Two or three lines.
+
+**Related, not a bug.** `check` iterates the *baseline's* recorded inputs while `record` iterates
+`ANALYSES[…]["inputs"]`. That asymmetry is deliberate and correct — it is what keeps `check`
+path-independent — but it means a driver that gains a fifth input stays unguarded until the
+baseline is re-cut. Worth knowing during the refactor.
+
+### 29. A PostFit or FitResult file whose contents changed crashes the extractor — **Low** — **open; recorded, not fixed**
+
+**What.** `d.Get("chi2")` on a TDirectory without that histogram returns a null pointer, which
+PyROOT hands back as a bare `TObject`; the dict comprehension on the next line then raises
+`AttributeError: 'TObject' object has no attribute 'GetNbinsX'` (confirmed on a synthetic file).
+The same pattern sits in `d.Get("postfit")`/`d.Get("data")` for a `*_rebinned` directory, in
+`f.Get("fitResult")` → `fr.floatParsFinal()`, and in `extract_bhresults`, where `bh["pyBHresult"]`
+raises `KeyError` on a truncated or restructured `BHresults.json`. `f.Close()` is skipped on all of
+these paths.
+
+The precise shape of the gap is that **presence is guarded and content is not**: `extract_variant`
+checks `is_file()` on both ROOT files and returns `None` for a missing one, which `check` turns
+into a clean `FAIL: … has no FitResult/PostFit`. It is the file that exists and is not what we
+expect that crashes. Likewise the comment above `extract_postfit` is right that a *renamed
+directory* is caught by `compare()` as a missing key (issue 17's fix) — but the histogram names
+inside (`chi2`, `postfit`, `data`) are still hardcoded, and that half has no such protection.
+
+**Where.** [tests/repro.py:734-741](tests/repro.py#L734-L741) (`extract_postfit`),
+[tests/repro.py:706-707](tests/repro.py#L706-L707) (`extract_fit_result`),
+[tests/repro.py:746-751](tests/repro.py#L746-L751) (`extract_bhresults`).
+
+**Affects.** Both analyses, and unlike the other three this one is reached by the refactor itself
+rather than by a mistake: [python/ExtractPostfitFromWS.py](python/ExtractPostfitFromWS.py) is
+squarely in the set of files the plan expects to be rewritten, and a rewrite that renames the chi2
+histogram or creates a directory before filling it lands here. What should print
+`missing: unmasked.chi2.J100yStar06_rebinned.pval` — the finding the harness exists to produce —
+prints an `AttributeError` about a `TObject` instead. Left alone for now; see the note above about
+revisiting this one first.
+
+**Fix.** Null-check each `Get()` and record the absence as a missing key, so `compare()` reports it
+as the missing quantity it is. Roughly one line per `Get()`, plus a `selfcheck` case that needs no
+ROOT if the check is factored out.
+
+### 30. `_view_binary_version` catches neither a timeout nor an OSError — **Low** — **open; recorded, not fixed**
+
+**What.** Three unguarded exits on the happy path: `subprocess.TimeoutExpired` after 30 s (both
+binaries live on `/cvmfs/sft.cern.ch`, so a cold cache or a stalled mount reaches this);
+`OSError`, including the TOCTOU window between `exe.is_file()` and `subprocess.run()`, which on
+CVMFS is exactly when a mount is most likely to vanish; and `IndexError`, because
+`proc.stdout.strip().splitlines()[0]` indexes an empty list if a binary exits 0 while printing its
+version to stderr.
+
+Its sibling `_atlas_probe` wraps the identical call in `try/except (subprocess.TimeoutExpired,
+OSError)` and documents why: *"Never raises — plan section 1 records these values rather than
+asserting them, precisely because they cannot be pinned from this repository."* This function
+serves that same §1 clause — the resolved ROOT and `cmake` versions are the canonical
+record-never-assert values — and a crash is the hardest possible assert. The plan's amended §1 is
+explicit that version drift must never fail the command, because "a check that fails for reasons
+nobody can act on is a check that gets ignored"; a stalled CVMFS mount is precisely such a reason.
+
+**Where.** [tests/repro.py:384-398](tests/repro.py#L384-L398), against
+[tests/repro.py:359-377](tests/repro.py#L359-L377) for the guarded sibling.
+
+**Affects.** `env`, `record` and `check` alike, since `run_env_checks()` calls both
+`resolve_cmake_version` and `resolve_root_version` before anything else runs. Not reachable by any
+amount of care — it is infrastructure — but rare, and when CVMFS is sick the drivers will not run
+either, so a broken session is self-evident rather than confusing. Left alone.
+
+**Fix.** The same `try/except (subprocess.TimeoutExpired, OSError)` as `_atlas_probe`, returning
+`unavailable (timed out after 30s)`, plus a guard for empty stdout. Per §1's closing line, a
+version recorded as unavailable is a true and useful thing for a baseline to say.
+
+### 31. `record`'s cross-baseline versions read was left unhardened — **Low** — **open; recorded, not fixed**
+
+**What.** `json.loads(other_path.read_text())["provenance"]["versions"]` raises `ValueError` on
+invalid JSON and `KeyError` on a missing or partial provenance block. This implements plan §1's
+"`record` warns when it is about to write a versions block that disagrees with the other
+baseline's" — and `_report_env` reads *the same field of the same file for the same purpose* and
+was hardened under issue 26, printing `WARNING: <file> has no usable provenance block (missing …) -
+skipping its comparisons`. Issue 26's fix simply did not carry across to the second reader.
+
+Also brittle, though within spec: `other` is a binary J100/J50 flip, so a third entry in `ANALYSES`
+would silently compare against J100 only. Plan §1 says "Both baselines carry the same versions
+block", written for exactly two analyses.
+
+**Where.** [tests/repro.py:814-823](tests/repro.py#L814-L823), against
+[tests/repro.py:598-615](tests/repro.py#L598-L615) for the hardened equivalent.
+
+**Affects.** `record` only, and only against a baseline that has been hand-edited or half-written
+— which `README.md` tells you not to do (re-cut with `record --force --reason "…"` instead). The
+least reachable of the four. Left alone.
+
+**Fix.** Reuse the guard `_report_env` already has. Three or four lines.
+
+**A consistency note worth keeping.** The same reasoning applies backwards to **issue 26**, which
+was fixed on a weaker trigger than any of these four — its own entry concedes it "cannot happen
+while the extractors and `record` are the only writers of these documents". The bar was set low
+there. That is a reason to leave the bar where it is wanted now, not a reason to chase parity with
+a past decision.

@@ -55,6 +55,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-17 12:25 — Fix issue 21: re-add the parser unit tests, close out issues 12-21](#2026-09-17-1225--fix-issue-21-re-add-the-parser-unit-tests-close-out-issues-12-21)
 - [2026-09-17 12:45 — Review the completed reproducibility lock; file issues 22–27](#2026-09-17-1245--review-the-completed-reproducibility-lock-file-issues-2227)
 - [2026-09-17 13:20 — Fix the five issues this work introduced; leave the inherited one recorded](#2026-09-17-1320--fix-the-five-issues-this-work-introduced-leave-the-inherited-one-recorded)
+- [2026-09-17 14:10 — Third review; file issues 28–31 and write down how issues are ranked](#2026-09-17-1410--third-review-file-issues-2831-and-write-down-how-issues-are-ranked)
 
 ---
 
@@ -1531,3 +1532,52 @@ saying why it is open; the section preamble now states the fixed/inherited split
 bugs are recorded rather than fixed for now. It stays open in `KNOWN_ISSUES.md` with its fix
 proposal intact. No baseline was re-cut, and no plan was amended: nothing here changes what the
 harness measures, only what it notices and how it reports.
+
+---
+
+## 2026-09-17 14:10 — Third review; file issues 28–31 and write down how issues are ranked
+
+**Objective.** Asked to review the reproducibility-lock implementation again for anything in the
+plan not built, and for problems the work introduced that nobody had disclosed.
+
+**Verified the plan is implemented**, by running the harness rather than reading the previous
+write-ups: `selfcheck` passes; `env` is 24/24 with both baselines' versions matching; `check --from
+run/run_481_3000_sixPar` passes end to end — a path no earlier entry had ever exercised. The
+committed baselines still carry exactly the numbers the 2026-09-15 entries record (`minNll`
+1259.1119375388664, `p6` 0.0478363; J50 rebinned `pval` 0.0024417, BH window 582–662, `global_Pval`
+0.0322). `.gitmodules` and `scripts/install_roofitext.sh` are gone, `install.sh` clones from GitHub
+with the four SHAs unchanged, the working tree is clean and every new file is tracked. No §1–§7
+requirement and no Verification step is missing. The two deviations from the plan's literal text
+(`--rtol` → `--tol-scale`, and the "note" tolerance class replaced by excluding `provenance` from
+the comparison) are both deliberate and already documented as issues 19 and 16.
+
+**Found — four undisclosed problems, filed as issues 28–31.** All four are one defect in four
+places: a condition the harness should report instead makes it raise. A missing input spectrum
+crashes `check` (28); a PostFit or FitResult file whose *contents* changed crashes the extractors,
+where presence is guarded but content is not (29); `_view_binary_version` catches neither a timeout
+nor an `OSError` where its documented sibling `_atlas_probe` catches both (30); and `record`'s
+cross-baseline versions read was left unhardened where `_report_env`'s equivalent was hardened
+under issue 26 (31). 28 and 29 were confirmed by running them, not by reading the code.
+
+**Decided — record all four, fix none.** Every one fails closed: it crashes, so nothing completes
+and no number is produced. Two are also unreachable for anyone following the documentation (31
+needs a hand-edited baseline, 28 needs the tracked input spectra to have been moved). 29 is the one
+to revisit first if the extractors are opened, since the coming refactor trips it by itself.
+
+**Corrected a ranking of my own.** These were first reported to the repository owner with 28 as
+Medium, ranked on how confusing the failure looks. The owner's question — *which of these would
+have let the analysis complete with a result that is now unphysical?* — is the right rank, and the
+answer for all four is none. All four are recorded as Low.
+
+**Added.** A **Triaging issues** section to [CLAUDE.md](CLAUDE.md), between *Conventions and traps*
+and *Planning*, so the ranking above is a written rule rather than one conversation: findings go in
+`KNOWN_ISSUES.md`, recording is the obligation and fixing is a choice, and the first question is
+whether a finding could let an analysis complete with a silently wrong number. It names the three
+examples this repository already has of that class — XMLReader/quickFit warning and returning 0,
+`re.sub("PAR1", …)` running before `PAR10`, and the comparator's NaN hole (issue 22, since fixed) —
+and says that anything failing closed is a lower tier however ugly it looks.
+
+**Left alone.** All of `tests/repro.py`; no code changed in this entry, and no baseline was re-cut.
+Issue 23 stays open as before. `doc/IMPROVEMENTS.md`'s closing section, which said issue 23 was the
+only thing left open, is updated to name 28–31 as well — it describes the present, so leaving it
+saying "one is left open" would have made it false.

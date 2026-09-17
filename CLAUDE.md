@@ -84,6 +84,22 @@ with the toy fits fanned out over HTCondor via `submission/condor_handler.py` +
 - Analysis flavours live side by side under `config/` and `Input/`: `dijetTLA`, `dijetTLAnlo`,
   plus legacy `bbyy`, `ttHyy`, `high_mass_diphoton`.
 
+## Triaging issues
+
+Findings go in [KNOWN_ISSUES.md](KNOWN_ISSUES.md); recording one is the obligation, fixing it is
+a choice. Rank them by one question: **could this let an analysis run to completion and produce a
+result that is now unphysical because of a code change?** That class comes first — a fit that
+fails loudly costs an afternoon, a fit that succeeds with a silently wrong number reaches a
+plot, a talk or a paper. Examples in this repository: XMLReader and quickFit warn on failure and
+still return 0, so a failed fit looks like a successful one; `re.sub("PAR1", …)` running before
+`PAR10` would corrupt a ten-parameter card without complaining; and the comparator in
+`tests/repro.py` used to treat NaN as a match, so a fit that failed into NaN could pass `check`.
+
+Everything that *fails closed* — crashes, tracebacks, a check that stops instead of passing — is
+a lower tier however ugly it looks. It cannot put a wrong number in front of anyone. Fix those
+when they are cheap or when they sit on a path about to be rewritten; otherwise record them and
+move on. Defensive code written for situations that never arise is its own cost.
+
 ## Planning
 
 Before starting non-trivial work, add a plan to `plans/` (see [plans/README.md](plans/README.md)
