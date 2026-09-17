@@ -86,6 +86,16 @@ agent session; all three URLs confirmed). The eight smaller issues (14–21) wer
 following day, the last (21, re-adding the parser unit tests the 2026-09-16 13:50 entry claimed
 but never committed) on 2026-09-17. All ten issues this audit found are closed.
 
+A second review the same day re-ran the whole harness (`selfcheck`, `env` 24/24, a full `check`
+over both analyses passing in ~3.5 min) and confirmed every part of this plan is implemented. It
+found six further undisclosed problems, filed as issues 22–27 in
+[KNOWN_ISSUES.md](../KNOWN_ISSUES.md): none invalidates a recorded number. The five this work
+introduced are fixed — the comparator's NaN hole (22) and its crash-instead-of-report paths (26),
+the egg check's hardcoded constant (25), a stale sentence in `KNOWN_ISSUES.md` itself (24) and the
+"CERN GitLab" description the §6 repoint made untrue (27). Issue 23, BumpHunter plots written to
+the repository root, is a fit-path write dating from 2021 and stays open and recorded; only the
+documentation that overstated `check`'s isolation was corrected.
+
 ## Adding a plan
 
 Name the file `YYYY-MM-DD-short-slug.md`, add a row to the index above and a short paragraph

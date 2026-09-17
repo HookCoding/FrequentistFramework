@@ -53,6 +53,8 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-17 11:50 — Fix issue 19: rename --rtol to --tol-scale](#2026-09-17-1150--fix-issue-19-rename---rtol-to---tol-scale)
 - [2026-09-17 12:05 — Fix issue 20: add the plan's global_Pval warning to the README](#2026-09-17-1205--fix-issue-20-add-the-plans-global_pval-warning-to-the-readme)
 - [2026-09-17 12:25 — Fix issue 21: re-add the parser unit tests, close out issues 12-21](#2026-09-17-1225--fix-issue-21-re-add-the-parser-unit-tests-close-out-issues-12-21)
+- [2026-09-17 12:45 — Review the completed reproducibility lock; file issues 22–27](#2026-09-17-1245--review-the-completed-reproducibility-lock-file-issues-2227)
+- [2026-09-17 13:20 — Fix the five issues this work introduced; leave the inherited one recorded](#2026-09-17-1320--fix-the-five-issues-this-work-introduced-leave-the-inherited-one-recorded)
 
 ---
 
@@ -1387,3 +1389,145 @@ cd $x ... cd ../..; done` build loop, confirming the synthetic test matches prod
 not just itself. `env` (24/24) unaffected.
 
 **Left alone.** Nothing — this was the last of issues 12–21.
+
+---
+
+## 2026-09-17 12:45 — Review the completed reproducibility lock; file issues 22–27
+
+**Objective.** Asked to review all the work that went into the reproducibility lock: confirm every
+part of [plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md) is
+actually implemented, and find any potential error not already disclosed. A second pass over what
+the 2026-09-16 18:05 audit and its ten fixes left behind, not a repeat of it.
+
+**Verified.** The plan is fully implemented — §1–§6 and Verification steps 1–7 — and all ten issues
+12–21 are genuinely fixed in code, not merely marked fixed. Re-run on the current tree rather than
+read:
+
+- `python3 tests/repro.py selfcheck` — passes, all three blocks (comparator, binary digests,
+  parsers).
+- `python3 tests/repro.py env` — 24/24 PASS, including the binary-digest comparison against both
+  baselines, and "Versions match" against each of `baseline_J100.json` and `baseline_J50.json`.
+- `python3 tests/repro.py check` in full — both analyses, real driver runs, including J50's
+  BumpHunter masking path: `PASS: check`, exit 0, **~3.5 minutes wall** (the README's "~6 min" is
+  conservative rather than wrong). Afterwards `run/run_481_3000_sixPar/` and
+  `run/run_J50_302_2997_sixPar/` still carry their 2026-09-15 mtimes, and `git status` shows only
+  the pre-existing, unrelated `CLAUDE.md` modification.
+- The committed baselines' numbers still match the plan's Verification step 4 and this notebook's
+  earlier entries: J100 `minNll` 1259.1119375388664 and `p6` 0.0478363; J50 rebinned `pval`
+  0.0024417, BumpHunter window 582–662, `global_Pval` 0.0322.
+- §6's gap closing holds on disk: no `.gitmodules` and no repo-root `scripts/install_roofitext.sh`
+  tracked, `install.sh` cloning all three sub-frameworks from GitHub with no `--branch` flag and
+  the four SHA pins unchanged, and the README pins table carrying the RooFitExtensions row, the
+  `LCG_102a` venv row and the unpinned `cmake` row.
+
+**Found.** Six things not previously disclosed, now filed as issues 22–27 in
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md) with the fix each needs:
+
+1. **`compare()` treats NaN as a match** (22, Medium) — `diff > atol + rtol*abs(b)` is `False` for
+   NaN, so a NaN candidate passes against any baseline value in the tight and pvalue classes.
+   Confirmed directly in the interpreter: NaN returns no failures where `inf` correctly fails. This
+   is a hole in the one component whose job is to catch a fit that failed silently, which is
+   exactly what XMLReader/quickFit's warn-and-return-0 behaviour produces.
+2. **`check` writes outside its scratch directory** (23, Low) — `FindBHWindow.py` writes
+   `bump.png` and `BH_statistics.png` with bare relative filenames, so a J50 `check` rewrites both
+   at the repository root. Observed: the full `check` above updated their mtimes to 12:15. They are
+   gitignored, which is why `git status` stayed clean through the whole implementation and this was
+   never noticed. The write predates this work by four years; the isolation claim written around it
+   in the README and `doc/IMPROVEMENTS.md` does not.
+3. **`KNOWN_ISSUES.md`'s own preamble had gone stale** (24, Low) — it still said issues 14–21 were
+   proposals awaiting review after all eight had been fixed.
+4. **The pyBumpHunter egg check compares against a hardcoded constant** (25, Low) rather than the
+   pin it already parses from `install.sh`, so a deliberate pin bump fails with a message that
+   blames the wrong thing.
+5. **Two crash-instead-of-report paths** (26, Low) — a leaf whose type changes raises `TypeError`
+   out of `compare()`; a baseline with a missing or incomplete provenance block raises `KeyError`
+   out of `_report_env()`.
+6. **`README.md` and `CLAUDE.md` still say "three CERN GitLab C++ sub-frameworks"** (27, Low),
+   true when written on 2026-09-15 and made stale by §6's repoint to GitHub the next day.
+
+**Changed.** `KNOWN_ISSUES.md`: new "found 2026-09-17" section holding issues 22–27, each with
+what/where/affects/fix, and each stating whether it predates this work. Issue 24 is recorded *and*
+fixed in the same edit — the false sentence is corrected in place, because a file whose purpose is
+honest disclosure cannot carry a false statement about its own contents while six new issues are
+appended below it; the entry records what it said and when it stopped being true.
+`doc/IMPROVEMENTS.md`'s closing paragraph no longer says nothing is outstanding, and
+`plans/README.md`'s paragraph gains a sentence pointing at this review.
+
+**Decided.** File all six rather than fix any of them in this pass. The review was asked for as a
+review; issues 22, 23, 25 and 26 are all code changes to `tests/repro.py` or the fit path, and this
+repository's rule is that those go through a reviewed, individually committable step rather than
+being folded into a documentation commit. Issue 24 is the exception, for the reason above.
+
+**Left alone.** Issues 22, 23, 25, 26 and 27 — recorded, open, with fixes proposed. Nothing in the
+harness's behaviour or in either baseline was changed by this entry: the only files touched are
+`KNOWN_ISSUES.md`, this notebook, `doc/IMPROVEMENTS.md` and `plans/README.md`.
+
+---
+
+## 2026-09-17 13:20 — Fix the five issues this work introduced; leave the inherited one recorded
+
+**Objective.** Instructed to fix only the issues this work directly introduced, and to leave
+pre-existing bugs recorded rather than fixed for now. Of the six filed at 12:45 that means 22, 25,
+26 and 27 (24 was already fixed on sight), with issue 23 — the BumpHunter plots written to the
+repository root — left open, since that write has been in `FindBHWindow.py` since 2021-11-02 and
+belongs to the fit path, not to the harness.
+
+**Fixed.**
+
+- **Issue 22, NaN treated as a match.** [tests/repro.py](tests/repro.py): `compare()` now tests for
+  NaN before the tolerance comparison — exactly one side NaN is a mismatch reported as
+  `(NaN mismatch)`, both sides NaN is a match, everything else is unchanged. The `import math` is
+  the only new dependency, from the standard library. The *exact* class is deliberately not given
+  the same treatment: there, NaN against NaN reports a mismatch, which is loud rather than silent
+  and therefore the safe direction for a class that holds `status`, `covQual` and the mask bounds.
+- **Issue 25, the hardcoded egg constant.** `EXPECTED_PYBUMPHUNTER_EGG_VERSION` is deleted. The
+  check derives `+g<first 7 hex of the pyBumpHunter pin>` from the pin already parsed out of
+  `install.sh` and asserts the installed egg's version ends with it, restoring plan §1's rule that
+  every expected value comes from the file that already declares it. `find_pybumphunter_egg_version`
+  now reports two eggs as an ambiguity that fails the check instead of silently taking the first.
+- **Issue 26, crashes instead of reports.** `compare()` requires *both* values to be numeric before
+  doing arithmetic and reports a type change as `(type changed: float -> str)`. `_report_env()`
+  skips a baseline whose JSON will not parse, or whose provenance block is missing or incomplete,
+  naming the file and what is missing rather than raising `KeyError` three frames down.
+- **Issue 27, the stale description.** [README.md](README.md) and [CLAUDE.md](CLAUDE.md) now say
+  the three sub-frameworks are cloned at pinned SHAs from their public GitHub mirrors. The CERN
+  GitLab references that remain accurate — the upstream project and its documentation, in the
+  README's Links section — are untouched. `CLAUDE.md` carries unrelated uncommitted working-tree
+  changes; only the one sentence was edited, and the rest of the file is as it was.
+
+**Changed.** The documentation half of issue 23, which is this work's own share of an otherwise
+inherited problem: the README's Reproducibility section and `doc/IMPROVEMENTS.md` both described
+`check` as writing only to the scratch directory. They now state that any run reaching the
+BumpHunter step — a real J50 fit or a `check` — rewrites `bump.png` and `BH_statistics.png` at the
+repository root, and point at issue 23. The write itself is untouched. `KNOWN_ISSUES.md`'s issues
+22, 25, 26 and 27 carry **Fixed** headers with what was done; 23 carries a **Status** paragraph
+saying why it is open; the section preamble now states the fixed/inherited split.
+
+**Verified.**
+
+- `python3 tests/repro.py selfcheck` passes, now printing `... tolerance classes, missing/extra
+  keys, tol_scale scaling, NaN, type changes`. Its new assertions cover all three NaN combinations
+  (candidate NaN against a real baseline fails, a real candidate against a NaN baseline fails, NaN
+  against NaN passes) and the type-change failure.
+- `python3 tests/repro.py env` — 24/24 PASS, unchanged in count and content, with the egg check now
+  printing `expected one built from install.sh's pin (version ending '+g91f49a6')`.
+- **The egg check was proved to follow the pin, in both directions, without touching the tracked
+  tree**: a scratch script built a throwaway root of symlinks to the four real clones plus a copy of
+  `install.sh` whose pyBumpHunter pin had its first character changed, and called
+  `run_env_checks(root)` against each. Unmutated → PASS; mutated → FAIL, expecting a version ending
+  `+gf1f49a6`. An earlier attempt to do this by editing the real `install.sh` was abandoned and
+  reverted (`git status` confirmed it byte-identical) when the environment refused to run `env`
+  against the modified file.
+- The malformed-baseline path was exercised by dropping a `tests/baseline_TEST.json` containing
+  `{"analysis": "TEST"}` beside the real ones: `env` printed `WARNING: baseline_TEST.json has no
+  usable provenance block (missing provenance) - skipping its comparisons`, still reported 24/24
+  PASS and exit 0, where before the fix it would have raised `KeyError`. The file was deleted and
+  `git status tests/` confirmed clean.
+- `python3 tests/repro.py check` in full — both analyses, real driver runs, J50's BumpHunter path
+  included: `PASS: check`, exit 0. The comparator changed, so this was re-run rather than assumed;
+  neither baseline moved and neither was re-cut.
+
+**Left alone.** Issue 23's write in `python/FindBHWindow.py`, per the instruction that pre-existing
+bugs are recorded rather than fixed for now. It stays open in `KNOWN_ISSUES.md` with its fix
+proposal intact. No baseline was re-cut, and no plan was amended: nothing here changes what the
+harness measures, only what it notices and how it reports.

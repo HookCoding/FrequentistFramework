@@ -26,8 +26,10 @@ inventing a second source of truth: the four sub-framework SHAs in `install.sh` 
 `git rev-parse HEAD` in each gitignored clone; the RooFitExtensions SHA in each sub-framework's
 own live `scripts/install_roofitext.sh`; agreement of the `lsetup "views …"` line across all
 three `setup_lxplus.sh`; the pyBumpHunter venv's `pyvenv.cfg` against that view and Python 3.9.12;
-the installed egg's pinned short SHA; and that none of the four clones have modified tracked
-files. It also computes the SHA-256 of the two built binaries and compares them against the
+the installed egg's version against the short SHA of the pyBumpHunter pin it parsed from
+`install.sh` (so a deliberate pin bump reports "the venv needs rebuilding", not a disagreement with
+a constant — [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 25, fixed 2026-09-17); and that none of
+the four clones have modified tracked files. It also computes the SHA-256 of the two built binaries and compares them against the
 digests in every existing baseline's provenance — a rebuilt `XMLReader` or `quickFit` now fails
 `env` (and therefore `check`, which runs `env` first) instead of passing silently. A deliberate
 rebuild is expected to change the digest; the fix is to re-cut the baseline (`record --force
@@ -125,6 +127,15 @@ A missing or extra key between baseline and candidate is always a failure. Every
 reported, not just the first. `tol_scale` widens both float classes' `rtol` and `atol` terms at
 once, for the cross-machine case.
 
+Two cases are handled before the tolerance test, because a float comparison quietly gives the
+wrong answer for both. **NaN**: every comparison against NaN is false, so an unguarded tolerance
+test passes a NaN candidate against any baseline value — exactly the silent agreement this harness
+exists to prevent, since a fit that fails into NaN is one of the things XMLReader/quickFit's
+warn-and-return-0 behaviour can produce. One side NaN is now a mismatch, both sides NaN a match
+([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 22, fixed 2026-09-17). **A leaf whose type changes**
+(a float against a string, say) is reported as `type changed: float -> str` rather than raising
+`TypeError` out of the arithmetic (issue 26, same day).
+
 All four subcommands are built. `run_env_checks()` is shared by `env` and `check` rather than
 reimplemented in the latter; `compare()` is used by `record`'s own `selfcheck` test and by
 `check`, which is the only subcommand that builds a candidate to feed it — `env` deliberately does
@@ -150,5 +161,17 @@ documented and verified end to end, and the gaps the original survey found are c
 this implementation against the plan, on 2026-09-16, found ten things outstanding, filed as issues
 12–21 in [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) with the fix each one needed; all ten are now fixed,
 the last (issue 21, re-adding the parser unit tests) on 2026-09-17. Nothing from that audit remains
-open. Nothing is "next" in the sense of outstanding work on this plan — it is done, not merely
-implemented.
+open, and every requirement of the plan is implemented.
+
+A second review on 2026-09-17, after those ten were closed, found six further things — issues
+22–27, none of which affected a recorded number. Five of them were introduced by this work and are
+now fixed: the comparator's NaN hole (22) and its type-change/malformed-baseline crashes (26), the
+egg check's hardcoded constant (25), a stale sentence in `KNOWN_ISSUES.md` itself (24), and the
+"CERN GitLab" description the §6 repoint made untrue (27).
+
+**One is left open deliberately: issue 23.** J50's BumpHunter step writes `bump.png` and
+`BH_statistics.png` into the repository root rather than the run folder, so a `check` rewrites them
+there — outside the scratch directory, though still never touching `run/`. That write has been in
+`FindBHWindow.py` since 2021, so it is a fit-path bug this work inherited rather than caused; it is
+recorded and left for whenever the fit path is next opened. The isolation described above is
+accurate for everything else.

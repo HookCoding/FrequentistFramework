@@ -14,6 +14,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -91,9 +92,22 @@ def compare(baseline, candidate, tol_scale=1.0):
         b, c = base_flat[path], cand_flat[path]
         cls = classify(path)
 
-        if cls == "exact" or isinstance(b, bool) or not isinstance(b, (int, float)):
+        numeric = all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (b, c))
+        if cls == "exact" or not numeric:
             if b != c:
-                failures.append(f"{path}: expected {b!r}, got {c!r} (exact match required)")
+                # A type change is reported as such rather than reaching the
+                # arithmetic below, where it used to raise TypeError three
+                # frames deep instead of being a readable failure.
+                why = ("exact match required" if type(b) is type(c)
+                       else f"type changed: {type(b).__name__} -> {type(c).__name__}")
+                failures.append(f"{path}: expected {b!r}, got {c!r} ({why})")
+            continue
+
+        if math.isnan(b) or math.isnan(c):
+            # Every comparison against NaN is False, so the tolerance test
+            # below would silently pass a NaN candidate against any baseline.
+            if math.isnan(b) != math.isnan(c):
+                failures.append(f"{path}: expected {b!r}, got {c!r} (NaN mismatch)")
             continue
 
         rtol, atol = cls["rtol"] * tol_scale, cls["atol"] * tol_scale
@@ -189,7 +203,25 @@ def cmd_selfcheck(args):
     at_100x = compare(tight_baseline, tight_candidate, tol_scale=100.0)
     assert at_100x == [], f"expected tol_scale=100 to absorb the same difference, got: {at_100x}"
 
-    print("PASS: comparator selfcheck (tolerance classes, missing/extra keys, tol_scale scaling)")
+    # NaN is a mismatch in either direction and a match only against itself:
+    # every comparison against NaN is False, so an unguarded tolerance test
+    # passes a NaN candidate against any baseline value (KNOWN_ISSUES 22).
+    nan_baseline = {"fitResult": {"minNll": 1259.11}}
+    assert compare(nan_baseline, {"fitResult": {"minNll": float("nan")}}) != [], \
+        "a NaN candidate must not pass against a real baseline value"
+    assert compare({"fitResult": {"minNll": float("nan")}}, nan_baseline) != [], \
+        "a real candidate must not pass against a NaN baseline value"
+    assert compare({"fitResult": {"minNll": float("nan")}},
+                   {"fitResult": {"minNll": float("nan")}}) == [], "NaN must match itself"
+
+    # A leaf whose type changes is a readable failure, not a TypeError raised
+    # out of the arithmetic (KNOWN_ISSUES 26).
+    type_changed = compare({"fitResult": {"minNll": 1259.11}}, {"fitResult": {"minNll": "nope"}})
+    assert len(type_changed) == 1 and "type changed" in type_changed[0], \
+        f"expected a type-change failure, got: {type_changed}"
+
+    print("PASS: comparator selfcheck (tolerance classes, missing/extra keys, tol_scale scaling, "
+          "NaN, type changes)")
 
     # compare_binary_digests: no baseline, match, mismatch, missing digest.
     observed = {"a/bin": "aaaa", "b/bin": "bbbb"}
@@ -264,7 +296,6 @@ done
 
 FRAMEWORKS = ["xmlAnaWSBuilder", "quickFit", "workspaceCombiner", "pyBumpHunter"]
 ROOFIT_FRAMEWORKS = ["xmlAnaWSBuilder", "quickFit", "workspaceCombiner"]
-EXPECTED_PYBUMPHUNTER_EGG_VERSION = "0.4.3.dev16+g91f49a6"
 EXPECTED_PYBH_PYTHON_VERSION = "3.9.12"
 
 
@@ -309,9 +340,14 @@ def parse_pyvenv_cfg(pyvenv_cfg_path):
 
 
 def find_pybumphunter_egg_version(pyBH_env_dir):
+    """The installed egg's version string, or a string saying why there isn't
+    exactly one. Two eggs in the venv is itself the finding - picking one and
+    reporting it as 'the' version is how a stale egg hides behind a fresh one."""
     eggs = sorted(pyBH_env_dir.glob("lib/python*/site-packages/pyBumpHunter-*.egg"))
     if not eggs:
         return None
+    if len(eggs) > 1:
+        return f"ambiguous: {len(eggs)} eggs installed ({', '.join(e.name for e in eggs)})"
     m = re.match(r"pyBumpHunter-(.+)-py3\.\d+\.egg$", eggs[0].name)
     return m.group(1) if m else eggs[0].name
 
@@ -480,10 +516,20 @@ def run_env_checks(root=REPO_ROOT):
         check("pyBH_env python version", version == EXPECTED_PYBH_PYTHON_VERSION,
               f"pyvenv.cfg version={version!r}, expected {EXPECTED_PYBH_PYTHON_VERSION!r}")
 
+    # The egg carries the short SHA of the commit it was built from, so the
+    # expectation is derived from install.sh's own pin rather than from a
+    # constant here: a deliberate pin bump then fails with "the venv needs
+    # rebuilding", not with "the egg disagrees with a number nobody updated".
     pyBH_env_dir = root / "pyBumpHunter" / "pyBH_env"
     egg_version = find_pybumphunter_egg_version(pyBH_env_dir) if pyBH_env_dir.is_dir() else None
-    check("pyBumpHunter installed egg version", egg_version == EXPECTED_PYBUMPHUNTER_EGG_VERSION,
-          f"installed egg is {egg_version!r}, expected {EXPECTED_PYBUMPHUNTER_EGG_VERSION!r}")
+    pybh_pin = install_pins.get("pyBumpHunter")
+    expected_egg_suffix = f"+g{pybh_pin[:7]}" if pybh_pin else None
+    check("pyBumpHunter installed egg version",
+          bool(expected_egg_suffix) and isinstance(egg_version, str)
+          and egg_version.endswith(expected_egg_suffix),
+          f"installed egg is {egg_version!r}, expected one built from install.sh's pin "
+          f"(version ending {expected_egg_suffix!r})" if expected_egg_suffix
+          else f"installed egg is {egg_version!r}, but install.sh declares no pyBumpHunter pin")
 
     for fw in FRAMEWORKS:
         clone_dir = root / fw
@@ -550,7 +596,23 @@ def _report_env(checks, recorded):
     `check`, which runs the same checks before touching any fit). Returns
     True iff every assertable check passed."""
     baseline_paths = sorted((REPO_ROOT / "tests").glob("baseline_*.json"))
-    provenances = [(p.name, json.loads(p.read_text())["provenance"]) for p in baseline_paths]
+    provenances = []
+    for path in baseline_paths:
+        # A hand-edited or half-written baseline is named and skipped rather
+        # than raising KeyError/ValueError from three frames down.
+        try:
+            provenance = json.loads(path.read_text()).get("provenance")
+        except ValueError as exc:
+            print(f"WARNING: {path.name} is not valid JSON ({exc}) - skipping its comparisons")
+            continue
+        missing = [k for k in ("versions", "binary_sha256")
+                   if not isinstance(provenance, dict) or k not in provenance]
+        if missing:
+            print(f"WARNING: {path.name} has no usable provenance block "
+                  f"(missing {', '.join(missing) if isinstance(provenance, dict) else 'provenance'})"
+                  " - skipping its comparisons")
+            continue
+        provenances.append((path.name, provenance))
 
     for name, provenance in provenances:
         checks = checks + [(f"{check_name} ({name})", ok, detail) for check_name, ok, detail in

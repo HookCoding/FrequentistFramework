@@ -1,9 +1,10 @@
 # FrequentistFramework
 
-ATLAS statistical-fit framework for dijet / TLA bump-hunt analyses. It wraps three CERN
-GitLab C++ sub-frameworks ([xmlAnaWSBuilder](https://github.com/tofitsch/xmlAnaWSBuilder),
+ATLAS statistical-fit framework for dijet / TLA bump-hunt analyses. It wraps three C++
+sub-frameworks, cloned at pinned SHAs from their public GitHub mirrors
+([xmlAnaWSBuilder](https://github.com/tofitsch/xmlAnaWSBuilder),
 [quickFit](https://github.com/tofitsch/quickFit),
-[workspaceCombiner](https://github.com/tofitsch/workspaceCombiner)) plus
+[workspaceCombiner](https://github.com/tofitsch/workspaceCombiner)), plus
 [pyBumpHunter](https://github.com/scikit-hep/pyBumpHunter) behind Python drivers that
 template XML workspace cards, run the fit, and extract postfit histograms, fit parameters
 and p-values.
@@ -198,7 +199,11 @@ clear `ERROR: ... has no ROOT module` rather than running.
 
 `check` re-runs the driver(s) with `OUT_DIR` pointed at a scratch directory — `run/` itself is
 never touched — and compares the fitted parameters, `minNll`, chi2/p-values, postfit bins and
-BumpHunter output against `tests/baseline_J100.json`/`baseline_J50.json`. Floats are compared
+BumpHunter output against `tests/baseline_J100.json`/`baseline_J50.json`. One exception to that
+isolation, inherited rather than introduced: the BumpHunter step writes `bump.png` and
+`BH_statistics.png` with bare relative filenames, so any run that reaches it — a real J50 fit or a
+`check` — rewrites those two files at the repository root
+([KNOWN_ISSUES.md](KNOWN_ISSUES.md) issue 23). Copy them elsewhere if you need to keep them. Floats are compared
 within a tolerance (tight: `rtol=1e-6`; p-values: `rtol=1e-5`); most other fields must match
 exactly. Run `check --quick` while iterating and the full `check` before committing or merging —
 commit only on PASS.

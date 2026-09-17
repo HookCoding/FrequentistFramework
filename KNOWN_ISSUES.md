@@ -50,11 +50,14 @@ implementation against
 declared complete, and each is recorded **with the fix it needs**, because unlike the others they
 are meant to be fixed.
 
-**Below, issues 12 and 13 are fixed (2026-09-16 18:40 and 19:05); every other `Fix` is still a
-proposal awaiting review, not a record of work done.** 12 and 13 were requirements of the plan
-that were never implemented, so the plan's closing claim that "both implementation (§1–§6) and
-Verification (steps 1–7) are complete" (CHANGELOG, 2026-09-16 17:20) was wrong at the time it was
-written. That entry is append-only and stands as written; this section is the correction.
+**All ten (12–21) are now fixed, between 2026-09-16 18:40 and 2026-09-17 12:25; each entry's
+header carries its fix date, and the `Fix` paragraph below it is the proposal that was carried
+out, kept as written.** 12 and 13 were requirements of the plan that were never implemented, so
+the plan's closing claim that "both implementation (§1–§6) and Verification (steps 1–7) are
+complete" (CHANGELOG, 2026-09-16 17:20) was wrong at the time it was written. That entry is
+append-only and stands as written; this section is the correction. (This paragraph itself said
+"every other `Fix` is still a proposal awaiting review" until 2026-09-17 12:45, long after 14–21
+were fixed — see issue 24 below.)
 
 ### 12. `env` computes the built binaries' SHA-256 but never compares them — **High** — **Fixed 2026-09-16 18:40**
 
@@ -344,3 +347,188 @@ than silent passes. What is missing is the net that says so.
 **Fix.** Re-add them inside `selfcheck` as about fifteen lines of `assert` against inline
 synthetic strings: the three cases the changelog names, plus `cd ..`. No framework, no fixtures,
 no new file — `selfcheck` exists for exactly this and still needs no ROOT.
+
+## Harness issues — found 2026-09-17 reviewing the completed reproducibility lock
+
+Issues 22–27 come from a second review, asked for after issues 12–21 were closed: read the whole
+reproducibility lock again — code, baselines and documentation — against
+[plans/2026-09-15-reproducibility-lock.md](plans/2026-09-15-reproducibility-lock.md), and look for
+problems nobody had disclosed yet. The plan itself is fully implemented; `selfcheck`, `env` (24/24)
+and a full `check` (both analyses, real driver runs, ~3.5 min) all pass on the tree as it stands.
+These six are what the review found on top of that.
+
+**None of them invalidates a recorded number.**
+
+**Everything this work introduced is fixed; the one pre-existing bug is recorded and left alone.**
+That split was the repository owner's instruction on 2026-09-17: change what we introduced, record
+what we inherited. So 22, 24, 25, 26 and 27 are fixed (24 on sight, the rest on 2026-09-17 13:20),
+while **issue 23 stays open** — the write it describes has been in `FindBHWindow.py` since 2021 and
+belongs to the fit path, not the harness. What was corrected there is only this work's own share of
+it: the README and `doc/IMPROVEMENTS.md` claimed an isolation broader than the truth, and now say
+what actually happens.
+
+### 22. `compare()` treats NaN as a match — **Medium** — **Fixed 2026-09-17 13:20**
+
+**Fixed.** `compare()` now tests for NaN before the tolerance comparison: exactly one side NaN is a
+mismatch reported as `(NaN mismatch)`, both sides NaN is a match, everything else compares as
+before. `selfcheck` covers all three combinations. See CHANGELOG.md's 2026-09-17 13:20 entry. The
+rest of this entry is kept as the record of what was wrong, per this file's own rule of updating in
+place rather than deleting.
+
+**What.** The float comparison is `if diff > atol + rtol * abs(b)`, and every comparison against
+NaN is `False`. A candidate value of NaN therefore passes against any baseline value, for every
+leaf in the tight and pvalue classes: fitted parameters and their errors, `minNll`, `chi2`,
+`chi2/ndof`, postfit bin contents, the data integral, and every p-value. Confirmed directly:
+`compare({'minNll': 1259.11}, {'minNll': nan})` returns `[]`, while the same comparison against
+`inf` correctly fails.
+
+**Where.** [tests/repro.py:101](tests/repro.py#L101), the `diff > atol + rtol * abs(b)` test in
+`compare()`.
+
+**Affects.** Both analyses. The exposure is a fit that fails into NaN rather than failing loudly —
+precisely the failure mode this harness is the compensating control for, since XMLReader and
+quickFit only warn and still return 0 (see the first table above). In practice such a fit would
+probably also move `status`/`covQual`, which are exact-compared and would fail, and a NaN in the
+postfit histogram would likely disturb the data integral too — so it is unlikely that a NaN run
+passes `check` outright. But that is luck, not design, and the one component that exists to catch
+this is the one that silently agrees.
+
+**Fix.** Guard the float branch: a mismatch if exactly one of baseline and candidate is NaN, a
+match if both are, the existing tolerance test otherwise (`math.isnan`). Roughly three lines, plus
+a `selfcheck` case for each of the three combinations. Worth doing even though `status` would
+probably catch it anyway — the check is cheap and the alternative is relying on a coincidence.
+
+### 23. `check` overwrites `bump.png` and `BH_statistics.png` in the repository root — **Low** — **open; documentation half corrected 2026-09-17 13:20**
+
+**Status.** The write itself is left alone: it predates this work by four years, it is on the fit
+path rather than in the harness, and the repository owner's instruction on 2026-09-17 was that
+pre-existing bugs are recorded, not fixed, for now. What *was* corrected is this work's own share —
+the README and `doc/IMPROVEMENTS.md` described an isolation broader than the truth, and now state
+that any run reaching the BumpHunter step, `check` included, rewrites those two files at the
+repository root. The fix below stands as the proposal for whenever the fit path is next opened.
+
+**What.** `FindBHWindow.py` writes its two plots with bare relative filenames, so they land in the
+process's working directory rather than in the run folder. `check` runs each driver from the
+repository root, so a `check` that exercises J50 rewrites those two files at the top of the
+repository — outside `run/check_scratch/`, which is the only place the README and
+`doc/IMPROVEMENTS.md` say `check` writes.
+
+**Where.** [python/FindBHWindow.py:88](python/FindBHWindow.py#L88) and
+[python/FindBHWindow.py:91](python/FindBHWindow.py#L91) (`filename="bump.png"`,
+`filename="BH_statistics.png"`); [tests/repro.py:787](tests/repro.py#L787), where `_run_driver`
+does `cd "{REPO_ROOT}"`.
+
+**Affects.** Anyone who keeps the real J50 BumpHunter plots at the repository root: a later `check`
+replaces them with the scratch run's, with no warning. Nothing tracked changes — `*.png` is
+gitignored, which is why `git status` stayed clean and this went unnoticed through the whole
+implementation. The behaviour predates this work (the write has been there since 2021-11-02, and
+every real J50 driver run does the same thing); what is new is the isolation claim written around
+it in 2026-09-16's documentation.
+
+**Fix.** Either pass a folder-qualified filename from `run_anaFit.py` into `plot_bump`/`plot_stat`
+so the plots land beside the rest of the run's output — which is where they belong anyway, and
+would make them visible to `directory_listing` — or, if a fit-path change is out of scope, state
+the behaviour in the README's Reproducibility section and in `doc/IMPROVEMENTS.md` so the isolation
+claim stops being broader than the truth.
+
+### 24. This file said issues 14–21 were still proposals after they were fixed — **Low** — **Fixed 2026-09-17 12:45**
+
+**Fixed.** The paragraph now states that all ten are fixed and that each `Fix` below it is the
+proposal that was carried out. Corrected rather than left open, because a file whose stated purpose
+is honest disclosure cannot carry a false statement about its own contents while new issues are
+appended beneath it.
+
+**What.** The preamble to the 12–21 section read "**Below, issues 12 and 13 are fixed … every other
+`Fix` is still a proposal awaiting review, not a record of work done**". That was accurate when
+written on 2026-09-16 and stopped being accurate on 2026-09-17 as 14 through 21 were fixed in turn
+— each entry's own header was updated to say **Fixed**, but the paragraph introducing them was not.
+
+**Where.** `KNOWN_ISSUES.md`, the paragraph opening the "Harness issues — found 2026-09-16"
+section.
+
+**Affects.** A reader trusting the section preamble over the individual entries would conclude
+eight open harness bugs remained. Nothing in the code.
+
+### 25. The pyBumpHunter egg check compares against a hardcoded constant — **Low** — **Fixed 2026-09-17 13:20**
+
+**Fixed.** `EXPECTED_PYBUMPHUNTER_EGG_VERSION` is deleted. The check now derives the expected
+suffix from the pyBumpHunter pin it already parses out of `install.sh` (`+g<first 7 hex>`) and
+asserts the installed egg's version ends with it, so bumping the pin moves the expectation with it.
+`find_pybumphunter_egg_version` reports two eggs as an ambiguity that fails the check rather than
+silently picking the first. See CHANGELOG.md's 2026-09-17 13:20 entry. The rest of this entry is
+kept as the record of what was wrong.
+
+**What.** Plan §1's rule is that every expected value is parsed from the file that already declares
+it, "without inventing a new source of truth". The egg check breaks that rule: it compares the
+installed egg's version against `EXPECTED_PYBUMPHUNTER_EGG_VERSION`, a constant in the harness,
+rather than against the short form of the pyBumpHunter SHA it already parses out of `install.sh`.
+Related, in the same check: `find_pybumphunter_egg_version` takes `sorted(glob(...))[0]`, so if the
+venv ever holds two eggs it reports whichever sorts first rather than noticing the ambiguity.
+
+**Where.** [tests/repro.py:267](tests/repro.py#L267) (the constant),
+[tests/repro.py:311-316](tests/repro.py#L311-L316) (`find_pybumphunter_egg_version`),
+[tests/repro.py:484-486](tests/repro.py#L484-L486) (the check).
+
+**Affects.** Nothing today — the constant agrees with the pin, and `env` passes 24/24. It bites
+whenever the pyBumpHunter pin in `install.sh` is deliberately bumped: the clone SHA check passes,
+the egg check fails, and its message blames the egg for disagreeing with a constant nobody thought
+to update, rather than saying the venv needs rebuilding against the new pin. The check is right
+about *what* is wrong and misleading about *why*.
+
+**Fix.** Derive the expected short SHA from the already-parsed pin for `pyBumpHunter` and assert
+the egg version ends with `+g<short sha>`, keeping pyBumpHunter's own `0.4.3.dev16` versioning out
+of it (that is not something this repository pins). Fail with both the installed and the expected
+value, as now. Optionally report a second egg as its own failure instead of silently picking one.
+
+### 26. A leaf whose *type* changes crashes the comparator; a malformed baseline crashes `env` — **Low** — **Fixed 2026-09-17 13:20**
+
+**Fixed.** `compare()` now requires *both* values to be numeric before doing arithmetic on them and
+reports a type change as `(type changed: float -> str)`; `selfcheck` covers it. `_report_env()`
+skips a baseline whose JSON is invalid or whose provenance block is missing or incomplete, naming
+the file and what is missing, instead of raising. See CHANGELOG.md's 2026-09-17 13:20 entry. The
+rest of this entry is kept as the record of what was wrong.
+
+**What.** Two diagnosability gaps, both turning a reportable condition into a traceback. In
+`compare()`, a baseline float against a candidate string reaches `abs(c - b)` and raises
+`TypeError: unsupported operand type(s) for -: 'str' and 'float'` instead of being reported as a
+mismatch — the type guard on the line above tests only the *baseline* value's type. In
+`_report_env()`, a baseline file missing `provenance`, `provenance["versions"]` or
+`provenance["binary_sha256"]` raises `KeyError` rather than saying which file is malformed.
+
+**Where.** [tests/repro.py:94](tests/repro.py#L94) and [tests/repro.py:101](tests/repro.py#L101);
+[tests/repro.py:553](tests/repro.py#L553) and [tests/repro.py:576](tests/repro.py#L576).
+
+**Affects.** Neither can happen while the extractors and `record` are the only writers of these
+documents — the types are fixed by the ROOT calls that produce them, and `record` always writes a
+complete provenance block. Both become reachable the moment a baseline is hand-edited or produced
+by a future variant of the tooling, which is exactly when a clear message matters most.
+
+**Fix.** In `compare()`, test both values' types and report a type change as a mismatch in its own
+right. In `_report_env()`, skip a baseline whose provenance is missing or incomplete with a named
+warning rather than raising. Four or five lines each; `selfcheck` can cover the comparator half
+with no ROOT.
+
+### 27. `README.md` and `CLAUDE.md` still call the sub-frameworks "CERN GitLab" ones — **Low** — **Fixed 2026-09-17 13:20**
+
+**Fixed.** Both opening paragraphs now say the three sub-frameworks are cloned at pinned SHAs from
+their public GitHub mirrors. The CERN GitLab references that are still accurate — the upstream
+project and its documentation, in the README's Links section — are untouched. See CHANGELOG.md's
+2026-09-17 13:20 entry. The rest of this entry is kept as the record of what was wrong.
+
+**What.** Both open by describing the framework as wrapping "three CERN GitLab C++
+sub-frameworks", while the links beside that phrase point at GitHub and `install.sh` has cloned
+from `github.com/tofitsch/...` since the plan's §6 repoint. The sentence was true when written on
+2026-09-15; §6 made it stale on 2026-09-16 and neither file was revisited. The upstream project
+genuinely is hosted on CERN GitLab (the README's Links section still points there), so the phrase
+is half-true, which is the awkward kind.
+
+**Where.** [README.md:3-4](README.md#L3-L4), [CLAUDE.md:7-8](CLAUDE.md#L7-L8).
+
+**Affects.** Documentation only. The risk is a reader concluding the clone URLs still resolve at
+CERN GitLab, which is the exact confusion §6 existed to remove — those URLs are unreachable, which
+is why they were repointed.
+
+**Fix.** Say the sub-frameworks are mirrored on GitHub and cloned from there at pinned SHAs, and
+keep the CERN GitLab reference where it is accurate (the upstream project and its documentation).
+`CLAUDE.md` carries unrelated uncommitted changes in the working tree — read it before editing, as
+the plan's §7 already warns.
