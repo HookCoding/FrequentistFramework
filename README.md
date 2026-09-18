@@ -57,14 +57,28 @@ The results recorded in [CHANGELOG.md](CHANGELOG.md) were produced with LCG_102a
 
 `install.sh` and `setup.sh` must be **sourced**, not executed — they `cd` around and export
 `$_DIRFIT`, `$_DIRXMLWSBUILDER` and `$_DIRCOMB`. All commands must be run **from the
-repository root**; the setup scripts abort if `xmlAnaWSBuilder/` and `quickFit/` are not in
-`$PWD`.
+repository root**: `scripts/setup_buildAndFit.sh` refuses to run if `xmlAnaWSBuilder/` and
+`quickFit/` are not in `$PWD`, and each driver stops on that refusal with
+`ERROR: run this from the FrequentistFramework repository root.` rather than carrying on into
+the fit with no environment. Until 2026-09-17 the drivers did carry on — see
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md) issue 43.
 
 # Run
 
-Output defaults to `<repo>/run/`; every output lands under
-`$out_dir/run_<rangelow>_<rangehigh>_<n>Par/`. Override with `OUT_DIR=/path/to/eos/area` for
-toy studies fanned out over HTCondor — AFS home quotas are too small for hundreds of runs.
+Output defaults to `<repo>/run/`, and each driver names its own subdirectory under it — there is
+no single shape:
+
+| Driver | Subdirectory |
+|---|---|
+| `run_anaFit.sh`, `run_anaFit_run2.sh` | `run_<rangelow>_<rangehigh>_<n>Par/` |
+| `run_anaFit_run2_J50.sh` | `run_J50_<rangelow>_<rangehigh>_<n>Par/` |
+| `run_anaFit_syst.sh` | `run_systematics_<rangelow>_<rangehigh>_<n>Par/` |
+| `run_nloFit.sh` | `outOfTheBoxFit/` |
+
+Override the parent with `OUT_DIR=/path/to/eos/area` for toy studies fanned out over HTCondor —
+AFS home quotas are too small for hundreds of runs. **`OUT_DIR` does not reach
+`scripts/run_anaFit_flowchart.sh`**, which hardcodes `folder=run/outOfTheBoxPD` and ignores
+`$out_dir` entirely.
 
 ```
 . scripts/run_anaFit_run2.sh        # Run 2 dijet TLA J100  (13 TeV)

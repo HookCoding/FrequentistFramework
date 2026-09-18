@@ -19,8 +19,14 @@ All commands must be run **from the repository root** — `setup.sh` and
 setupATLAS && lsetup git    # lxplus/CVMFS environment first
 . install.sh                # clone + cmake-build the sub-frameworks (one-off, ~long)
 . setup.sh                  # source (do NOT execute) before any run — sets $_DIRFIT etc.
-. scripts/run_anaFit.sh     # main entry point
+. scripts/run_anaFit_run2.sh      # Run 2 dijet TLA J100 - the working entry point
+. scripts/run_anaFit_run2_J50.sh  # Run 2 dijet TLA J50
 ```
+
+`scripts/run_anaFit.sh` is the Run 3 ISR TLA configuration and **cannot be run in this tree**: it
+reads `data/data23_histos.root`, and `data/` does not exist here. It is kept because it is the
+configuration the Run 3 work will resume from, not because it works today. The two Run 2 drivers
+above are the ones with recorded baselines (`tests/repro.py`).
 
 `install.sh` and `setup.sh` must be **sourced**; they `cd` around and export env vars.
 

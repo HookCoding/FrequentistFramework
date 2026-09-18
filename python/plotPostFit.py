@@ -9,6 +9,10 @@ parser.add_argument('-o', '--output', type=str, required=True)
 parser.add_argument('-c', '--channel', type=str, default='Run3TLA',
                     help='Channel name, i.e. the directory inside the PostFit file '
                          '(Run3TLA for dijetisrTLA, J100yStar06 for dijetTLA)')
+parser.add_argument('-l', '--label', type=str, default='',
+                    help='Text drawn on the plot saying which fit this is, e.g. '
+                         '"masked fit (BumpHunter window blinded)". Without it a reader cannot '
+                         'tell a masked plot from an unmasked one. See KNOWN_ISSUES.md issue 48.')
 args = parser.parse_args()
 
 postfit_file = ROOT.TFile.Open(args.inputFile, "READ")
@@ -40,9 +44,17 @@ text.SetTextFont(42)
 text.SetNDC()
 string = "#chi^{2}/ndof = "
 h_rchi2 = postfit_file.Get(args.channel+"/chi2")
-rchi2 = h_rchi2.GetBinContent(6)
+# Bin 2, not 6: ExtractPostfitFromWS.py writes chi2 in bin 1, chi2/ndof in bin 2 and the
+# p-value in bin 6, and labels the axis accordingly. This read said 6 while the label said
+# chi2/ndof, so every plot showed the p-value under the wrong name (KNOWN_ISSUES.md issue 45).
+rchi2 = h_rchi2.GetBinContent(2)
 string+= f"{rchi2:.3f}"
 text.DrawLatex(0.65,0.55, string)
+
+# Which fit this is. A run that fails the p(chi2) gate produces two PostFit files, and
+# without this the two plots are indistinguishable. See KNOWN_ISSUES.md issue 48.
+if args.label:
+    text.DrawLatex(0.65, 0.60, args.label)
 c.cd()
 
 pad2 = ROOT.TPad("pad2","bottom pad",0,0.05,1,0.3)

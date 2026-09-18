@@ -3,7 +3,14 @@
 generatePD=true
 
 {
-    . scripts/setup_buildAndFit.sh
+    # Stop if the setup refuses: it `return`s on a wrong working directory, and `return`
+    # from a sourced script hands control straight back here. `return` works when this
+    # driver is sourced, as the header says to; `exit` covers `bash scripts/...` (which is
+    # how tests/repro.py runs it). Not a bare `exit` - that would kill an interactive shell.
+    if ! . scripts/setup_buildAndFit.sh; then
+        echo "ERROR: run this from the FrequentistFramework repository root." >&2
+        return 1 2>/dev/null || exit 1
+    fi
 
     # for pars in five six seven
     for pars in five

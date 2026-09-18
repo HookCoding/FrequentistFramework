@@ -136,6 +136,16 @@ class PostfitExtractor:
                  maskisbinnumber=False,
                  useSumW2=False):
 
+        # A pair, not two independent options: every use site tests `rebinfile and rebinhist`
+        # together, so half a pair would silently skip rebinning altogether and produce no
+        # _rebinned channel - and no chi2 over it. Guarded here rather than in the CLI parser so
+        # the direct construction in run_anaFit.py is covered too. See KNOWN_ISSUES.md issue 46.
+        if bool(rebinfile) != bool(rebinhist):
+            raise ValueError(
+                "rebinfile and rebinhist must be given together "
+                "(got rebinfile=%r, rebinhist=%r)" % (rebinfile, rebinhist)
+            )
+
         self.wsfile = wsfile
         self.datafile = datafile
         self.datahist = datahist

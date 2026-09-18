@@ -38,13 +38,112 @@ stops with both numbers if they disagree; a card with no placeholders at all war
 twelve tracked background cards pass; a `sixPar` card renamed `…_6Par` or `…_tenPar` is refused
 ([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 42, fixed 2026-09-17).
 
-**Three related things are recorded and deliberately not fixed**, because each needs a judgement
-rather than an edit: which rebinned histogram the goodness-of-fit gate is defined on (issue 39 —
-the unmasked and masked branches read different ones, and the difference is 1–2%), whether
-`covQual=2` is acceptable for these fits (issue 40 — every recorded fit ran with a covariance
-matrix MINUIT forced positive-definite, and nothing in the framework reads `status()` or
-`covQual()`), and a latent exclusion of empty bins from the chi2 (issue 41 — verified not triggered
-by anything recorded).
+**Fit quality is now reported on every fit.** `report_fit_quality()` reads `status()` and
+`covQual()` from the `fitResult` immediately after `quickFit` and **before anything is extracted**,
+and prints one line:
+
+```
+FIT QUALITY: status=1 covQual=2 (full, but forced positive-definite) [.../FitResult_anaFit_sixPar_bkgOnly.root]
+```
+
+Every fit this repository has recorded is `status=1, covQual=2` — MINUIT had to force the
+covariance matrix positive-definite, adding ~0.005 to the diagonal, while the log's closing line
+read `Fit Summary of POIs (STATUS OK)`. The central values are sound: the minimum is `Valid` and
+the retries land on the same FCN. The **errors** come from that forced matrix, and the errors are
+what the spurious-signal, injection-linearity and limit studies consume — which is why this is
+worth seeing on every run rather than never (issue 40).
+
+`--mincovqual` (default **2**) refuses anything worse. The default accepts exactly what is on
+record and refuses a degradation, so it cannot invalidate the two locked analyses while still
+catching the case the issue was filed about. **Whether `covQual=2` is itself good enough for these
+fits is a physics judgement and is deliberately not made here** — the framework can now state the
+property and be told what to do about it, which is the whole of the change.
+
+**The goodness-of-fit gate is defined on `<channel>_bkgonly_rebinned`**, in both the masked and
+unmasked cases. It used to differ by branch — the unmasked gate read `<channel>_rebinned` — and the
+two differ by 1–2% relative, so a fit landing between them was accepted or rejected according to
+which branch it took. The gate asks whether the *background model* describes the data, so the
+background-only distribution is the one it is read from; for a masked b-only fit that is also the
+correctly normalised distribution, which is why the masked branch already used it. Settled by the
+repository owner on 2026-09-18 (issue 39). `plot_postfit.cpp` reads the same distribution, so the
+gate and the plot judge the same thing.
+
+**One thing is recorded and deliberately not fixed**, because it needs a judgement rather than an
+edit: a latent exclusion of empty bins from the chi2 (issue 41 — verified not triggered by anything
+recorded, but a reach extension into the sparse high-mass tail is what would trigger it).
+
+**A failed workspace build or fit now stops the run.** `XMLReader`, `quickFit` and `quickLimit`
+used to have a non-zero exit met with `WARNING: Non-zero return code … Check if tolerable`, after
+which extraction proceeded anyway. They all go through `execute_checked()` now, which raises and
+names the command, the exit code, the signal where the code is above 128, and the log file. These
+binaries do signal hard failures — a nonexistent card makes `XMLReader` exit 139 (SIGSEGV) — so
+what was happening was that a real signal was being discarded.
+
+This and the `covQual` reporting above cover different halves of the same question and neither
+replaces the other: `execute_checked` catches a binary that **died**, `report_fit_quality` catches
+a fit that **ran badly and exited 0**. Note that the `--dolimit` path is not exercised by either
+locked analysis, so `quickLimit`'s gate is reasoned-about rather than regression-tested.
+
+**Two input mistakes that used to pass silently are now refused.**
+
+- **A half-given `--rebinfile`/`--rebinhist` pair.** These are a pair, but `if rebinfile and
+  rebinhist` treated "one given" as identical to "neither given" and fell through to a fallback
+  binning that `createBinning.py` generates only up to 1000 GeV — while both Run 2 drivers fit to
+  3000 and 2997. That silently moved the rebinned chi2, the p-value `--maskthreshold` gates on, and
+  the BumpHunter window. Refused now at the top of `run_anaFit()`, before any fitting, and in
+  `PostfitExtractor.__init__`, which also covers `ExtractPostfitFromWS.py`'s standalone CLI
+  (issue 46). Only one direction was ever silent: the drivers must quote `--rebinhist "$rebinhist"`
+  because the J100 histogram name contains spaces, so an emptied variable arrived as `''` and was
+  falsy, where an emptied `--rebinfile $rebinfile` made the word vanish and argparse already
+  refused.
+- **Running a driver from the wrong directory.** `scripts/setup_buildAndFit.sh` refuses outside the
+  repository root with `return 1`, but `return` in a sourced script returns only from that script —
+  every driver carried on regardless, created `run/` in the wrong place and entered the fit chain
+  with no CVMFS environment. All six drivers that source it now test the status and stop
+  (issue 43).
+
+## The postfit plots
+
+Every run produces two plots of the same fit, from two different programs, and they are not
+equivalent.
+
+- `post_fit.pdf` — `plot_postfit.cpp`, run through ROOT. Loads both the unmasked and masked fits,
+  labels each, and prints `χ2/Ndof` and `p-val` for the native and rebinned versions of both.
+- `postFit.pdf` — `python/plotPostFit.py`. One fit, one number.
+
+The C++ macro has repeatedly turned out to be the more careful of the two, which is worth knowing
+before trusting the Python one in a new situation.
+
+**Neither plot is checked by `tests/repro.py`.** The baselines record plot **filenames** in
+`directory_listing` and nothing else about them — `grep` for `pdf` in `tests/repro.py` returns
+nothing. Issues 44, 45 and 48 would all have passed a green `check`, and all three were found by
+reading code. The lock protects numbers, not plots; read a plot on its own merits.
+
+**Fixed:** `plotPostFit.py` labelled its number `#chi^{2}/ndof` while reading **bin 6** of the chi2
+histogram, which holds the p-value (bin 2 is `chi2/ndof`). Every plot it drew showed the p-value
+under the wrong name — 0.496 for J100 where the true reduced chi2 is 1.000, and 0.078 for J50
+against a true 1.039. Both are *plausible* reduced-chi2 values, so it read as a badly over-fitted
+background rather than as a bug. Now reads bin 2 (issue 45).
+
+**Fixed:** `postFit.pdf` used to plot the **unmasked** file unconditionally, so on a run accepted
+only after masking it showed the fit that was *rejected* — live in the recorded J50 result, where
+the unmasked rebinned p is 0.00248 and the masked one 0.01906 against a 0.01 threshold. Both
+drivers now plot whichever fit was accepted, and `plotPostFit.py`'s `-l/--label` draws which it is
+on the plot, so the file is self-describing rather than silently meaning different things in
+different runs (issue 48). Deliberately still **one** file: `post_fit.pdf` already carries both fits
+side by side, and a second filename would force a baseline re-cut for a change that moves no number.
+
+**Open, and worth knowing before using either plot:**
+
+- `plot_postfit.cpp` stamps every plot with a hardcoded `#sqrt{s} = 13 TeV, 25 fb^{-1}`. That is
+  wrong for all three live callers: the wrong exposure for full Run 2 J100 and for prescaled J50,
+  and the wrong *centre-of-mass energy* for `scripts/run_anaFit.sh`, which fits 2023 data at
+  13.6 TeV. The correct values are nowhere in this repository — nothing records what dataset any
+  input corresponds to — so they have to come from whoever owns the datasets (issue 44).
+- The Run 2 drivers' failure banner attributes any non-zero exit to a twice-rejected p(chi2), which
+  is now one cause among several — a missing input, a bad card or the rebin-pair refusal above all
+  reach it too. The verdict it gives ("this result must not be used") stays correct; only the
+  diagnosis is wrong (issue 47).
 
 ## Reproducibility harness (`tests/repro.py`)
 

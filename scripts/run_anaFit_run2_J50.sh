@@ -10,7 +10,14 @@
 out_dir=${OUT_DIR:-$PWD/run}
 
 {
-    . scripts/setup_buildAndFit.sh
+    # Stop if the setup refuses: it `return`s on a wrong working directory, and `return`
+    # from a sourced script hands control straight back here. `return` works when this
+    # driver is sourced, as the header says to; `exit` covers `bash scripts/...` (which is
+    # how tests/repro.py runs it). Not a bare `exit` - that would kill an interactive shell.
+    if ! . scripts/setup_buildAndFit.sh; then
+        echo "ERROR: run this from the FrequentistFramework repository root." >&2
+        return 1 2>/dev/null || exit 1
+    fi
 
     mkdir -p $out_dir
 
@@ -108,8 +115,27 @@ out_dir=${OUT_DIR:-$PWD/run}
             # The plots are still produced on a failed fit: they are the diagnostics you
             # want in order to see why it failed. What must not happen is the run reporting
             # success, which is what the status below is for.
-            python python/plotPostFit.py -i ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root \
-                                         -o ${folder}/postFit.pdf -c "$channel"
+            # A run that fails the p(chi2) gate is re-fitted with the BumpHunter window
+            # blinded, and it is that masked fit that gets accepted. This used to plot the
+            # unmasked file unconditionally, so on such a run postFit.pdf showed the
+            # REJECTED fit with nothing saying so (KNOWN_ISSUES.md issue 48). It now plots
+            # whichever fit was accepted, and the label says which that is - the label is
+            # what keeps this from being a silent substitution.
+            #
+            # Deliberately ONE file, not two: post_fit.pdf from plot_postfit.cpp already
+            # draws the unmasked and masked fits side by side with the masked region and the
+            # BumpHunter p-value, so the rejected fit stays available as a diagnostic. A
+            # second file here would add a name to the run folder, which tests/repro.py
+            # compares exactly, forcing a baseline re-cut for a change that moves no number.
+            postfit_to_plot=${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root
+            postfit_label="unmasked fit"
+            if [[ -f ${folder}/PostFit_anaFit_${pars}Par_bkgOnly_masked.root ]]; then
+                postfit_to_plot=${folder}/PostFit_anaFit_${pars}Par_bkgOnly_masked.root
+                postfit_label="masked fit - BumpHunter window blinded"
+            fi
+            python python/plotPostFit.py -i "$postfit_to_plot" \
+                                         -o ${folder}/postFit.pdf -c "$channel" \
+                                         -l "$postfit_label"
 
             root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\", \"$channel\")"
         done

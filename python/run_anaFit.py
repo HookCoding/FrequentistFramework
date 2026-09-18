@@ -39,11 +39,63 @@ def getchannel(categoryfile):
         sys.exit(-1)
     return m.group(1)
 
-def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, poi=None, maskrange=None,
-                      channel="Run3TLA", rebinfile=None, rebinhist=None):
-    rtv=execute('xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile) # minimizer strategy fast
+def execute_checked(cmd, what, logfile=None):
+    """execute(), but a non-zero exit stops the run instead of printing a warning.
+
+    These binaries do signal hard failures - a nonexistent card makes XMLReader exit 139
+    (SIGSEGV), as does a nonexistent workspace for quickFit - and the framework used to
+    print "Check if tolerable" and carry on into extraction regardless. Soft failures, a
+    fit that runs, does not converge and exits 0, are not caught here; report_fit_quality()
+    below is what catches those. See KNOWN_ISSUES.md.
+    """
+    rtv = execute(cmd)
     if rtv != 0:
-        print("WARNING: Non-zero return code from XMLReader. Check if tolerable")
+        msg = "%s failed with exit code %d." % (what, rtv)
+        if rtv > 128:
+            msg += " Exit %d means it was killed by signal %d, typically a segfault." % (rtv, rtv - 128)
+        if logfile:
+            msg += " Its output is in %s." % logfile
+        raise RuntimeError(
+            msg + " The run stops here rather than extracting numbers from whatever the output "
+            "file happens to contain."
+        )
+    return rtv
+
+
+# RooFitResult::covQual(): -1 not available, 0 not calculated, 1 approximate,
+# 2 full but forced positive-definite, 3 accurate. Every fit this repository has recorded is 2 -
+# MINUIT added ~0.005 to the diagonal - so 2 is the default floor: it accepts what is already on
+# record and refuses anything worse. Whether 2 is good enough for these fits is a physics
+# judgement; this reports it so the judgement can be made. See KNOWN_ISSUES.md issue 40.
+def report_fit_quality(fitresultfile, mincovqual):
+    """Print the fit's status and covariance quality, and refuse if the covariance
+    is worse than mincovqual. Returns nothing; raises on an unacceptable fit."""
+    f = ROOT.TFile(fitresultfile, "READ")
+    r = f.Get("fitResult") if f and not f.IsZombie() else None
+    if not r:
+        print("WARNING: no fitResult in %s - cannot check fit status or covariance quality"
+              % fitresultfile)
+        if f:
+            f.Close()
+        return
+    status, covqual = r.status(), r.covQual()
+    f.Close()
+    meaning = {-1: "not available", 0: "not calculated", 1: "approximate",
+               2: "full, but forced positive-definite", 3: "accurate"}
+    print("FIT QUALITY: status=%d covQual=%d (%s) [%s]"
+          % (status, covqual, meaning.get(covqual, "unknown"), fitresultfile))
+    if covqual < mincovqual:
+        raise RuntimeError(
+            "covQual=%d (%s) is below the required %d for %s. The fitted parameter ERRORS come "
+            "from this matrix and feed the spurious-signal, injection-linearity and limit studies. "
+            "Pass --mincovqual to lower the bar deliberately if that is what you want."
+            % (covqual, meaning.get(covqual, "unknown"), mincovqual, fitresultfile))
+
+
+def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, poi=None, maskrange=None,
+                      channel="Run3TLA", rebinfile=None, rebinhist=None, mincovqual=2):
+    execute_checked('xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile,
+                    "XMLReader (workspace build) on %s" % topfile) # minimizer strategy fast
     if poi:
         print("Now running s+b quickFit")
         _poi="-p %s" % poi
@@ -68,9 +120,11 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     edmplot=fitresultfile.replace("FitResult","edm").replace(".root", ".pdf")
 
     #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
-    rtv=execute("quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s" % (wsfile, _poi, _range, fitresultfile, logfile))
-    if rtv != 0:
-        print("WARNING: Non-zero return code from quickFit. Check if tolerable")
+    execute_checked("quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s" % (wsfile, _poi, _range, fitresultfile, logfile),
+                    "quickFit on %s" % wsfile, logfile=logfile)
+
+    # Before anything is extracted from it: a fit nobody looked at is what issue 40 is about.
+    report_fit_quality(fitresultfile, mincovqual)
 
     execute("python plot_edm.py %s %s" % (logfile, edmplot))
 
@@ -124,11 +178,15 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
         #bkgonly=bkgonly_opt
         bkgonly=True
     )
-    # If we used masking in a b-only fit then we need to calculate the p-val from the correctly normalized postfit distribution
-    if maskmin > -1 or maskmax > -1:
-        pval = pfe.GetPval(channel+"_bkgonly_rebinned") #should be <channel> or <channel>_rebinned?
-    else:
-        pval = pfe.GetPval(channel+"_rebinned") #should be <channel> or <channel>_rebinned?
+    # The goodness-of-fit gate is defined on the background-only rebinned postfit, in both the
+    # masked and unmasked cases. The gate asks whether the BACKGROUND MODEL describes the data, so
+    # the background-only distribution is the one it should be read from - and for a masked b-only
+    # fit that is also the correctly normalised distribution, which is why the masked branch
+    # already used it. The unmasked branch used to read `<channel>_rebinned` instead, with a
+    # comment asking which was right; the two differ by 1-2% relative, so a fit landing between
+    # them was accepted or rejected according to which branch it happened to take. Settled by the
+    # repository owner 2026-09-18. See KNOWN_ISSUES.md issue 39.
+    pval = pfe.GetPval(channel+"_bkgonly_rebinned")
     
     print("pfe.WriteRoot(", postfitfile, ", dirPerCategory=True)")
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
@@ -162,7 +220,22 @@ def run_anaFit(datafile,
                systdict=None,
                covariancedict=None,
                rebinfile=None,
-               rebinhist=None):
+               rebinhist=None,
+               mincovqual=2):
+
+    # --rebinfile and --rebinhist are a pair. Supplying one used to be indistinguishable from
+    # supplying neither: the selection in build_fit_extract is `if rebinfile and rebinhist`, so a
+    # half-given pair fell through to the fallback binning, which createBinning.py generates only
+    # up to 1000 GeV - silently changing the rebinned chi2, the p-value --maskthreshold gates on,
+    # and the BumpHunter window, for any rangehigh above that. Refused here rather than at the
+    # selection site, which is reached only after XMLReader and quickFit have run, and is reached
+    # twice when the masked repeat happens. See KNOWN_ISSUES.md issue 46.
+    if bool(rebinfile) != bool(rebinhist):
+        raise ValueError(
+            "--rebinfile and --rebinhist must be given together (got rebinfile=%r, rebinhist=%r). "
+            "Supplying only one would silently fall back to the auto-generated binning, which "
+            "stops at 1000 GeV." % (rebinfile, rebinhist)
+        )
 
     nbins=rangehigh - rangelow
     print("Fitting", nbins, "bins in range", rangelow, "-", rangehigh)
@@ -373,6 +446,7 @@ def run_anaFit(datafile,
                                                                 channel=channel,
                                                                 rebinfile=rebinfile,
                                                                 rebinhist=rebinhist,
+                                                                mincovqual=mincovqual,
 							                                )
                                                         
 
@@ -436,6 +510,7 @@ def run_anaFit(datafile,
                                             channel=channel,
                                             rebinfile=rebinfile,
                                             rebinhist=rebinhist,
+                                            mincovqual=mincovqual,
                                             )
 
         print("Masked fit p(chi2)=%.3f" % pval_masked)
@@ -454,9 +529,10 @@ def run_anaFit(datafile,
     if dolimit and dosignal and pval_global > maskthreshold:
         print("Now running quickLimit")
         #rtv=execute("timeout --foreground 1800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-8 --muScanPoints 20 --minStrat 1 --nllOffset 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
-        rtv=execute("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-06 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
-        if rtv != 0:
-            print("WARNING: Non-zero return code from quickLimit. Check if tolerable")
+        # Same treatment as XMLReader and quickFit above. NOTE: the --dolimit path is not
+        # exercised by either locked analysis, so this gate is reasoned-about, not regression-tested.
+        execute_checked("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-06 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")),
+                        "quickLimit on %s" % wsfile)
     
     return 0
 
@@ -481,6 +557,11 @@ def main(args):
     parser.add_argument('--sigmean', dest='sigmean', type=int, default=1000, help='Mean of signal Gaussian for s+b fit (in GeV)')
     parser.add_argument('--sigwidth', dest='sigwidth', type=float, default=7., help='Width of signal Gaussian for s+b fit (in %). If -999 dealing with Zprime samples.')
     parser.add_argument('--maskthreshold', dest='maskthreshold', type=float, default=0.01, help='Threshold of p(chi2) below which to run BH and mask the most significant window')
+    parser.add_argument('--mincovqual', dest='mincovqual', type=int, default=2,
+                        help='Refuse a fit whose RooFitResult covQual is below this '
+                             '(-1 not available, 0 not calculated, 1 approximate, 2 full but '
+                             'forced positive-definite, 3 accurate). Default 2, which is what '
+                             'every recorded fit here has. See KNOWN_ISSUES.md issue 40.')
     parser.add_argument('--doprefit', dest='doprefit', action="store_true", help='Perform ROOT prefit before quickFit')
     parser.add_argument('--folder', dest='folder', type=str, default='run', help='Output folder to store configs and results (default: run)')
     parser.add_argument('--sysfile', dest='sysfile', type=str, help='Path to json file containing signal systematics dict')
@@ -543,6 +624,7 @@ def main(args):
                doprefit=args.doprefit,
                rebinfile=args.rebinfile,
                rebinhist=args.rebinhist,
+               mincovqual=args.mincovqual,
                systdict=systdict)
 
 

@@ -16,6 +16,9 @@ and the notebook disagree, the notebook is right.
 | [Repository-relative output directory](2026-09-15-repo-relative-output-dir.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
 | [Run 2 dijet TLA J50, 302–2997 GeV, six parameters](2026-09-15-run2-dijet-tla-j50.md) | 2026-09-15 | `claude-skills` | Approved, implementation in progress |
 | [Lock the software versions and the J50/J100 results before refactoring](2026-09-15-reproducibility-lock.md) | 2026-09-15 | `claude-skills` | Approved and implemented |
+| [Make the drivers stop when the setup guard fires](2026-09-17-driver-setup-guard.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
+| [Refuse a partial `--rebinfile`/`--rebinhist` pair](2026-09-17-rebin-pair-guard.md) | 2026-09-17 | `claude-skills` | Approved, implementation in progress |
+| [Close the issues that can reach a physically wrong result](2026-09-17-physics-risk-issues.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -108,6 +111,46 @@ route: `record --force` silenced the env gate on the only re-cut route the READM
 later. That review also closed the last provenance block that was recorded and never read back
 (the software pins), and corrected two severity rankings of its own. The committed baselines were
 not re-cut at any point.
+
+### Make the drivers stop when the setup guard fires
+
+`scripts/setup_buildAndFit.sh` refuses to run outside the repository root with `return 1`, but
+`return` in a sourced script returns only from that script — so every driver carries on regardless,
+creating output in the wrong directory and entering the fit chain with no environment. It fails
+closed, which on this repository's triage rule would mean recording it rather than fixing it; it is
+fixed because `CHANGELOG.md` and `README.md` both claim the run aborts, and that claim is the
+stated justification for the repository-relative `out_dir`. Raised by a GitHub Copilot review
+comment, filed as `KNOWN_ISSUES.md` issue 43.
+
+Implemented the same day, in its single section. Its one deliberate omission — the four
+`setup_buildCombineFit.sh` call sites, which source a file that does not exist and cannot be
+verified against a working fit — stands as written.
+
+### Refuse a partial `--rebinfile`/`--rebinhist` pair
+
+`run_anaFit.py` treats "one of the pair supplied" as identical to "neither supplied" and silently
+falls back to a binning that stops at 1000 GeV, while both Run 2 drivers fit to 3000 and 2997. The
+rebinned chi2, the p-value that `--maskthreshold` gates on, and the BumpHunter window all move with
+it. Unlike issues 44 and 45 this one can change a fitted number, and whether it fails loudly depends
+on which machine it runs on. Raised by a GitHub Copilot review comment, filed as `KNOWN_ISSUES.md`
+issue 46.
+
+### Close the issues that can reach a physically wrong result
+
+The four open findings that can lead to a physically wrong result or a wrong conclusion, rather than
+a crash or a mislabelled plot: no fit status or covariance-quality check at all (issue 40, where
+every recorded fit carries a forced covariance and the *errors* feed the downstream studies), a
+failed workspace build or fit that is only warned about (the unnumbered table entry), `postFit.pdf`
+showing the rejected fit where masking was what got accepted (issue 48), and a p(chi2) gate whose
+defining histogram was never settled (issue 39). Scope agreed with the repository owner; issue 44 is
+excluded as unfixable from inside this repository, and the fail-closed harness issues as the lowest
+tier. §4 is blocked on a statistics decision only the owner can make.
+
+All four sections implemented 2026-09-17/18. §3 was implemented twice: the first version emitted a
+second plot file, which would have forced a J50 baseline re-cut for a change that moves no number,
+and was replaced on the owner's ruling that the record should only change when the physics does. §4
+was unblocked by the owner choosing `<channel>_bkgonly_rebinned` for both branches. No baseline was
+re-cut at any point; `tests/repro.py check` passes on both analyses after every section.
 
 ## Adding a plan
 

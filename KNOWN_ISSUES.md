@@ -16,7 +16,7 @@ alone. Updated whenever an issue is found, fixed, or consciously accepted.
 | `setup_buildCombineFit.sh` does not exist, but is sourced by **eight** live call sites | `scripts/run_nloFit.sh:6` and 7 others | The NLO-fit driver and its dependents; already broken before any of this work. Left alone. |
 | `install_quickFit_and_xmlAnaWSBuilder.sh` does not exist, but is sourced | `scripts/install_FrequentistFramework.sh:14` | That install script only; not on the `install.sh` path this repo actually uses. Left alone. |
 | `re.sub("PAR1", …)` runs before `PAR10`, corrupting any ten-parameter card | `python/run_anaFit.py:276-279` | Only `tenPar`-style cards; harmless at the five/six parameters J50 and J100 use. Left alone. |
-| XMLReader and quickFit only *warn* on failure and still return 0; nothing gates on their exit codes, so a failed fit can look like a successful one | `python/run_anaFit.py:44,71` | Every fit. This is exactly why `tests/repro.py check` diffs baseline outputs rather than trusting exit codes. Left alone at the source; worked around in the harness. |
+| ~~XMLReader and quickFit only *warn* on failure and still return 0; nothing gates on their exit codes, so a failed fit can look like a successful one~~ — **Fixed 2026-09-18.** `execute_checked()` now stops the run on a non-zero exit from XMLReader, quickFit or quickLimit. **The original wording was also wrong and is corrected here rather than edited away:** the binaries do *not* return 0 on hard failures — tested directly, a nonexistent card makes XMLReader exit **139** (SIGSEGV) and a nonexistent workspace does the same to quickFit. `quickFit` with no arguments at all exits 0, but that is a usage no-op, not a failed fit. Hard failures were being signalled and discarded, which is why this turned out to be fixable where the entry as written implied it was not. Soft failures — a fit that runs, does not converge and exits 0 — are not covered here; issue 40's `covQual`/`status` reporting is what catches those. | `python/run_anaFit.py` (XMLReader, quickFit, quickLimit) | Every fit. `tests/repro.py check` still diffs baseline outputs rather than trusting exit codes, which remains the stronger guarantee. |
 | `gRand.SetSeed()` is a no-op — `TH1::FillRandom` samples from the global `gRandom`, so these are only accidentally reproducible | `python/InjectGaussian.py:67-68`, `python/InjectZprime.py:118-119` | Signal-injection studies, off the J50/J100 fit path. Left alone. |
 | Hardcoded personal checkout path, so the HTCondor path runs someone else's framework at an unknown version | `submission/condor_script.sh:19,24` | HTCondor toy studies only, out of this plan's scope. Left alone. |
 | Absolute AFS/EOS paths in other people's accounts, live in tracked config | `config/dijetisrTLA/*`, `python/inject_zprime_dscblimits.sh` | The (already inert) Run 3 ISR TLA flavour and Z' injection limits. Left alone. |
@@ -954,7 +954,28 @@ passes. Then decide separately whether the drivers should stop on it; note that 
 code meaningful may start surfacing real failures in anything that does check it (the HTCondor path
 being the obvious one), which is the point, but is a behaviour change worth making deliberately.
 
-### 39. The p(chi2) gate reads a different histogram depending on whether a mask is active — **Medium** — **open; recorded, not fixed**
+### 39. The p(chi2) gate reads a different histogram depending on whether a mask is active — **Medium** — **Fixed 2026-09-18 12:35**
+
+**Settled by the repository owner and fixed.** Both branches now read
+`<channel>_bkgonly_rebinned`, so the `if maskmin > -1 …` conditional collapses to a single line and
+the two `#should be <channel> or <channel>_rebinned?` comments are replaced by the reason. This
+entry was filed as a question for whoever owns the statistics rather than a bug with a correct
+patch, and that is how it was closed — by a decision, not by an edit chosen here.
+
+**The choice is corroborated by a comment that was already in the code.** The line above the branch
+read *"If we used masking in a b-only fit then we need to calculate the p-val from the correctly
+normalized postfit distribution"* — so the masked branch was deliberately on `_bkgonly` for a
+normalisation reason, and the unmasked branch had simply never been given the same treatment.
+Unifying on `_bkgonly_rebinned` makes the gate consistent with the reasoning already written down.
+It is also what `plot_postfit.cpp` reads for its displayed chi2, so the gate and the plot now agree
+about which distribution is being judged.
+
+**Verified, and the verdict chain was genuinely exercised in both directions.** J100's initial gate
+now reads 0.0148783 where it read 0.0148562, and still does not mask; J50's reads 0.0024813 where
+it read 0.0024417, still masks, and its masked gate still accepts at 0.0190617. `tests/repro.py
+check` passes on both analyses with both baselines untouched — J50's masked block still present,
+J100's still absent, which is what confirms no verdict moved. See CHANGELOG.md's 2026-09-18 12:35
+entry. The rest of this entry is kept as the record of what was wrong.
 
 **What.** `build_fit_extract` returns the p-value the threshold decision is made on, and picks its
 source by whether a mask range was passed:
@@ -991,7 +1012,33 @@ question for whoever owns the statistics, not a bug to be patched by picking one
 and delete the comment. If the switch is deliberate — the masked fit's normalisation differs, which
 the comment above it hints at — say so there in a sentence instead.
 
-### 40. Nothing checks fit status or covariance quality; every recorded fit has a forced covariance — **Medium** — **open; recorded, not fixed**
+### 40. Nothing checks fit status or covariance quality; every recorded fit has a forced covariance — **Medium** — **Fixed 2026-09-17 20:30** (reported and gateable; whether `covQual=2` is acceptable remains the owner's judgement)
+
+**Fixed**, in the sense the entry asked for: the property is no longer invisible.
+`report_fit_quality()` in `python/run_anaFit.py` reads `status()` and `covQual()` from the
+`fitResult` immediately after `quickFit` and before anything is extracted, and prints one line
+naming the value and its meaning:
+
+```
+FIT QUALITY: status=1 covQual=2 (full, but forced positive-definite) [.../FitResult_anaFit_sixPar_bkgOnly.root]
+```
+
+A new `--mincovqual` (default **2**) refuses anything worse, with a message saying that the fitted
+*errors* come from this matrix and feed the spurious-signal, injection-linearity and limit studies.
+The default is 2 deliberately: it accepts exactly what is already on record and refuses a
+degradation, so it cannot break the two locked analyses while still catching the case this entry
+was filed about. A file with no `fitResult` warns rather than crashing.
+
+**What this does not do, and deliberately.** It does not decide whether `covQual=2` is good enough
+for these fits. That is a physics judgement for the repository owner, as the original entry said;
+what has changed is that the framework can now state the property and be told what to do about it.
+Every recorded fit is still `status=1, covQual=2`.
+
+Verified on the recorded fit results (all three report `status=1 covQual=2`, matching the
+baselines), on the refusal path (`--mincovqual 3` refuses readably), on the missing-`fitResult`
+path, and on the **live driver path** — `scripts/run_anaFit_run2.sh` run end to end emits the line.
+`tests/repro.py check` passes on both analyses. See CHANGELOG.md's 2026-09-17 20:30 entry. The rest
+of this entry is kept as the record of what was wrong.
 
 **What.** `grep` for `covQual` or `status()` across `python/` and `scripts/` returns **nothing**: no
 part of the framework reads either. Every fit this repository has recorded was minimised with a
@@ -1099,3 +1146,432 @@ order, which produces a complete and plausible result from the wrong starting po
 **Fix.** Compare against the card: take the `max` of the `PAR<n>` indices already parsed at line
 244 and stop if it disagrees with `nPars`. Three lines, and it converts a naming slip from a silent
 wrong answer into a refusal.
+
+## Driver setup guard — found 2026-09-17 in external review
+
+Issue 43 comes from a GitHub Copilot review comment on the `README.md` passage added by the
+repository-relative output directory work. The finding is correct on the mechanics and its
+severity was overstated; both are recorded below. It is the first issue here raised from outside
+the review series, and it is the first to find a *documentation* claim that is false rather than
+merely stale.
+
+### 43. Drivers continue after `setup_buildAndFit.sh`'s wrong-directory guard fires — **Low** — **Fixed 2026-09-17 17:20**
+
+**Fixed** in all six drivers that source `scripts/setup_buildAndFit.sh`, together with the two
+documentation claims that were the reason for fixing a fail-closed issue at all. Verified 12/12
+(each driver sourced and under `bash`: error printed, status 1, no `run/` created, interactive
+shell alive) and `tests/repro.py check --quick` PASS against `tests/baseline_J100.json`, which
+exercises the working path. The four `setup_buildCombineFit.sh` call sites are deliberately not
+guarded — see the plan. See CHANGELOG.md's 2026-09-17 17:20 entry. The rest of this entry is kept
+as the record of what was wrong.
+
+**What.** `scripts/setup_buildAndFit.sh` lines 5–8 refuse to run outside the repository root:
+
+```bash
+if [[ ! -d xmlAnaWSBuilder ]] || [[ ! -d quickFit ]]; then
+    echo "Execute from FrequentistFramework directory!"
+    return 1
+fi
+```
+
+`return` in a sourced script returns from *that script*, not from the script that sourced it. Every
+driver sources it as a bare statement and never tests the status, so control comes straight back
+and the run proceeds: `mkdir -p $out_dir` creates `run/` in whatever directory the user was
+actually in, and the fit chain is entered with no CVMFS environment. Reproduced directly, and the
+same both ways the drivers are invoked — sourced, as their own headers instruct, and under `bash`,
+as `tests/repro.py` runs them.
+
+The same hole swallows a *missing* setup script: `. scripts/setup_buildCombineFit.sh` prints
+`No such file or directory`, returns 1, and the four drivers that source it carry on regardless.
+
+**Where.** `scripts/run_anaFit.sh:6`, `run_anaFit_run2.sh:14`, `run_anaFit_run2_J50.sh:13`,
+`run_anaFit_syst.sh:6`, `run_anaFitLoop.sh:5`, `run_anaFit_flowchart.sh:6`. The
+`setup_buildCombineFit.sh` variant is the already-recorded "does not exist, but is sourced by
+eight live call sites" entry in the table at the top of this file.
+
+**Affects.** **Nothing that can reach a number, which is why this is Low and not High.** The guard
+fires only when `xmlAnaWSBuilder/` and `quickFit/` are absent — in which case
+`xmlAnaWSBuilder/build/bin/XMLReader` and `quickFit/build/quickFit` cannot exist either, and the
+LCG view was never set up. The run dies at `import ROOT`, or, if ROOT leaks in from elsewhere, at
+`d.FindBin()` on a null `TFile` a few lines into `build_fit_extract`. It fails closed. Per
+[CLAUDE.md](CLAUDE.md)'s *Triaging issues* rule that is the lower tier: it costs an afternoon, it
+cannot put a wrong number in front of anyone.
+
+**The reason it is being fixed rather than recorded and left is the documentation.**
+`CHANGELOG.md`'s 2026-09-15 15:40 entry states:
+
+> In each driver the `mkdir -p $out_dir` was moved to after the `setup_buildAndFit.sh` guard runs,
+> so a wrong-directory invocation aborts before creating anything.
+
+That is false: the `mkdir` runs. And it was the stated justification for `out_dir=${OUT_DIR:-$PWD/run}`
+— so a live design decision rests on a guarantee that does not hold. `README.md` lines 58–61 are
+true about the setup script in isolation but sit directly under "All commands must be run from the
+repository root", and read as enforcement of the drivers. This is the failure mode issues 24 and 37
+were filed for, in the files whose whole job is honest disclosure.
+
+**Fix.** Test the status. The idiom has to survive both invocation styles, since the headers say
+to source these scripts while `tests/repro.py` runs them with `bash`:
+
+```bash
+if ! . scripts/setup_buildAndFit.sh; then
+    echo "ERROR: run this from the FrequentistFramework repository root." >&2
+    return 1 2>/dev/null || exit 1
+fi
+```
+
+`return` succeeds when sourced; when executed it fails silently and `exit 1` takes over. Same
+reasoning as issue 38's `( exit … )` subshell — a bare `exit` would kill an interactive shell.
+Plan: [plans/2026-09-17-driver-setup-guard.md](plans/2026-09-17-driver-setup-guard.md).
+
+## Plot labelling — found 2026-09-17 in external review
+
+Issue 44 comes from the same GitHub Copilot review as issue 43, on the channel parameterization
+added to `plot_postfit.cpp` by the Run 2 work. Recorded and **not fixed**, on the repository
+owner's decision, because it changes no fitted quantity. The investigation behind the entry found
+the problem to be one step wider than the review comment described.
+
+### 44. `plot_postfit.cpp` stamps every plot with a hardcoded, wrong `#sqrt{s}` and luminosity — **Medium** — **open; recorded, not fixed**
+
+**What.** `plot_postfit.cpp` line 29 defines
+
+```cpp
+lumi_label = "#sqrt{s} = 13 TeV, 25 fb^{-1}";
+```
+
+as a file-scope constant, drawn unconditionally at line 238. It has been there since the macro was
+first added (`5cce670`, "added postfit macro"), has never been a parameter, and there is no way for
+a caller to override it. It is wrong for **every** live caller, not only the Run 2 ones the review
+comment named:
+
+| Caller | Data | Label claims | Actually |
+|---|---|---|---|
+| `scripts/run_anaFit_run2.sh:118` | full Run 2 J100 | 13 TeV, 25 fb⁻¹ | √s correct, exposure wrong |
+| `scripts/run_anaFit_run2_J50.sh:121` | full Run 2 J50, **prescaled** | 13 TeV, 25 fb⁻¹ | √s correct, exposure wrong — and for a prescaled stream the meaningful quantity is an effective exposure, not a single delivered luminosity |
+| `scripts/run_anaFit.sh:165` | `data/data23_histos.root` | **13 TeV**, 25 fb⁻¹ | 2023 is Run 3: **13.6 TeV**. The centre-of-mass energy is wrong too. |
+
+The wrong √s on the Run 3 ISR TLA plot was not part of the review comment and predates the channel
+parameterization entirely. What that change did was extend an already-wrong label to two new
+analyses.
+
+**Where.** `plot_postfit.cpp:29` (the constant) and `:238` (the draw). Callers as tabled above,
+plus `scripts/test.sh:81`. `python/plotPostFit.py`, the other postfit plotter, draws no such label
+at all.
+
+**Affects — no fitted quantity, which is why this is recorded rather than fixed.** Verified three
+ways: the cards are `Lumi="1"` with `MultiplyLumi="0"`, so the fit is a shape fit on raw counts
+that never reads a luminosity; `tests/baseline_J100.json` and `baseline_J50.json` contain no
+luminosity field anywhere (their fitted content is `chi2`, `fitResult`, `postfit_bins`); and the
+label is drawn text, applied after everything is computed. p(chi2), the fitted parameters and the
+postfit bins are unaffected.
+
+**What it does affect is the artefact people look at.** Both locked analyses' plots on disk carry
+the wrong string today — `run/run_481_3000_sixPar/post_fit.pdf` and
+`run/run_J50_302_2997_sixPar/post_fit.pdf`, three occurrences each, confirmed by extracting the
+text — and every future run reproduces it. The exposure is one of the few numbers a reader takes
+straight off a bump-hunt plot. `atlas_label = "Work in progress"` limits the blast radius but does
+not make the number right. This is the tension worth stating plainly: by
+[CLAUDE.md](CLAUDE.md)'s ranking question this is a wrong number that reaches a plot, while by the
+same document's fit-path framing it cannot make a *result* unphysical. It is filed as Medium on
+that split, and left open deliberately, not overlooked.
+
+**Fixing it will not disturb the reproducibility lock.** The baselines record `post_fit.pdf` only
+as a filename in `directory_listing` and never hash its contents, so changing the label cannot
+move `tests/repro.py check` and neither baseline would need re-cutting.
+
+**Fix, for whoever picks it up.** Make the label a parameter of `plot_postfit()` and have an
+unsupplied value draw **no exposure claim** — `#sqrt{s} = …` alone, or nothing — rather than
+falling back to a value. A missing label is a gap someone notices; a wrong one is a gap nobody
+notices. Each driver then passes the √s and exposure its own dataset warrants.
+
+**The numbers are not in this repository.** That one string is the only luminosity anywhere in the
+tree, and nothing records what dataset any input corresponds to, so the correct values for J100,
+for prescaled J50, and for `data23_histos.root` have to come from whoever owns those datasets.
+They were deliberately not guessed at when this entry was written.
+
+**Already-distributed plots are not covered by any fix.** Changing the macro corrects future runs;
+it does not correct a PDF already in a slide deck or a note. Whether either of the two on disk has
+left this machine is not something the repository can answer.
+
+### 45. `plotPostFit.py` prints the p-value under a `#chi^{2}/ndof` label — **Medium** — **Fixed 2026-09-17 18:25**
+
+**Fixed.** `python/plotPostFit.py:43` now reads `GetBinContent(2)`, with a comment naming the bin
+layout so the next reader does not have to rediscover it. Re-running the plotter over both locked
+analyses' existing `PostFit_*.root` prints `#chi^{2}/ndof = 1.000` for J100 and `1.039` for J50,
+against baseline values of 1.00002 and 1.03893 and the C++ macro's `χ2/Ndof: 1.00` — where before
+the fix the same files gave 0.496 and 0.078, the p-values. The recorded 2026-09-15 run outputs were
+not overwritten (verification plots were written to a scratch directory; both `postFit.pdf` mtimes
+still read 2026-09-15). See CHANGELOG.md's 2026-09-17 18:25 entry. The rest of this entry is kept
+as the record of what was wrong.
+
+**The p-value line suggested below was not added** — the fix is the bin index alone. The C++ macro
+already shows both numbers, and adding a second line here was not asked for.
+
+**What.** `python/plotPostFit.py` lines 41–45 build the label `"#chi^{2}/ndof = "` and then fill it
+from **bin 6** of the chi2 histogram. Bin 6 is the p-value. `python/ExtractPostfitFromWS.py` lines
+84–110 write the histogram and label its own axis, so there is no ambiguity about what each bin
+holds:
+
+| bin | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| content | `chi2` | `chi2/ndof` | `nbins` | `npars` | `ndof` | `pval` |
+
+The variable is even called `rchi2`. The intent was reduced chi2; the index is the p-value's.
+
+**Where.** `python/plotPostFit.py:43` — `rchi2 = h_rchi2.GetBinContent(6)`, which should be `(2)`.
+Present since the script was first added; the Run 2 work changed the hardcoded `"Run3TLA/chi2"` to
+`args.channel+"/chi2"` on the line above and did not touch the bin index.
+
+**`plot_postfit.cpp` next to it is a correct reference implementation**, which is what makes this
+unambiguous rather than a judgement call: lines 140–160 read `GetBinContent(2)` into
+`native_chi2_ndof` and `GetBinContent(6)` into `native_pval`, and label each as what it is.
+
+**Affects — no fitted quantity, and every plot the Python plotter draws.** The value is read out of
+a finished ROOT file purely for display; nothing downstream consumes it. But both locked analyses'
+`postFit.pdf` on disk carry the wrong number today, and the two plotters that run in the *same
+driver invocation* disagree about the same fit:
+
+| | `post_fit.pdf` (C++) | `postFit.pdf` (Python) | truth (from `tests/baseline_J100.json`) |
+|---|---|---|---|
+| J100 | `χ2/Ndof: 1.00`, `p-val: 0.4960` | `χ2/ndof = 0.496` | chi2/ndof 1.00002, pval 0.49599 |
+| J50 | — | `χ2/ndof = 0.078` | chi2/ndof 1.03893, pval 0.07806 |
+
+**This is the sharp end of it.** A goodness-of-fit number is exactly what a reader uses to judge
+whether the background model describes the data, and the wrong value is *plausible*: 0.496 reads as
+a badly over-fitted background, when the true reduced chi2 is 1.00 — a good fit. J50 reads as 0.078,
+which would look like a catastrophe, against a true 1.039. It does not look like a bug, it looks
+like a result. The review comment that raised it quoted 0.015 against 1.48; those are the
+*rebinned* numbers, and the Python plotter reads the unrebinned channel directory, so the values
+actually displayed are the ones tabled above. The diagnosis is unaffected.
+
+**Fix.** One character: `GetBinContent(6)` to `GetBinContent(2)` at line 43. It cannot move any
+recorded number — the baselines compare the chi2 dictionary read from the ROOT file, not the PDF,
+and never hash plot contents, so neither baseline would need re-cutting. Worth considering at the
+same time: draw the p-value on its own line as well, since p(chi2) is the quantity the framework
+actually gates on (`--maskthreshold`), and the C++ macro already shows both.
+
+**Noted while confirming this.** The Python plotter reads `<channel>/chi2` where the C++ macro
+reads `<channel>_bkgonly/chi2`. For these background-only fits the two agree to five digits
+(1.00002 against 1.00002), so it is not a second bug, but the two plotters are not reading the same
+directory and nothing says which is intended. Related to but distinct from issue 39, which is about
+which histogram the *threshold decision* reads.
+
+**Left open on the same basis as issue 44**: the repository owner's rule that a defect which does
+not move a fit result is recorded rather than fixed. Unlike issue 44, nothing here is unknown — the
+correct value is in the file being read, and a correct sibling implementation sits beside it.
+
+## Binning selection — found 2026-09-17 in external review
+
+Issue 46 comes from a fourth GitHub Copilot review comment. Unlike issues 44 and 45, which are
+display defects, **this one can change a fitted number without saying so** — it is the class
+[CLAUDE.md](CLAUDE.md)'s triage rule puts first.
+
+### 46. A partial `--rebinfile`/`--rebinhist` pair silently falls back to truncated binning — **High** — **Fixed 2026-09-17 19:15** (the silent fallback; see the note on the fallback's own silence)
+
+**Fixed.** A half-given pair is now refused at both entry points, before anything runs:
+`run_anaFit()` (so the driver path is refused before `XMLReader` and `quickFit`, not after) and
+`PostfitExtractor.__init__` (which covers both `run_anaFit.py`'s direct construction and
+`ExtractPostfitFromWS.py`'s standalone CLI). Verified in both directions and on the live silent
+route — reproducing the real failure by running `scripts/run_anaFit_run2.sh` with its `rebinhist`
+shell variable emptied now refuses with a message naming both values and the 1000 GeV truncation,
+and produces **no output files at all**, where before it would have fitted with truncated binning.
+A complete pair and an empty pair are both still accepted. `tests/repro.py check` (full, both
+analyses) passes. See CHANGELOG.md's 2026-09-17 19:15 entry. The rest of this entry is kept as the
+record of what was wrong.
+
+**Still outstanding, deliberately.** The fallback branch remains silent about being a fallback and
+about the 1000 GeV limit, and `createBinning.py`'s return code is still discarded. That is §2 of
+[plans/2026-09-17-rebin-pair-guard.md](plans/2026-09-17-rebin-pair-guard.md), not yet implemented.
+With a partial pair now refused, the fallback is reached only when *neither* value is given — the
+legitimate dijetisrTLA path, whose `rangehigh=1000` is exactly where `createBinning.py` stops — so
+what is left is a readability problem, not a route to a wrong number.
+
+**What.** `python/run_anaFit.py:88` selects the resolution binning with
+
+```python
+if rebinfile and rebinhist:
+```
+
+so supplying *one* of the pair is not an error — it is indistinguishable from supplying neither,
+and control drops into the fallback branch, which builds
+`Input/data/dijetisrTLA/mjjResolutionBinning_<rangelow>.root` and, if that file is absent,
+generates it with `python/createBinning.py`. That generator defaults to `--end 1000` and
+`run_anaFit.py` does not pass `-e`, so the fallback binning **stops at 1000 GeV**. The code says so
+itself, in a comment three lines below the branch. Both Run 2 drivers fit to 3000 and 2997 GeV.
+
+The rebinned histogram is not cosmetic: `getChi2` runs over it, and the resulting p-value is what
+`--maskthreshold` gates on and what the BumpHunter masking loop consumes. A silently truncated
+binning therefore changes the rebinned chi2, the p-value, the accept/reject verdict and the BH
+window.
+
+**Where.** `python/run_anaFit.py:88` (the selection) and `:96-100` (the fallback and its own
+warning comment). The same pattern is at `python/ExtractPostfitFromWS.py:287` and `:308`, which
+have their own `--rebinfile`/`--rebinhist` CLI arguments (`:424-425`) and the same partial-pair
+hole when that script is run standalone; there a partial pair silently produces *no* rebinned
+channel at all.
+
+**Reachable, and exactly one of the two directions is silent.** Both Run 2 drivers pass the pair as
+shell variables, and the two are quoted differently — necessarily so, because the J100 histogram
+name contains spaces:
+
+```
+--rebinfile $rebinfile \
+--rebinhist "$rebinhist" \
+```
+
+Confirmed by running argparse both ways:
+
+| what goes wrong | what argparse sees | result |
+|---|---|---|
+| `rebinhist` empty or misspelled variable — **quoted**, so an empty word survives | `--rebinhist ''` | `''` is falsy → **silent fallback**, no message |
+| `rebinfile` empty or misspelled variable — **unquoted**, so the word vanishes | `--rebinfile --rebinhist` | argparse refuses, `exit 2` — fails closed |
+
+So the direction that is quoted, and quoted for a good reason, is the direction that fails open.
+
+**Affects — not the two locked analyses as they stand, and that is not much comfort.** Both drivers
+pass both values correctly today and `tests/repro.py check` passes, so J50 and J100 are unaffected
+right now. The exposure is a typo, an edited driver, or any new configuration — and a baseline
+cannot catch what has no baseline.
+
+**Worse: whether it fails loudly is environment-dependent.** On this machine
+`Input/data/dijetisrTLA/` does not exist, `createBinning.py`'s hardcoded input path
+(`/afs/cern.ch/work/t/tofitsch/...`) is not readable — already recorded in the table at the top of
+this file — and its failure is not checked, so `PostfitExtractor` is handed a nonexistent rebin
+file and dies on a null histogram. It fails *closed* here. On a machine where that binning file
+exists, or where it was generated once by an earlier run, the same mistake silently rebins to
+1000 GeV and produces a complete, plausible, wrong result. The machine where you would notice is
+not the machine where it bites.
+
+**Fix.** Reject the partial pair. The review comment suggests raising at the selection site, which
+is correct as far as it goes, but that point sits *after* `XMLReader` and `quickFit` have already
+run, and `build_fit_extract` is called twice (`:374` and `:437`, the second being the BumpHunter
+masked repeat). Better to validate once at the choke point both call sites route through — the top
+of `run_anaFit()` — so a typo is refused before any fit is done rather than partway through the
+second one. `ExtractPostfitFromWS.py`'s standalone CLI deserves the same two lines.
+
+Worth doing at the same time, and cheap: have the fallback branch *say* it is falling back, and
+check `createBinning.py`'s return code instead of discarding it. The silence is as much the defect
+as the branch condition.
+
+## Found while fixing, not while reviewing — 2026-09-17
+
+Issue 47 was not raised by a review. It surfaced while verifying issue 46's guard: the refusal
+worked, and the driver then reported it as something it was not. Recorded here under its own
+heading rather than under the binning section above, because it has nothing to do with binning —
+it is a consequence of there now being more than one way for `run_anaFit.py` to exit non-zero.
+
+**Independently confirmed.** A fifth GitHub Copilot review comment, on
+`scripts/run_anaFit_run2.sh:117-119`, reported the same defect from the opposite direction — from
+reading the banner rather than from tripping it — and listed further routes to a non-zero exit:
+invalid cards, a missing channel, missing inputs and extraction errors. Its suggested wording is
+the first of the two fixes proposed below, arrived at separately. Two independent findings agreeing
+on both the defect and the remedy is the strongest evidence this entry has.
+
+### 47. The Run 2 drivers' failure banner asserts a cause it cannot know — **Low** — **open; recorded, not fixed**
+
+**What.** Both Run 2 drivers print, on any non-zero exit from `run_anaFit.py`:
+
+```
+ERROR: run_anaFit.py exited N - the fit did not pass p(chi2) even with
+       the BumpHunter window masked, so this result must not be used.
+```
+
+That names one specific cause. It is the cause issue 38's fix was written for, but it is not the
+only way the script exits non-zero: any traceback does too — a missing input file, the `IndexError`
+described under issue 42, and now the `ValueError` added for issue 46. Observed directly while
+verifying that fix: a run refused for a half-given rebin pair, before any fitting happened at all,
+was reported as having failed p(chi2) with the BumpHunter window masked.
+
+**Where.** `scripts/run_anaFit_run2.sh` and `scripts/run_anaFit_run2_J50.sh`, in the
+`if [[ -n $anafit_failed ]]` block.
+
+**Affects.** No number, and not the safety verdict — "this result must not be used" is correct
+whatever the cause. Only the diagnosis is wrong, and it points the reader at the p(chi2) gate when
+the real failure may be somewhere else entirely. Pre-existing: every traceback route existed before
+issue 46's guard was added, which only made the mismatch easy to observe.
+
+**Fix.** State the status and point at the log rather than asserting why — the log is three lines
+up and says exactly what happened. Alternatively, distinguish the framework's own `-1` verdict from
+any other non-zero status, since only `-1` means "the fit was rejected"; that is a slightly larger
+change, and the p(chi2) rejection path would need re-testing to confirm it still reports correctly.
+
+## Plot selection — found 2026-09-17 in external review
+
+### 48. `postFit.pdf` plots the rejected fit when the accepted one is the masked fit — **Medium** — **Fixed 2026-09-18 12:20**
+
+**Fixed.** Both Run 2 drivers now plot whichever fit was accepted — the masked one where a masked
+fit happened, the unmasked one otherwise — and `plotPostFit.py` takes a new `-l/--label` that is
+drawn on the plot saying which it is. The label is not decoration: it is what stops this being a
+silent substitution, which was the objection to the review comment's original patch. Verified on a
+real J50 run: `postFit.pdf` reads `masked fit - BumpHunter window blinded` with
+`#chi^{2}/ndof = 1.040`, against the baseline's masked 1.04006, where before it showed the rejected
+fit's 1.039.
+
+**One plot, not two, and the reason is worth keeping.** The first implementation emitted a second
+file, `postFit_masked.pdf`. That made `tests/repro.py check` fail J50 on `directory_listing`, which
+is compared exactly — a baseline re-cut would have been needed for a change that moves no number.
+The repository owner's call was that the record should only change when the physics does, which is
+right: re-cutting is the one operation that can quietly bless a real regression, and "it is only a
+filename" is exactly the claim a re-cut makes unfalsifiable afterwards. **Nothing was lost by
+dropping the second file** — `post_fit.pdf` from `plot_postfit.cpp` already draws the unmasked and
+masked fits side by side with the masked region and the BumpHunter p-value, so the rejected fit
+remains available as the diagnostic it is meant to be. Confirmed on the recorded J50 output before
+the second file was removed.
+
+`tests/repro.py check` passes on both analyses with both baselines untouched, and a J50 run's file
+listing is now identical to the recorded one. See CHANGELOG.md's 2026-09-18 12:20 entry. The rest of
+this entry is kept as the record of what was wrong.
+
+**Worth knowing, and recorded here because it is the general lesson:** `check` compares plot
+**filenames only** — `grep` for `pdf` in `tests/repro.py` returns nothing, and the baselines hold
+plot names in `directory_listing` and nothing else about them. Issues 44, 45 and 48 would all have
+passed a green `check`, and all three were found by reading code. The lock protects numbers, not
+plots.
+
+**What.** Both Run 2 drivers plot a fixed filename:
+
+```bash
+python python/plotPostFit.py -i ${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root \
+                             -o ${folder}/postFit.pdf -c "$channel"
+```
+
+When a fit fails the p(chi2) gate, `run_anaFit.py` re-runs it with the BumpHunter window blinded and
+writes `PostFit_..._bkgOnly_masked.root`. If *that* passes, the masked fit is the accepted result —
+but the plot command still reads the unmasked file. `postFit.pdf` then shows the fit that was
+**rejected**, with nothing on it saying so.
+
+**This is not hypothetical — it is what the recorded J50 result does.** Both drivers set
+`maskthreshold=0.01`, and from `tests/baseline_J50.json`:
+
+| | rebinned p-value | verdict at 0.01 |
+|---|---|---|
+| unmasked — **what `postFit.pdf` plots** | 0.00248 | **rejected** |
+| masked — the accepted result | 0.01906 | accepted |
+
+`run/run_J50_302_2997_sixPar/` contains the full masked set (`PostFit_*_masked.root`,
+`FitResult_*_masked.root`, the masked workspace and log), and `postFit.pdf` is drawn from the
+unmasked file regardless. J100 passes the gate first time (rebinned p 0.01488 > 0.01), writes no
+masked files, and is therefore unaffected — so the two analyses' `postFit.pdf` mean different
+things, and nothing in the filename or the plot distinguishes them.
+
+**Where.** `scripts/run_anaFit_run2_J50.sh:111-112` and the identical lines at
+`scripts/run_anaFit_run2.sh:114-115`. The review comment named only the J50 driver; the J100 one
+carries the same code and would behave the same way the first time its fit fails the gate.
+
+**`plot_postfit.cpp` next to it already does this correctly** — the same pattern as issue 45. It
+loads both the native and masked files, guards on `plot_masked`, and labels the masked panel
+"masked fit" with its own chi2 and BumpHunter window. So each run produces one complete plot
+(`post_fit.pdf`) and one that silently shows the rejected fit (`postFit.pdf`).
+
+**Affects.** No fitted number: both fits are in the ROOT files and both are recorded in the
+baseline, which is why `tests/repro.py check` passes and has nothing to say about this. What is
+affected is which of two real fits a reader is looking at. The quantities differ modestly here —
+the accepted masked fit has an unrebinned chi2/ndof of 1.04006 against the rejected 1.03893, so the
+number printed on the plot barely moves — but the drawn background curve, the residuals and the
+data are the rejected fit's, and the framework's own verdict applies to the other one.
+
+**Fix — but not by silent substitution.** The review comment's patch plots the masked file when it
+exists. That is the right selection, but on its own it makes `postFit.pdf` mean one thing for J100
+and another for J50 with nothing saying which, which is the defect in a new place. The comment's
+own parenthetical is the better half: **emit both, with explicit labels**, or at minimum draw the
+mask state onto the plot so the file is self-describing. `plot_postfit.cpp` is the working model.
+Whichever is chosen, it belongs in both drivers, not just J50's.
