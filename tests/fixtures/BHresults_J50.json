@@ -1,0 +1,26 @@
+{
+  "pyBHresult": {
+    "mode": "excess",
+    "width_min": 2,
+    "width_max": 3,
+    "width_step": 1,
+    "scan_step": 1,
+    "npe": 10000,
+    "nworker": 1,
+    "seed": 666,
+    "global_Pval": 0.0322,
+    "significance": 1.8494005228938295,
+    "min_loc_ar": [
+      12
+    ],
+    "min_width_ar": [
+      3
+    ],
+    "min_Pval_ar": [
+      0.00034891169842369245
+    ]
+  },
+  "MaskMin": 582.0,
+  "MaskMax": 662.0,
+  "BlindRange": "582,662"
+}

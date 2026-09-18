@@ -213,12 +213,29 @@ python3 tests/repro.py check --quick        # J100 only, ~1-2 min
 python3 tests/repro.py check                # both analyses, incl. J50's BumpHunter masking, ~6 min
 ```
 
+There is a second suite — per-function unit tests over the J100/J50 fit path, under `tests/` as
+`test_*.py`. It is fast (seconds) and it is **not** a substitute for `check`: it pins individual
+functions, where `check` pins the numbers the pipeline actually produces. Run both, in the order
+that reports a break soonest:
+
+```
+. setup.sh                                  # required by the unit suite; see tests/conftest.py
+bash tests/run_all.sh --quick               # unit suite, then J100 only
+bash tests/run_all.sh                       # unit suite, then both analyses
+```
+
 **`record`/`check` need `python3` itself to already have PyROOT importable** — the plain lxplus
 system `python3` has this with no setup at all, which is what the driver subprocesses they launch
-are sourced against anyway. Run them from a shell that has *not* activated
-`pyBumpHunter/pyBH_env` (it carries no ROOT bindings, only the pyBumpHunter egg) or sourced an
-ATLAS/lsetup environment that puts a different `python3` first on `$PATH` — either produces a
-clear `ERROR: ... has no ROOT module` rather than running.
+are sourced against anyway. The LCG_102a view that `setup.sh` sets up also satisfies this (ROOT
+6.26/08), and a full `check` passes identically under either, so sourcing the ATLAS environment
+first is fine and is what `run_all.sh` assumes. What does *not* work is a shell with
+`pyBumpHunter/pyBH_env` activated — that venv carries no ROOT bindings, only the pyBumpHunter egg
+— or any other environment that puts a ROOT-less `python3` first on `$PATH`; those produce a clear
+`ERROR: ... has no ROOT module` rather than running.
+
+The unit suite is stricter about this than `check` is: it **requires** the LCG_102a view, because
+`python/ExtractPostfitFromWS.py` and `python/ExtractFitParameters.py` use `from ROOT import *`,
+which ROOT 6.40 — the system `python3`'s version — refuses outright.
 
 `check` re-runs the driver(s) with `OUT_DIR` pointed at a scratch directory — `run/` itself is
 never touched — and compares the fitted parameters, `minNll`, chi2/p-values, postfit bins and

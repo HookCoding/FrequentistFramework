@@ -19,6 +19,7 @@ and the notebook disagree, the notebook is right.
 | [Make the drivers stop when the setup guard fires](2026-09-17-driver-setup-guard.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
 | [Refuse a partial `--rebinfile`/`--rebinhist` pair](2026-09-17-rebin-pair-guard.md) | 2026-09-17 | `claude-skills` | Approved, implementation in progress |
 | [Close the issues that can reach a physically wrong result](2026-09-17-physics-risk-issues.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
+| [Decompose the J100/J50 fit path into tested single-purpose functions](2026-09-18-decompose-j100-j50-fit-path.md) | 2026-09-18 | `claude-skills-2` | Awaiting approval |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -151,6 +152,27 @@ second plot file, which would have forced a J50 baseline re-cut for a change tha
 and was replaced on the owner's ruling that the record should only change when the physics does. §4
 was unblocked by the owner choosing `<channel>_bkgonly_rebinned` for both branches. No baseline was
 re-cut at any point; `tests/repro.py check` passes on both analyses after every section.
+
+### Decompose the J100/J50 fit path into tested single-purpose functions
+
+The nine files a J100 or J50 run executes concentrate their work in a few very large functions —
+`run_anaFit()` is 338 lines with 25 parameters, `PostfitExtractor.Extract()` is 137,
+`PreFitter.Fit()` is 131, `plot_postfit()` is 257, and `python/plotPostFit.py` has no functions at
+all — and not one line of that path has a unit test. Decomposes each file until every function does
+a single kind of work, and gives each extracted function a test pinning its inputs against its
+outputs, so a later change that moves a number is reported rather than discovered.
+
+Ordered by value rather than by call graph: the test harness and a fixture-based golden master come
+first, because they cut the feedback loop from `tests/repro.py check`'s 3.5–6 minutes to seconds,
+and the chi2 core comes next, because the p-value it produces is what gates the whole masked-refit
+decision. Three standing rules govern the work — the refactor moves zero physics numbers, no
+baseline is re-cut, and defects found along the way are recorded and pinned as they are rather than
+fixed. Three such defects are already named in the plan, including one that collapsing a pair of
+duplicated blocks would silently correct at the cost of moving a p-value.
+
+Two scope decisions were taken by the repository owner before writing: those defects are preserved
+rather than fixed, and `plot_postfit.cpp` is decomposed structurally with no new verification, since
+`check` compares plot filenames and not plot contents.
 
 ## Adding a plan
 

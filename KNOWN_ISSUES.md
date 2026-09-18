@@ -1575,3 +1575,168 @@ and another for J50 with nothing saying which, which is the defect in a new plac
 own parenthetical is the better half: **emit both, with explicit labels**, or at minimum draw the
 mask state onto the plot so the file is self-describing. `plot_postfit.cpp` is the working model.
 Whichever is chosen, it belongs in both drivers, not just J50's.
+
+## Found 2026-09-18 while building the decomposition test harness
+
+Four found while building §1 of
+[plans/2026-09-18-decompose-j100-j50-fit-path.md](plans/2026-09-18-decompose-j100-j50-fit-path.md).
+The first three are **deliberately not fixed**: that plan's first standing rule is that the
+refactor moves zero physics numbers, so a defect found inside the code being decomposed is pinned
+by a test as it stands and fixed, if at all, as its own separate and separately-verified change.
+Two of the three were described incorrectly in the plan and are corrected here from measurement;
+the plan is archived as written, so this is where the corrected account lives.
+
+### 49. The background-only postfit is never normalised to its expected events — **Medium** — **open; recorded, not fixed**
+
+**What.** `Extract()` builds the background-only histogram with `hpdf_bkg = pdf_bkg.createHistogram(...)`
+and then, in the `try` that is plainly meant to normalise it, scales **`hpdf`** — the *nominal*
+histogram, built thirty lines earlier — instead:
+
+```python
+hpdf_bkg = pdf_bkg.createHistogram("hpdf_bkg", x)
+try:
+    hpdf.Scale(expectedEvents_bkg/hpdf.Integral())    # line 270: hpdf, not hpdf_bkg
+except:
+    pass
+```
+
+`hpdf_bkg` is then read unscaled at line 284 into `h_postfit_bkg`. The scaling of `hpdf` at line
+270 has no effect on anything, because `hpdf`'s contents were already copied into the nominal
+`h_postfit` at lines 255–257 and it is never read again.
+
+**Where.** `python/ExtractPostfitFromWS.py:270`, against the working version at line 234.
+
+**Affects.** **Active in every recorded fit**, not latent. Measured against
+`tests/fixtures/FitResult_J100_sixPar.root`:
+
+| quantity | value |
+|---|---|
+| `expectedEvents_bkg` | 765237718.833399 |
+| `hpdf_bkg.Integral()` raw | 765234634.391266 |
+| recorded `J100yStar06_bkgonly/postfit` integral | 765234634.391266 — i.e. the raw, unscaled value |
+| scale factor never applied | 1.000004031 |
+
+So the background-only postfit sits about **4 parts per million** below its own expected yield.
+That distribution is what the p(chi2) gate is read from (`run_anaFit.py:189`, settled as issue 39),
+so the defect is on the path to a physics decision, not off it.
+
+It stays small for a *second* reason worth writing down, because it will not hold forever: in both
+locked analyses `nsig` is pinned at 0, so `expectedEvents_bkg` and `expectedEvents` are **bit-identical**
+(both 765237718.833399) and `hpdf`/`hpdf_bkg` have identical raw integrals. The moment a fit runs
+with signal enabled the two diverge and the error stops being 4 ppm.
+
+**Plan correction.** The plan says collapsing the four near-identical channel blocks "would
+silently correct it and move the background-only p-value". That conclusion is right and the
+reasoning was luck: the scaling was never measured before this. It is now, and §6's instruction to
+refactor the blocks in place rather than merge them stands on evidence.
+
+**Fix.** One character, `hpdf` → `hpdf_bkg`. It moves a recorded number, so it needs its own
+change, its own `check`, and a deliberate baseline re-cut with a reason — exactly the operation
+the refactor is forbidden from performing silently.
+
+### 50. The prefit's "random sampling" varies one parameter, and seeds two others outside their declared limits — **Medium** — **open; recorded, not fixed**
+
+**What.** `PreFitter.Fit()` reads as a random search over all parameters: it calls
+`RandomizeParameters(fitFunction)` on every one of `nRetries1` iterations. Ten literal
+`SetParameter` calls immediately afterwards overwrite that:
+
+```python
+self.RandomizeParameters(fitFunction)
+p0 = ROOT.TMath.Exp(integral/fitFunction.Integral(self.xMin, self.xMax, 1e-10))
+fitFunction.SetParameter(0, p0)
+fitFunction.SetParameter(1, 80)
+fitFunction.SetParameter(2, 10)
+...
+```
+
+**Measured**, by wrapping `TH1::Chisquare` and recording the parameter vector at every scoring call
+of a six-parameter J100 prefit:
+
+```
+  0: ['0.920825', '80', '10', '10', '2', '0']
+  1: ['1.03359',  '80', '10', '10', '2', '0']
+  2: ['1.01772',  '80', '10', '10', '2', '0']
+  3: ['2.7655',   '80', '10', '10', '2', '0']
+  ...
+  p0 VARIES (6 distinct)   p1..p5 constant at 80, 10, 10, 2, 0
+```
+
+So the loop is a **one-dimensional scan over `p0`**. The randomised values of p1–p5 are discarded
+before they are ever scored; they survive only indirectly, because `p0` is computed from
+`fitFunction.Integral(...)` evaluated *with* them, which is why the loop is not simply inert.
+
+**Second, separate problem, visible once the above is.** Three of the five literal seeds are
+inconsistent with the limits the background card declares. `config/dijetTLA/background_dijetTLA_J100yStar06_sixPar.template`
+declares `p2[PAR2,-30,30] p3[PAR3,-30,30] p4[PAR4,-10,10] p5[PAR5,-1,1] p6[PAR6,-0.1,0.1]`, and
+`SetParLimits` is applied from exactly those at `PreFit.py:92-93`. Against them:
+
+| set at | value | declared limits | |
+|---|---|---|---|
+| `SetParameter(1, 80)` | 80 | −30 … 30 | **outside, by 2.7×** |
+| `SetParameter(3, 10)` | 10 | −10 … 10 | exactly on the boundary |
+| `SetParameter(4, 2)` | 2 | −1 … 1 | **outside, by 2×** |
+
+**Where.** `python/PreFit.py:106-119`, with the limits set at `:92-93`.
+
+**Affects.** The starting parameters handed to the real fits at `PreFit.py:146-149`, and through
+them the values substituted into the background card and used as quickFit's starting point. It does
+**not** directly set a published number — quickFit does the fit that counts — but a starting point
+partly outside the allowed region is how a fit finds a local minimum instead of the global one, and
+nothing downstream would report that it had.
+
+**Plan correction.** The plan asserts the loop "evaluates the same chi2 on every iteration" and
+proposes a test asserting two different seeds give identical candidates. **Both are wrong** —
+measured, seed 42 and seed 12345 give different best parameters, because `p0` carries the
+randomisation through. §4's test must assert the opposite: that the seed *does* change the result,
+and that p1–p5 are constant across scoring calls, which is the fact that actually needs pinning.
+
+**Fix.** Not obvious, and not the refactor's business. Deleting the literal seeds restores a real
+six-dimensional search and changes every prefit start in the repository; keeping them and deleting
+the `RandomizeParameters` call makes the code honest and changes `p0`'s distribution. Either is a
+physics decision for the repository owner. Recorded so that it is a decision rather than an
+accident.
+
+### 51. `PostfitExtractor.Extract()` is not idempotent: it overwrites its own `datafirstbin` — **Low** (latent) — **fixed as part of §6, not before**
+
+**What.** `datafirstbin` is a constructor argument, set by `run_anaFit.py:136` to
+`d.FindBin(rangelow)-1`, and read at `ExtractPostfitFromWS.py:250` to reconstruct the postfit bin
+edges. `Extract()` reassigns it twice inside the channel loop, at lines 314 and 322, to a bin
+*number* in a different, rebinned histogram. **Measured** on the J100 fixture:
+
+```
+  datafirstbin before Extract(): 481
+  datafirstbin after  Extract(): -1
+```
+
+A second call would therefore compute the bin edges from −1 rather than 481. Nothing enforces a
+single call: `WriteRoot` calls `Extract()` when `self.h_data` is falsy, and each of the nine lazy
+accessors calls it when its own cache is empty.
+
+**Where.** `python/ExtractPostfitFromWS.py:314` and `:322`, against the read at `:250`.
+
+**Affects.** Nothing recorded. `run_anaFit.py` constructs the extractor, calls `GetPval` (which
+triggers the single `Extract()`), then `WriteRoot` (which finds `h_data` already set and does not
+re-enter), so exactly one call happens on both locked analyses. It is a refactor blocker rather
+than a live defect, which is why §6 replaces the attribute with a local: any decomposition that
+adds an accessor call, or any test that constructs an extractor and inspects it before writing,
+silently changes the binning.
+
+### 52. The README's ROOT-environment requirement for `repro.py` is stated too broadly — **Low** — **Fixed 2026-09-18**
+
+**What.** `README.md` told the reader to run `record`/`check` from a shell that has not "sourced an
+ATLAS/lsetup environment", claiming either that or an activated `pyBumpHunter/pyBH_env` "produces a
+clear `ERROR: ... has no ROOT module` rather than running". The first half is false for the
+environment this repository actually uses. Measured: after
+`lsetup "views LCG_102a x86_64-centos9-gcc11-opt"`, `python3` is the view's 3.9.12, `import ROOT`
+gives 6.26/08, `repro.py`'s own `_import_root()` succeeds, and a full `check` passes both analyses
+with all 26 environment checks — identically to the documented system `python3`.
+
+The real constraint is narrower and is about PyROOT being importable at all, which is what the
+pyBumpHunter venv breaks. The wording is corrected, and the new unit suite *requires* the LCG view
+(ROOT 6.40 refuses the `from ROOT import *` that two of the extraction modules use), so the two
+instructions would otherwise have contradicted each other.
+
+**Where.** `README.md`'s Reproducibility section. The same overbroad claim is still in
+`tests/repro.py`'s `_import_root()` docstring (`:773-780`); that file is deliberately untouched for
+the duration of the decomposition work, so the docstring is corrected when `repro.py` is next
+edited for another reason.

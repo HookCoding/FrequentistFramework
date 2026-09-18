@@ -75,6 +75,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 15:30 — Give Copilot review instructions so it stops trawling](#2026-09-18-1530--give-copilot-review-instructions-so-it-stops-trawling)
 - [2026-09-18 16:05 — Reverse the scope decision: Copilot reviews regressions only](#2026-09-18-1605--reverse-the-scope-decision-copilot-reviews-regressions-only)
 - [2026-09-18 16:30 — Name the cut-off commit in the Copilot instructions](#2026-09-18-1630--name-the-cut-off-commit-in-the-copilot-instructions)
+- [2026-09-18 17:40 — Decomposition §1: a test harness, and three measurements that corrected the plan](#2026-09-18-1740--decomposition-1-a-test-harness-and-three-measurements-that-corrected-the-plan)
 
 ---
 
@@ -2448,3 +2449,77 @@ which "the base branch" did not.
 
 **Verified.** No code changed, so nothing to run. The SHA was confirmed against the commit graph as
 above rather than taken on trust.
+
+## 2026-09-18 17:40 — Decomposition §1: a test harness, and three measurements that corrected the plan
+
+**Objective.** §1 of
+[plans/2026-09-18-decompose-j100-j50-fit-path.md](plans/2026-09-18-decompose-j100-j50-fit-path.md):
+build the test harness the other nine sections are verified with, before any production code is
+touched. Nothing in `python/`, `scripts/` or the two C++ files was modified in this section.
+
+**Verified first, as the rule requires.** A full `tests/repro.py check` under the documented system
+`python3` **before** anything was added: 26/26 environment checks, both analyses PASS. The tree was
+green at the start, so any later failure belongs to this work.
+
+**Added.** `tests/conftest.py` (path setup plus two autouse fixtures), `tests/roothelpers.py`
+(`make_hist`, `assert_hists_equal`), `tests/test_extract_golden.py` (five tests),
+`tests/run_all.sh`, and `tests/fixtures/` — 353 KB of copies of the two recorded runs. The
+`FitResult_*.root` fixtures carry both `fitResult` and `combWS`, which is why the workspace
+argument in the tests points at a file named FitResult. `BHresults_J50.json` is trimmed from the
+recorded 482 KB to 445 bytes: its `min_*_ar` entries hold one element per pseudo-experiment and
+only element 0 is ever read. The excerpt is internally consistent — `bins[12] = 582`,
+`bins[12+3] = 662`, matching the recorded `MaskMin`/`MaskMax`.
+
+`tests/test_extract_golden.py` re-runs the post-fit extraction against the recorded workspace and
+compares all sixteen histograms (four channels × `data`/`postfit`/`residuals`/`chi2`) bin for bin,
+plus the gate p-value named on its own. It is everything downstream of quickFit, with no binaries
+and no fit: **5 passed in 12.35s**, against 4–6 minutes for a full `check`. That ratio is the whole
+justification for building it first.
+
+**Two autouse fixtures, both earning their place.** One saves and restores `gErrorIgnoreLevel` and
+`DefaultMaxFunctionCalls`, because `PreFitter.__init__` sets both process-wide and would otherwise
+make later tests' results depend on collection order. The other `chdir`s to the repository root —
+not in the plan, added because `run_anaFit.py` hardcodes repository-relative paths at `:97`,
+`:123`, `:147` and `:258`, so the code under test only works from there.
+
+**Settled: one environment runs both suites.** The plan flagged this as an open question and
+required it be measured, not assumed. It was: after `lsetup "views LCG_102a x86_64-centos9-gcc11-opt"`,
+`python3` is the view's 3.9.12 with ROOT 6.26/08, `from ROOT import *` is accepted, pytest resolves
+to the view's 7.0.1 rather than the broken 8.4.2 in `~/.local`, and `bash tests/run_all.sh` ran the
+unit suite and then a full `check` to **PASS on both analyses, 26/26 environment checks** — the same
+result as the documented interpreter. So `run_all.sh` is one environment and one command, and
+`README.md`'s claim that a sourced lsetup environment would fail is corrected (issue 52).
+
+**Three measurements, two of which contradict the plan.** All three are filed as issues 49–51 with
+their evidence, and none is fixed — the plan's first standing rule is that this refactor moves zero
+physics numbers.
+
+- **Issue 49 — the background-only postfit is never normalised.** `ExtractPostfitFromWS.py:270`
+  scales `hpdf` where it means `hpdf_bkg`. Measured: `expectedEvents_bkg` is 765237718.833399, the
+  raw `hpdf_bkg` integral is 765234634.391266, and the recorded `J100yStar06_bkgonly/postfit`
+  integral is **that same raw value** — so the scale factor of 1.000004031 is never applied and the
+  distribution the p(chi2) gate reads sits ~4 ppm below its expected yield. The plan reached the
+  right conclusion by luck; it is now measured. The error stays small only because `nsig` is pinned
+  at 0 in both locked analyses, making `expectedEvents` and `expectedEvents_bkg` bit-identical.
+- **Issue 50 — the prefit's random search is one-dimensional, and seeds two parameters outside
+  their limits.** The plan asserted the sampling loop "evaluates the same chi2 on every iteration"
+  and proposed a test asserting different seeds give identical results. **Measured, that is wrong**:
+  seed 42 and seed 12345 give different best parameters. Instrumenting `TH1::Chisquare` shows why —
+  `p0` varies across scoring calls while p1–p5 sit fixed at 80, 10, 10, 2, 0, because `p0` is
+  computed from `fitFunction.Integral(...)` evaluated *with* the randomised values before they are
+  overwritten. Separately, and not previously noticed at all: the background card declares
+  `p4[PAR4,-10,10]` and `p5[PAR5,-1,1]`, so the literal seeds of 10 and 2 sit on and beyond those
+  limits, as does 80 against `p2`'s ±30. §4's test must assert the opposite of what the plan says.
+- **Issue 51 — `Extract()` is not idempotent.** Measured on the J100 fixture: `datafirstbin` is 481
+  before the call and **−1** after it. Confirmed as described; §6 fixes it with a local, which is
+  behaviour-preserving for the single call the drivers make.
+
+**Left alone.** `tests/repro.py` is untouched, including the same overbroad interpreter claim in its
+`_import_root()` docstring — it is the safety net for the whole decomposition, and a wrapper gets
+the same result without editing it. The trimmed `BHresults` fixture is an excerpt I constructed, not
+recorded output, and is labelled as such in the file it is used from.
+
+**Verified.** `bash tests/run_all.sh` end to end: unit suite green, then `check` PASS on both
+analyses against untouched baselines. No baseline was re-cut. `tests/fixtures/` is confirmed not
+caught by `.gitignore` (`tests/run/` would have been, which is why the directory is named
+`fixtures/`).
