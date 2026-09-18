@@ -37,9 +37,10 @@ sys.path.insert(0, str(REPO_ROOT / "python"))
 def _preserve_root_globals():
     """Stop one test's ROOT global state leaking into every test after it.
 
-    `PreFitter.__init__` sets gErrorIgnoreLevel=6001 and SetDefaultMaxFunctionCalls(50000)
-    process-wide (PreFit.py:35-37), so a single construction would silence ROOT diagnostics for
-    the rest of the session and make later tests' pass/fail depend on collection order.
+    `PreFit._configure_root()` (called from `PreFitter.Fit()`, plan section 4) sets
+    gErrorIgnoreLevel=6001 and SetDefaultMaxFunctionCalls(50000) process-wide, so a single call
+    would silence ROOT diagnostics for the rest of the session and make later tests' pass/fail
+    depend on collection order.
     """
     import ROOT
 

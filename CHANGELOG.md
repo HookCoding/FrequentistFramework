@@ -78,6 +78,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 17:40 — Decomposition §1: a test harness, and three measurements that corrected the plan](#2026-09-18-1740--decomposition-1-a-test-harness-and-three-measurements-that-corrected-the-plan)
 - [2026-09-18 18:20 — Decomposition §2: split `getChi2` into seven single-purpose functions](#2026-09-18-1820--decomposition-2-split-getchi2-into-seven-single-purpose-functions)
 - [2026-09-18 20:15 — Decomposition §3: split `run_anaFit.py` into thirty-three single-purpose functions](#2026-09-18-2015--decomposition-3-split-run_anafitpy-into-thirty-three-single-purpose-functions)
+- [2026-09-18 21:00 — Decomposition §4: split `PreFitter.Fit()` into eight single-purpose functions](#2026-09-18-2100--decomposition-4-split-prefitterfit-into-eight-single-purpose-functions)
 
 ---
 
@@ -2634,4 +2635,88 @@ fixture), `test_run_anafit_main.py` (5, the `main()` split, against the exact ar
 analyses) — PASS at every boundary; J50's real run is the one exercise of the entire masking
 branch (Group F) and of `_compute_chi2_terms`'s mask logic, and both drivers pass `--signalfile`,
 so the signal-card substitution path (Group D) ran for real too, not only in unit tests. No
+baseline re-cut.
+
+## 2026-09-18 21:00 — Decomposition §4: split `PreFitter.Fit()` into eight single-purpose functions
+
+**Objective.** Plan section 4, `python/PreFit.py`. `PreFitter.Fit()` was 131 lines covering
+histogram I/O, the logarithmic transform, twenty literal candidate `TF1`s, a random-sampling
+scan, the final per-candidate fits and the result printout. Split into eight single-purpose
+functions preserving every formula, ROOT call, seed behaviour and printed line exactly;
+`PreFitter.__init__` and `Fit()` keep their public signature and return value, because
+`run_anaFit.py:602` constructs a `PreFitter` and calls `pf.Fit()` by keyword.
+
+**Split**, all in `python/PreFit.py`. Seven of the eight touch no instance state and are
+module-level functions; `_find_best_parameter_sets` stays a `PreFitter` method because it calls
+the existing `RandomizeParameters` bound method (`self.rnd`, `self.parRangeLow/High`) once per
+iteration.
+
+- `_configure_root()` — the two process-global ROOT calls (`SetDefaultMaxFunctionCalls(50000)`,
+  `gErrorIgnoreLevel = 6001`) that used to run in `__init__`, now called from `Fit()` instead. The
+  plan's one explicit interface change: constructing a `PreFitter` no longer has this side effect;
+  `self.rnd = ROOT.TRandom3(seed)` stays in `__init__`. Behaviour-preserving for every real
+  caller, which constructs and immediately fits.
+- `_load_histogram(datafile, datahist)` — opens the file, reads the histogram, returns both (the
+  histogram is not detached, so it stays valid only while the file stays open).
+- `_prepare_histogram(histogram, xMin, xMax, fitLog)` — computes `nbkg` over the fit range
+  *before* the optional log transform, then, if `fitLog`, rewrites each non-zero bin's error by
+  dividing by the bin's *original* content and only then replaces the content with its log — the
+  order the two statements already ran in, now pinned by a test that would catch a reordering.
+- `_build_candidate_functions(xMin, xMax)` — the twenty `TF1`s (1–10 parameters, normal and log),
+  kept as literal formula strings rather than generated from a table. Judgement call the plan left
+  open: generating them removes duplication, but this is a straight cut-and-paste of physics
+  formulas, and a generator bug risks corrupting one of twenty near-identical strings silently.
+  Literal is the lower-risk choice for a refactor that is supposed to move zero physics numbers.
+- `_select_fit_function(normal_functions, log_functions, fitLog, nPars, parRangeLow,
+  parRangeHigh)` — picks the right dictionary and applies `SetParLimits` to every active
+  parameter.
+- `_find_best_parameter_sets(...)` (method) — the `nRetries1`-iteration sampling loop: randomize,
+  compute `p0` from the current (just-randomized) parameters via `fit_function.Integral()`,
+  overwrite parameters 1–9 with their ten literal seed values, score, and keep the `nRetries2`
+  lowest-scoring candidates via `bisect.insort`/`pop()`. See the correction below.
+- `_fit_best_candidates(histogram, fit_function, candidates, nRetries2, xMin, xMax)` — the final
+  `"R0QS"` fit of each retained candidate, returning the lowest-chi2 parameters. Deviates from the
+  plan's literal signature (`..., candidates, xMin, xMax`, no `nRetries2`) by keeping `nRetries2`
+  explicit and indexing `candidates[i]` for `i` in `range(nRetries2)`, exactly as the unsplit
+  `Fit()` does today, so a candidate list shorter than `nRetries2` still raises `IndexError`
+  rather than silently fitting fewer candidates than requested — turning today's fails-closed
+  crash into a fails-open partial success is exactly the direction `CLAUDE.md`'s own triage order
+  warns against, and neither locked analysis can tell the two signatures apart (`len(candidates)`
+  is always exactly `nRetries2` in both).
+- `_report_fit_result(best_chi2, best_parameters, npar)` — the closing printout.
+
+**Correction to the plan — KNOWN_ISSUES issue 50.** The plan, written before this section was
+implemented, asserted `_find_best_parameter_sets`'s sampling loop "evaluates the same chi2 on
+every iteration" and specified a test asserting two different seeds return identical candidates.
+Both are wrong, and were already measured and corrected in issue 50 (filed right after §1, before
+this section was reached): the ten literal `SetParameter` calls do overwrite every randomized
+value *except* parameter 0, which is computed from `fit_function.Integral()` evaluated while the
+randomized parameters are still briefly in place, so different seeds do give different `p0`
+sequences and different results. This section's tests assert the corrected, measured behaviour —
+`test_find_best_parameter_sets_only_p0_varies_issue50` (parameters 1–5 constant at their literal
+values across every scoring call, `p0` varying) and
+`test_find_best_parameter_sets_different_seeds_give_different_results_issue50` (two seeds, same
+inputs, different winning candidates) — not the plan's original prediction.
+
+**Added**: `tests/test_prefit.py`, 18 new tests covering all eight functions above plus
+`RandomizeParameters` (unchanged code, previously untested — verifies one `Uniform(lo, hi)` draw
+per parameter, the correct per-parameter range, and correct assignment). Notable cases beyond the
+straightforward ones: `_build_candidate_functions`'s formula-text pin against the original
+strings character for character; `_find_best_parameter_sets`'s sentinel-survival case
+(`nRetries1 < nRetries2` leaves `(inf, [])` in the result, matching what the unsplit code does
+today); `_fit_best_candidates`'s `IndexError`-on-shortage pin for the signature deviation above.
+
+**Fixed** (test bug, not production code): the first draft of the four `_find_best_parameter_sets`
+tests used a synthetic `xMin=0` domain. Every candidate formula divides `x` by 13000 (13 TeV), and
+`fit_function.Integral()` over a range starting at 0 underflows to exactly 0 for some parameter
+draws, so `p0 = Exp(integral/0)` raised `ZeroDivisionError` before `score_function` was ever
+called — nothing to do with the code under test. Fixed by using a domain of the same order of
+magnitude as the real analyses (481–3000, matching J100).
+
+**Updated** `tests/conftest.py`'s `_preserve_root_globals` docstring, which named `__init__` as
+the source of the process-global ROOT mutation; it now names `_configure_root()`.
+
+**Verified**: `python3 -m pytest tests -q` — 125 passed (107 from §1–§3, 18 new). `bash
+tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS; both drivers pass
+`--doprefit`, so `PreFitter.Fit()` ran for real on both J100 and J50, not only in unit tests. No
 baseline re-cut.
