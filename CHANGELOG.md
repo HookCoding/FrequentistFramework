@@ -59,6 +59,22 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-17 15:05 — Fourth review, by false-pass/false-fail; file and fix issues 32–37](#2026-09-17-1505--fourth-review-by-false-passfalse-fail-file-and-fix-issues-3237)
 - [2026-09-17 15:40 — Fifth review, over the fit path; file issues 38–42](#2026-09-17-1540--fifth-review-over-the-fit-path-file-issues-3842)
 - [2026-09-17 16:10 — Fix issues 38 and 42: a rejected fit no longer reports success](#2026-09-17-1610--fix-issues-38-and-42-a-rejected-fit-no-longer-reports-success)
+- [2026-09-17 17:20 — Fix issue 43: the drivers now stop when the setup guard fires](#2026-09-17-1720--fix-issue-43-the-drivers-now-stop-when-the-setup-guard-fires)
+- [2026-09-17 17:45 — File issue 44: the postfit macro's hardcoded luminosity label](#2026-09-17-1745--file-issue-44-the-postfit-macros-hardcoded-luminosity-label)
+- [2026-09-17 18:05 — File issue 45: the Python plotter labels the p-value as chi2/ndof](#2026-09-17-1805--file-issue-45-the-python-plotter-labels-the-p-value-as-chi2ndof)
+- [2026-09-17 18:25 — Fix issue 45: the postfit plot labelled the p-value as chi2/ndof](#2026-09-17-1825--fix-issue-45-the-postfit-plot-labelled-the-p-value-as-chi2ndof)
+- [2026-09-17 18:50 — File issue 46: a partial rebin pair silently falls back to truncated binning](#2026-09-17-1850--file-issue-46-a-partial-rebin-pair-silently-falls-back-to-truncated-binning)
+- [2026-09-17 19:15 — Fix issue 46 §1: refuse a partial rebin pair before anything runs](#2026-09-17-1915--fix-issue-46-1-refuse-a-partial-rebin-pair-before-anything-runs)
+- [2026-09-17 19:45 — File issue 48: postFit.pdf plots the rejected fit on a masked-and-accepted run](#2026-09-17-1945--file-issue-48-postfitpdf-plots-the-rejected-fit-on-a-masked-and-accepted-run)
+- [2026-09-17 20:30 — Physics-risk plan §1: report fit status and covariance quality](#2026-09-17-2030--physics-risk-plan-1-report-fit-status-and-covariance-quality)
+- [2026-09-18 09:10 — Bring doc/IMPROVEMENTS.md up to date with issues 40 and 43–48](#2026-09-18-0910--bring-docimprovementsmd-up-to-date-with-issues-40-and-4348)
+- [2026-09-18 10:05 — Physics-risk plan §2: stop on a failed workspace build or fit](#2026-09-18-1005--physics-risk-plan-2-stop-on-a-failed-workspace-build-or-fit)
+- [2026-09-18 12:20 — Physics-risk plan §3: plot the fit that was accepted, labelled](#2026-09-18-1220--physics-risk-plan-3-plot-the-fit-that-was-accepted-labelled)
+- [2026-09-18 12:35 — Physics-risk plan §4: settle the p(chi2) gate histogram](#2026-09-18-1235--physics-risk-plan-4-settle-the-pchi2-gate-histogram)
+- [2026-09-18 13:10 — Correct three documentation claims found by review](#2026-09-18-1310--correct-three-documentation-claims-found-by-review)
+- [2026-09-18 15:30 — Give Copilot review instructions so it stops trawling](#2026-09-18-1530--give-copilot-review-instructions-so-it-stops-trawling)
+- [2026-09-18 16:05 — Reverse the scope decision: Copilot reviews regressions only](#2026-09-18-1605--reverse-the-scope-decision-copilot-reviews-regressions-only)
+- [2026-09-18 16:30 — Name the cut-off commit in the Copilot instructions](#2026-09-18-1630--name-the-cut-off-commit-in-the-copilot-instructions)
 
 ---
 
@@ -2313,3 +2329,122 @@ one occurrence; there were three, including `Z′montecarlo spectrum` with a mis
 corrected.
 
 **No code changed.** `tests/repro.py check` was not re-run, since nothing it reads was touched.
+
+## 2026-09-18 15:30 — Give Copilot review instructions so it stops trawling
+
+**Objective.** The external review that produced issues 43–48 generated ten comments. Four were
+worth the attention they cost; three were documentation claims worth fixing; three were noise. The
+user asked for a `.github/copilot-code-review-instructions.md` that stops the reviewer trawling the
+codebase for pre-existing material and for findings that cannot change a physics result.
+
+**Added.** [.github/copilot-code-review-instructions.md](.github/copilot-code-review-instructions.md).
+`.github/` did not exist before this; there was no Copilot configuration of any kind in the tree.
+The file carries this repository's own triage rule — *could this let an analysis run to completion
+and produce a result that is now unphysical?* — into three tiers: always report a silently wrong
+number, a right number presented as the wrong thing, or a documentation claim the code does not
+keep; report fails-closed defects only when they are in the diff; do not report style, naming,
+spelling, refactors or defensive code for situations that do not arise. It also lists the repository
+conventions that read as defects and are not (sourced setup scripts, the `-999` sentinel, the
+commented-out configuration history in the drivers, the pinned sub-framework clones), tells the
+reviewer to name every call site rather than the first, and records that `tests/repro.py check`
+compares plot *filenames* only, so a green check is not evidence against a mislabelled plot.
+
+*This decision was reversed; see [2026-09-18 16:05 — Reverse the scope decision: Copilot reviews
+regressions only](#2026-09-18-1605--reverse-the-scope-decision-copilot-reviews-regressions-only).*
+
+**Decided, against the literal request.** A blanket "do not report pre-existing issues" rule was
+not written, because checking the ten comments against `git log -S` showed it would have suppressed
+most of the value: three of the four findings that could affect a physics number were in
+pre-existing code — the `GetBinContent(6)` p-value-as-chi2 mislabel dates to the original postfit
+script, the hardcoded `13 TeV, 25 fb^{-1}` to the original postfit macro, and the J50 driver
+plotting the unmasked file to the Run 2 port. Only the failure-banner comment, filed as issue 47,
+was introduced by the reproducibility-lock work itself. So the file bans trawling — review the diff,
+do not audit the rest of the repository — with two narrow exceptions, both restricted to the top
+tier: code the diff newly exposes, and a wrong-number defect encountered while reviewing the diff.
+That keeps the `GetBinContent(6)` class of finding reachable while cutting the pre-existing style
+noise.
+
+**Left alone.** Whether GitHub reads this exact filename. The widely supported path is
+`.github/copilot-instructions.md`, which applies to Copilot's chat and completions as well as
+review; the review-specific filename is what was asked for. If the reviewer ignores it, the fix is
+to copy or symlink the same content to `.github/copilot-instructions.md` — no content change.
+
+**Fixed while here.** The CHANGELOG's own **Contents** index had fallen thirteen entries behind,
+covering nothing after 2026-09-17 16:10 although the entries continued to 2026-09-18 13:10. The
+missing links were generated from the headings and appended. This was my omission across the last
+three sessions, not a pre-existing gap.
+
+**Verified.** Nothing to verify by running: no code changed, and `tests/repro.py check` reads
+nothing this entry touches. The index links were checked by regenerating the anchors for the
+entries already in the index and confirming they reproduce those lines exactly.
+
+## 2026-09-18 16:05 — Reverse the scope decision: Copilot reviews regressions only
+
+**Objective.** The 15:30 entry recorded a deliberate deviation from what was asked: it kept a narrow
+route by which Copilot could still report a pre-existing wrong-number defect. The user reaffirmed the
+original instruction and gave the reason the deviation missed. This entry records the reversal; the
+15:30 entry stands as written, with a pointer added to it.
+
+**Found.** The purpose of this branch is not to improve the repository's correctness. It is an
+evaluation of whether an AI agent can safely make changes to a large, old codebase — the deliverable
+is evidence about the *changes*, not an inventory of the codebase. Under that objective a
+pre-existing defect reported by the reviewer is not a partial success, it is a false positive: it
+consumes the review attention that a genuine regression needs, and it inflates the apparent finding
+count with material the agent neither caused nor was asked to address. Incorrect hardcoded values —
+the `13 TeV, 25 fb^{-1}` label, specifically — are named as out of scope.
+
+**Changed.** [.github/copilot-code-review-instructions.md](.github/copilot-code-review-instructions.md)
+rewritten. The two exceptions are gone. The scope rule is now a single test stated before anything
+else: *a defect is in scope only if it would disappear by reverting the diff*. Out of scope without
+exception: anything present in the base branch, including hardcoded values, wrong labels, fragile
+parsing and missing error handling; a pre-existing defect that the change merely makes more visible
+or more reachable without altering it; anything found by reading files the pull request does not
+touch; the four pinned sub-framework clones; improvements to correct lines; and style, naming and
+spelling even on changed lines. The file says explicitly that an empty review is a valid result.
+
+**Kept.** The physics-risk ranking, which now orders only the findings that are in scope — a newly
+wrong number first, then a right number newly presented as the wrong thing, then a new documentation
+claim the code does not keep, then fails-closed regressions marked as the lowest tier. Also kept: the
+instruction to check sibling call sites, but now restricted to sibling sites *within the diff*; the
+list of repository conventions that read as defects and are not; and the note that `tests/repro.py
+check` compares plot filenames rather than contents, so a green check does not rebut a regression in
+what a plot displays.
+
+**Verified.** Nothing to run: no code changed. The four documentation files the reviewer is pointed
+at — `README.md`, `CLAUDE.md`, `KNOWN_ISSUES.md`, `tests/repro.py` — all exist at the paths named.
+
+**Left alone.** The 15:30 entry's reasoning, which remains on the record as a wrong call with its
+correction here. It was wrong not in its facts — three of the four physics-risk findings really were
+pre-existing — but in its objective: it optimised for the repository's correctness when the work is
+an evaluation of the agent's changes.
+
+## 2026-09-18 16:30 — Name the cut-off commit in the Copilot instructions
+
+**Objective.** The 16:05 rewrite scoped the reviewer to "the base branch", which is defined by
+whatever a pull request happens to be opened against. The user gave the boundary explicitly
+instead: anything introduced at or before commit `30b816420be23890910326961603a232d35dd94c` is out
+of scope regardless of severity, and this must be stated rather than implied.
+
+**Verified first.** That SHA resolves in this tree to "uploaded run2 dijet tla mjj with tile gap
+veto", the seventeenth commit from `HEAD`. The commit immediately after it is the one that added
+Run 2 dijet TLA support and made the output directories repository-relative — the first commit of
+the work under evaluation. The boundary the user named therefore falls exactly where this project
+starts, with nothing of theirs before it and nothing of the original repository after it.
+
+**Changed.** [.github/copilot-code-review-instructions.md](.github/copilot-code-review-instructions.md)
+gains a **The cut-off commit** subsection at the head of the scope rule, stating the full SHA and
+its subject line, and saying in terms that this is a hard boundary rather than a factor to weigh
+against severity: a defect predating it is out of scope if it is cosmetic and equally out of scope
+if it silently corrupts every physics number the framework produces — its age is the only fact that
+matters. The reviewer is told to establish age with `git log -S` or `git blame` when unsure, and to
+stay silent when it cannot show the change under review introduced the defect. The first out-of-
+scope bullet and the finding-writing rule now refer to the commit rather than to "the base branch".
+
+**Why this matters beyond wording.** The purpose of the branch is to produce evidence about whether
+an agent can change a large old repository safely. Findings that predate the work are not evidence
+about that question either way, and counting them would make the agent look worse the older the
+repository is. A named commit makes the boundary checkable by anyone reading the review afterwards,
+which "the base branch" did not.
+
+**Verified.** No code changed, so nothing to run. The SHA was confirmed against the commit graph as
+above rather than taken on trust.
