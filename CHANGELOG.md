@@ -80,6 +80,8 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 20:15 — Decomposition §3: split `run_anaFit.py` into thirty-three single-purpose functions](#2026-09-18-2015--decomposition-3-split-run_anafitpy-into-thirty-three-single-purpose-functions)
 - [2026-09-18 21:00 — Decomposition §4: split `PreFitter.Fit()` into eight single-purpose functions](#2026-09-18-2100--decomposition-4-split-prefitterfit-into-eight-single-purpose-functions)
 - [2026-09-18 21:40 — Decomposition §5: split `FitParameterExtractor.Extract()` into four single-purpose functions](#2026-09-18-2140--decomposition-5-split-fitparameterextractorextract-into-four-single-purpose-functions)
+- [2026-09-18 22:20 — Decomposition §6a: split the binning half of `PostfitExtractor.Extract()` into five single-purpose functions](#2026-09-18-2220--decomposition-6a-split-the-binning-half-of-postfitextractorextract-into-five-single-purpose-functions)
+- [2026-09-18 23:10 — Decomposition §6b: split the workspace half of `PostfitExtractor.Extract()` into six single-purpose functions](#2026-09-18-2310--decomposition-6b-split-the-workspace-half-of-postfitextractorextract-into-six-single-purpose-functions)
 
 ---
 
@@ -2772,3 +2774,143 @@ asymmetric 3×3, so a transposed `GetBin(i+1, j+1)` would fail rather than pass 
 tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS; both drivers write
 `FitParameters_*.root` through this class on every run, so the split ran for real on J100 and J50
 rather than only in unit tests. No baseline re-cut.
+
+## 2026-09-18 22:20 — Decomposition §6a: split the binning half of `PostfitExtractor.Extract()` into five single-purpose functions
+
+**Objective.** Begin plan section 6, the section the plan calls its most dangerous. Split it in
+two rather than attempt it whole: §6a takes the five functions that are pure histogram plumbing —
+no workspace, no RooFit object lifetime — plus the one behaviour change section 6 was always going
+to make. §6b will take the workspace-lifetime half (`_open_workspace`, `_load_data_histogram`,
+`_model_components`, `_channel_npars`, `_background_only_pdf`, `_pdf_histogram`) and `WriteRoot`'s
+dead branch. Both halves stand alone and leave `Extract()` working.
+
+**The five functions.** All module-level and private; `Extract()` keeps its name, signature and
+no-return-value contract, because `WriteRoot` and all nine lazy accessors call it.
+
+- `_bin_edges_from_data(h_data, nBins, datafirstbin)` — reconstructs the postfit edges by reading
+  them off the data histogram at an offset. `hpdf` knows how many bins the fit had but not where
+  they are; `createHistogram()` gives it the pdf observable's own uniform binning.
+- `_postfit_histogram(hpdf, nBins, binEdges)` — copies the pdf contents onto those edges **by bin
+  index**, not by x position, and zeroes every error. Replaces two near-identical blocks (nominal
+  and background-only).
+- `_crop_data(h_data, nBins, binEdges)` — rebins the full data histogram down onto the fitted
+  range. Also replaces two identical blocks.
+- `_rebin_edges(rebinfile, rebinhist, h_postfit)` — reads the resolution binning and clips it to
+  the fitted range.
+- `_rebin_channel(h_postfit, h_data, binEdges, datahist)` — rebins one channel's pair onto that
+  binning. Replaces two identical blocks.
+
+**Issue 51 fixed, as its status line always said it would be here.** `Extract()` reassigned the
+constructor argument `self.datafirstbin` twice inside the channel loop, to a bin number in a
+different histogram, so a second call computed its bin edges from −1 rather than 481. A local now
+carries that value. Both reassignments are kept and the second still reads what the first wrote, so
+the sequence within one `Extract()` is unchanged — only the attribute stops being clobbered.
+Measured on the J100 fixture: `datafirstbin` reads 481 before, after, and after two calls; a second
+`Extract()` returns the same gate p-value and the same bin edges for all four channels. This is
+what makes the method safe to call from a test, which §6b needs.
+
+**Two plan predictions corrected by measurement.**
+
+The plan said the rebinned pair "inherit directory-0 from their already detached sources". They do
+not. `TH1::Rebin(n, newname, edges)` clones through `gDirectory`, and the clone is owned by
+whatever directory is current — measured as `TROOT` here, and it would be a `TFile` if one were
+open. The explicit `SetDirectory(0)` the plan asked for is therefore not a no-op made for tidiness;
+it removes a real latent hazard, since both input files close at the end of `Extract()` and these
+are the histograms `run_anaFit.py:189` reads the gating p-value from. A test opens a file, rebins
+inside it, closes it and then reads the result, so the hazard is pinned rather than only argued.
+
+The plan flagged `_rebin_edges`' upper limit — `GetBinLowEdge(GetNbinsX()+2)`, one bin past the
+last edge — as something "a test is the only record of". Measured on both fixtures before writing
+anything down: J100 fits 481–3000 and J50 302–2997, both 1 GeV uniform, so the limit is 3001 and
+2998 respectively and **no** rebin edge is admitted beyond the fitted range in either analysis. No
+defect, so no `KNOWN_ISSUES` entry. Two tests pin the arithmetic instead, including the
+non-uniform case where `TAxis`' average-width extrapolation and the real last bin width diverge.
+
+**Found, to be recorded with the rest in §6b.** Both extracted loops used `i`, the same name as
+the enclosing `for i in range(nChan)` loop, so each inner loop clobbered the channel index. With
+the loops moved into functions the shadowing is gone. It is unreachable on both locked analyses
+(`nChan` is 1, confirmed), and it is one of several defects that only appear above one channel —
+the plan's §6b names another, `cat.getLabel()` being read without advancing the category index.
+They belong in one entry, written in §6b where that second one is measured, rather than in half an
+entry here. `nBins`, likewise reassigned inside the old rebinning block and leaking out, is now
+local to `_rebin_edges`; nothing read it.
+
+**Added** `tests/test_extract_postfit_binning.py`, 21 tests. The `_postfit_histogram` test uses a
+pdf histogram whose x axis does not overlap the postfit edges at all, so a value-based copy would
+produce zeros rather than pass. The `_crop_data` test pins quadrature error combination. Three
+tests cover issue 51 against the real J100 fixture.
+
+**Verified**: `python3 -m pytest tests -q` — 166 passed (145 from §1–§5, 21 new). `bash
+tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS. No baseline re-cut.
+
+## 2026-09-18 23:10 — Decomposition §6b: split the workspace half of `PostfitExtractor.Extract()` into six single-purpose functions
+
+**Objective.** Finish plan section 6. §6a took the histogram plumbing; this takes everything that
+touches a RooFit object owned by the workspace, which is owned by the file `Extract()` closes on
+its last line. `Extract()` keeps its name, signature and no-return-value contract, because
+`WriteRoot` and all nine lazy accessors call it.
+
+**The six functions.**
+
+- `_open_workspace(wsfile, wsname)` — returns the file **and** the workspace, because the
+  workspace dies with the file and the caller has to hold it open. A missing name gives a falsy
+  null pointer rather than an exception; pinned, not changed.
+- `_load_data_histogram(datafile, datahist, undolog)` — returns the histogram alone and closes its
+  file. The contrast with `_open_workspace` is the point of both signatures: this one detaches
+  with `SetDirectory(0)` first, so there is nothing left to keep alive.
+- `_model_components(workspace, modelname)` — the pdf, the category, the channel count, the
+  observables and the split dataset. The two prints stay inside it rather than move to the caller,
+  because `data.split()` emits RooFit messages of its own and lifting them out would reorder the
+  log.
+- `_channel_npars(pdfi, x, externalnpars)` — `getNPars` unless overridden. It still calls
+  `getNPars` even when overridden, as today; that call builds a nuisance pdf, so skipping it would
+  change what RooFit is asked to construct.
+- `_background_only_pdf(workspace, channelname)` — one `factory()` call, with its docstring
+  recording that this *mutates* a workspace opened `"READ"`.
+- `_pdf_histogram(pdfi, x, expectedEvents, undolog)` — create, scale to the expected events,
+  optionally undo the log.
+
+**The one block deliberately not sharing a helper.** The background-only block scales `hpdf` while
+reading `hpdf_bkg` — `KNOWN_ISSUES` issue 49 — so it cannot call `_pdf_histogram`, which scales
+the histogram it returns. Its inline scaling is kept with a comment naming the issue and saying
+why the shared helper is not used, so the divergence reads as deliberate rather than as an
+oversight waiting to be tidied away. Collapsing it would move the background-only p-value, which
+is the number `run_anaFit.py:189` gates on.
+
+**Timing change, disclosed.** The data file now closes inside `_load_data_histogram` rather than
+on `Extract()`'s second-to-last line. Safe because `self.h_data` is detached before the close, and
+because every histogram derived from it is detached too — `_crop_data` and `_rebin_channel` both
+call `SetDirectory(0)` explicitly, the latter as of §6a. The workspace file still closes last, so
+the relative order the module's opening comment worries about is unchanged.
+
+**Two findings filed.**
+
+*Issue 54, fixed.* `WriteRoot`'s `dirPerCategory=False` branch — the **default** — called
+`self.channel_hpostfit.values()[-1]`, and `dict_values` is not subscriptable in Python 3. Measured
+under this repository's interpreter (3.9.12): `TypeError` on every call it has ever had. It is
+unmigrated Python 2. The plan already called for deleting it; what the plan did not settle is what
+`False` should then do, and a bare `if dirPerCategory:` would have turned a crash into a silently
+empty `PostFit_*.root`, which is the direction CLAUDE.md's triage order warns against. It raises
+`ValueError` naming the flag instead — before `Extract()` runs, and before the output file is
+opened, where the old code had already truncated it with `RECREATE` before raising. The reaching
+callers are `ExtractPostfitFromWS.main()` with `--dirpercategory` unset, which is how
+`run_buildAndFit_swift.sh` and `run_buildAndFit_loop_swift.sh` invoke it; the first discards the
+failure with `|| true`. Those drivers are left alone — they have no recorded baseline, and making
+them work is a behaviour decision, not a refactor.
+
+*Issue 55, recorded not fixed.* Nothing in the channel loop advances the category, so
+`cat.getLabel()` returns the same name every iteration while `dataList.At(i)` advances. Above one
+channel that would pair channel *i*'s data with channel 0's name and overwrite all seven
+dictionaries under one key. Measured: `nChan` 1, `numTypes()` 1, three consecutive `getLabel()`
+calls all `J100yStar06`. Unreachable on both locked analyses, and a fix cannot be verified against
+either baseline. The entry also absorbs the `i`-shadowing defect §6a's CHANGELOG deferred — the
+two inner loops used the channel loop's own index — which is gone now that both loops have their
+own scope, and so cannot be pinned.
+
+**Added** `tests/test_extract_postfit_workspace.py`, 21 tests. The workspace fixture holds its
+file open for the test's duration, which is the calling convention `_open_workspace` exists to
+force. `_pdf_histogram` is tested against a real RooFit Gaussian for the scaling and a duck type
+for the zero-integral case, because a real pdf will not integrate to zero on demand.
+
+**Verified**: `python3 -m pytest tests -q` — 187 passed (166 from §1–§6a, 21 new). `bash
+tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS. No baseline re-cut.

@@ -149,6 +149,83 @@ def _print_chi2_summary(chi2, chi2bins, npars, ndof, pval):
     print('TEST pval', pval)
     print('TEST chi2/ndof', chi2/ndof)
 
+def _bin_edges_from_data(h_data, nBins, datafirstbin):
+    """Reconstruct the postfit bin edges by reading them off the data histogram.
+
+    The pdf histogram knows how many bins the fit had but not where they are: createHistogram()
+    gives it the pdf observable's own uniform binning. The edges come from the data instead,
+    offset by datafirstbin - the bin just below the fit range - so that postfit bin i lands on
+    data bin i+datafirstbin.
+    """
+    binEdges = []
+    for i in range(1, nBins+2):
+        binEdges.append(h_data.GetBinLowEdge(i+datafirstbin))
+    return binEdges
+
+def _postfit_histogram(hpdf, nBins, binEdges):
+    """Copy the pdf histogram's contents onto the data binning, bin index by bin index.
+
+    Not a rebinning: hpdf's own x axis is the pdf observable's range, and only the ordinal
+    position of each bin carries over. Errors are set to 0 - the postfit curve has none here.
+    """
+    h_postfit = TH1D("postfit", "postfit", nBins, array.array('d', binEdges))
+    h_postfit.SetDirectory(0)
+
+    for ibin in range(1, nBins+1):
+        h_postfit.SetBinContent(ibin, hpdf.GetBinContent(ibin))
+        h_postfit.SetBinError(ibin, 0)
+
+    return h_postfit
+
+def _crop_data(h_data, nBins, binEdges):
+    """Rebin the full data histogram down onto the fitted range's binning."""
+    h_data_crop = h_data.Rebin(nBins, "h_data_crop", array.array('d', binEdges))
+    h_data_crop.SetDirectory(0)
+    return h_data_crop
+
+def _rebin_edges(rebinfile, rebinhist, h_postfit):
+    """Read the resolution binning and keep only the edges inside the fitted range.
+
+    The upper limit is h_postfit.GetBinLowEdge(GetNbinsX()+2) - one bin past the last edge, not
+    the last edge itself. TAxis computes an out-of-range bin from the *average* width
+    (xmin + (bin-1)*(xmax-xmin)/nbins), so on a non-uniform postfit that limit would not be the
+    real last bin width. Both locked analyses fit a 1 GeV uniform range (J100 481-3000, J50
+    302-2997), so it is exactly one GeV past the end and admits no extra edge. Pinned by test
+    rather than changed.
+    """
+    f_rebin = ROOT.TFile(rebinfile, "READ")
+    h_rebin = f_rebin.Get(rebinhist)
+
+    binEdges = []
+    nBins = h_rebin.GetNbinsX()
+    for i in range(1, nBins+2):
+        edge = h_rebin.GetBinLowEdge(i)
+        if edge < h_postfit.GetBinLowEdge(1) or edge > h_postfit.GetBinLowEdge(h_postfit.GetNbinsX()+2):
+            continue
+        binEdges.append(edge)
+
+    f_rebin.Close()
+
+    return binEdges
+
+def _rebin_channel(h_postfit, h_data, binEdges, datahist):
+    """Rebin one channel's postfit and data pair onto the resolution binning.
+
+    Both are detached explicitly. TH1::Rebin(n, newname, edges) clones through gDirectory, so
+    the result is owned by whatever directory happens to be current - gROOT in practice, but a
+    TFile if one were open, and then these would die with it. These are the histograms
+    run_anaFit.py:189 reads the gating p-value from.
+    """
+    edges = array.array('d', binEdges)
+
+    h_postfit_rebinned = h_postfit.Rebin(len(binEdges)-1, "postfit", edges)
+    h_data_rebinned = h_data.Rebin(len(binEdges)-1, datahist, edges)
+
+    h_postfit_rebinned.SetDirectory(0)
+    h_data_rebinned.SetDirectory(0)
+
+    return h_postfit_rebinned, h_data_rebinned
+
 def getChi2(extractor, channelname, npars, useSumW2=False):
     h_data = extractor.channel_hdata[channelname]
     h_postfit = extractor.channel_hpostfit[channelname]
@@ -168,8 +245,100 @@ def getChi2(extractor, channelname, npars, useSumW2=False):
     _print_chi2_summary(chi2, chi2bins, npars, ndof, pval)
     _record_chi2(extractor, channelname, chi2, chi2bins, npars, ndof, pval, h_residuals, h_chi2)
 
+def _open_workspace(wsfile, wsname):
+    """Open the fit-result file and retrieve the workspace.
+
+    Both are returned. The workspace is owned by the file and dies with it, so the caller has to
+    hold the file open for as long as it touches the workspace or anything the workspace owns -
+    the pdf, the category, the observables, the dataset. Extract() closes it on its last line.
+    """
+    root_file = ROOT.TFile(wsfile, "READ")
+    workspace = root_file.Get(wsname)
+    return root_file, workspace
+
+def _load_data_histogram(datafile, datahist, undolog):
+    """Read the data histogram, detach it, and close the file behind it.
+
+    The detachment is what makes closing here safe, and it is why this returns the histogram
+    alone where _open_workspace has to return its file too.
+    """
+    fd = ROOT.TFile(datafile, "READ")
+    h_data = fd.Get(datahist)
+    h_data.SetDirectory(0)
+    if undolog:
+        expHist(h_data)
+    fd.Close()
+    return h_data
+
+def _model_components(workspace, modelname):
+    """Pull the model's pdf, the channel category and the split dataset out of the workspace.
+
+    Everything but nChan is workspace-owned and must not outlive it.
+
+    The two prints stay inside rather than move to the caller: data.split() emits RooFit messages
+    of its own, so lifting them out would reorder the log.
+    """
+    model = workspace.obj(modelname)
+    pdf = model.GetPdf()
+    cat = pdf.indexCat()
+    nChan = cat.numBins("")
+
+    print ("There are %d channels" % nChan)
+
+    obs = pdf.getObservables(model.GetObservables())
+    obs.Print()
+
+    data = workspace.data("combData")
+    dataList = data.split( cat, True )
+
+    return pdf, cat, nChan, obs, data, dataList
+
+def _channel_npars(pdfi, x, externalnpars):
+    """Parameter count for the degrees of freedom: counted off the pdf unless overridden.
+
+    getNPars() is called either way, as today. It is not free - it builds a nuisance pdf - but
+    skipping it when externalnpars is set would change what RooFit is asked to construct.
+    """
+    npars = getNPars(pdfi, x, exclSyst=True)
+    if externalnpars != None:
+        npars = externalnpars
+    return npars
+
+def _background_only_pdf(workspace, channelname):
+    """Build the extended background-only pdf for one channel.
+
+    This *mutates* a workspace opened "READ": factory() adds pdf__background_ext_<channel> to it.
+    That is harmless only because Extract() reopens the file on every call and so gets a fresh
+    workspace each time; a second call for the same channel on the same workspace would be asked
+    to re-create an object that already exists.
+    """
+    return workspace.factory("ExtendPdf::pdf__background_ext_"+channelname+"(pdf__background_"+channelname+",yield__background_"+channelname+")")
+
+def _pdf_histogram(pdfi, x, expectedEvents, undolog):
+    """Turn a pdf into a histogram scaled to its expected number of events.
+
+    The bare except is preserved as-is: a pdf whose histogram integrates to zero leaves the
+    histogram unscaled rather than raising.
+
+    Used by the nominal block only. The background-only block scales a different histogram from
+    the one it reads and therefore cannot call this - see the comment there.
+    """
+    hpdf = pdfi.createHistogram("hpdf", x)
+
+    # hpdf.Scale(expectedEvents/hpdf.Integral())
+    try:
+        hpdf.Scale(expectedEvents/hpdf.Integral())
+        # hpdf.Scale(data.sumEntries()/hpdf.Integral())
+    except:
+        pass
+
+    if undolog:
+        expHist(hpdf)
+
+    return hpdf
+
 class PostfitExtractor:
-    def __init__(self, 
+    def __init__(self,
                  wsfile, 
                  datafile, 
                  datahist, 
@@ -218,74 +387,41 @@ class PostfitExtractor:
 
     def Extract(self):
         
-        f = ROOT.TFile(self.wsfile, "READ")
-        w = f.Get(self.wsname)
+        f, w = _open_workspace(self.wsfile, self.wsname)
 
-        fd =  ROOT.TFile(self.datafile, "READ")
-        self.h_data = fd.Get(self.datahist)
-        self.h_data.SetDirectory(0)
-        if self.undolog:
-            expHist(self.h_data)
+        self.h_data = _load_data_histogram(self.datafile, self.datahist, self.undolog)
 
-        model = w.obj(self.modelname)
-        pdf = model.GetPdf()
-        cat = pdf.indexCat()
-        nChan = cat.numBins("")
+        pdf, cat, nChan, obs, data, dataList = _model_components(w, self.modelname)
 
-        print ("There are %d channels" % nChan)
-
-        obs = pdf.getObservables(model.GetObservables())
-        obs.Print()
-
-        data = w.data("combData")
-        dataList = data.split( cat, True )
+        # A local, not self.datafirstbin. The two reassignments in the rebinning blocks below
+        # used to overwrite the constructor argument with a bin number in a different histogram,
+        # so a second Extract() computed its bin edges from that instead. KNOWN_ISSUES issue 51.
+        datafirstbin = self.datafirstbin
 
         for i in range(nChan):
             datai = dataList.At( i )
             channelname = cat.getLabel()
             pdfi = pdf.getPdf(channelname)
             x = pdfi.getObservables(datai).first()
-            npars = getNPars(pdfi, x, exclSyst=True)
-            if self.externalnpars != None:
-                npars = self.externalnpars
-            
+            npars = _channel_npars(pdfi, x, self.externalnpars)
+
             if self.bkgonly:
-                pdf_bkg_unscaled = w.obj("pdf__background_"+channelname)
-                yield_bkg = w.obj("yield__background_"+channelname)
-                pdf_bkg = w.factory("ExtendPdf::pdf__background_ext_"+channelname+"(pdf__background_"+channelname+",yield__background_"+channelname+")")
+                pdf_bkg = _background_only_pdf(w, channelname)
 
             expectedEvents = pdfi.expectedEvents(RooArgSet(x))
-            hpdf = pdfi.createHistogram("hpdf", x)
+            hpdf = _pdf_histogram(pdfi, x, expectedEvents, self.undolog)
 
-            # hpdf.Scale(expectedEvents/hpdf.Integral())
-            try:
-                hpdf.Scale(expectedEvents/hpdf.Integral())
-                # hpdf.Scale(data.sumEntries()/hpdf.Integral())
-            except:
-                pass
-
-            if self.undolog:
-                expHist(hpdf)
-            
             print ("Channel %s:" % channelname)
             print ("Expected:", expectedEvents)
             print ("sumEntries:", data.sumEntries())
             print ("Integral:", hpdf.Integral())
 
-            binEdges = []
             nBins = hpdf.GetNbinsX()
-            for i in range(1, nBins+2):
-                binEdges.append(self.h_data.GetBinLowEdge(i+self.datafirstbin))
+            binEdges = _bin_edges_from_data(self.h_data, nBins, datafirstbin)
 
-            h_postfit = TH1D("postfit", "postfit", nBins, array.array('d', binEdges))
-            h_postfit.SetDirectory(0)
+            h_postfit = _postfit_histogram(hpdf, nBins, binEdges)
 
-            for ibin in range(1, nBins+1):
-                h_postfit.SetBinContent(ibin, hpdf.GetBinContent(ibin))
-                h_postfit.SetBinError(ibin, 0)
-                
-            self.channel_hdata[channelname] = self.h_data.Rebin(nBins, "h_data_crop", array.array('d', binEdges))
-            self.channel_hdata[channelname].SetDirectory(0)
+            self.channel_hdata[channelname] = _crop_data(self.h_data, nBins, binEdges)
             self.channel_hpostfit[channelname] = h_postfit
 
             getChi2(extractor=self, channelname=channelname, npars=npars, useSumW2=self.useSumW2)
@@ -293,6 +429,11 @@ class PostfitExtractor:
             if self.bkgonly:
                 expectedEvents_bkg = pdf_bkg.expectedEvents(RooArgSet(x))
                 hpdf_bkg = pdf_bkg.createHistogram("hpdf_bkg", x)
+                # Deliberately NOT _pdf_histogram(): the line below scales hpdf, while the
+                # histogram actually read into the background-only postfit is hpdf_bkg, left
+                # unscaled. That is KNOWN_ISSUES issue 49. Calling the shared helper here would
+                # silently correct it and move the background-only p-value, which is the number
+                # run_anaFit.py:189 gates on.
                 # hpdf_bkg.Scale(expectedEvents_bkg/hpdf_bkg.Integral())
                 try:
                     hpdf.Scale(expectedEvents_bkg/hpdf.Integral())
@@ -305,15 +446,9 @@ class PostfitExtractor:
 
                 channelname_bkg = channelname+"_bkgonly"
 
-                h_postfit_bkg = TH1D("postfit", "postfit", nBins, array.array('d', binEdges))
-                h_postfit_bkg.SetDirectory(0)
-    
-                for ibin in range(1, nBins+1):
-                    h_postfit_bkg.SetBinContent(ibin, hpdf_bkg.GetBinContent(ibin))
-                    h_postfit_bkg.SetBinError(ibin, 0)
-                    
-                self.channel_hdata[channelname_bkg] = self.h_data.Rebin(nBins, "h_data_crop", array.array('d', binEdges))
-                self.channel_hdata[channelname_bkg].SetDirectory(0)
+                h_postfit_bkg = _postfit_histogram(hpdf_bkg, nBins, binEdges)
+
+                self.channel_hdata[channelname_bkg] = _crop_data(self.h_data, nBins, binEdges)
                 # if a mask was used we need to normalize the postfit correctly
 #                if self.maskmin > -1 or self.maskmax > -1:
 #                    h_postfit_bkg = self.normalizePostFit(h_postfit_bkg, self.channel_hdata[channelname_bkg])
@@ -323,59 +458,55 @@ class PostfitExtractor:
 
             binEdges = None
             if self.rebinfile and self.rebinhist:
-                f_rebin = ROOT.TFile(self.rebinfile, "READ")
-                h_rebin = f_rebin.Get(self.rebinhist)
-
-                binEdges = []
-                nBins = h_rebin.GetNbinsX()
-                for i in range(1, nBins+2):
-                    edge = h_rebin.GetBinLowEdge(i)
-                    if edge < h_postfit.GetBinLowEdge(1) or edge > h_postfit.GetBinLowEdge(h_postfit.GetNbinsX()+2):
-                        continue
-                    binEdges.append(edge)
-
-                f_rebin.Close()
+                binEdges = _rebin_edges(self.rebinfile, self.rebinhist, h_postfit)
 
                 rebinnedchannelname=channelname+"_rebinned"
-                self.channel_hpostfit[rebinnedchannelname] = self.channel_hpostfit[channelname].Rebin(len(binEdges)-1, "postfit", array.array('d', binEdges))
-                self.channel_hdata[rebinnedchannelname] = self.channel_hdata[channelname].Rebin(len(binEdges)-1, self.datahist, array.array('d', binEdges))
-                self.datafirstbin = self.channel_hdata[rebinnedchannelname].FindBin(self.datafirstbin) - 1
+                (self.channel_hpostfit[rebinnedchannelname],
+                 self.channel_hdata[rebinnedchannelname]) = _rebin_channel(
+                    self.channel_hpostfit[channelname], self.channel_hdata[channelname],
+                    binEdges, self.datahist)
+                datafirstbin = self.channel_hdata[rebinnedchannelname].FindBin(datafirstbin) - 1
 
                 getChi2(extractor=self, channelname=rebinnedchannelname, npars=npars, useSumW2=self.useSumW2)
 
             if self.bkgonly and self.rebinfile and self.rebinhist:
                 rebinnedchannelname_bkg=channelname_bkg+"_rebinned"
-                self.channel_hpostfit[rebinnedchannelname_bkg] = self.channel_hpostfit[channelname_bkg].Rebin(len(binEdges)-1, "postfit", array.array('d', binEdges))
-                self.channel_hdata[rebinnedchannelname_bkg] = self.channel_hdata[channelname_bkg].Rebin(len(binEdges)-1, self.datahist, array.array('d', binEdges))
-                self.datafirstbin = self.channel_hdata[rebinnedchannelname_bkg].FindBin(self.datafirstbin) - 1
+                (self.channel_hpostfit[rebinnedchannelname_bkg],
+                 self.channel_hdata[rebinnedchannelname_bkg]) = _rebin_channel(
+                    self.channel_hpostfit[channelname_bkg], self.channel_hdata[channelname_bkg],
+                    binEdges, self.datahist)
+                datafirstbin = self.channel_hdata[rebinnedchannelname_bkg].FindBin(datafirstbin) - 1
 
                 getChi2(extractor=self, channelname=rebinnedchannelname_bkg, npars=npars, useSumW2=self.useSumW2)
     
-        fd.Close()
         f.Close()
 
     def WriteRoot(self, outfile, dirPerCategory=False):
+        # The dirPerCategory=False branch subscripted dict_values, which Python 3 does not allow,
+        # so it raised TypeError on every invocation it ever had. Deleted rather than repaired:
+        # there is no behaviour to preserve and inventing one would be a new feature. Refused
+        # explicitly, and before the output file is touched, rather than silently writing an
+        # empty one. See KNOWN_ISSUES.md issue 54.
+        if not dirPerCategory:
+            raise ValueError(
+                "WriteRoot(dirPerCategory=False) is not implemented. The single-directory branch "
+                "raised TypeError on every call under Python 3 and has been removed; pass "
+                "dirPerCategory=True."
+            )
+
         if not self.h_data:
             self.Extract()
 
         fout = ROOT.TFile(outfile, "RECREATE")
 
-        if dirPerCategory:
-            for channelname in self.channel_chi2:
-                d = fout.mkdir(channelname)
-                d.cd()
+        for channelname in self.channel_chi2:
+            d = fout.mkdir(channelname)
+            d.cd()
 
-                self.channel_hdata[channelname].Write("data")
-                self.channel_hpostfit[channelname].Write("postfit")
-                self.channel_hresiduals[channelname].Write("residuals")
-                self.channel_hchi2[channelname].Write("chi2")
-        else:
-            # just take first (and hopefully only) channel
-            self.h_data.Write("data")
-            self.channel_hpostfit.values()[-1].Write("postfit")
-            self.channel_hresiduals.values()[-1].Write("residuals")
-            # self.channel_hresiduals.values()[-1].Write("postFitSigma")
-            self.channel_hchi2.values()[-1].Write("chi2")
+            self.channel_hdata[channelname].Write("data")
+            self.channel_hpostfit[channelname].Write("postfit")
+            self.channel_hresiduals[channelname].Write("residuals")
+            self.channel_hchi2[channelname].Write("chi2")
 
         fout.Close()
 

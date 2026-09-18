@@ -1696,7 +1696,7 @@ the `RandomizeParameters` call makes the code honest and changes `p0`'s distribu
 physics decision for the repository owner. Recorded so that it is a decision rather than an
 accident.
 
-### 51. `PostfitExtractor.Extract()` is not idempotent: it overwrites its own `datafirstbin` — **Low** (latent) — **fixed as part of §6, not before**
+### 51. `PostfitExtractor.Extract()` is not idempotent: it overwrites its own `datafirstbin` — **Low** (latent) — **Fixed 2026-09-18 22:20**
 
 **What.** `datafirstbin` is a constructor argument, set by `run_anaFit.py:136` to
 `d.FindBin(rangelow)-1`, and read at `ExtractPostfitFromWS.py:250` to reconstruct the postfit bin
@@ -1720,6 +1720,16 @@ re-enter), so exactly one call happens on both locked analyses. It is a refactor
 than a live defect, which is why §6 replaces the attribute with a local: any decomposition that
 adds an accessor call, or any test that constructs an extractor and inspects it before writing,
 silently changes the binning.
+
+**Fix, 2026-09-18 22:20 (decomposition §6a).** A local `datafirstbin`, initialised from
+`self.datafirstbin` before the channel loop, now carries the value the two reassignments write.
+Both reassignments are kept, and the second still reads what the first wrote, so the sequence
+inside one `Extract()` is unchanged; only the attribute stops being clobbered. **Measured** on the
+J100 fixture after the change: `datafirstbin` reads 481 before and after `Extract()`, and after two
+calls; a second `Extract()` returns the same gate p-value and the same bin edges for all four
+channels. Pinned by three tests in `tests/test_extract_postfit_binning.py`. The attribute is
+write-only outside the constructor — no caller in the repository reads it back — so nothing
+observed the old value.
 
 ### 52. The README's ROOT-environment requirement for `repro.py` is stated too broadly — **Low** — **Fixed 2026-09-18**
 
@@ -1786,3 +1796,88 @@ collision or a silent re-extraction would be least expected.
 comparison against whatever the signal model names its yield, and the accessors want `is None`
 in place of `not`. Both are one-line changes, best made when the first real caller appears rather
 than speculatively now.
+
+### 54. `WriteRoot`'s default branch has raised `TypeError` on every call since Python 3, and two drivers take it — **Low** (fails closed) — **Fixed 2026-09-18 23:10** (removed and refused explicitly; the single-directory output is not reinstated)
+
+**What.** `PostfitExtractor.WriteRoot(outfile, dirPerCategory=False)` had two branches. The
+`False` branch — the **default** — wrote one flat set of histograms using
+`self.channel_hpostfit.values()[-1]`. `dict_values` is not subscriptable in Python 3:
+
+```
+  >>> {"a": 1}.values()[-1]
+  TypeError: 'dict_values' object is not subscriptable
+```
+
+Measured under this repository's interpreter, Python 3.9.12 from LCG_102a. The branch cannot ever
+have run under Python 3; it is Python 2 code that was never migrated.
+
+**Where.** `python/ExtractPostfitFromWS.py`, the `else` at the old lines 433–439.
+
+**Affects.** Nothing recorded, and nothing on the J100/J50 path: `run_anaFit.py:269` passes
+`dirPerCategory=True`, as does `pfe.py:44`. It is reachable, though, and the reaching callers all
+fail:
+
+- `ExtractPostfitFromWS.main()` passes `args.dirpercategory`, which defaults to False. Both
+  `scripts/run_buildAndFit_swift.sh:153,169` and `scripts/run_buildAndFit_loop_swift.sh:195,209`
+  invoke the module that way. The first of those appends `|| true`, so the failure is discarded
+  and the run continues with no `PostFit_*.root` written.
+- `run_nloFit.py:123` calls `pfe.WriteRoot(postfitfile)` with the default, but never arrives: its
+  `PostfitExtractor(...)` at `:111` passes `externalchi2file`, `externalchi2fct` and
+  `externalchi2bins`, none of which are constructor parameters, so construction raises first.
+
+It is a **fails-closed** defect throughout — a traceback, never a wrong number — which is why it
+sat at the bottom of the triage order rather than being found earlier.
+
+**Fix, 2026-09-18 23:10 (decomposition §6a/b).** The branch is deleted rather than repaired. There
+is no behaviour to preserve, since none ever ran, and inventing one would be a new feature in a
+refactor whose premise is moving nothing. The parameter stays, for signature compatibility with
+`main()`, and `dirPerCategory=False` now raises `ValueError` naming the flag. Two details are
+deliberate: the refusal happens **before** `Extract()` runs, so a caller does not pay for a full
+extraction to be told about a flag; and it happens **before** the output file is opened, where the
+old code had already truncated it with `RECREATE` before raising. Pinned by four tests in
+`tests/test_extract_postfit_workspace.py`, one of which asserts an existing output file survives
+the refusal untouched.
+
+**Not fixed: the callers.** The two swift drivers still pass no `--dirpercategory` and so still
+fail, now with a clearer message. Reinstating a single-directory output, or changing those
+drivers to pass the flag, is a behaviour decision about a path with no recorded baseline, not part
+of this refactor.
+
+### 55. `Extract()` reads the same channel label on every iteration, so a multi-channel workspace would overwrite itself — **Low** (latent) — **open; recorded, not fixed**
+
+**What.** `PostfitExtractor.Extract()` loops `for i in range(nChan)` and takes the channel name
+from `cat.getLabel()`. Nothing in the loop advances the category — no `cat.setBin(i)`,
+`setIndex`, or equivalent — so every iteration reads the same label. `dataList.At(i)` *does*
+advance, so above one channel the method would pair channel *i*'s dataset with channel 0's name
+and write it into all seven per-channel dictionaries under that one key, each iteration silently
+replacing the last. The output file would then hold one directory, containing the last channel's
+histograms under the first channel's name.
+
+**Measured** on the J100 fixture:
+
+```
+  nChan                            : 1
+  cat.numTypes()                   : 1
+  cat.getLabel() x3, nothing between: ['J100yStar06', 'J100yStar06', 'J100yStar06']
+```
+
+**Where.** `python/ExtractPostfitFromWS.py`, the `channelname = cat.getLabel()` at the top of the
+channel loop, against the `dataList.At(i)` on the line above it.
+
+**A second multi-channel defect, removed incidentally.** Before §6a, the two inner
+`for i in range(1, nBins+2)` loops — bin-edge construction and rebin-edge selection — used `i`,
+the same name as the channel loop's own index, and so clobbered it. Moving both loops into
+`_bin_edges_from_data` and `_rebin_edges` gives them their own scope and the shadowing is gone.
+That is recorded here rather than as its own entry because it is the same latent defect class,
+reachable only in the same circumstances, and it is no longer present to pin.
+
+**Affects.** Nothing recorded, and nothing reachable: both locked analyses are single-channel
+(`nChan == 1`, asserted by test), and every `config/` card in this repository declares one
+channel. The class is built for multiple channels — it splits the dataset by category and keys
+seven dictionaries by channel name — so the gap is between what the structure promises and what
+it delivers, not something a caller does wrong.
+
+**Fix.** Advance the category inside the loop and take the label from it, e.g. `cat.setBin(i)`
+before reading `getLabel()`. Not done here: it cannot be verified against either baseline, since
+neither exercises a second channel, and a change whose only effect is on an untested path is
+better made alongside the first workspace that needs it.
