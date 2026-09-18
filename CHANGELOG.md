@@ -76,6 +76,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 16:05 — Reverse the scope decision: Copilot reviews regressions only](#2026-09-18-1605--reverse-the-scope-decision-copilot-reviews-regressions-only)
 - [2026-09-18 16:30 — Name the cut-off commit in the Copilot instructions](#2026-09-18-1630--name-the-cut-off-commit-in-the-copilot-instructions)
 - [2026-09-18 17:40 — Decomposition §1: a test harness, and three measurements that corrected the plan](#2026-09-18-1740--decomposition-1-a-test-harness-and-three-measurements-that-corrected-the-plan)
+- [2026-09-18 18:20 — Decomposition §2: split `getChi2` into seven single-purpose functions](#2026-09-18-1820--decomposition-2-split-getchi2-into-seven-single-purpose-functions)
 
 ---
 
@@ -2523,3 +2524,43 @@ recorded output, and is labelled as such in the file it is used from.
 analyses against untouched baselines. No baseline was re-cut. `tests/fixtures/` is confirmed not
 caught by `.gitignore` (`tests/run/` would have been, which is why the directory is named
 `fixtures/`).
+
+## 2026-09-18 18:20 — Decomposition §2: split `getChi2` into seven single-purpose functions
+
+**Objective.** Plan section 2: refactor `getChi2()` in `python/ExtractPostfitFromWS.py` (86 lines,
+opened nothing, computed a chi2, built two histograms, printed six lines and wrote seven
+dictionaries onto its caller) into functions that each do one of those things, with a test pinning
+each one's inputs against its outputs. Zero physics numbers move.
+
+**Added**, in `python/ExtractPostfitFromWS.py`:
+
+- `_compute_chi2_terms(h_data, h_postfit, nbins, maskmin, maskmax, maskisbinnumber, useSumW2)` —
+  sums the chi2 over the unmasked bins and collects `(bin, residual)` pairs. Preserves issue 41
+  (a bin with no data error or a non-positive postfit value is dropped from the chi2, the bin
+  count *and* the residual list, not just skipped as agreeing).
+- `_degrees_of_freedom(chi2bins, npars)` and `_chi2_probability(chi2, ndof)`.
+- `_build_residual_histogram(h_postfit, channelname, residuals)`.
+- `_build_chi2_summary(chi2, chi2bins, npars, ndof, pval)` — the six-bin labelled histogram that
+  `plotPostFit.py`, `plot_postfit.cpp` and `tests/repro.py` all read by bin and by label.
+- `_record_chi2(...)` — the mutation that writes the seven dictionaries onto the extractor.
+- `_print_chi2_summary(...)` — the six `TEST ...` diagnostic lines, unparsed elsewhere.
+
+`getChi2()` keeps its exact signature and becomes a seven-line coordinator calling the above in
+order. `getNPars` and `expHist` are untouched.
+
+**Deleted:** `PostfitExtractor.normalizePostFit()`. Its only call site in the repository was
+already commented out (`ExtractPostfitFromWS.py:291`, inside `Extract()`, which stays untouched
+until §6). The plan offered this as a decision for review with deletion as the recommendation;
+taken here since it is dead code and trivially recoverable from git history if §6 or a later
+change needs it back.
+
+**Added tests**, `tests/test_extract_postfit_chi2.py`, 14 cases: the chi2/SumW2 formulas, the
+mask window by value and by bin number, issue 41's silent exclusion, the `ndof<=0` →
+`ZeroDivisionError` fails-closed path, the p-value against `ROOT.Math.chisquared_cdf_c` computed
+independently, the residual and summary histogram contents/labels/`SetDirectory(0)`, all seven
+dictionary writes, and one test each for the retained `getNPars`/`expHist`.
+
+**Verified.** `python3 -m pytest tests -q`: 19 passed (5 from §1, 14 new). `bash tests/run_all.sh`
+(both suites, both analyses): PASS — J50 is the only recorded run with `maskmin`/`maskmax` set, so
+it is the one real exercise of `_compute_chi2_terms`'s mask branch, and it passed unchanged against
+`tests/baseline_J50.json`. No baseline re-cut.

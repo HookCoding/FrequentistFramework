@@ -31,53 +31,64 @@ def expHist(h):
             h.SetBinContent(i, ROOT.TMath.Exp(h.GetBinContent(i)))
             h.SetBinError(i, h.GetBinError(i)*h.GetBinContent(i))
 
-def getChi2(extractor, channelname, npars, useSumW2=False):
+def _compute_chi2_terms(h_data, h_postfit, nbins, maskmin, maskmax, maskisbinnumber, useSumW2):
+    """Accumulate chi2 over the unmasked bins and collect every defined per-bin residual.
+
+    A bin with valueErrorData<=0 or postFitValue<=0 is skipped entirely - not counted in chi2,
+    chi2bins, maskedchi2bins or residuals. That silent omission is KNOWN_ISSUES issue 41,
+    preserved here rather than fixed.
+    """
     chi2 = 0.
     chi2bins = 0
     maskedchi2bins = 0
+    residuals = []
 
-    h_data = extractor.channel_hdata[channelname]
-    h_postfit = extractor.channel_hpostfit[channelname]
-    h_residuals = h_postfit.Clone(channelname+"/residuals")
-    h_residuals.SetDirectory(0)
-    h_residuals.Reset("M")
-
-    for ibin in range(1, h_residuals.GetNbinsX()+1):
-        # valueErrorData = h_data.GetBinError(ibin+extractor.datafirstbin)
-        # valueData = h_data.GetBinContent(ibin+extractor.datafirstbin)
-        # postFitValue = h_postfit.GetBinContent(ibin)
-        # binCenter = h_data.GetBinCenter(extractor.datafirstbin+ibin)
-
+    for ibin in range(1, nbins+1):
         valueErrorData = h_data.GetBinError(ibin)
         valueData = h_data.GetBinContent(ibin)
         postFitValue = h_postfit.GetBinContent(ibin)
-        if extractor.maskisbinnumber:
+        if maskisbinnumber:
             binCenter = ibin + 0.5
         else:
             binCenter = h_data.GetBinCenter(ibin)
 
-        binSig = 0.
         if valueErrorData > 0. and postFitValue > 0.:
             if useSumW2:
                 binSig = (valueData - postFitValue)/valueErrorData
             else:
                 binSig = (valueData - postFitValue)/math.sqrt(postFitValue)
 
-            h_residuals.SetBinContent(ibin, binSig)
-            h_residuals.SetBinError(ibin, 0)
+            residuals.append((ibin, binSig))
 
-            if binCenter < extractor.maskmin or binCenter > extractor.maskmax:
-                # print("binCenter %.1f outside of maskmin %.1f and maskmax %.1f" % (binCenter, extractor.maskmin, extractor.maskmax))
+            if binCenter < maskmin or binCenter > maskmax:
                 chi2bins += 1
                 chi2 += binSig*binSig
             else:
-                # print("binCenter %.1f inside of maskmin %.1f and maskmax %.1f" % (binCenter, extractor.maskmin, extractor.maskmax))
                 maskedchi2bins += 1
 
-    ndof = chi2bins - npars
-    ndoferr = 0.
+    return chi2, chi2bins, maskedchi2bins, residuals
 
-    pval = ROOT.Math.chisquared_cdf_c(chi2, ndof)
+def _degrees_of_freedom(chi2bins, npars):
+    return chi2bins - npars
+
+def _chi2_probability(chi2, ndof):
+    return ROOT.Math.chisquared_cdf_c(chi2, ndof)
+
+def _build_residual_histogram(h_postfit, channelname, residuals):
+    h_residuals = h_postfit.Clone(channelname+"/residuals")
+    h_residuals.SetDirectory(0)
+    h_residuals.Reset("M")
+
+    for ibin, binSig in residuals:
+        h_residuals.SetBinContent(ibin, binSig)
+        h_residuals.SetBinError(ibin, 0)
+
+    return h_residuals
+
+def _build_chi2_summary(chi2, chi2bins, npars, ndof, pval):
+    # ndoferr is hardcoded to 0 below (there is no code path that sets it), so bin 2's error is
+    # always 0 today. Pinned as-is: a future non-zero ndoferr is then a visible change.
+    ndoferr = 0.
 
     h_chi2 = TH1D("chi2", "chi2", 6, 0, 6)
     h_chi2.SetDirectory(0)
@@ -94,14 +105,6 @@ def getChi2(extractor, channelname, npars, useSumW2=False):
     h_chi2.SetBinContent(6, pval)
     h_chi2.SetBinError(6, 0)
 
-    print()
-    print('TEST chi2bins', chi2bins)
-    print('TEST npars', npars)
-    print('TEST ndof', ndof)
-    print('TEST chi2', chi2)
-    print('TEST pval', pval)
-    print('TEST chi2/ndof', chi2/ndof)
-
     h_chi2.GetXaxis().SetBinLabel(1, "chi2")
     h_chi2.GetXaxis().SetBinLabel(2, "chi2/ndof")
     h_chi2.GetXaxis().SetBinLabel(3, "nbins")
@@ -109,6 +112,9 @@ def getChi2(extractor, channelname, npars, useSumW2=False):
     h_chi2.GetXaxis().SetBinLabel(5, "ndof")
     h_chi2.GetXaxis().SetBinLabel(6, "pval")
 
+    return h_chi2
+
+def _record_chi2(extractor, channelname, chi2, chi2bins, npars, ndof, pval, h_residuals, h_chi2):
     extractor.channel_chi2[channelname] = chi2
     extractor.channel_nbins[channelname] = chi2bins
     extractor.channel_npars[channelname] = npars
@@ -117,6 +123,34 @@ def getChi2(extractor, channelname, npars, useSumW2=False):
 
     extractor.channel_hresiduals[channelname] = h_residuals
     extractor.channel_hchi2[channelname] = h_chi2
+
+def _print_chi2_summary(chi2, chi2bins, npars, ndof, pval):
+    print()
+    print('TEST chi2bins', chi2bins)
+    print('TEST npars', npars)
+    print('TEST ndof', ndof)
+    print('TEST chi2', chi2)
+    print('TEST pval', pval)
+    print('TEST chi2/ndof', chi2/ndof)
+
+def getChi2(extractor, channelname, npars, useSumW2=False):
+    h_data = extractor.channel_hdata[channelname]
+    h_postfit = extractor.channel_hpostfit[channelname]
+    nbins = h_postfit.GetNbinsX()
+
+    chi2, chi2bins, maskedchi2bins, residuals = _compute_chi2_terms(
+        h_data, h_postfit, nbins,
+        extractor.maskmin, extractor.maskmax, extractor.maskisbinnumber, useSumW2,
+    )
+
+    ndof = _degrees_of_freedom(chi2bins, npars)
+    pval = _chi2_probability(chi2, ndof)
+
+    h_residuals = _build_residual_histogram(h_postfit, channelname, residuals)
+    h_chi2 = _build_chi2_summary(chi2, chi2bins, npars, ndof, pval)
+
+    _print_chi2_summary(chi2, chi2bins, npars, ndof, pval)
+    _record_chi2(extractor, channelname, chi2, chi2bins, npars, ndof, pval, h_residuals, h_chi2)
 
 class PostfitExtractor:
     def __init__(self, 
@@ -171,23 +205,7 @@ class PostfitExtractor:
         self.channel_hpostfit = {}
         self.channel_hchi2 = {}
         self.channel_hresiduals = {}
- 
-    
-    def normalizePostFit(self, h_postfit, h_data):
-        """
-        Normalize postfit so that the number of events in the fitted regions agree
-        """
-    
-        nEvents_data_min = h_data.Integral(1, h_data.GetXaxis().FindBin(self.maskmin))
-        nEvents_data_max = h_data.Integral(h_data.GetXaxis().FindBin(self.maskmax), h_data.GetNbinsX()+1)
 
-        nEvents_postfit_min = h_postfit.Integral(1, h_postfit.GetXaxis().FindBin(self.maskmin))
-        nEvents_postfit_max = h_postfit.Integral(h_postfit.GetXaxis().FindBin(self.maskmax), h_postfit.GetNbinsX()+1)
-
-
-        h_postfit.Scale( (nEvents_data_min+nEvents_data_max) / (nEvents_postfit_min+nEvents_postfit_max))
-
-        return h_postfit
     def Extract(self):
         
         f = ROOT.TFile(self.wsfile, "READ")

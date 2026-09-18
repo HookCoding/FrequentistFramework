@@ -19,7 +19,7 @@ and the notebook disagree, the notebook is right.
 | [Make the drivers stop when the setup guard fires](2026-09-17-driver-setup-guard.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
 | [Refuse a partial `--rebinfile`/`--rebinhist` pair](2026-09-17-rebin-pair-guard.md) | 2026-09-17 | `claude-skills` | Approved, implementation in progress |
 | [Close the issues that can reach a physically wrong result](2026-09-17-physics-risk-issues.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
-| [Decompose the J100/J50 fit path into tested single-purpose functions](2026-09-18-decompose-j100-j50-fit-path.md) | 2026-09-18 | `claude-skills-2` | Awaiting approval |
+| [Decompose the J100/J50 fit path into tested single-purpose functions](2026-09-18-decompose-j100-j50-fit-path.md) | 2026-09-18 | `claude-skills-2` | Approved, implementation in progress |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
