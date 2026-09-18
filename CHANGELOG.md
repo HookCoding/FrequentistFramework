@@ -79,6 +79,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 18:20 — Decomposition §2: split `getChi2` into seven single-purpose functions](#2026-09-18-1820--decomposition-2-split-getchi2-into-seven-single-purpose-functions)
 - [2026-09-18 20:15 — Decomposition §3: split `run_anaFit.py` into thirty-three single-purpose functions](#2026-09-18-2015--decomposition-3-split-run_anafitpy-into-thirty-three-single-purpose-functions)
 - [2026-09-18 21:00 — Decomposition §4: split `PreFitter.Fit()` into eight single-purpose functions](#2026-09-18-2100--decomposition-4-split-prefitterfit-into-eight-single-purpose-functions)
+- [2026-09-18 21:40 — Decomposition §5: split `FitParameterExtractor.Extract()` into four single-purpose functions](#2026-09-18-2140--decomposition-5-split-fitparameterextractorextract-into-four-single-purpose-functions)
 
 ---
 
@@ -2720,3 +2721,54 @@ the source of the process-global ROOT mutation; it now names `_configure_root()`
 tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS; both drivers pass
 `--doprefit`, so `PreFitter.Fit()` ran for real on both J100 and J50, not only in unit tests. No
 baseline re-cut.
+
+## 2026-09-18 21:40 — Decomposition §5: split `FitParameterExtractor.Extract()` into four single-purpose functions
+
+**Objective.** Plan section 5, `python/ExtractFitParameters.py`. `Extract()` was one 42-line
+method that opened the fit-result file, built three histograms, captured the signal yield and
+wrote all five onto the instance, with the file held open across the whole of it. Split into four
+module-level functions; `Extract()` keeps its name, its signature and its no-return-value
+contract, because `WriteRoot()` and all five accessors call it.
+
+**Split**, all in `python/ExtractFitParameters.py`:
+
+- `_read_fit_result(wsfile)` — opens the file and returns `(parameters, covariance, correlation)`
+  as plain Python values: a list of `(name, value, error)` triples and two lists of lists of
+  floats. This is the load-bearing part of the section. `argset`, `mat_cov` and `mat_cor` are all
+  owned by the `TFile`, so a helper that returned them would hand back objects that die on the
+  next line; everything is copied out before the close, and a test asserts the returned values are
+  `str`/`float`/`list` rather than ROOT objects.
+- `_build_parameter_histogram(parameters)` — the `postfit_params` `TH1D`, one labelled bin per
+  parameter carrying its value and error, detached from any directory.
+- `_matrix_to_histogram(matrix, name, title, labels)` — one function replacing the two
+  near-identical covariance and correlation blocks, which were previously interleaved across two
+  loops (labels in the first, contents in the second).
+- `_find_signal_yield(parameters)` — the `"nsig" in name` capture, preserved exactly.
+
+**Found — filed as KNOWN_ISSUES issue 53, pinned not fixed.** Splitting the yield capture out on
+its own made two things visible that the interleaved loops hid, both **latent**: the `nsig` match
+is a *substring* test inside a loop that does not stop at the first hit, so two parameters whose
+names both contain `nsig` both match and the last silently wins; and all five lazy accessors gate
+re-extraction on falsiness (`if not self.nsig`) rather than on `None`, so a genuine fitted yield
+of exactly `0.0` re-opens the file and re-runs the whole extraction on every call. Measured
+against the §1 J100 fixture, whose six parameters are `nbkg`, `p2`–`p6` with no `nsig` among
+them: `GetNsig()` twice gives two full extractions, while `GetH1Params()` twice gives one,
+because a histogram is truthy. Neither can reach a physics number today — every caller in the
+repository (`run_anaFit.py:276`, `run_nloFit.py:126`, `runQuickFit.py:39`, `pfe.py:40`)
+constructs the extractor and calls `WriteRoot()` only, and the five accessors have no callers at
+all — which is why they are recorded and pinned rather than fixed.
+
+**Output contract, checked rather than assumed.** `plot_postfit.cpp:64` and `:74` read
+`postfit_params` by name; `h2_cov` and `h2_cor` are written by this class and read by nothing in
+this repository. The tests pin all three names, the six bin labels and the six values and errors
+against the fixture regardless, since the histograms are the file's published shape.
+
+**Added**: `tests/test_extract_fit_parameters.py`, 20 tests. The matrix test uses a deliberately
+asymmetric 3×3, so a transposed `GetBin(i+1, j+1)` would fail rather than pass unnoticed;
+`_read_fit_result` is checked against the fixture's six recorded parameter values and errors to
+1e-11 relative, for a 6×6 covariance and correlation, and for closing its file before returning.
+
+**Verified**: `python3 -m pytest tests -q` — 145 passed (125 from §1–§4, 20 new). `bash
+tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS; both drivers write
+`FitParameters_*.root` through this class on every run, so the split ran for real on J100 and J50
+rather than only in unit tests. No baseline re-cut.

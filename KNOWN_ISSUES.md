@@ -1740,3 +1740,49 @@ instructions would otherwise have contradicted each other.
 `tests/repro.py`'s `_import_root()` docstring (`:773-780`); that file is deliberately untouched for
 the duration of the decomposition work, so the docstring is corrected when `repro.py` is next
 edited for another reason.
+
+### 53. `FitParameterExtractor`'s signal-yield capture and its five lazy accessors are both quietly wrong, and both are dead code — **Low** (latent) — **open; recorded, not fixed**
+
+**What.** Two defects in `python/ExtractFitParameters.py`, filed together because the same fact
+makes both harmless today: nothing in this repository reads either one.
+
+*The substring match.* The signal yield is captured with `if "nsig" in name` — a substring test,
+not an equality test — inside a loop that does not stop at the first hit. Two parameters whose
+names both contain `nsig` therefore both match, and the **last** one in `floatParsFinal()` order
+silently wins.
+
+*The falsy cache.* All five accessors gate re-extraction on falsiness rather than on `None`:
+
+```python
+def GetNsig(self):
+    if not self.nsig:
+        self.Extract()
+    return self.nsig
+```
+
+A fitted yield of exactly `0.0` is falsy and indistinguishable from "not extracted yet", so every
+call re-opens the fit-result file and re-runs the whole extraction to arrive at the same `0.0`.
+For a background-only fit there is no `nsig` parameter at all, so the value stays `None` and the
+condition is true forever.
+
+**Measured**, against `tests/fixtures/FitResult_J100_sixPar.root` (plan §1's recorded J100 fit):
+its six floating parameters are `nbkg`, `p2`, `p3`, `p4`, `p5`, `p6`, none containing `nsig`, so
+`GetNsig()` re-extracts on every call — two calls, two full extractions. The three histogram
+accessors do not: a histogram is truthy, so they extract once and cache. Both are pinned in
+`tests/test_extract_fit_parameters.py`.
+
+**Where.** `python/ExtractFitParameters.py`: `_find_signal_yield()` (the substring match, split
+out of `Extract()` in §5) and the accessors `GetH1Params`, `GetH2Cov`, `GetH2Cor`, `GetNsig`,
+`GetNsigErr`.
+
+**Affects.** Nothing today. Every caller of this class in the repository —
+`run_anaFit.py:276`, `run_nloFit.py:126`, `runQuickFit.py:39`, `pfe.py:40` — constructs the
+extractor and calls `WriteRoot()`, which gates on `self.h1_params` and never touches the yield.
+The five accessors have **no callers at all**. Both defects are latent: they would matter the
+first time someone reads a signal yield out of this class, which is precisely when a substring
+collision or a silent re-extraction would be least expected.
+
+**Fix.** Not done here — this section moves no behaviour. The match wants to be an exact
+comparison against whatever the signal model names its yield, and the accessors want `is None`
+in place of `not`. Both are one-line changes, best made when the first real caller appears rather
+than speculatively now.
