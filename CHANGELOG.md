@@ -77,6 +77,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 16:30 — Name the cut-off commit in the Copilot instructions](#2026-09-18-1630--name-the-cut-off-commit-in-the-copilot-instructions)
 - [2026-09-18 17:40 — Decomposition §1: a test harness, and three measurements that corrected the plan](#2026-09-18-1740--decomposition-1-a-test-harness-and-three-measurements-that-corrected-the-plan)
 - [2026-09-18 18:20 — Decomposition §2: split `getChi2` into seven single-purpose functions](#2026-09-18-1820--decomposition-2-split-getchi2-into-seven-single-purpose-functions)
+- [2026-09-18 20:15 — Decomposition §3: split `run_anaFit.py` into thirty-three single-purpose functions](#2026-09-18-2015--decomposition-3-split-run_anafitpy-into-thirty-three-single-purpose-functions)
 
 ---
 
@@ -2564,3 +2565,73 @@ dictionary writes, and one test each for the retained `getNPars`/`expHist`.
 (both suites, both analyses): PASS — J50 is the only recorded run with `maskmin`/`maskmax` set, so
 it is the one real exercise of `_compute_chi2_terms`'s mask branch, and it passed unchanged against
 `tests/baseline_J50.json`. No baseline re-cut.
+
+## 2026-09-18 20:15 — Decomposition §3: split `run_anaFit.py` into thirty-three single-purpose functions
+
+**Objective.** Plan section 3, the largest in the decomposition (`build_fit_extract()` was 104
+lines, `run_anaFit()` 338 lines with 25 parameters, `main()` built its own 23-argument parser
+inline). Split into six single-purpose groups plus `main()`'s own split, implemented and verified
+one group at a time rather than as one diff, per the plan's own escape hatch for oversized
+sections. Every shell command string, card substitution, derived filename, gate comparison and
+return value is preserved exactly; `build_fit_extract()`, `run_anaFit()` and `main()` keep their
+signatures, because the drivers and `main()` call them by keyword.
+
+**Group A — command construction and failure reporting**, in `python/run_anaFit.py`:
+`_failure_message`, `_xmlreader_command`, `_quickfit_command`, `_poi_option`, `_mask_options`,
+`_derived_output_paths`. `execute_checked()` now calls `_failure_message()` instead of building
+the exit-code/signal text inline.
+
+**Group B — inputs to the extractor**: `_data_first_bin`, `_resolve_binning`, `_extract_postfit`
+(carries the `EXECUTE: pfe = PostfitExtractor(...)` banner, which has never printed `maskmax`
+alongside `maskmin` — a pre-existing divergence between what is printed and what is constructed,
+left as-is), `_extract_parameters`.
+
+**Group C — fit quality**: `_read_fit_quality` (returns `(status, covqual)` or `None`) and
+`_require_covqual` (the print-and-refuse decision, pure integers). `report_fit_quality()` is now
+a two-line coordinator over the two.
+
+**Group D — card preparation**: `_check_rebin_pair` (moved to `python/ExtractPostfitFromWS.py` —
+see below), `_link_dtd`, `_temp_card_paths`, `_stage_cards`, `_fill_top_card`,
+`_fill_category_card`, `_signal_replacements`.
+
+**Group E — the prefit parameter plumbing**: `_npars_from_filename` (preserves KNOWN_ISSUES 42's
+silent default-to-5, and the `three`/`four` split — both are independent top-level `if`s, so a
+name containing both keywords lands on 4), `_parse_card_par_ranges`, `_check_card_pars`,
+`_card_par_ranges`, `_substitute_prefit_parameters` (preserves the PAR1-before-PAR10 substitution
+order, which corrupts a ten-parameter card's own `PAR10` placeholder — harmless at the five/six
+parameters either driver uses), `_format_nbkg`.
+
+**Group F — the masking branch**: `_fit_accepted` (the strict `>` gate, used at all three call
+sites), `_run_bumphunter`, `_read_bh_results`, `_masked_card_paths`, `_write_masked_cards`,
+`_run_limit` (unreached by either locked analysis — its unit test is the only check it has
+anywhere). Also consolidated `tmpcategoryfilemasked`'s derivation, previously computed early and
+alone, into the same `_masked_card_paths` call as the other three masked paths — order-independent,
+confirmed by `repro.py check`.
+
+**`main()` split**: `_build_parser()` (the 23 `add_argument` calls) and `_load_systdict(sysfile,
+sigmean)`, which now raises where the file is read if `sigmean` has no entry, rather than ~400
+lines later inside `_signal_replacements()`.
+
+**Cross-file change.** `_check_rebin_pair(rebinfile, rebinhist)` was duplicated verbatim in this
+file and in `ExtractPostfitFromWS.py`'s `PostfitExtractor.__init__` — exactly the drift risk the
+plan called out. The plan's stated home for the shared function was `run_anaFit.py`, but that
+file already imports `PostfitExtractor` from `ExtractPostfitFromWS.py`, so importing the other
+direction would be circular; the function lives in `ExtractPostfitFromWS.py` instead, and
+`run_anaFit.py` imports it from there. No test pinned either file's exact previous wording, so
+the two slightly different messages were merged into one; the raised exception type and trigger
+condition (`bool(rebinfile) != bool(rebinhist)`) are unchanged.
+
+**Added tests**, five new files under `tests/`: `test_run_anafit_commands.py` (11, Group A),
+`test_run_anafit_extractor_inputs.py` (9, Group B — `_extract_postfit`/`_extract_parameters` run
+for real against the §1 J100 fixture), `test_run_anafit_fit_quality.py` (13, Group C),
+`test_run_anafit_cards.py` (16, Group D), `test_run_anafit_prefit_plumbing.py` (24, Group E, pins
+both quirks above), `test_run_anafit_masking.py` (10, Group F, against the §1 `BHresults_J50.json`
+fixture), `test_run_anafit_main.py` (5, the `main()` split, against the exact argument list
+`scripts/run_anaFit_run2.sh` passes). 88 new cases in total.
+
+**Verified**, at every group boundary and again here: `python3 -m pytest tests -q` — 107 passed
+(19 from §1–§2, 88 new). `bash tests/run_all.sh` (unit suite, then `repro.py check` on both
+analyses) — PASS at every boundary; J50's real run is the one exercise of the entire masking
+branch (Group F) and of `_compute_chi2_terms`'s mask logic, and both drivers pass `--signalfile`,
+so the signal-card substitution path (Group D) ran for real too, not only in unit tests. No
+baseline re-cut.

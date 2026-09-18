@@ -3,7 +3,7 @@
 from __future__ import print_function
 import os,sys,re,argparse,subprocess,shutil
 import json
-from ExtractPostfitFromWS import PostfitExtractor
+from ExtractPostfitFromWS import PostfitExtractor, _check_rebin_pair
 from ExtractFitParameters import FitParameterExtractor
 from PreFit import PreFitter
 import subprocess
@@ -39,6 +39,18 @@ def getchannel(categoryfile):
         sys.exit(-1)
     return m.group(1)
 
+def _failure_message(what, rtv, logfile=None):
+    """Build the text of the error raised when a shelled-out binary exits non-zero."""
+    msg = "%s failed with exit code %d." % (what, rtv)
+    if rtv > 128:
+        msg += " Exit %d means it was killed by signal %d, typically a segfault." % (rtv, rtv - 128)
+    if logfile:
+        msg += " Its output is in %s." % logfile
+    return (
+        msg + " The run stops here rather than extracting numbers from whatever the output "
+        "file happens to contain."
+    )
+
 def execute_checked(cmd, what, logfile=None):
     """execute(), but a non-zero exit stops the run instead of printing a warning.
 
@@ -50,26 +62,62 @@ def execute_checked(cmd, what, logfile=None):
     """
     rtv = execute(cmd)
     if rtv != 0:
-        msg = "%s failed with exit code %d." % (what, rtv)
-        if rtv > 128:
-            msg += " Exit %d means it was killed by signal %d, typically a segfault." % (rtv, rtv - 128)
-        if logfile:
-            msg += " Its output is in %s." % logfile
-        raise RuntimeError(
-            msg + " The run stops here rather than extracting numbers from whatever the output "
-            "file happens to contain."
-        )
+        raise RuntimeError(_failure_message(what, rtv, logfile))
     return rtv
 
+def _xmlreader_command(topfile):
+    return 'xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile
 
-# RooFitResult::covQual(): -1 not available, 0 not calculated, 1 approximate,
-# 2 full but forced positive-definite, 3 accurate. Every fit this repository has recorded is 2 -
-# MINUIT added ~0.005 to the diagonal - so 2 is the default floor: it accepts what is already on
-# record and refuses anything worse. Whether 2 is good enough for these fits is a physics
-# judgement; this reports it so the judgement can be made. See KNOWN_ISSUES.md issue 40.
-def report_fit_quality(fitresultfile, mincovqual):
-    """Print the fit's status and covariance quality, and refuse if the covariance
-    is worse than mincovqual. Returns nothing; raises on an unacceptable fit."""
+def _quickfit_command(wsfile, poi_option, range_option, fitresultfile, logfile):
+    return ("quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 "
+            "--hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 "
+            "--nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s"
+            % (wsfile, poi_option, range_option, fitresultfile, logfile))
+
+def _poi_option(poi):
+    """Turn the parameter of interest into the quickFit flag, and say which fit is being run."""
+    if poi:
+        print("Now running s+b quickFit")
+        return "-p %s" % poi
+    print("Now running bkg-only quickFit")
+    return ""
+
+def _mask_options(maskrange, channel):
+    """Turn the BumpHunter window into the quickFit range flag and the two mask boundaries.
+
+    The pair travels together deliberately: a single -1 would make _compute_chi2_terms
+    (ExtractPostfitFromWS.py) mask everything on one side, and nothing else enforces that
+    maskmin and maskmax move as a pair.
+    """
+    if maskrange:
+        maskmin = maskrange[0]
+        maskmax = maskrange[1]
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>> BH mask range: "+str(maskmin)+","+str(maskmax))
+        return "--range SBLo_%s,SBHi_%s" % (channel, channel), maskmin, maskmax
+    print(">>>>>>>>>>>>>>>>>>>>>>>>>> no BH mask range: setting to -1 both maskmin and maskmax!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    return "", -1, -1
+
+def _derived_output_paths(fitresultfile):
+    """Derive every filename that is named after the fit result file.
+
+    postfitfile must match plot_postfit.cpp's own Form("%s/PostFit_anaFit_%sPar_bkgOnly.root", ...):
+    that contract exists only by convention across the two files and has no other check.
+    """
+    return {
+        "logfile": fitresultfile.replace("FitResult", "quickFitLog").replace(".root", ".log"),
+        "edmplot": fitresultfile.replace("FitResult", "edm").replace(".root", ".pdf"),
+        "postfitfile": fitresultfile.replace("FitResult", "PostFit"),
+        "parameterfile": fitresultfile.replace("FitResult", "FitParameters"),
+    }
+
+
+def _read_fit_quality(fitresultfile):
+    """Read the fit status and covariance quality out of the fit result file.
+
+    Returns (status, covqual), or None when the file holds no fitResult - a warning is printed
+    and the file is closed in that case rather than raising, so a caller can decide what to do
+    with a fit result it cannot assess.
+    """
     f = ROOT.TFile(fitresultfile, "READ")
     r = f.Get("fitResult") if f and not f.IsZombie() else None
     if not r:
@@ -77,9 +125,18 @@ def report_fit_quality(fitresultfile, mincovqual):
               % fitresultfile)
         if f:
             f.Close()
-        return
+        return None
     status, covqual = r.status(), r.covQual()
     f.Close()
+    return status, covqual
+
+# RooFitResult::covQual(): -1 not available, 0 not calculated, 1 approximate,
+# 2 full but forced positive-definite, 3 accurate. Every fit this repository has recorded is 2 -
+# MINUIT added ~0.005 to the diagonal - so 2 is the default floor: it accepts what is already on
+# record and refuses anything worse. Whether 2 is good enough for these fits is a physics
+# judgement; this reports it so the judgement can be made. See KNOWN_ISSUES.md issue 40.
+def _require_covqual(status, covqual, mincovqual, fitresultfile):
+    """Print the quality line and refuse a covariance worse than mincovqual."""
     meaning = {-1: "not available", 0: "not calculated", 1: "approximate",
                2: "full, but forced positive-definite", 3: "accurate"}
     print("FIT QUALITY: status=%d covQual=%d (%s) [%s]"
@@ -91,36 +148,29 @@ def report_fit_quality(fitresultfile, mincovqual):
             "Pass --mincovqual to lower the bar deliberately if that is what you want."
             % (covqual, meaning.get(covqual, "unknown"), mincovqual, fitresultfile))
 
+def report_fit_quality(fitresultfile, mincovqual):
+    """Print the fit's status and covariance quality, and refuse if the covariance
+    is worse than mincovqual. Returns nothing; raises on an unacceptable fit."""
+    quality = _read_fit_quality(fitresultfile)
+    if quality is None:
+        return
+    status, covqual = quality
+    _require_covqual(status, covqual, mincovqual, fitresultfile)
+
 
 def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfile, poi=None, maskrange=None,
                       channel="Run3TLA", rebinfile=None, rebinhist=None, mincovqual=2):
-    execute_checked('xmlAnaWSBuilder/build/bin/XMLReader -x %s -o "logy integral" --minimizerStrategy 0' % topfile,
+    execute_checked(_xmlreader_command(topfile),
                     "XMLReader (workspace build) on %s" % topfile) # minimizer strategy fast
-    if poi:
-        print("Now running s+b quickFit")
-        _poi="-p %s" % poi
-        #bkgonly_opt = False
-    else:
-        print("Now running bkg-only quickFit")
-        _poi=""
-        #bkgonly_opt = True
 
-    if maskrange:
-        _range="--range SBLo_%s,SBHi_%s" % (channel, channel)
-        maskmin=maskrange[0]
-        maskmax=maskrange[1]
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>> BH mask range: "+str(maskmin)+","+str(maskmax))
-    else:
-        _range=""
-        maskmin=-1
-        maskmax=-1
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>> no BH mask range: setting to -1 both maskmin and maskmax!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    _poi = _poi_option(poi)
+    _range, maskmin, maskmax = _mask_options(maskrange, channel)
 
-    logfile=fitresultfile.replace("FitResult","quickFitLog").replace(".root", ".log")
-    edmplot=fitresultfile.replace("FitResult","edm").replace(".root", ".pdf")
+    paths = _derived_output_paths(fitresultfile)
+    logfile = paths["logfile"]
+    edmplot = paths["edmplot"]
 
-    #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! _poi is :"+str(_poi))
-    execute_checked("quickFit/build/quickFit --chi2fit 1 --poissonerror 1 -f %s -d combData %s --checkWS 1 --hesse 1 --savefitresult 1 --saveWS 1 --saveNP 1 --saveErrors 1 --minStrat 2 --nllOffset 0 --optConst 2 --GKIntegrator 1 --minTolerance 1E-6 %s -o %s &> %s" % (wsfile, _poi, _range, fitresultfile, logfile),
+    execute_checked(_quickfit_command(wsfile, _poi, _range, fitresultfile, logfile),
                     "quickFit on %s" % wsfile, logfile=logfile)
 
     # Before anything is extracted from it: a fit nobody looked at is what issue 40 is about.
@@ -128,31 +178,58 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
 
     execute("python plot_edm.py %s %s" % (logfile, edmplot))
 
-    postfitfile=fitresultfile.replace("FitResult","PostFit")
-    parameterfile=fitresultfile.replace("FitResult","FitParameters")
+    postfitfile = paths["postfitfile"]
+    parameterfile = paths["parameterfile"]
 
-    f=ROOT.TFile(datafile)
-    d=f.Get(datahist)
-    datafirstbin=d.FindBin(rangelow)-1
+    datafirstbin = _data_first_bin(datafile, datahist, rangelow)
+    binningFileName, binningHistName = _resolve_binning(rebinfile, rebinhist, rangelow)
+
+    pval = _extract_postfit(datafile, datahist, datafirstbin, fitresultfile,
+                            binningFileName, binningHistName, maskmin, maskmax,
+                            postfitfile, channel)
+
+    _extract_parameters(fitresultfile, parameterfile)
+
+    return (pval, postfitfile, parameterfile)
+
+def _data_first_bin(datafile, datahist, rangelow):
+    """Read the data histogram and return the bin index just below the fit range."""
+    f = ROOT.TFile(datafile)
+    d = f.Get(datahist)
+    datafirstbin = d.FindBin(rangelow) - 1
     f.Close()
-    
-    # Define resolution binning for BH.
-    # An explicit --rebinfile/--rebinhist (e.g. the published Run 2 analysis binning) is used
-    # as-is; otherwise fall back to generating the dijetisrTLA resolution binning as before.
+    return datafirstbin
+
+def _resolve_binning(rebinfile, rebinhist, rangelow):
+    """Choose the resolution binning used for BH: an explicit --rebinfile/--rebinhist pair
+    (e.g. the published Run 2 analysis binning) as-is, or the dijetisrTLA fallback, generated
+    if it does not already exist.
+
+    NOTE: createBinning.py's return code is ignored, as today. The fallback also defaults to
+    --end 1000, so it truncates the rebinned chi2 for any rangehigh > 1000 - both Run 2 drivers
+    avoid it by always supplying the pair.
+    """
     if rebinfile and rebinhist:
-        binningFileName = rebinfile
-        binningHistName = rebinhist
-    else:
-        #binningFileName = f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
-        binningFileName = f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
-        binningHistName = "mjjBinning"
+        return rebinfile, rebinhist
 
-        print(binningFileName)
-        if not os.path.exists(binningFileName):
-            # NOTE: createBinning.py defaults to --end 1000, so this fallback truncates the
-            # rebinned chi2 for any rangehigh > 1000. Pass --rebinfile/--rebinhist instead.
-            execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
+    #binningFileName = f"/afs/cern.ch/user/l/lbazzano/WORK/tla/FrequentistFramework/Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+    binningFileName = f"Input/data/dijetisrTLA/mjjResolutionBinning_{rangelow}.root"
+    binningHistName = "mjjBinning"
 
+    print(binningFileName)
+    if not os.path.exists(binningFileName):
+        execute(f"python3 python/createBinning.py -s {rangelow} -o {binningFileName}")
+
+    return binningFileName, binningHistName
+
+def _extract_postfit(datafile, datahist, datafirstbin, fitresultfile, binningFileName, binningHistName,
+                     maskmin, maskmax, postfitfile, channel):
+    """Construct the PostfitExtractor, read the gating p-value, and write PostFit_*.root.
+
+    The banner below prints the constructor call about to be made but has never printed maskmax
+    alongside maskmin - a divergence between what is printed and what is actually constructed
+    that predates this refactor and is left as-is.
+    """
     print("EXECUTE: pfe = PostfitExtractor(")
     print("datafile=", datafile)
     print("datahist=", datahist)
@@ -187,15 +264,263 @@ def build_fit_extract(topfile, datafile, datahist, rangelow, wsfile, fitresultfi
     # them was accepted or rejected according to which branch it happened to take. Settled by the
     # repository owner 2026-09-18. See KNOWN_ISSUES.md issue 39.
     pval = pfe.GetPval(channel+"_bkgonly_rebinned")
-    
+
     print("pfe.WriteRoot(", postfitfile, ", dirPerCategory=True)")
     pfe.WriteRoot(postfitfile, dirPerCategory=True)
     #pfe.WriteRoot(postfitfile) # this looks problematic
 
+    return pval
+
+def _extract_parameters(fitresultfile, parameterfile):
     fpe = FitParameterExtractor(wsfile=fitresultfile)
     fpe.WriteRoot(parameterfile)
 
-    return (pval, postfitfile, parameterfile)
+def _link_dtd(folder):
+    """Symlink the DTD into the run folder if it is not already there.
+
+    The dijetisrTLA copy is used for the dijetTLA analyses too, which is deliberate today.
+    """
+    if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
+      #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
+      #execute("ln -sf ~/WORK/tla/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
+      execute("ln -sf `realpath config/dijetisrTLA/AnaWSBuilder.dtd` {}/AnaWSBuilder.dtd".format(folder))
+      print("this is happening")
+
+def _temp_card_paths(folder, sigwidth, sigmean):
+    """Build the four temporary card paths inside the run folder.
+
+    sigwidth == -999 is the Z' sentinel: the top and category cards carry _mR<sigmean> so
+    different mass points don't collide in the same folder; the signal and background cards
+    don't need to, since they are the same shape regardless of mass point.
+    """
+    if sigwidth == -999: # running on zprime samples:
+      print("Running in Zprime samples")
+      tmpcategoryfile="{0}/category_dijetTLA_fromTemplate_mR{1}.xml".format(folder, sigmean)
+      tmptopfile="{0}/dijetTLA_fromTemplate_mR{1}.xml".format(folder, sigmean)
+    else:
+      tmpcategoryfile="{}/category_dijetTLA_fromTemplate.xml".format(folder)
+      tmptopfile="{}/dijetTLA_fromTemplate.xml".format(folder)
+    tmpsignalfile="{}/signal_dijetTLA_fromTemplate.xml".format(folder)
+    tmpbackgroundfile="{}/background_dijetTLA_fromTemplate.xml".format(folder)
+    return tmptopfile, tmpcategoryfile, tmpsignalfile, tmpbackgroundfile
+
+def _stage_cards(topfile, categoryfile, signalfile, tmptopfile, tmpcategoryfile, tmpsignalfile):
+    """Copy the template cards into the run folder."""
+    shutil.copy2(topfile, tmptopfile)
+    shutil.copy2(categoryfile, tmpcategoryfile)
+    if signalfile:
+        shutil.copy2(signalfile, tmpsignalfile)
+
+def _fill_top_card(tmptopfile, tmpcategoryfile, wsfile, signame):
+    """Substitute the three top-card placeholders."""
+    replaceinfile(tmptopfile,
+                  [("CATEGORYFILE", tmpcategoryfile),
+                   ("OUTPUTFILE", wsfile),
+                   ("SIGNAME", signame),
+               ])
+
+def _fill_category_card(tmpcategoryfile, datafile, datahist, rangelow, rangehigh, nbins, nbkg, nsig,
+                        signame, tmpsignalfile):
+    """Substitute the nine category-card placeholders."""
+    replaceinfile(tmpcategoryfile, [
+        ("DATAFILE", datafile),
+        ("DATAHIST", datahist),
+        ("RANGELOW", str(rangelow)),
+        ("RANGEHIGH", str(rangehigh)),
+        ("BINS", str(nbins)),
+        ("NBKG", nbkg),
+	("NSIG", nsig),
+	("SIGNAME", signame),
+	("SIGNALFILE", tmpsignalfile)
+    ])
+
+def _signal_replacements(signame, sigmean, sigwidth, systdict):
+    """Build the ordered list of signal-card substitutions.
+
+    The final [MAG_...] -> [0] sweep zeroes any systematic magnitude placeholder the systdict
+    branch above did not fill, and must stay last for that to work.
+    """
+    replacements = [("SIGNAME", str(signame)),
+                    ("SIGMEAN", str(sigmean)),
+                    ("SIGWIDTH", str(sigwidth)),
+        ]
+
+    if systdict != None:
+        print("replacing in signalfile now")
+        replacements.append(("NOMINAL_MEAN", str(systdict["nominal_mean"])))
+        replacements.append(("NOMINAL_WIDTH", str(systdict["nominal_sigma"])))
+        replacements.append(("NOMINAL_ALPHAL", str(systdict["nominal_alpha_l"])))
+        replacements.append(("NOMINAL_ALPHAH", str(systdict["nominal_alpha_h"])))
+        replacements.append(("NOMINAL_NL", str(systdict["nominal_n_l"])))
+        replacements.append(("NOMINAL_NH", str(systdict["nominal_n_h"])))
+        for source in systdict["unc_mean_sources"]:
+            val = systdict["unc_mean_sources"][source]
+            replacements.append(("\[MAG_SCALE_"+str(source)+"\]", "["+str(val)+"]"))
+        for source in systdict["unc_sigma_sources"]:
+            val = systdict["unc_sigma_sources"][source]
+            replacements.append(("\[MAG_RESOLUTION_"+str(source)+"\]", "["+str(val)+"]"))
+
+    #set any unreplaced uncertainties to 0 (starting with MAG_ and then any letters, numbers or _ -):
+    replacements.append(("\[MAG_[a-zA-Z0-9_\-]*\]", "[0]"))
+    return replacements
+
+def _npars_from_filename(backgroundfile):
+    """Derive the number of background parameters from the card's file name.
+
+    KNOWN_ISSUES 42: a name matching no keyword silently falls back to 5 rather than raising.
+    "three" is tested with its own `if`, and every keyword after it is an `elif` off "four" - so
+    a name containing both "three" and "four" gives 4, not 3: the `three` branch runs first but
+    does not stop the `four`/`elif` chain below it from also matching. Both quirks are preserved
+    here rather than repaired.
+    """
+    nPars = 5
+
+    if "three" in  backgroundfile:
+        nPars = 3
+    if "four" in  backgroundfile:
+        nPars = 4
+    elif "five" in  backgroundfile:
+        nPars = 5
+    elif "six" in  backgroundfile:
+        nPars = 6
+    elif "seven" in  backgroundfile:
+        nPars = 7
+    elif "eight" in  backgroundfile:
+        nPars = 8
+    elif "nine" in  backgroundfile:
+        nPars = 9
+    elif "ten" in  backgroundfile:
+        nPars = 10
+
+    return nPars
+
+def _parse_card_par_ranges(tmpbackgroundfile):
+    """Read the [PARn, low, high] placeholders out of the background card.
+
+    A line containing "<!--" is skipped even when it holds placeholders - a commented-out line
+    does not declare a parameter - and only lines containing "<ModelItem" are scanned at all.
+    """
+    cardmatches = []
+    with open(tmpbackgroundfile) as f:
+        for line in f:
+            if not "<!--" in line and "<ModelItem" in line:
+                cardmatches += re.findall('\[PAR(\d+),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?)[ ]*\]', line)
+    return cardmatches
+
+def _check_card_pars(cardmatches, nPars, backgroundfile):
+    """Refuse a card whose highest declared parameter index disagrees with nPars.
+
+    The card is the authority on how many parameters it has; nPars is a substring guess off the
+    file name, which silently falls back to 5 when no keyword matches (KNOWN_ISSUES 42). Checked
+    here before the prefit spends 2000*nPars retries fitting the wrong function order, and before
+    _card_par_ranges' assignment turns a card with more parameters than nPars into a bare
+    IndexError.
+    """
+    cardpars = sorted({int(m[0]) for m in cardmatches})
+    if not cardpars:
+        print("WARNING: %s declares no [PARn, ...] placeholders, so the prefit has "
+              "nothing to substitute into it; nPars=%d comes from the file name alone."
+              % (backgroundfile, nPars))
+    elif max(cardpars) != nPars:
+        print("ERROR: %s declares parameters up to PAR%d, but nPars=%d was derived from "
+              "its file name. Rename the card so the two agree, or correct the mapping "
+              "in run_anaFit.py." % (backgroundfile, max(cardpars), nPars))
+        sys.exit(-1)
+
+def _card_par_ranges(cardmatches, nPars):
+    """Build the parameter bounds: start from the defaults, then let the card override them."""
+    # [1, -30, -30, -30, ...]
+    parRangeLow = [1]+[-30]*(nPars-1)
+    parRangeHigh = [1]+[30]*(nPars-1)
+
+    for m in cardmatches:
+        #m[0] is parN
+        #m[1] is rangeLow
+        #m[2] is rangeHigh
+        parRangeLow[int(m[0])-1] = float(m[1])
+        parRangeHigh[int(m[0])-1] = float(m[2])
+
+    return parRangeLow, parRangeHigh
+
+def _substitute_prefit_parameters(tmpbackgroundfile, initPars, nPars):
+    """Write the fitted starting values back into the background card.
+
+    KNOWN_ISSUES: each PARn is substituted in turn starting at PAR1, and re.sub has no word
+    boundary here, so with ten parameters PAR1's substitution also matches the "PAR1" prefix of
+    "PAR10" and corrupts it before PAR10's own turn arrives. Harmless at the five or six
+    parameters either driver uses; preserved here rather than fixed.
+    """
+    for i in range(nPars):
+        replaceinfile(tmpbackgroundfile,
+                      [("PAR%d" % (i+1), str(initPars[i]))
+                   ])
+
+def _format_nbkg(_nbkg):
+    """Format the prefit background yield as the card's "value, min, max" triple.
+
+    The upper bound is twice the fitted value - a physics choice for the card's nbkg fit range,
+    not an arbitrary margin.
+    """
+    return "%.1E, 0, %.1E" % (_nbkg, 2*_nbkg)
+
+def _fit_accepted(pval, maskthreshold):
+    """Decide whether a p(chi2) passes the gate. Strict >, so a p-value exactly equal to the
+    threshold fails."""
+    return pval > maskthreshold
+
+def _run_bumphunter(postfitfile, channel, folder):
+    """Run the BumpHunter window search in its own virtual environment, writing
+    <folder>/BHresults.json.
+
+    Reads channel+"_rebinned/postfit" and channel+"_rebinned/data" - the non-background-only
+    histograms - while the p(chi2) gate is read from the background-only rebinned postfit
+    (build_fit_extract / _extract_postfit). A real asymmetry between the two, not a typo to fix
+    here.
+    """
+    # need to unset pythonpath in order to not use cvmfs numpy
+    #execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "J100yStar06_rebinned/postfit", "J100yStar06_rebinned/data", "{}/BHresults.json".format(folder)))
+    execute("source pyBumpHunter/pyBH_env/bin/activate; python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, channel+"_rebinned/postfit", channel+"_rebinned/data", "{}/BHresults.json".format(folder)))
+
+def _read_bh_results(folder):
+    """Load the BumpHunter results written by _run_bumphunter()."""
+    with open("{}/BHresults.json".format(folder)) as f:
+        return json.load(f)
+
+def _masked_card_paths(tmptopfile, tmpcategoryfile, wsfile, outputfile):
+    """Derive the four masked-variant paths.
+
+    Uses str.replace, not a suffix operation - a ".xml"/".root" occurring anywhere else in the
+    path, e.g. in a directory name, would be replaced too. Neither driver's paths do that.
+    """
+    tmptopfilemasked = tmptopfile.replace(".xml", "_masked.xml")
+    tmpcategoryfilemasked = tmpcategoryfile.replace(".xml", "_masked.xml")
+    wsfilemasked = wsfile.replace(".root", "_masked.root")
+    outfilemasked = outputfile.replace(".root", "_masked.root")
+    return tmptopfilemasked, tmpcategoryfilemasked, wsfilemasked, outfilemasked
+
+def _write_masked_cards(tmptopfilemasked, tmpcategoryfilemasked, tmptopfile, tmpcategoryfile,
+                        wsfile, wsfilemasked, blindrange):
+    """Copy the top and category cards to their masked variants and inject the blinding
+    attributes: Blind="true" on the top card's OutputFile, and BlindRange="<range>" on the
+    category card's Binning."""
+    shutil.copy2(tmptopfile, tmptopfilemasked)
+    shutil.copy2(tmpcategoryfile, tmpcategoryfilemasked)
+
+    replaceinfile(tmptopfilemasked,
+                  [(tmpcategoryfile,tmpcategoryfilemasked),
+                   (r'(OutputFile="[A-Za-z0-9_/.-]*")',r'\1 Blind="true"'),
+                   (wsfile, wsfilemasked),])
+    replaceinfile(tmpcategoryfilemasked,
+                  [(r'(Binning="\d+")', r'\1 BlindRange="%s"' % blindrange)])
+
+def _run_limit(wsfile, poi, outputfile):
+    """Run quickLimit. Unreached by either locked analysis - repro.py does not cover this path,
+    so the exact-string test in the unit suite is the only check it has."""
+    #rtv=execute("timeout --foreground 1800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-8 --muScanPoints 20 --minStrat 1 --nllOffset 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
+    # Same treatment as XMLReader and quickFit above. NOTE: the --dolimit path is not
+    # exercised by either locked analysis, so this gate is reasoned-about, not regression-tested.
+    execute_checked("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-06 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")),
+                    "quickLimit on %s" % wsfile)
 
 def run_anaFit(datafile,
                datahist,
@@ -229,13 +554,9 @@ def run_anaFit(datafile,
     # up to 1000 GeV - silently changing the rebinned chi2, the p-value --maskthreshold gates on,
     # and the BumpHunter window, for any rangehigh above that. Refused here rather than at the
     # selection site, which is reached only after XMLReader and quickFit have run, and is reached
-    # twice when the masked repeat happens. See KNOWN_ISSUES.md issue 46.
-    if bool(rebinfile) != bool(rebinhist):
-        raise ValueError(
-            "--rebinfile and --rebinhist must be given together (got rebinfile=%r, rebinhist=%r). "
-            "Supplying only one would silently fall back to the auto-generated binning, which "
-            "stops at 1000 GeV." % (rebinfile, rebinhist)
-        )
+    # twice when the masked repeat happens. Shared with PostfitExtractor.__init__'s own guard - see
+    # ExtractPostfitFromWS._check_rebin_pair(). See KNOWN_ISSUES.md issue 46.
+    _check_rebin_pair(rebinfile, rebinhist)
 
     nbins=rangehigh - rangelow
     print("Fitting", nbins, "bins in range", rangelow, "-", rangehigh)
@@ -252,34 +573,15 @@ def run_anaFit(datafile,
       print(f"{key}: {value}")
 
     # generate the config files on the fly in run dir
-    if not os.path.isfile("{}/AnaWSBuilder.dtd".format(folder)):
-      #execute("ln -sf $PWD/config/dijetTLA/AnaWSBuilder.dtd $PWD/{}/AnaWSBuilder.dtd".format(folder))
-      #execute("ln -sf ~/WORK/tla/FrequentistFramework/config/dijetisrTLA/AnaWSBuilder.dtd {}/AnaWSBuilder.dtd".format(folder))
-      execute("ln -sf `realpath config/dijetisrTLA/AnaWSBuilder.dtd` {}/AnaWSBuilder.dtd".format(folder))
-      print("this is happening")
-    if sigwidth == -999: # running on zprime samples:
-      print("Running in Zprime samples")
-      tmpcategoryfile="{0}/category_dijetTLA_fromTemplate_mR{1}.xml".format(folder, sigmean)
-      tmptopfile="{0}/dijetTLA_fromTemplate_mR{1}.xml".format(folder, sigmean)
-    else:
-      tmpcategoryfile="{}/category_dijetTLA_fromTemplate.xml".format(folder)
-      tmptopfile="{}/dijetTLA_fromTemplate.xml".format(folder)  
-    tmpsignalfile="{}/signal_dijetTLA_fromTemplate.xml".format(folder)
-    tmpbackgroundfile="{}/background_dijetTLA_fromTemplate.xml".format(folder)
-    
+    _link_dtd(folder)
+    tmptopfile, tmpcategoryfile, tmpsignalfile, tmpbackgroundfile = _temp_card_paths(folder, sigwidth, sigmean)
+
     print("--------------------------------------> tmpcategoryfile: "+tmpcategoryfile)
     print("--------------------------------------> tmptopfile: "+tmptopfile)
 
-    shutil.copy2(topfile, tmptopfile) 
-    shutil.copy2(categoryfile, tmpcategoryfile) 
-    if signalfile:
-        shutil.copy2(signalfile, tmpsignalfile) 
-    
-    replaceinfile(tmptopfile, 
-                  [("CATEGORYFILE", tmpcategoryfile),
-                   ("OUTPUTFILE", wsfile),
-                   ("SIGNAME", signame),
-               ])
+    _stage_cards(topfile, categoryfile, signalfile, tmptopfile, tmpcategoryfile, tmpsignalfile)
+
+    _fill_top_card(tmptopfile, tmpcategoryfile, wsfile, signame)
 
     if backgroundfile:
         shutil.copy2(backgroundfile, tmpbackgroundfile) 
@@ -287,63 +589,16 @@ def run_anaFit(datafile,
                       [("BACKGROUNDFILE", tmpbackgroundfile)])
         
         if doprefit:
-            nPars = 5
+            nPars = _npars_from_filename(backgroundfile)
 
-            if "three" in  backgroundfile:
-                nPars = 3
-            if "four" in  backgroundfile:
-                nPars = 4
-            elif "five" in  backgroundfile:
-                nPars = 5
-            elif "six" in  backgroundfile:
-                nPars = 6
-            elif "seven" in  backgroundfile:
-                nPars = 7
-            elif "eight" in  backgroundfile:
-                nPars = 8
-            elif "nine" in  backgroundfile:
-                nPars = 9
-            elif "ten" in  backgroundfile:
-                nPars = 10
-            # [1, -30, -30, -30, ...]
-            parRangeLow = [1]+[-30]*(nPars-1)
-            parRangeHigh = [1]+[30]*(nPars-1)
-            
-            # get prefit ranges from background file
-            cardmatches = []
-            with open(tmpbackgroundfile) as f:
-                for line in f:
-                    if not "<!--" in line and "<ModelItem" in line:
-                        cardmatches += re.findall('\[PAR(\d+),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?),[ ]*([+-]?[0-9]+(?:[.][0-9]*)?)[ ]*\]', line)
-
-            # The card is the authority on how many parameters it has; nPars above is a
-            # substring guess off the file name, which silently falls back to 5 when no
-            # keyword matches (KNOWN_ISSUES 42). Check the two agree before the prefit
-            # spends 2000*nPars retries fitting the wrong function order - and before the
-            # assignment below turns a card with more parameters than nPars into a bare
-            # IndexError.
-            cardpars = sorted({int(m[0]) for m in cardmatches})
-            if not cardpars:
-                print("WARNING: %s declares no [PARn, ...] placeholders, so the prefit has "
-                      "nothing to substitute into it; nPars=%d comes from the file name alone."
-                      % (backgroundfile, nPars))
-            elif max(cardpars) != nPars:
-                print("ERROR: %s declares parameters up to PAR%d, but nPars=%d was derived from "
-                      "its file name. Rename the card so the two agree, or correct the mapping "
-                      "in run_anaFit.py." % (backgroundfile, max(cardpars), nPars))
-                sys.exit(-1)
-
-            for m in cardmatches:
-                #m[0] is parN
-                #m[1] is rangeLow
-                #m[2] is rangeHigh
-                parRangeLow[int(m[0])-1] = float(m[1])
-                parRangeHigh[int(m[0])-1] = float(m[2])
+            cardmatches = _parse_card_par_ranges(tmpbackgroundfile)
+            _check_card_pars(cardmatches, nPars, backgroundfile)
+            parRangeLow, parRangeHigh = _card_par_ranges(cardmatches, nPars)
 
             print("Starting PreFit in parameter ranges:")
             print(parRangeLow)
             print(parRangeHigh)
-                            
+
             pf = PreFitter(
                 datafile = datafile,
                 datahist = datahist,
@@ -356,56 +611,24 @@ def run_anaFit(datafile,
                 parRangeLow = parRangeLow,
                 parRangeHigh = parRangeHigh,
             )
-            
+
             initPars,_nbkg = pf.Fit()
             print(_nbkg)
-            nbkg="%.1E, 0, %.1E" % (_nbkg, 2*_nbkg)
+            nbkg = _format_nbkg(_nbkg)
             print(_nbkg)
-            
+
             print("Starting fit with initial pars", initPars)
 
-            for i in range(nPars):
-                replaceinfile(tmpbackgroundfile, 
-                              [("PAR%d" % (i+1), str(initPars[i]))
-                           ])
+            _substitute_prefit_parameters(tmpbackgroundfile, initPars, nPars)
 
-    replaceinfile(tmpcategoryfile, [
-        ("DATAFILE", datafile),
-        ("DATAHIST", datahist),
-        ("RANGELOW", str(rangelow)),
-        ("RANGEHIGH", str(rangehigh)),
-        ("BINS", str(nbins)),
-        ("NBKG", nbkg),
-	("NSIG", nsig),
-	("SIGNAME", signame),
-	("SIGNALFILE", tmpsignalfile)
-    ])    
+    _fill_category_card(tmpcategoryfile, datafile, datahist, rangelow, rangehigh, nbins, nbkg, nsig,
+                        signame, tmpsignalfile)
 
     if signalfile:
-        #replaceinfile(tmpsignalfile, 
+        #replaceinfile(tmpsignalfile,
         #              [("SIGMEAN", str(sigmean)),
         #               ("SIGWIDTH", str(sigwidth)),
-        #]) 
-        replacements = [("SIGNAME", str(signame)),   
-                        ("SIGMEAN", str(sigmean)),   
-                        ("SIGWIDTH", str(sigwidth)), 
-            ]                                
-              
-        if systdict != None:
-            print("replacing in signalfile now")
-            replacements.append(("NOMINAL_MEAN", str(systdict["nominal_mean"])))
-            replacements.append(("NOMINAL_WIDTH", str(systdict["nominal_sigma"])))
-            replacements.append(("NOMINAL_ALPHAL", str(systdict["nominal_alpha_l"])))
-            replacements.append(("NOMINAL_ALPHAH", str(systdict["nominal_alpha_h"])))
-            replacements.append(("NOMINAL_NL", str(systdict["nominal_n_l"])))
-            replacements.append(("NOMINAL_NH", str(systdict["nominal_n_h"])))
-            for source in systdict["unc_mean_sources"]:
-                val = systdict["unc_mean_sources"][source]
-                replacements.append(("\[MAG_SCALE_"+str(source)+"\]", "["+str(val)+"]"))
-            for source in systdict["unc_sigma_sources"]:
-                val = systdict["unc_sigma_sources"][source]
-                replacements.append(("\[MAG_RESOLUTION_"+str(source)+"\]", "["+str(val)+"]"))
-
+        #])
         #  if covariancedict != None:
         #      print("replacing in signalfile now")
         #      replacements.append(("NOMINAL_MEAN", str(covariancedict["nominal_mean"])))
@@ -417,9 +640,7 @@ def run_anaFit(datafile,
         #      replacements.append(("MAG_SCALE", str(covariancedict["covariance_cholesky"][4][4])))
         #      replacements.append(("MAG_RESOLUTION", str(covariancedict["covariance_cholesky"][5][5])))
         #      replacements.append(("MAG_CROSSTERM", str(covariancedict["covariance_cholesky"][5][4])))
-                
-        #set any unreplaced uncertainties to 0 (starting with MAG_ and then any letters, numbers or _ -):
-        replacements.append(("\[MAG_[a-zA-Z0-9_\-]*\]", "[0]"))
+        replacements = _signal_replacements(signame, sigmean, sigwidth, systdict)
         replaceinfile(tmpsignalfile, replacements)
 
     if dosignal:
@@ -452,7 +673,7 @@ def run_anaFit(datafile,
 
     print ("Global fit p(chi2)=%.3f" % pval_global)
 
-    if pval_global > maskthreshold : #or True:
+    if _fit_accepted(pval_global, maskthreshold): #or True:
         print("p(chi2) threshold passed. Exiting with succesful fit.")
     else:
         print("p(chi2) threshold not passed.")
@@ -460,12 +681,7 @@ def run_anaFit(datafile,
         #   if True:
         print("Now running BH for masking.")
 
-        tmpcategoryfilemasked=tmpcategoryfile.replace(".xml","_masked.xml")
-
-        # need to unset pythonpath in order to not use cvmfs numpy
-        #execute("source pyBumpHunter/pyBH_env/bin/activate; env PYTHONPATH=\"\" python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, "J100yStar06_rebinned/postfit", "J100yStar06_rebinned/data", "{}/BHresults.json".format(folder)))
-        execute("source pyBumpHunter/pyBH_env/bin/activate; python3 python/FindBHWindow.py --inputfile %s --bkghist %s --datahist %s --outputjson %s; deactivate" % (postfitfile, channel+"_rebinned/postfit", channel+"_rebinned/data", "{}/BHresults.json".format(folder)))
-
+        _run_bumphunter(postfitfile, channel, folder)
 
         #blind_min = 135
         #blind_max = 136
@@ -482,22 +698,13 @@ def run_anaFit(datafile,
         #subprocess.run(cmd, check=True)
 
         # pass results of pyBH via this json file
-        with open("{}/BHresults.json".format(folder)) as f:
-            BHresults=json.load(f)
+        BHresults = _read_bh_results(folder)
 
-        tmptopfilemasked=tmptopfile.replace(".xml","_masked.xml")
-        wsfilemasked=wsfile.replace(".root","_masked.root")
-        outfilemasked=outputfile.replace(".root","_masked.root")
+        tmptopfilemasked, tmpcategoryfilemasked, wsfilemasked, outfilemasked = _masked_card_paths(
+            tmptopfile, tmpcategoryfile, wsfile, outputfile)
 
-        shutil.copy2(tmptopfile, tmptopfilemasked) 
-        shutil.copy2(tmpcategoryfile, tmpcategoryfilemasked) 
-
-        replaceinfile(tmptopfilemasked, 
-                      [(tmpcategoryfile,tmpcategoryfilemasked),
-                       (r'(OutputFile="[A-Za-z0-9_/.-]*")',r'\1 Blind="true"'),
-                       (wsfile, wsfilemasked),])
-        replaceinfile(tmpcategoryfilemasked, 
-                      [(r'(Binning="\d+")', r'\1 BlindRange="%s"' % BHresults["BlindRange"])])
+        _write_masked_cards(tmptopfilemasked, tmpcategoryfilemasked, tmptopfile, tmpcategoryfile,
+                            wsfile, wsfilemasked, BHresults["BlindRange"])
 
         pval_masked,_,_ = build_fit_extract(tmptopfilemasked,
                                             datafile=datafile, 
@@ -515,29 +722,24 @@ def run_anaFit(datafile,
 
         print("Masked fit p(chi2)=%.3f" % pval_masked)
 
-        if pval_masked > maskthreshold:
+        if _fit_accepted(pval_masked, maskthreshold):
             print("p(chi2) threshold passed. Continuing with successful (window-excluded) fit.")
             wsfile=wsfilemasked
         else:
             print("p(chi2) threshold still not passed.")
             print("Exiting with failed fit status.")
             return -1
-    
+
     print()
 
     # blindrange not yet implemented with quickLimit
-    if dolimit and dosignal and pval_global > maskthreshold:
+    if dolimit and dosignal and _fit_accepted(pval_global, maskthreshold):
         print("Now running quickLimit")
-        #rtv=execute("timeout --foreground 1800 quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-8 --muScanPoints 20 --minStrat 1 --nllOffset 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")))
-        # Same treatment as XMLReader and quickFit above. NOTE: the --dolimit path is not
-        # exercised by either locked analysis, so this gate is reasoned-about, not regression-tested.
-        execute_checked("quickLimit -f %s -d combData -p %s --checkWS 1 --initialGuess 100000 --minTolerance 1E-06 --muScanPoints 20 --minStrat 2 --nllOffset 0 --GKIntegrator 1 -o %s" % (wsfile, poi, outputfile.replace("FitResult","Limits")),
-                        "quickLimit on %s" % wsfile)
-    
+        _run_limit(wsfile, poi, outputfile)
+
     return 0
 
-def main(args):
-    
+def _build_parser():
     parser = argparse.ArgumentParser(description='%prog [options]')
     parser.add_argument('--datafile', dest='datafile', type=str, required=True, help='Input data file')
     parser.add_argument('--datahist', dest='datahist', type=str, required=True, help='Input finebinned data histogram name')
@@ -572,7 +774,22 @@ def main(args):
     parser.add_argument('--rebinhist', dest='rebinhist', type=str, default=None,
                         help='Histogram name inside --rebinfile (may be a directory-qualified path). '
                              'Default: mjjBinning')
+    return parser
 
+def _load_systdict(sysfile, sigmean):
+    """Load the signal systematics dict for one mass point.
+
+    Returns None when no --sysfile was given. Raises where the file is read, immediately -
+    rather than ~400 lines later inside _signal_replacements(), where a missing sigmean entry
+    would otherwise surface as a KeyError far from its cause.
+    """
+    if not sysfile:
+        return None
+    with open(sysfile) as f:
+        return json.load(f)[str(sigmean)]
+
+def main(args):
+    parser = _build_parser()
     args = parser.parse_args(args)
     if not args.signame:
         if args.sigwidth == -999:
@@ -588,11 +805,8 @@ def main(args):
             raise
     print("current working directory", os.getcwd())
 
-    systdict = None
+    systdict = _load_systdict(args.sysfile, args.sigmean)
     covariancedict = None
-    if args.sysfile:
-        with open(args.sysfile) as f:
-            systdict = json.load(f)[str(args.sigmean)]
     #if args.covariancefile:
     #    with open(args.covariancefile) as f:
     #        covariancedict = json.load(f)[str(args.sigmean)]

@@ -31,6 +31,22 @@ def expHist(h):
             h.SetBinContent(i, ROOT.TMath.Exp(h.GetBinContent(i)))
             h.SetBinError(i, h.GetBinError(i)*h.GetBinContent(i))
 
+def _check_rebin_pair(rebinfile, rebinhist):
+    """Refuse a half-given --rebinfile/--rebinhist pair.
+
+    A pair, not two independent options: every use site tests `rebinfile and rebinhist`
+    together, so half a pair would silently skip rebinning altogether (here) or silently fall
+    back to the auto-generated dijetisrTLA binning, which stops at 1000 GeV (run_anaFit.py).
+    Shared by both call sites - PostfitExtractor.__init__ below and run_anaFit.run_anaFit() -
+    so the two guards cannot drift apart. See KNOWN_ISSUES.md issue 46.
+    """
+    if bool(rebinfile) != bool(rebinhist):
+        raise ValueError(
+            "rebinfile and rebinhist must be given together (got rebinfile=%r, rebinhist=%r). "
+            "Supplying only one would silently fall back to the auto-generated binning, which "
+            "stops at 1000 GeV." % (rebinfile, rebinhist)
+        )
+
 def _compute_chi2_terms(h_data, h_postfit, nbins, maskmin, maskmax, maskisbinnumber, useSumW2):
     """Accumulate chi2 over the unmasked bins and collect every defined per-bin residual.
 
@@ -170,15 +186,9 @@ class PostfitExtractor:
                  maskisbinnumber=False,
                  useSumW2=False):
 
-        # A pair, not two independent options: every use site tests `rebinfile and rebinhist`
-        # together, so half a pair would silently skip rebinning altogether and produce no
-        # _rebinned channel - and no chi2 over it. Guarded here rather than in the CLI parser so
-        # the direct construction in run_anaFit.py is covered too. See KNOWN_ISSUES.md issue 46.
-        if bool(rebinfile) != bool(rebinhist):
-            raise ValueError(
-                "rebinfile and rebinhist must be given together "
-                "(got rebinfile=%r, rebinhist=%r)" % (rebinfile, rebinhist)
-            )
+        # Guarded here rather than only in the CLI parser so the direct construction in
+        # run_anaFit.py is covered too. See _check_rebin_pair()'s docstring above.
+        _check_rebin_pair(rebinfile, rebinhist)
 
         self.wsfile = wsfile
         self.datafile = datafile
