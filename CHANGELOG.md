@@ -82,6 +82,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 21:40 — Decomposition §5: split `FitParameterExtractor.Extract()` into four single-purpose functions](#2026-09-18-2140--decomposition-5-split-fitparameterextractorextract-into-four-single-purpose-functions)
 - [2026-09-18 22:20 — Decomposition §6a: split the binning half of `PostfitExtractor.Extract()` into five single-purpose functions](#2026-09-18-2220--decomposition-6a-split-the-binning-half-of-postfitextractorextract-into-five-single-purpose-functions)
 - [2026-09-18 23:10 — Decomposition §6b: split the workspace half of `PostfitExtractor.Extract()` into six single-purpose functions](#2026-09-18-2310--decomposition-6b-split-the-workspace-half-of-postfitextractorextract-into-six-single-purpose-functions)
+- [2026-09-21 14:10 — Decomposition §7: split `FindBHWindow.main()` into seven single-purpose functions](#2026-09-21-1410--decomposition-7-split-findbhwindowmain-into-seven-single-purpose-functions)
 
 ---
 
@@ -2914,3 +2915,72 @@ for the zero-integral case, because a real pdf will not integrate to zero on dem
 
 **Verified**: `python3 -m pytest tests -q` — 187 passed (166 from §1–§6a, 21 new). `bash
 tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS. No baseline re-cut.
+
+## 2026-09-21 14:10 — Decomposition §7: split `FindBHWindow.main()` into seven single-purpose functions
+
+**Objective.** Plan section 7. `main()` parsed seven options, read two histograms, cropped one
+against the other, configured and ran the BumpHunter scan, saved two plots, derived the mask
+window and wrote the JSON — 89 lines, no function boundaries. The BumpHunter configuration is
+preserved exactly: `width_min=2`, `width_max=3`, `width_step=1`, `scan_step=1`, `npe=10000`,
+`nworker=1`, `seed=666` all change the result, and `tests/repro.py` compares `seed` and `npe`.
+
+**The seven functions.** `_build_parser`, `_load_histograms`, `_crop_data_to_bkg_range`,
+`_configure_hunter`, `_run_scan`, `_mask_window`, `_write_results`. `main()` keeps its signature
+and its `sys.exit(main(sys.argv[1:]))` entry point. `NpEncoder` is untouched — it already did one
+job.
+
+`_run_scan` is an addition to the plan's list of six, which folded the scan into `main()`. It
+exists so `is_hist=True` has somewhere to be asserted: `data` and `bkg` are bin contents, not
+samples, and BumpHunter would silently treat them as unbinned values without it.
+
+**Three plan predictions corrected by measurement.** The plan said this module "runs in its own
+virtual environment and cannot be imported from the main one, so its tests exercise the extracted
+pure functions only", and that the `_load_histograms` test would skip "when `uproot` is
+unavailable, which it is in the main environment". Measured before writing anything: matplotlib
+3.4.3, uproot 4.2.0 and numpy 1.22.3 all come from the LCG_102a view. The module imports, nothing
+skips, and the histogram reader is tested against the recorded J50 postfit like any other
+function.
+
+What *is* absent is `pyBumpHunter` — and not in the way the plan assumed. `import pyBumpHunter`
+from the repository root resolves to the repository's own clone *directory* of that name as an
+implicit namespace package: `__file__` is `None`, `__path__` is `<repo>/pyBumpHunter`, and
+`BumpHunter1D` is not in it. Production never sees this, because `python3 python/FindBHWindow.py`
+puts `python/` on sys.path rather than the repository root, so the venv's installed egg wins; it
+is a trap only for a developer importing the module by hand from the root, and it fails closed
+with `AttributeError`. No issue filed. `_configure_hunter` is tested against a recording stand-in,
+which is what the plan wanted regardless.
+
+**The plan's expected finding is not there.** Section 7 predicted an off-by-one in
+`_crop_data_to_bkg_range`: "`lastbindata` is the index of the last data edge at or **below**
+`bins[-1]`, and is then used as an **exclusive** slice end, so the final bin inside the range is
+dropped." It is not dropped. The two indices are consistent — the data bins lying wholly inside
+the background range are exactly those whose left-edge index is in `[firstbindata, lastbindata)`,
+which is what the slice takes. Checked on the real inputs as well as in the abstract: on the J50
+run, the one recorded run that ever reached BumpHunter, `run_anaFit.py` passes
+`<channel>_rebinned/postfit` and `<channel>_rebinned/data`, which come from the same rebinning
+call, so `bins` and `bins_data` are equal, `firstbindata` is 0, `lastbindata` is 65, and all 65
+data bins survive against 65 background bins. The function is a no-op there. No `KNOWN_ISSUES`
+entry, and four tests pin the behaviour including the general case where the data is wider on
+both sides.
+
+One real edge case is pinned rather than guarded: if the background range sits entirely below the
+data range, `lastbindata` keeps its initial 0 and the scan silently runs on an empty array. It is
+unreachable from either driver, which passes two histograms out of one file on one binning.
+
+**Added** `tests/test_find_bh_window.py`, 24 tests. Two are worth naming. `_mask_window` is tested
+end to end against the recorded J50 result: the bin edges come from the `PostFit_J50` fixture, the
+scan result from `BHresults_J50.json`, and the output has to be the `MaskMin` 582.0, `MaskMax`
+662.0 and `BlindRange` "582,662" that file records. And `_write_results`' output is scraped by a
+Python transcription of the regex `plot_postfit.cpp:119` builds, asserting all four values the
+macro reads — including that `global_Pval` and `significance` are found although they sit one
+level down under `pyBHresult`, because the C++ searches the whole file. That nesting now has a
+test rather than only a convention.
+
+**Left alone**, as the plan says: the two plot filenames are bare relative paths, so they land in
+whatever directory the process started from — the repository root, for every run including
+`repro.py check`. That is `KNOWN_ISSUES` issue 23, it predates this work, and it stays open.
+
+**Verified**: `python3 -m pytest tests -q` — 211 passed (187 from §1–§6, 24 new). `bash
+tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS. The full check, not
+`--quick`: J100 passes the p(chi2) gate and never calls this module, so only the J50 leg exercises
+it end to end. No baseline re-cut.
