@@ -19,6 +19,7 @@ and the notebook disagree, the notebook is right.
 | [Make the drivers stop when the setup guard fires](2026-09-17-driver-setup-guard.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
 | [Refuse a partial `--rebinfile`/`--rebinhist` pair](2026-09-17-rebin-pair-guard.md) | 2026-09-17 | `claude-skills` | Approved, implementation in progress |
 | [Close the issues that can reach a physically wrong result](2026-09-17-physics-risk-issues.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
+| [Stop a previous run's output being read as this run's](2026-09-21-stale-run-outputs.md) | 2026-09-21 | `claude-skills` | Approved and implemented |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -151,6 +152,20 @@ second plot file, which would have forced a J50 baseline re-cut for a change tha
 and was replaced on the owner's ruling that the record should only change when the physics does. §4
 was unblocked by the owner choosing `<channel>_bkgonly_rebinned` for both branches. No baseline was
 re-cut at any point; `tests/repro.py check` passes on both analyses after every section.
+
+### Stop a previous run's output being read as this run's
+
+Run folders are reused and nothing deletes what the last run left there, so a masked fit from an
+earlier run is selected by the drivers, drawn by `plot_postfit.cpp` and stamped with a stale
+BumpHunter p-value — and a crashed run plots its predecessor's result. Deletes exactly the files
+each invocation is about to write, at the start of `run_anaFit()`, rather than comparing
+timestamps in the drivers. Raised by a GitHub Copilot review comment, filed as
+`KNOWN_ISSUES.md` issue 49.
+
+Implemented the same day in its two sections. The failure was reproduced on the unfixed code
+first — a run that never masked, made to plot a planted masked fit and a fabricated BumpHunter
+p-value — and the fix measured against it. `tests/repro.py check` passes on both analyses with
+neither baseline re-cut.
 
 ## Adding a plan
 

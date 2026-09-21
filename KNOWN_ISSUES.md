@@ -1165,6 +1165,16 @@ exercises the working path. The four `setup_buildCombineFit.sh` call sites are d
 guarded — see the plan. See CHANGELOG.md's 2026-09-17 17:20 entry. The rest of this entry is kept
 as the record of what was wrong.
 
+**Re-reported 2026-09-21, and re-verified as fixed.** A sixth Copilot review raised this again as
+its only **High** finding. The comment as relayed here was truncated — *"The drivers do not
+actually abort when this setup check fails: they source `setup_buildAndFit.sh`…"* — so the
+identification rests on that opening rather than on its full text. The fix holds: tested today from
+a directory containing neither `xmlAnaWSBuilder/` nor `quickFit/`, `scripts/run_anaFit_run2.sh`
+prints `Execute from FrequentistFramework directory!` and `ERROR: run this from the
+FrequentistFramework repository root.`, and stops — status 1 and the shell still alive when
+sourced, status 1 and nothing created when run under `bash`. Nothing here is reopened. The finding
+describes the pre-fix mechanics correctly, which is what this entry already records.
+
 **What.** `scripts/setup_buildAndFit.sh` lines 5–8 refuse to run outside the repository root:
 
 ```bash
@@ -1231,6 +1241,16 @@ owner's decision, because it changes no fitted quantity. The investigation behin
 the problem to be one step wider than the review comment described.
 
 ### 44. `plot_postfit.cpp` stamps every plot with a hardcoded, wrong `#sqrt{s}` and luminosity — **Medium** — **open; recorded, not fixed**
+
+**Re-reported 2026-09-21** by a sixth Copilot review, as a Medium, from the same direction as the
+first: *"Parameterizing the channel makes this macro serve the new Run 2 J100/J50 drivers, but it
+still…"*. That comment too was truncated where it was relayed, so the identification is from its
+opening; the wording matches this entry's finding that the `chan` parameter was added while
+`lumi_label` was left a file-scope constant. Still open, on the same decision: it changes no fitted
+quantity. Two of the three caller line numbers in the table below have since moved — the
+`plot_postfit.cpp` calls are now at `run_anaFit_run2.sh:137` and `run_anaFit_run2_J50.sh:140`,
+`run_anaFit.sh:165` is unchanged — and the table is left as written, since which callers are
+wrong is the point rather than where they sit.
 
 **What.** `plot_postfit.cpp` line 29 defines
 
@@ -1489,6 +1509,12 @@ whatever the cause. Only the diagnosis is wrong, and it points the reader at the
 the real failure may be somewhere else entirely. Pre-existing: every traceback route existed before
 issue 46's guard was added, which only made the mismatch easy to observe.
 
+**Re-reported 2026-09-21**, twice more, by a sixth Copilot review — once against each Run 2 driver,
+as two Medium findings: *"This message attributes every nonzero Python exit to a twice-rejected
+chi-square fit, but…"*. Both name the same defect as the comment recorded above and as this entry.
+Three independent reports now, and the entry is still open on the same grounds: the banner's safety
+verdict is right whatever the cause, only its diagnosis is wrong.
+
 **Fix.** State the status and point at the log rather than asserting why — the log is three lines
 up and says exactly what happened. Alternatively, distinguish the framework's own `-1` verdict from
 any other non-zero status, since only `-1` means "the fit was rejected"; that is a slightly larger
@@ -1575,3 +1601,195 @@ and another for J50 with nothing saying which, which is the defect in a new plac
 own parenthetical is the better half: **emit both, with explicit labels**, or at minimum draw the
 mask state onto the plot so the file is self-describing. `plot_postfit.cpp` is the working model.
 Whichever is chosen, it belongs in both drivers, not just J50's.
+
+## Output reuse and documentation drift — found 2026-09-21 in external review
+
+A sixth GitHub Copilot review, and the first run under the cut-off commit named in
+[.github/copilot-code-review-instructions.md](.github/copilot-code-review-instructions.md),
+returned nine open findings. **Four are re-reports of issues already recorded here**, and are noted
+under those entries rather than duplicated: its single **High** is issue 43, which was fixed on
+2026-09-17 and is re-verified below; one Medium is issue 44; and two Mediums are issue 47, reported
+once against each Run 2 driver. **The other five are new**, and collapse into the three entries
+49–51 below, because two pairs of them are one defect reported twice — the stale masked output
+once against each Run 2 driver, and the stale exit-code claim once against each of the two
+`CLAUDE.md` passages that carries it.
+
+**This paragraph said "six are re-reports… three are new" until 2026-09-21 10:15**, when the
+repository owner asked which six were already documented. Only four were: nine minus the three new
+*entries* is not the number of re-reported *findings*, and the sentence was written by subtracting
+rather than by counting. Corrected in place here, and recorded in `CHANGELOG.md`'s 2026-09-21 10:15
+entry, rather than quietly reworded — the same handling as issue 24, which was a miscount of the
+same kind in this file.
+
+Two of the three entries are documentation, and they are a kind this file has not had to record
+before.
+Issues 24, 27 and 37 were stale claims about the *harness*. These are stale claims in `CLAUDE.md`
+— written by this work, to instruct the next contributor — about behaviour this work itself then
+changed. The instruction file has drifted from the code faster than the code has drifted from
+anything.
+
+### 49. A stale masked fit from an earlier run is plotted, and labelled, as this run's result — **Medium** — **Fixed 2026-09-21 17:55**
+
+**Fixed.** `run_anaFit()` now deletes every product of a previous run before it writes anything:
+`python/run_outputs.py` enumerates them and `tests/test_run_outputs.py` (7 tests) keeps that list
+equal to what a run actually produces, asserted against both committed baselines. Deletion is by
+name, not by wiping the folder — `run_anaFitLoop.sh` gives many invocations one shared folder, and
+a wipe would take the earlier mass points with it — and it runs *after* the `--rebinfile` guard,
+so a run refused for bad arguments does not destroy the previous one's output on its way out.
+
+**Demonstrated, not assumed.** The failure was reproduced on the unfixed code first: a clean J100
+run into a scratch `OUT_DIR` (no masking — J100 passes p(chi2) first time), then a masked
+`PostFit`/`FitParameters` pair and a `BHresults.json` holding invented values planted in its
+folder, then the driver re-run unchanged. It left all three in place and produced `postFit.pdf`
+labelled `masked fit - BumpHunter window blinded` and `post_fit.pdf` reading `global p-val:
+0.1230`, `significance: 1.16`, `mask range: 1234, 1456 GeV` — numbers that existed nowhere but in
+the planted file. With the fix, the same scenario clears 16 files, and `postFit.pdf` reads
+`unmasked fit` with no BumpHunter numbers anywhere. `tests/repro.py check` passes on both
+analyses with both baselines untouched, J50 still masks and still labels its plot correctly, and
+the recorded run directories were not touched at any point. See CHANGELOG.md's 2026-09-21 17:55
+entry. The rest of this entry is kept as the record of what was wrong.
+
+**What.** Issue 48's fix made both Run 2 drivers plot whichever fit was accepted:
+
+```bash
+postfit_to_plot=${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root
+postfit_label="unmasked fit"
+if [[ -f ${folder}/PostFit_anaFit_${pars}Par_bkgOnly_masked.root ]]; then
+    postfit_to_plot=${folder}/PostFit_anaFit_${pars}Par_bkgOnly_masked.root
+    postfit_label="masked fit - BumpHunter window blinded"
+fi
+```
+
+The test is *existence*, not freshness. Run folders are reused: `folder` is a pure function of
+`rangelow`, `rangehigh` and `pars`, and `run_anaFit.py` only `os.makedirs()` it
+([python/run_anaFit.py:584-588](python/run_anaFit.py#L584-L588)) — nothing anywhere deletes a
+previous run's output. So a masked set from an earlier run of the same range outlives it. A run
+that masked before and now passes p(chi2) unmasked writes **no** masked files, finds the old ones,
+and draws `postFit.pdf` from them under the label `masked fit - BumpHunter window blinded`.
+
+**Reachable with what the driver ships, not only with a code change.** `run/run_J50_302_2997_sixPar/`
+holds a complete masked set today (nine files, `PostFit_anaFit_sixPar_bkgOnly_masked.root` among
+them). The J100 driver carries four alternative `datahist` selections as commented lines right
+above the live one — switching to the no-eta-veto spectrum is a one-character edit that changes the
+data, keeps the folder name, and can flip the gate verdict in either direction. Nothing about that
+workflow is unusual; it is what the commented alternatives are there for.
+
+**Wider than the plot selection, which is the part the review comment did not reach.** Every
+derived product in the folder is stale-able the same way, and two others are read back:
+
+- `plot_postfit.cpp` opens `PostFit_*_masked.root` and `FitParameters_*_masked.root` if they exist
+  ([plot_postfit.cpp:41-44,68-80](plot_postfit.cpp#L41-L80)) and draws the red "masked" curve from
+  whatever it finds, so `post_fit.pdf` — the plot this repository has repeatedly called the more
+  careful of the two — overlays a previous run's fit on this run's without a word.
+- `BHresults.json` is written only when the BumpHunter step runs, and `plot_postfit.cpp` reads its
+  `global_Pval`, `significance`, `MaskMin` and `MaskMax` whenever the file is present. A run that
+  never invoked BumpHunter is therefore stamped with the p-value and mask window of the run that
+  did.
+
+**Where.** [scripts/run_anaFit_run2.sh:127-132](scripts/run_anaFit_run2.sh#L127-L132) and
+[scripts/run_anaFit_run2_J50.sh:130-135](scripts/run_anaFit_run2_J50.sh#L130-L135), with the wider
+half at [plot_postfit.cpp:41-44](plot_postfit.cpp#L41-L44) and the missing cleanup at
+[python/run_anaFit.py:584-588](python/run_anaFit.py#L584-L588).
+
+**Affects.** A plot presented as this run's accepted result, showing a different run's fit. The
+mislabel is *affirmative*, not merely absent — issue 48's label, added precisely so the file would
+be self-describing, is what asserts the wrong thing. By [CLAUDE.md](CLAUDE.md)'s triage question
+this sits in the upper class: the analysis runs to completion and puts numbers in front of a reader
+that do not belong to it. It is recorded as Medium rather than High because both sets of numbers
+are real fits, the corruption is visible to anyone who looks at file timestamps, and it takes a
+configuration change plus a rerun into the same folder to arise.
+
+The driver's own comment above the block says it "now plots whichever fit was accepted". In this
+case it does not; it plots whichever masked file *exists*. That is the same defect class as issue
+43 — a documentation claim the code does not keep — in the code's own comments.
+
+**Not `tests/repro.py check`.** It wipes its scratch folder before running the driver
+([tests/repro.py:993-996](tests/repro.py#L993-L996)), explicitly so a crashed driver cannot be
+masked by leftovers, so the harness never sees this. **`record` does not wipe**: it reads whatever
+directory it is pointed at and records any masked set it finds
+([tests/repro.py:902-905](tests/repro.py#L902-L905)), so a baseline re-cut from a reused folder can
+pair a fresh `unmasked` block with a stale `masked` one. That failure is loud rather than silent —
+the next `check` runs into a wiped folder, produces no masked set, and fails on the missing key —
+but it would fail for a reason nobody would guess from the message.
+
+**Fix.** The review comment's patch replaces `-f` with `-nt`, comparing the masked file's mtime
+against the unmasked one. It is correct for the drivers' own selection and it is one line, but it
+leaves `plot_postfit.cpp` and `BHresults.json` reading stale files, and it makes the plot selection
+depend on filesystem timestamps, which do not survive a copy to EOS. The defect is that the run
+folder is not the run's: **delete the derived products at the start of `run_anaFit()`** — the
+`PostFit_*`, `FitResult_*`, `FitParameters_*`, `BHresults.json`, `*_masked.xml` and workspace files
+for this `pars`/range — so every consumer downstream sees only what this run produced. That fixes
+all three readers in one place and needs no timestamps. It also changes nothing for
+`tests/repro.py`, which already wipes.
+
+### 50. Three current-state documents still say XMLReader and quickFit ignore failures — **Low** — **open; recorded, not fixed**
+
+**What.** `execute_checked()` has stopped the run on a non-zero exit from XMLReader, quickFit and
+quickLimit since 2026-09-18, and `report_fit_quality()` refuses a fit whose `covQual` is below
+`--mincovqual`. The documents that tell a contributor how the framework behaves were not updated
+with it, and still instruct the reader to distrust the exit code:
+
+| | says |
+|---|---|
+| [CLAUDE.md:57-59](CLAUDE.md#L57-L59) | "Both are called with `subprocess` and only *warn* on non-zero exit — check the log, not the return code." |
+| [CLAUDE.md:99-102](CLAUDE.md#L99-L102) | present tense, as a live example of the top triage tier: "XMLReader and quickFit warn on failure and still return 0, so a failed fit looks like a successful one" |
+| [README.md:176-177](README.md#L176-L177) | "**XMLReader and quickFit only warn on failure** — they do not return a non-zero exit code. Check `quickFitLog_*.log`, not the exit status." |
+| [doc/IMPROVEMENTS.md:241-243](doc/IMPROVEMENTS.md#L241-L243) | "It does not gate on the driver's own exit code — XMLReader/quickFit warn-and-return-0 on failure" |
+
+The review found the two `CLAUDE.md` occurrences, which were in its diff. The other two are the
+same false claim in the other two documents that describe the framework as it is now; they are
+recorded here because fixing only what the reviewer could see would leave the statement true
+nowhere and printed in three places.
+
+**The claim is doubly wrong**, and the table entry at the top of this file already says so: the
+binaries never did return 0 on a hard failure — a nonexistent card segfaults XMLReader to exit 139
+— so the sentence was inaccurate when it was written and is now also describing handling the code
+no longer has.
+
+**Where.** The four rows above. `CHANGELOG.md` and everything under `plans/` carry the same wording
+and are **correctly left alone**: both are append-only records of what was believed at the time,
+and this repository's rule is that they are not rewritten.
+
+**Affects.** No number. It affects what the next contributor believes, in exactly the three files
+written to tell them — and it points them away from a signal that now works and towards reading
+logs by hand. `doc/IMPROVEMENTS.md`'s occurrence is the worst of the four, because that file's
+opening paragraph states it describes the *current* state and that history lives in the changelog.
+
+**Fix.** Replace each with what the code does: `execute_checked()` aborts before extraction on a
+non-zero exit, `report_fit_quality()` prints `status`/`covQual` and refuses below `--mincovqual`,
+and the log remains the place to look for a fit that runs, converges badly and exits 0 — the soft
+failure neither guard catches. The `CLAUDE.md:99-102` triage example should stay in the list but in
+the past tense, as the review suggests: it is a good example precisely because it happened here.
+
+### 51. `CLAUDE.md` gives one driver's output-directory shape as every driver's — **Low** — **open; recorded, not fixed**
+
+**What.** [CLAUDE.md:33-35](CLAUDE.md#L33-L35) reads:
+
+> Output defaults to `<repo>/run/` (`out_dir=${OUT_DIR:-$PWD/run}` at the top of each driver) —
+> every output lands under `$out_dir/run_<rangelow>_<rangehigh>_<n>Par/`.
+
+The first half is right for the four drivers that define `out_dir`. The second half is the J100
+driver's layout described as everyone's. Verified against the live lines:
+
+| driver | folder |
+|---|---|
+| `run_anaFit_run2.sh:59` | `$out_dir/run_${rangelow}_${rangehigh}_${pars}Par` |
+| `run_anaFit.sh:55` | `$out_dir/run_${rangelow}_${rangehigh}_${pars}Par` |
+| `run_anaFit_run2_J50.sh:56` | `$out_dir/run_J50_${rangelow}_${rangehigh}_${pars}Par` |
+| `run_anaFit_syst.sh:35` | `$out_dir/run_systematics_${rangelow}_${rangehigh}_${pars}Par` |
+| `run_nloFit.sh:17` | `$out_dir/outOfTheBoxFit` |
+| `run_anaFitLoop.sh:24,40` | `-r` on the command line; no default |
+
+So the sentence is wrong for three of the six and silent about the one that has no default at all.
+J50 is the one that matters: it is named two lines earlier in the same file as a supported entry
+point with a recorded baseline, and `tests/repro.py` looks for its output under `run_J50_…`.
+
+**Where.** [CLAUDE.md:33-35](CLAUDE.md#L33-L35). `README.md` does not make the same claim.
+
+**Affects.** Nothing that runs. A contributor looking for J50's output in `run/run_302_2997_sixPar/`
+finds nothing there, which costs a minute, and this is the lowest-consequence entry in this file.
+Recorded because `CLAUDE.md` is the file whose entire purpose is to be believed without checking.
+
+**Fix.** State the J100 and J50 shapes, since those are the two supported drivers, and say the
+others differ rather than enumerating drivers that cannot run in this tree. The review's suggested
+wording does this.

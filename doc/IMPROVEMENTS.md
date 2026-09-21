@@ -133,6 +133,17 @@ on the plot, so the file is self-describing rather than silently meaning differe
 different runs (issue 48). Deliberately still **one** file: `post_fit.pdf` already carries both fits
 side by side, and a second filename would force a baseline re-cut for a change that moves no number.
 
+**Fixed:** the run folder now holds only the current run's output. Folders are reused, and
+nothing used to clear them, so the selection above — which tests whether a masked file *exists* —
+could pick one left by an earlier run: a fit that passed the gate was plotted, and labelled, as a
+masked fit it never performed, while `plot_postfit.cpp` drew that stale curve into `post_fit.pdf`
+and stamped it with a stale `BHresults.json` global p-value and mask window. `run_anaFit()` now
+deletes every product of a previous run before it writes anything (`python/run_outputs.py`
+enumerates them; `tests/test_run_outputs.py` keeps that list equal to what a run actually
+produces, checked against both baselines). A run that dies part-way therefore leaves no plot
+rather than its predecessor's, while `quickFitLog_*.log` and `edm_*.pdf` — written before the
+failure — survive as the diagnostics they are (issue 49).
+
 **Open, and worth knowing before using either plot:**
 
 - `plot_postfit.cpp` stamps every plot with a hardcoded `#sqrt{s} = 13 TeV, 25 fb^{-1}`. That is
@@ -159,6 +170,23 @@ python3 tests/repro.py env
 python3 tests/repro.py record {J100,J50} [DIR] [--force --reason "..."]
 python3 tests/repro.py check [--quick] [--from DIR [--analysis {J100,J50}]] [--tol-scale SCALE]
 ```
+
+**The trap, stated first because it is the one that stops the harness running.** `record` and
+`check` need `python3` *itself* to have PyROOT importable. The plain lxplus system `python3` does,
+with no setup at all. Three things commonly put a different `python3` first on `$PATH`, and all
+three produce `ERROR: ... has no ROOT module` rather than a wrong answer:
+
+- the repository's own gitignored **`.venv/`** — a local artefact, absent from a fresh clone, that
+  carries pytest but no ROOT bindings. A shell with it active is the most likely cause today,
+  because it is what one would reach for to run the unit tests;
+- **`pyBumpHunter/pyBH_env`**, which holds only the pyBumpHunter egg;
+- an **ATLAS/lsetup** environment sourced into the calling shell.
+
+The unit tests do not need any of them: `python3 -m pytest tests/test_run_outputs.py` runs under
+the same system `python3`, since the modules they import pull in nothing but the standard library.
+If a venv is already active, `env -u VIRTUAL_ENV PATH=/usr/bin:/bin python3 tests/repro.py check`
+is the escape hatch. It fails closed, so this costs a minute rather than a wrong number — recorded
+because it has now cost that minute twice.
 
 `selfcheck` runs the comparator against synthetic data — no ROOT, no ATLAS environment, instant.
 

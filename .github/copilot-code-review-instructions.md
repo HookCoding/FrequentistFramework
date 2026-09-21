@@ -35,7 +35,34 @@ every physics number the framework produces. Its age is the only fact that matte
 unsure when a line was introduced, check with `git log -S` or `git blame`; if you cannot establish
 that the change under review introduced it, do not report it.
 
-**Out of scope, without exception:**
+### Defects already recorded in `KNOWN_ISSUES.md`
+
+**If the defect is described anywhere in `KNOWN_ISSUES.md`, do not report it.** No judgement, no
+exceptions: presence in that file is the whole test. It is the second hard boundary after the
+cut-off commit, and it is checked the same way — before writing a finding, not after.
+
+`KNOWN_ISSUES.md` is this repository's disclosure log, not a to-do list. An entry means the defect
+has been found, investigated and written up, and someone has already decided what to do about it.
+Every numbered entry's `###` heading ends in one of two states, and **both are out of scope**:
+
+- **`Fixed <date>`** — repaired. The code in the diff is very likely the repair.
+- **`open; recorded, not fixed`** — a deliberate decision to leave it. This repository's rule is
+  that recording an issue is the obligation and fixing it is a choice, so an open entry is a closed
+  decision, not an oversight. Ten of the forty entries are in this state.
+
+**Two properties of that file will mislead you if you are not told about them.**
+
+First, **a fixed entry keeps its original description, in the present tense, below the `Fixed`
+marker.** That is deliberate policy: the record of what was wrong is not deleted when it is
+repaired. Issue 43's entry still reads "Every driver sources it as a bare statement and never tests
+the status" three paragraphs under **Fixed**. Read the `###` heading for status. Never infer status
+from the body.
+
+Second, the file is 1795 lines and holds both numbered entries and an **unnumbered table at the
+top** carrying the same force. Search it — by filename, by symbol, by the behaviour you are about
+to describe — rather than reading it front to back.
+
+### Out of scope, without exception
 
 - Any defect introduced at or before `30b8164`, or otherwise present in the base branch. This
   includes incorrect hardcoded values (luminosities, centre-of-mass energies, paths, thresholds,
@@ -45,6 +72,16 @@ that the change under review introduced it, do not report it.
   executed without altering it. If the diff points a new caller at old broken code, the old code
   is still out of scope; only the new call site is reviewable, and only for what it does wrong
   itself.
+- **Documentation that has fallen out of date.** A sentence in `README.md`, `CLAUDE.md`,
+  `doc/IMPROVEMENTS.md` or a code comment that was true of the code when it was written, and was
+  made stale by a later change, is out of scope however plainly wrong it now reads. This is
+  trivial to repair, it is repaired in batches deliberately, and it is not what this review is
+  for. The test is the moment the sentence was written, not the moment you read it: **was it true
+  of the code then?** If yes, say nothing.
+- **A defect the diff repairs.** If the changed lines fix something that was broken before the
+  cut-off commit, that is the work succeeding. Do not report the old behaviour as a finding
+  against the lines that remove it. If you cannot state what is worse after the change than
+  before it, there is no finding.
 - Anything found by reading files the pull request does not touch.
 - Anything in `xmlAnaWSBuilder/`, `quickFit/`, `workspaceCombiner/` or `pyBumpHunter/`. These are
   upstream projects cloned at pinned SHAs, not this repository's code.
@@ -80,10 +117,15 @@ instead of the accepted one, attaches a new label to the wrong quantity, or writ
 name that does not match it. The fit being correct is not a mitigation; nobody reads the fit, they
 read the plot.
 
-**High — a new documentation claim the code does not keep.** The diff adds a sentence to a README,
-`CLAUDE.md`, `KNOWN_ISSUES.md` or a comment asserting a guarantee, a check or a behaviour that the
-code does not implement. A false recorded claim is worse than silence, because it stops the next
-person looking.
+**High — a documentation claim that was never true.** The diff adds a sentence to a README,
+`CLAUDE.md`, `KNOWN_ISSUES.md` or a comment asserting a guarantee, a check or a behaviour the code
+**did not have at the moment that sentence was written**. A false recorded claim is worse than
+silence, because it stops the next person looking.
+
+This is a narrow class, and it is not documentation drift. A claim that was accurate when written
+and has since been overtaken by a later change is out of scope — see the bullet above. Only a
+claim that was false on arrival belongs here. If you cannot show the code never behaved that way,
+do not report it.
 
 **Low — the change fails closed.** A new crash, traceback, refusal or hang. Report it, and say
 plainly that it fails closed, so its severity is not mistaken for the classes above.
@@ -97,7 +139,10 @@ plainly that it fails closed, so its severity is not mistaken for the classes ab
 - Check sibling call sites **within the diff** before writing. There are six shell drivers under
   `scripts/`, two of them near-duplicates (`run_anaFit_run2.sh`, `run_anaFit_run2_J50.sh`), and
   several Python entry points share helpers. If the change touches one and the same mistake is in
-  another changed file, name both.
+  another changed file, write **one finding naming both files** — not one finding per file. One
+  defect in two near-duplicate drivers is one defect.
+- Before writing, confirm the defect is absent from `KNOWN_ISSUES.md`, and say in the finding that
+  you checked.
 - If you are inferring behaviour rather than reading it — an exit code you did not check, a
   histogram bin you did not open — say so rather than asserting it.
 
@@ -113,8 +158,8 @@ Changed lines that follow these are correct:
 - The number of background parameters is parsed from the background card's filename
   (`..._sevenPar.template` → 7). Fragile, known, pre-existing.
 - `.gitignore` deliberately swallows `*.txt`, `*.pdf`, `*.png` and `run/`.
-- Defects already recorded in `KNOWN_ISSUES.md` are known and out of scope. Check there before
-  reporting anything.
+- Defects recorded in `KNOWN_ISSUES.md`. This has its own section above; it is a hard boundary,
+  not a convention.
 
 ## What the existing checks prove
 

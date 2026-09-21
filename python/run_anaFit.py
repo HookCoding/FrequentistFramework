@@ -6,6 +6,7 @@ import json
 from ExtractPostfitFromWS import PostfitExtractor
 from ExtractFitParameters import FitParameterExtractor
 from PreFit import PreFitter
+from run_outputs import derived_outputs
 import subprocess
 import ROOT
 
@@ -236,6 +237,29 @@ def run_anaFit(datafile,
             "Supplying only one would silently fall back to the auto-generated binning, which "
             "stops at 1000 GeV." % (rebinfile, rebinhist)
         )
+
+    # Everything this invocation will write, removed before it writes anything. Run folders are
+    # reused - `folder` is a function of the range and the parameter count - and nothing used to
+    # clear them, so a previous run's output was read as this one's: the drivers select the
+    # postfit file to plot on the *existence* of the masked one, plot_postfit.cpp draws its
+    # masked curve from whatever masked files it finds, and it stamps the plot with
+    # BHresults.json whenever that file is present. A run that does not mask must not inherit a
+    # run that did, and a run that dies must not leave its predecessor's plots looking current.
+    # See KNOWN_ISSUES.md issue 49.
+    #
+    # After the rebin guard above, deliberately: a run refused for bad arguments must not have
+    # destroyed the previous run's output on its way out. By name rather than by wiping the
+    # folder, because run_anaFitLoop.sh hands many invocations one shared folder and a wipe
+    # would take the earlier mass points with it - a name this run will write is one it would
+    # have overwritten anyway. Anything other than "it was not there" is left to raise.
+    removed = 0
+    for stale in derived_outputs(folder, wsfile, outputfile, sigmean, sigwidth, dolimit):
+        try:
+            os.remove(stale)
+            removed += 1
+        except FileNotFoundError:
+            pass
+    print("Cleared %d file(s) left by a previous run in %s" % (removed, folder))
 
     nbins=rangehigh - rangelow
     print("Fitting", nbins, "bins in range", rangelow, "-", rangehigh)

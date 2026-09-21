@@ -75,6 +75,12 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 15:30 — Give Copilot review instructions so it stops trawling](#2026-09-18-1530--give-copilot-review-instructions-so-it-stops-trawling)
 - [2026-09-18 16:05 — Reverse the scope decision: Copilot reviews regressions only](#2026-09-18-1605--reverse-the-scope-decision-copilot-reviews-regressions-only)
 - [2026-09-18 16:30 — Name the cut-off commit in the Copilot instructions](#2026-09-18-1630--name-the-cut-off-commit-in-the-copilot-instructions)
+- [2026-09-21 09:40 — Record the sixth Copilot review: issues 49–51](#2026-09-21-0940--record-the-sixth-copilot-review-issues-4951)
+- [2026-09-21 10:15 — Correct the re-report count in the 09:40 entry](#2026-09-21-1015--correct-the-re-report-count-in-the-0940-entry)
+- [2026-09-21 17:20 — Stale-output plan §1: the derived-output list and its tests](#2026-09-21-1720--stale-output-plan-1-the-derived-output-list-and-its-tests)
+- [2026-09-21 17:55 — Stale-output plan §2: clear the run folder before the run](#2026-09-21-1755--stale-output-plan-2-clear-the-run-folder-before-the-run)
+- [2026-09-21 18:20 — Record the interpreter trap where it will be read](#2026-09-21-1820--record-the-interpreter-trap-where-it-will-be-read)
+- [2026-09-21 18:50 — Tighten the Copilot instructions against re-reports and doc drift](#2026-09-21-1850--tighten-the-copilot-instructions-against-re-reports-and-doc-drift)
 
 ---
 
@@ -2448,3 +2454,324 @@ which "the base branch" did not.
 
 **Verified.** No code changed, so nothing to run. The SHA was confirmed against the commit graph as
 above rather than taken on trust.
+
+## 2026-09-21 09:40 — Record the sixth Copilot review: issues 49–51
+
+**Objective.** A sixth GitHub Copilot review — the first run under the cut-off commit named in
+`.github/copilot-code-review-instructions.md` — returned nine open findings, one High, five Medium
+and three Low. Triage each against the code and record what is new in `KNOWN_ISSUES.md`. The user
+asked for the findings to be *recorded*, so nothing was fixed in this entry.
+
+**Found — six of the nine are re-reports.** Checked one by one rather than taken on the reviewer's
+labels:
+
+> *Miscount, corrected in the 2026-09-21 10:15 entry below: four findings are re-reports, not six.
+> The three items in this list are right; the number is not.*
+
+- Its single **High**, on the drivers not aborting when `setup_buildAndFit.sh`'s guard fires, is
+  issue **43**, fixed 2026-09-17. Re-verified today from a directory holding neither
+  `xmlAnaWSBuilder/` nor `quickFit/`: both messages print and the driver stops, status 1, sourced
+  and under `bash` alike. Nothing reopened.
+- One **Medium**, on `plot_postfit.cpp` being parameterized by channel while something else stayed
+  hardcoded, is issue **44** (the `#sqrt{s} = 13 TeV, 25 fb^{-1}` label), open by decision.
+- Two **Mediums**, one per Run 2 driver, on the failure banner attributing every non-zero exit to a
+  twice-rejected chi2, are issue **47** — now reported three times independently.
+
+Each of those three entries gains a dated re-report note in place rather than a duplicate entry.
+**Both re-reported comments were truncated where they were relayed**, so the identifications rest
+on their opening sentences; the notes say so rather than implying a full-text match.
+
+**Found — three are new, filed as 49–51.**
+
+- **49, Medium, the one that matters.** Issue 48's fix selects the masked postfit file with `-f`,
+  i.e. on *existence*. Run folders are reused — `folder` is a function of range and `pars`, and
+  `run_anaFit.py` only `os.makedirs()` it — so a masked set from an earlier run survives into a
+  later one that passed the gate unmasked, and `postFit.pdf` is drawn from it under the label
+  `masked fit - BumpHunter window blinded`. The label added for issue 48 is what makes this an
+  affirmative mislabel rather than an omission. **The investigation found it one step wider than
+  the review did:** `plot_postfit.cpp` reads the masked PostFit and FitParameters files the same
+  way, and `BHresults.json` too, so a run that never invoked BumpHunter can be stamped with a
+  previous run's global p-value and mask window. `run/run_J50_302_2997_sixPar/` holds a complete
+  stale-able masked set today. Not reachable through `tests/repro.py check`, which wipes its
+  scratch folder first; `record` does not wipe, and a re-cut from a reused folder would pair a
+  fresh `unmasked` block with a stale `masked` one — loudly, on the next `check`, for a reason
+  nobody would guess. Recorded with a fix that differs from the review's: clear the run's derived
+  products at the start of `run_anaFit()` rather than compare mtimes with `-nt`, which fixes all
+  three readers in one place and does not depend on timestamps surviving a copy to EOS.
+- **50, Low.** `CLAUDE.md` still says XMLReader and quickFit only warn on a non-zero exit, in two
+  places, one of them as a present-tense example of the top triage tier. `execute_checked()` has
+  aborted on that exit since 2026-09-18. The review saw the two occurrences in its diff; a grep
+  found the same claim in `README.md:176` and `doc/IMPROVEMENTS.md:242`, so the entry records four
+  occurrences in three current-state documents. `CHANGELOG.md` and `plans/` carry the wording too
+  and are correctly left alone — they are append-only records of what was believed at the time.
+- **51, Low.** `CLAUDE.md` gives `$out_dir/run_<rangelow>_<rangehigh>_<n>Par/` as where "every
+  output lands". Verified against the live `folder=` line of all six drivers: it is right for two,
+  wrong for J50 (`run_J50_…`), the systematics driver (`run_systematics_…`) and the NLO driver
+  (`outOfTheBoxFit`), and silent about `run_anaFitLoop.sh`, which has no default at all. J50 is the
+  one that matters, being a supported entry point with a recorded baseline named two lines earlier
+  in the same file.
+
+**Verified.** No code changed. Every line number cited in the new entries was checked against the
+file rather than copied from the review: the two drivers' selection blocks, `run_anaFit.py`'s
+`os.makedirs`, `tests/repro.py`'s scratch wipe and `record`'s masked extraction,
+`plot_postfit.cpp`'s file opens, and all six drivers' `folder=` lines. The issue-43 re-verification
+above was run, not assumed.
+
+**Left alone, and worth flagging.** `doc/IMPROVEMENTS.md` describes itself as the current state,
+and two of its passages are now known to be wrong: the "Fixed … Both drivers now plot whichever fit
+was accepted" paragraph, which issue 49 qualifies, and the warn-and-return-0 sentence that is half
+of issue 50. Both are recorded in `KNOWN_ISSUES.md` and neither is corrected here, because the
+instruction for this piece of work was to record the review's findings, not to act on them.
+
+## 2026-09-21 10:15 — Correct the re-report count in the 09:40 entry
+
+**Objective.** The repository owner asked which six of the sixth Copilot review's nine findings
+were already documented in `KNOWN_ISSUES.md`. Answering it showed there were not six. There were
+four.
+
+**Found.** The 09:40 entry and the `KNOWN_ISSUES.md` section it filed both said "six are
+re-reports … three are new". The correct split of the nine findings is **four re-reported and five
+new**:
+
+| Copilot finding | |
+|---|---|
+| High — drivers do not abort when the setup check fails | re-report, issue **43** |
+| Medium — `plot_postfit.cpp` parameterized by channel, something else still hardcoded | re-report, issue **44** |
+| Medium — failure banner attributes every non-zero exit to a rejected chi2 (`run_anaFit_run2.sh`) | re-report, issue **47** |
+| Medium — the same, `run_anaFit_run2_J50.sh` | re-report, issue **47** |
+| Medium — stale masked outputs (`run_anaFit_run2.sh`) | new, issue **49** |
+| Medium — the same, `run_anaFit_run2_J50.sh` | new, issue **49** |
+| Low — output-directory guidance scoped to one driver | new, issue **51** |
+| Low — `execute_checked` failure handling undocumented | new, issue **50** |
+| Low — obsolete non-zero-exit example in the triage section | new, issue **50** |
+
+**Where it came from.** The number was obtained by subtracting the three new *entries* from nine,
+not by counting the re-reported *findings*. Five new findings collapse into three entries because
+two pairs are one defect reported twice — once per Run 2 driver for the stale masked output, and
+once per `CLAUDE.md` passage for the stale exit-code claim. The subtraction silently assumed a
+one-to-one mapping that the entries themselves say does not hold.
+
+**Changed.** `KNOWN_ISSUES.md`'s section intro now reads "four are re-reports … the other five are
+new", names why five findings became three entries, and carries a paragraph stating what it said
+before and why it was wrong — the handling issue 24 established for a miscount in that file. The
+09:40 entry above is append-only and keeps its wrong sentence, with a one-line pointer here.
+
+**Nothing else moves.** The three items listed under the wrong number in the 09:40 entry were
+individually correct, and each was verified against the code at the time: issue 43 by re-running
+the wrong-directory case, 44 and 47 by reading the committed entries. The triage of what is new,
+and issues 49–51 themselves, are unaffected — the error was in the arithmetic of the summary, not
+in the findings.
+
+**Verified.** `git diff --numstat KNOWN_ISSUES.md` before this correction showed 188 insertions and
+**0 deletions**, which is the evidence that issues 43, 44 and 47 predate this session's edits and
+were not written to fit the claim: everything in the file apart from the four blocks appended today
+is the committed text.
+
+## 2026-09-21 17:20 — Stale-output plan §1: the derived-output list and its tests
+
+**Objective.** [plans/2026-09-21-stale-run-outputs.md](plans/2026-09-21-stale-run-outputs.md) §1,
+the first of two sections closing `KNOWN_ISSUES.md` issue 49. A list of the files one
+`run_anaFit()` invocation produces, and tests tying that list to the two recorded runs. Nothing
+calls it yet; this section changes no behaviour.
+
+**Found first — the bug reproduced, before any code was written.** Plan Verification step 1, run
+against the *current* code with `OUT_DIR` pointed at a scratch directory:
+
+1. `scripts/run_anaFit_run2.sh` ran clean into an empty folder (3m15s, 14 files, no masked set —
+   J100 passes p(chi2) first time).
+2. A masked set was planted in that folder: `PostFit_anaFit_sixPar_bkgOnly_masked.root` and
+   `FitParameters_…_masked.root` (copies of the real unmasked files, so the plotters would
+   succeed rather than crash) and a `BHresults.json` holding invented values — `global_Pval`
+   0.123, `significance` 1.16, mask window 1234–1456 GeV.
+3. The driver was re-run, unchanged.
+
+The re-run left all three planted files in place and produced, from a fit that never masked and
+never invoked BumpHunter:
+
+- `postFit.pdf` labelled **`masked fit - BumpHunter window blinded`**, drawn from the planted file;
+- `post_fit.pdf` carrying **`global p-val: 0.1230`**, **`significance: 1.16`** and
+  **`mask range: 1234, 1456 GeV`** — numbers that exist nowhere but in the file planted by hand.
+
+Both readers named in issue 49 confirmed, on a real run, with the fabricated values visible in the
+output. This is what the fix has to change.
+
+**Added.** [python/run_outputs.py](python/run_outputs.py) — `derived_outputs(folder, wsfile,
+outputfile, sigmean, sigwidth, dolimit)` returning every file an invocation may write: the four
+templated cards, the workspace and its XMLReader plot, the FitResult and the four products
+`build_fit_extract()` derives from it, the Limits file when `--dolimit`, `BHresults.json`, the two
+driver plots, and the masked twin of each. Masked twins are returned **unconditionally**, which is
+the point — their presence is what the drivers and `plot_postfit.cpp` read as "this run masked".
+No ROOT import, so it is testable without the CVMFS environment. `AnaWSBuilder.dtd` is
+deliberately excluded: a symlink recreated when missing, carrying no run state.
+
+**Added.** [tests/test_run_outputs.py](tests/test_run_outputs.py) — seven tests, **7 passed**. The
+two that matter tie the list to reality rather than to itself:
+
+- J50's recorded run masked, so its `directory_listing` is the complete product set: the derived
+  set equals it exactly, minus the dtd.
+- J100's run never entered the masking path, so its listing is a strict subset, and the difference
+  is asserted to be exactly that path's ten products — the nine masked twins and `BHresults.json`.
+
+The rest cover the Z' `mR` card renaming, the Limits file appearing only with `--dolimit`, every
+path being inside the run folder, and the dtd never being returned.
+
+**Verified.** `.venv/bin/pytest tests/test_run_outputs.py` — 7 passed. Then the check that the
+tests are worth having: `BHresults.json` was removed from the list, and **3 of the 7 failed**;
+restored, all 7 pass again. The same discrimination check issue 21's fix used. The regression
+these tests exist to catch — a product added to `run_anaFit.py` and not to `run_outputs.py` — is
+the one they were shown to catch.
+
+**One correction during the work.** The J100 test first asserted the difference was "exactly the
+masked twins", and failed: `BHresults.json` is also absent from J100's listing, because
+`FindBHWindow.py` writes it only when the masking path runs. The assertion was too narrow, not the
+code. It now names all ten files explicitly, which says something stronger than the original.
+
+**Not done here.** Nothing calls `derived_outputs()` — the deletion itself, the verification runs
+and the documentation are §2, which stops for review first, per
+[CLAUDE.md](CLAUDE.md)'s rule on implementing plans in reviewable sections.
+
+## 2026-09-21 17:55 — Stale-output plan §2: clear the run folder before the run
+
+**Objective.** [plans/2026-09-21-stale-run-outputs.md](plans/2026-09-21-stale-run-outputs.md) §2:
+call §1's list, verify against the demonstrated failure and both baselines, and write the
+documentation. Closes `KNOWN_ISSUES.md` issue 49.
+
+**Changed.** [python/run_anaFit.py](python/run_anaFit.py) — `run_anaFit()` removes every path
+`derived_outputs()` names, ignoring `FileNotFoundError` and letting anything else raise, then
+prints one line with the count. Placed **after** the `--rebinfile`/`--rebinhist` guard, so a run
+refused for bad arguments does not destroy the previous run's output on its way out; that
+ordering is deliberate and commented as such.
+
+**Changed.** Both Run 2 drivers' comment above the postfit selection now says why testing for the
+masked file's *existence* is sound — because the folder is cleared first — rather than leaving a
+reader to assume it. `doc/IMPROVEMENTS.md`'s postfit section gains the fix, including what a
+crashed run now leaves: no plot rather than its predecessor's, while `quickFitLog_*.log` and
+`edm_*.pdf` survive as the diagnostics they are.
+
+**Verified — the fix flips the failure demonstrated in the 17:20 entry.** Same scratch folder,
+same planted files (a masked `PostFit`/`FitParameters` pair and a `BHresults.json` with invented
+values), same driver, unchanged:
+
+| | before §2 | after §2 |
+|---|---|---|
+| planted files after the run | all three still there | gone (`Cleared 16 file(s)…`) |
+| `postFit.pdf` label | `masked fit - BumpHunter window blinded` | `unmasked fit` |
+| `post_fit.pdf` | `global p-val: 0.1230`, `mask range: 1234, 1456 GeV` | no BumpHunter numbers |
+
+**Verified — the regression lock.** `tests/repro.py check`: 26/26 environment checks, input
+hashes match, **PASS on J100 and PASS on J50**, both against the committed baselines, neither
+re-cut. 3m28s. The `directory_listing` comparison is the part that matters here: every file
+deleted at the start of a run is rewritten by that same run, so the recorded listings are
+unchanged. J50's scratch run still produces its nine masked files and its `postFit.pdf` still
+reads `masked fit - BumpHunter window blinded`. `.venv/bin/pytest tests/test_run_outputs.py` — 7
+passed.
+
+**Verified — nothing else moved.** `run/run_481_3000_sixPar/`, `run/run_J50_302_2997_sixPar/` and
+both baseline files have byte-identical mtimes to before the work; every run went to a scratch
+`OUT_DIR`.
+
+**One thing worth recording about the run, not the fix.** The first `check` attempt failed
+immediately with *"`.venv/bin/python` has no ROOT module … Deactivate any active virtualenv"*.
+That is `tests/repro.py`'s own guard doing its job: this session's shell has the repository
+`.venv` active, and the harness needs the system `python3` that carries PyROOT. Re-run with
+`env -u VIRTUAL_ENV PATH=/usr/bin:…` and `/usr/bin/python3`, it passed. Noted because the
+combination of an active `.venv` (which the new unit tests use) and `check` (which must not use
+it) is a trap the next person will meet.
+
+## 2026-09-21 18:20 — Record the interpreter trap where it will be read
+
+**Objective.** The 17:55 entry noted, as an aside, that `tests/repro.py check` had to be re-run
+with the system `python3` because this session's shell had the repository `.venv` active. The
+repository owner's instruction: a trap belongs in the current-state documentation, not only in
+the history. `doc/IMPROVEMENTS.md` is where someone looks to find out how the harness behaves;
+`CHANGELOG.md` is where someone looks only if they already know to.
+
+**Found, while writing it up.** The trap was half self-inflicted. `tests/test_run_outputs.py`'s
+docstring said to run it as `.venv/bin/pytest …`, which is wrong twice over: `.venv/` is
+gitignored and absent from a fresh clone, and it is precisely the environment `check` refuses.
+Tested: `python3 -m pytest tests/test_run_outputs.py` under the plain system `python3` — **7
+passed**. The modules the tests import pull in nothing beyond the standard library, which was a
+design goal of §1 and which the docstring then threw away.
+
+**Changed.**
+
+- `tests/test_run_outputs.py` — the docstring now says `python3 -m pytest`, and says why not the
+  venv.
+- `doc/IMPROVEMENTS.md` — the harness section opens with the trap: the three things that put a
+  non-PyROOT `python3` first on `$PATH` (`.venv/`, `pyBumpHunter/pyBH_env`, a sourced
+  ATLAS/lsetup environment), the fact that the unit tests need none of them, and the
+  `env -u VIRTUAL_ENV PATH=/usr/bin:/bin` escape hatch.
+- `README.md` — its existing PyROOT paragraph named only two of the three causes. `.venv/` is
+  added, with the escape hatch and a line separating the unit tests, which want the opposite of
+  what `check` wants.
+
+**Why `.venv` was missing from that list.** The README paragraph was written before this
+repository had a `.venv`; the venv arrived with pytest, and §1's unit tests are the first thing
+that makes reaching for it natural. The documentation was accurate when written and became
+incomplete through a change elsewhere — the same drift as issues 50 and 51, caught this time
+within the hour rather than by an external review.
+
+**Verified.** `python3 -m pytest tests/test_run_outputs.py` under `env -u VIRTUAL_ENV
+PATH=/usr/bin:/bin` — 7 passed, no ROOT, no ATLAS setup. No code changed, so nothing else to run.
+
+## 2026-09-21 18:50 — Tighten the Copilot instructions against re-reports and doc drift
+
+**Objective.** The sixth review returned nine findings of which four were re-reports of issues
+already in `KNOWN_ISSUES.md` (one of them already fixed) and three were documentation drift the
+owner considers trivial and batch-fixable. Both classes are noise against the question the review
+exists to answer. Asked for by the repository owner after reading the diagnosis of why the
+re-reports happened.
+
+**Found — why the existing rule failed.** The dedup rule existed, as a single bullet, as the last
+item of *"Conventions here that are not defects"* — a section otherwise about idioms that look
+wrong but are not, such as commented-out configuration blocks and the `-999` sentinel. It had no
+method attached. The cut-off rule, by contrast, has its own section, is bolded, is restated three
+times and names the commands to establish an answer. All four re-reported defects live in code
+this work introduced, so they pass the strongly-stated rule; only the weakest-stated one excluded
+them. Two further causes, both structural:
+
+- **`KNOWN_ISSUES.md` reads as open even where it is fixed.** By this repository's own policy a
+  fixed entry keeps its original description, present tense, below the `Fixed` marker. Issue 43's
+  entry still says "Every driver sources it as a bare statement and never tests the status" three
+  paragraphs under **Fixed**. Anything searching that file for a defect finds prose that reads
+  like an open one. The instructions said "check there" and never mentioned it.
+- **Nothing said that a fix is not a finding.** Issue 43 was reported against the guard block that
+  *is* its fix.
+
+**Changed.** [.github/copilot-code-review-instructions.md](.github/copilot-code-review-instructions.md),
+124 lines to 169:
+
+- New `### Defects already recorded in KNOWN_ISSUES.md`, promoted to sit beside the cut-off commit
+  as the second hard boundary. The rule is mechanical — *if the defect is described anywhere in
+  that file, do not report it* — with both entry states spelled out as equally out of scope, the
+  present-tense-body trap named explicitly with issue 43 as the worked example, and instructions
+  to search the file rather than read it and to trust the `###` heading over the body.
+- New out-of-scope bullet for **documentation that has fallen out of date**, with a test that can
+  actually be applied: was the sentence true of the code *when it was written*? If yes, it is
+  drift and is silent. That is the class issues 50 and 51 belong to.
+- The **High** ranking for documentation claims is narrowed accordingly: it now covers only a
+  claim that was false *on arrival*, and says in terms that this is not drift. That class is kept
+  deliberately — it is why issue 43 was fixed at all, a fails-closed defect fixed because the
+  documentation asserted the opposite.
+- New out-of-scope bullet for **a defect the diff repairs**.
+- The sibling-call-site rule now says **one finding naming both files, not one per file**. Five of
+  the nine findings in the last review were the same defect reported once per driver or once per
+  passage.
+- A new *Writing a finding* bullet requiring the `KNOWN_ISSUES.md` check to be stated in the
+  finding, so the check is visible rather than assumed.
+- The old one-line bullet is replaced by a pointer to the new section, and the out-of-scope list
+  gains its own `###` heading — inserting the new section before it had left the list nested under
+  it, attached to the wrong rule.
+
+**Decided.** Drift is excluded; a claim that was never true is not. Those are different defects
+with different consequences: a stale sentence costs a reader a minute, a sentence that was false
+when written stops the next person looking for a problem that is really there. The instructions
+now state the distinction as a single checkable question rather than leaving it to judgement.
+
+**Verified.** Prose only, nothing to run. The two factual claims added to the file were checked
+against the tree: `KNOWN_ISSUES.md` is 1795 lines, and of its forty numbered entries thirty are
+`Fixed` and ten `open; recorded, not fixed`.
+
+**Not done.** Issues 50 and 51 themselves — the drift in `CLAUDE.md`, `README.md` and
+`doc/IMPROVEMENTS.md` — remain open and recorded. This change stops them being *re-reported*; it
+does not repair them.

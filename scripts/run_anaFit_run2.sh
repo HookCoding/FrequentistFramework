@@ -119,6 +119,12 @@ out_dir=${OUT_DIR:-$PWD/run}
             # whichever fit was accepted, and the label says which that is - the label is
             # what keeps this from being a silent substitution.
             #
+            # The test is existence, which is only sound because run_anaFit.py deletes every
+            # product of a previous run before it starts: a masked file found here was
+            # written by THIS run. It used to be whatever the folder happened to hold, so a
+            # run that passed the gate could plot, and label, a masked fit from an earlier
+            # one (KNOWN_ISSUES.md issue 49).
+            #
             # Deliberately ONE file, not two: post_fit.pdf from plot_postfit.cpp already
             # draws the unmasked and masked fits side by side with the masked region and the
             # BumpHunter p-value, so the rejected fit stays available as a diagnostic. A

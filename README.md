@@ -216,9 +216,14 @@ python3 tests/repro.py check                # both analyses, incl. J50's BumpHun
 **`record`/`check` need `python3` itself to already have PyROOT importable** — the plain lxplus
 system `python3` has this with no setup at all, which is what the driver subprocesses they launch
 are sourced against anyway. Run them from a shell that has *not* activated
-`pyBumpHunter/pyBH_env` (it carries no ROOT bindings, only the pyBumpHunter egg) or sourced an
-ATLAS/lsetup environment that puts a different `python3` first on `$PATH` — either produces a
-clear `ERROR: ... has no ROOT module` rather than running.
+the repository's gitignored `.venv/` (pytest, no ROOT bindings) or `pyBumpHunter/pyBH_env` (the
+pyBumpHunter egg, no ROOT bindings), and has not sourced an ATLAS/lsetup environment that puts a
+different `python3` first on `$PATH` — each produces a clear `ERROR: ... has no ROOT module`
+rather than running. From a shell that already has one active,
+`env -u VIRTUAL_ENV PATH=/usr/bin:/bin python3 tests/repro.py check` gets past it.
+
+The unit tests under `tests/test_*.py` are the other way round: `python3 -m pytest tests/` needs
+no ROOT and no ATLAS environment, and runs under that same system `python3`.
 
 `check` re-runs the driver(s) with `OUT_DIR` pointed at a scratch directory — `run/` itself is
 never touched — and compares the fitted parameters, `minNll`, chi2/p-values, postfit bins and
