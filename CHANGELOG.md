@@ -83,6 +83,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 22:20 — Decomposition §6a: split the binning half of `PostfitExtractor.Extract()` into five single-purpose functions](#2026-09-18-2220--decomposition-6a-split-the-binning-half-of-postfitextractorextract-into-five-single-purpose-functions)
 - [2026-09-18 23:10 — Decomposition §6b: split the workspace half of `PostfitExtractor.Extract()` into six single-purpose functions](#2026-09-18-2310--decomposition-6b-split-the-workspace-half-of-postfitextractorextract-into-six-single-purpose-functions)
 - [2026-09-21 14:10 — Decomposition §7: split `FindBHWindow.main()` into seven single-purpose functions](#2026-09-21-1410--decomposition-7-split-findbhwindowmain-into-seven-single-purpose-functions)
+- [2026-09-21 15:10 — Decomposition §8: give `python/plotPostFit.py` a `main(argv)`, split `plot_edm.py`'s one function into two](#2026-09-21-1510--decomposition-8-give-pythonplotpostfitpy-a-mainargv-split-plot_edmpys-one-function-into-two)
 
 ---
 
@@ -2984,3 +2985,72 @@ whatever directory the process started from — the repository root, for every r
 tests/run_all.sh` (unit suite, then `repro.py check` on both analyses) — PASS. The full check, not
 `--quick`: J100 passes the p(chi2) gate and never calls this module, so only the J50 leg exercises
 it end to end. No baseline re-cut.
+
+## 2026-09-21 15:10 — Decomposition §8: give `python/plotPostFit.py` a `main(argv)`, split `plot_edm.py`'s one function into two
+
+**Objective.** Plan section 8. `plotPostFit.py` had no functions at all: ninety-four lines of
+module-level script that called `parser.parse_args()` against `sys.argv` and mutated
+`ROOT.gStyle`/`ROOT.gROOT` the instant the module was imported. That is what made it untestable —
+merely writing `import plotPostFit` inside this suite would have consumed pytest's own argv and
+demanded `-i`/`-o` it doesn't have. Wrapping the body in `main(argv)` is the section's real
+content; the six helper extractions around it are the easy part. `plot_edm.py` already had one
+function, `plot_minuit_continuous()`; the plan's split of it into `parse_edm_trace()` (the log
+scraper) and `_plot_edm_trace()` (the renderer) is what changed there.
+
+**`plotPostFit.py`: six functions plus `main(argv)`.** `_parse_args(argv)`; `_load_histograms
+(postfit_file, channel)`, which reads `<channel>/postfit`, `<channel>/data` and `<channel>/chi2`
+from an already-open file — the *unrebinned, non-background-only* channel, while the p(chi2) gate
+at `run_anaFit.py:189` reads `<channel>_bkgonly_rebinned` and `plot_postfit.cpp` reads
+`<channel>_bkgonly`. Three consumers of one `PostFit_*.root`, three different directory
+conventions, none of them agreeing; `_load_histograms`'s docstring now says so. `_style_histograms
+(data, postfit)`; `_draw_main_pad(data, postfit)`, returning the canvas, the pad and the legend;
+`_draw_fit_labels(rchi2, label)`, returning the `TLatex`; `_draw_ratio_pad(data, postfit)`,
+returning the pad and the ratio histogram. Every draw helper returns what it built rather than
+letting it go out of scope, because PyROOT deletes a C++ object the instant nothing in Python
+still references it — a pad or a legend built and returned by a function that then discarded its
+own reference would vanish before `main()` ever reaches `SaveAs()`. `main(argv)` is what the two
+`ROOT.gStyle.SetOptStat(0)`/`ROOT.gROOT.SetBatch(True)` calls move inside, and what now carries
+the `if __name__ == "__main__": sys.exit(main(sys.argv[1:]))` guard the file never had — until
+this section the module had no `__main__` guard at all and simply ran as an import side effect.
+
+Two things it reads back that are already-fixed, pre-existing findings rather than new ones:
+`KNOWN_ISSUES` issue 45 (bin 2 of the chi2 histogram holds chi2/ndof, not the p-value that bin 6
+holds — the code already reads bin 2, and stayed that way) and issue 48 (which fit — masked or
+unmasked — is drawn, carried by the `-l/--label` argument the drivers now always pass). Both keep
+their comments verbatim; nothing about either changed here beyond being covered by a test for the
+first time.
+
+**`plot_edm.py`: two functions.** `parse_edm_trace(filename)` scrapes `[iteration, FCN, Edm,
+NCalls]` out of a quickFit Minuit2 log with the regex on line 9, unchanged, and returns
+`(cumulative_x, edm_values, star_indices)`; `FileNotFoundError` still prints and calls
+`sys.exit(1)` rather than propagating. `_plot_edm_trace(cumulative_x, edm_values, star_indices,
+outname)` renders and saves the trace, including the `if not cumulative_x: print("No matching
+data found."); return` early-out — that decision belongs to whether to render, not to how the log
+was parsed, which is why it moved into the plotting half rather than the scraping half.
+`plot_minuit_continuous(filename, outname)` becomes the two-line coordinator; the `if __name__`
+guard is untouched. `parse_edm_trace` keeps its name without a leading underscore, as the plan
+specifies (`_plot_edm_trace` right next to it does carry one) — it is the one pure function in the
+file and the one place a silent regex drift would go unnoticed, since `run_anaFit.py:179` calls
+this script with plain `execute()` and discards its exit code.
+
+While writing its test, found that the regex's `[-e\d.]+` character class has no `+` in it: a
+value written in positive-exponent notation (`1.0e+02`) fails the FCN or Edm capture outright and
+the whole line is silently dropped, not just misparsed. Caught before it shipped as a wrong test
+rather than as a wrong assumption about the code — the test now asserts scientific notation with a
+negative exponent, which is what the class actually accepts, and the `+` case is left alone. Not
+filed in `KNOWN_ISSUES`: this file is a diagnostic EDM-convergence plot whose caller already
+discards its exit code, so the failure mode is a sparser debug PNG, not a number that reaches a
+gate, a plot a physicist reads for the result, or a paper.
+
+**Decided, as the plan asked.** `plot_edm.py` imports `matplotlib.pyplot` without selecting a
+backend, unlike `FindBHWindow.py`, which sets `Agg` at its top. It works today because both
+drivers run headless. The plan offered adding `matplotlib.use("Agg")` here too as a one-line
+change for review rather than assuming it; left out, as previewed before this section started,
+since it was not asked for.
+
+**Verified.** `python3 -m pytest tests -q` — 230 passed (211 from §1–§7, 19 new: 12 for
+`plotPostFit.py`, 7 for `plot_edm.py`). Both modules were also run exactly as production invokes
+them, outside pytest entirely: `python python/plotPostFit.py -i tests/fixtures/PostFit_J100_sixPar.root
+-o <tmp>/postFit.pdf -c J100yStar06 -l "unmasked fit"` and `python plot_edm.py <log> <png>`, each
+exiting 0 and writing a non-empty file. `bash tests/run_all.sh` (unit suite, then `repro.py check`
+on both analyses) — PASS. No baseline re-cut.

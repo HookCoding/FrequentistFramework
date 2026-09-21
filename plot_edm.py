@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 
-def plot_minuit_continuous(filename, outname):
+def parse_edm_trace(filename):
     # Regex to capture: [iteration] [FCN] [Edm] [NCalls]
     pattern = re.compile(r"VariableMetric.*\s+(\d+)\s+-\s+FCN\s+=\s+([-e\d.]+)\s+Edm\s+=\s+([-e\d.]+)\s+NCalls")
 
@@ -34,6 +34,9 @@ def plot_minuit_continuous(filename, outname):
         print("Error: The file was not found.")
         sys.exit(1)
 
+    return cumulative_x, edm_values, star_indices
+
+def _plot_edm_trace(cumulative_x, edm_values, star_indices, outname):
     if not cumulative_x:
         print("No matching data found.")
         return
@@ -68,6 +71,10 @@ def plot_minuit_continuous(filename, outname):
     #print(f"Total runs (stars):   {len(star_indices)}")
     #print(f"Plot saved to:        {outname}")
     print("-" * 35)
+
+def plot_minuit_continuous(filename, outname):
+    cumulative_x, edm_values, star_indices = parse_edm_trace(filename)
+    _plot_edm_trace(cumulative_x, edm_values, star_indices, outname)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
