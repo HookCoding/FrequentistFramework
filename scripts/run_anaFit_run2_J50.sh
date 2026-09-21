@@ -6,6 +6,9 @@
 # Run from the repository root:   . scripts/run_anaFit_run2_J50.sh
 #
 # The J100 configuration lives in scripts/run_anaFit_run2.sh and is not touched by this.
+# Shared with run_anaFit_run2.sh: scripts/lib/anafit_driver.sh.
+
+. scripts/lib/anafit_driver.sh
 
 out_dir=${OUT_DIR:-$PWD/run}
 
@@ -14,12 +17,10 @@ out_dir=${OUT_DIR:-$PWD/run}
     # from a sourced script hands control straight back here. `return` works when this
     # driver is sourced, as the header says to; `exit` covers `bash scripts/...` (which is
     # how tests/repro.py runs it). Not a bare `exit` - that would kill an interactive shell.
-    if ! . scripts/setup_buildAndFit.sh; then
+    if ! _setup_environment "$out_dir"; then
         echo "ERROR: run this from the FrequentistFramework repository root." >&2
         return 1 2>/dev/null || exit 1
     fi
-
-    mkdir -p $out_dir
 
     # Set if any fit below exits non-zero. Reset on every run, because this script is
     # sourced and a stale value from a previous run would be reported as this one's.
@@ -83,30 +84,9 @@ out_dir=${OUT_DIR:-$PWD/run}
             nbkg="dummy" #overwritten by prefit
             maskthreshold=0.01
 
-            flags=""
-            if (( $dosignal )); then flags="$flags --dosignal"; fi
-            if (( $dolimit  )); then flags="$flags --dolimit";  fi
-            if (( $doprefit )); then flags="$flags --doprefit"; fi
+            flags=$(_build_flags $dosignal $dolimit $doprefit)
 
-            ./python/run_anaFit.py \
-                --datafile $datafile \
-                --datahist $datahist \
-                --backgroundfile $backgroundfile \
-                --signalfile $signalfile \
-                --categoryfile $categoryfile \
-                --topfile $topfile \
-                --wsfile $wsfile \
-                --sigmean $sigmean \
-                --sigwidth $sigwidth \
-                --nbkg $nbkg \
-                --rangelow $rangelow \
-                --rangehigh $rangehigh \
-                --outputfile $outputfile \
-                --maskthreshold $maskthreshold \
-                --folder $folder \
-                --rebinfile $rebinfile \
-                --rebinhist "$rebinhist" \
-                $flags
+            _run_anafit
             fitstatus=$?
             if [[ $fitstatus -ne 0 ]]; then
                 anafit_failed=$fitstatus
@@ -127,28 +107,10 @@ out_dir=${OUT_DIR:-$PWD/run}
             # BumpHunter p-value, so the rejected fit stays available as a diagnostic. A
             # second file here would add a name to the run folder, which tests/repro.py
             # compares exactly, forcing a baseline re-cut for a change that moves no number.
-            postfit_to_plot=${folder}/PostFit_anaFit_${pars}Par_bkgOnly.root
-            postfit_label="unmasked fit"
-            if [[ -f ${folder}/PostFit_anaFit_${pars}Par_bkgOnly_masked.root ]]; then
-                postfit_to_plot=${folder}/PostFit_anaFit_${pars}Par_bkgOnly_masked.root
-                postfit_label="masked fit - BumpHunter window blinded"
-            fi
-            python python/plotPostFit.py -i "$postfit_to_plot" \
-                                         -o ${folder}/postFit.pdf -c "$channel" \
-                                         -l "$postfit_label"
-
-            root -l -q "plot_postfit.cpp(\"$folder\", \"$pars\", \"$channel\")"
+            _select_postfit "$folder" "$pars"
+            _make_plots "$postfit_to_plot" "$folder" "$channel" "$postfit_label" "$pars"
         done
     done
 
-    if [[ -n $anafit_failed ]]; then
-        echo
-        echo "ERROR: run_anaFit.py exited $anafit_failed - the fit did not pass p(chi2) even with"
-        echo "       the BumpHunter window masked, so this result must not be used. The plots in"
-        echo "       $out_dir are diagnostics only. See KNOWN_ISSUES.md issue 38."
-    fi
-    # Report the fit's own verdict as this script's status. Not `exit`: the header says to
-    # source this script, and tests/repro.py runs it with `bash` - a subshell exit sets $?
-    # for both without killing an interactive shell.
-    ( exit ${anafit_failed:-0} )
+    _report_failure "$anafit_failed" "$out_dir"
 }

@@ -87,6 +87,11 @@ with the toy fits fanned out over HTCondor via `submission/condor_handler.py` +
   formats need `git add -f`.
 - Shell drivers are heavily commented-out configuration history (alternative `datafile`,
   `folder`, `sysfile` paths). Prefer editing the live lines over deleting the record.
+- `scripts/run_anaFit_run2.sh` and `scripts/run_anaFit_run2_J50.sh` share everything past their
+  own configuration block through `scripts/lib/anafit_driver.sh`, which both source. Edit the
+  fit invocation, the masked/unmasked plot selection or the failure banner there, not in either
+  driver — a change made only in one driver's tail has no effect and will not reach the other
+  analysis. `tests/test_drivers.py` covers it directly.
 - Analysis flavours live side by side under `config/` and `Input/`: `dijetTLA`, `dijetTLAnlo`,
   plus legacy `bbyy`, `ttHyy`, `high_mass_diphoton`.
 
@@ -129,6 +134,15 @@ For each section:
 
 A section is not finished until its documentation is written, in the same section as the code.
 This is standing — it does not need to be asked for each time.
+
+`CHANGELOG.md` records that the work happened; it is not where a future reader looks to find out
+how the program behaves now. When a section changes what the program *does* — where logic now
+lives, what editing one file does or does not affect, a convention someone touching this code
+would need to know — that fact belongs in `README.md`, and, if it is something a future Claude
+Code session should know before touching the code, in this file's own Conventions and traps
+section too. Check both on every section, not only when asked: a change that would surprise
+someone editing the code without reading the full diff is exactly the kind of thing a section
+being "finished" is supposed to rule out.
 
 If a section turns out to be bigger than expected, split it further rather than pressing on. If
 the plan turns out to be wrong mid-way, stop and say so rather than improvising around it: a

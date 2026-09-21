@@ -88,6 +88,14 @@ AFS home quotas are too small for hundreds of runs. **`OUT_DIR` does not reach
 Other drivers: `scripts/run_nloFit.sh` (NLO-template fit), `scripts/run_anaFit_syst.sh`,
 `scripts/run_anaFitLoop.sh`, `scripts/run_swiftFit.py`.
 
+**The two Run 2 drivers share everything past their own configuration block** (range, data
+file, card paths, rebinning) through `scripts/lib/anafit_driver.sh`, which each sources near
+the top of the file. Change the fit invocation, the plotting step or the failure banner in
+that shared file, not in either driver — an edit made only in one driver's tail has no effect
+there and will not show up in the other analysis either. `tests/test_drivers.py` exercises the
+shared functions directly and checks that both drivers still invoke `run_anaFit.py` with the
+same set of flags.
+
 **Check the exit status of the two Run 2 drivers.** If a fit fails p(chi2), has its most
 significant window masked by BumpHunter, is re-fitted and *still* fails, `run_anaFit.py` reports
 that as a non-zero exit and the driver prints an `ERROR: … this result must not be used` banner
@@ -189,6 +197,10 @@ The `chi2` histogram's bins are labelled, in order: `chi2`, `chi2/ndof`, `nbins`
   (`mR<mass>`), the POI name and the temp card filenames.
 - Shell drivers carry heavily commented-out configuration history. Prefer editing the live
   lines over deleting the record.
+- **The Run 2 drivers' shared logic lives in one place, `scripts/lib/anafit_driver.sh`.**
+  Only each driver's own configuration block is duplicated by design; the fit invocation, the
+  masked/unmasked plot selection and the failure banner are each one function, sourced and
+  called by both `run_anaFit_run2.sh` and `run_anaFit_run2_J50.sh`.
 
 # Validation studies
 

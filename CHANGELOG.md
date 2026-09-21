@@ -84,6 +84,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-18 23:10 — Decomposition §6b: split the workspace half of `PostfitExtractor.Extract()` into six single-purpose functions](#2026-09-18-2310--decomposition-6b-split-the-workspace-half-of-postfitextractorextract-into-six-single-purpose-functions)
 - [2026-09-21 14:10 — Decomposition §7: split `FindBHWindow.main()` into seven single-purpose functions](#2026-09-21-1410--decomposition-7-split-findbhwindowmain-into-seven-single-purpose-functions)
 - [2026-09-21 15:10 — Decomposition §8: give `python/plotPostFit.py` a `main(argv)`, split `plot_edm.py`'s one function into two](#2026-09-21-1510--decomposition-8-give-pythonplotpostfitpy-a-mainargv-split-plot_edmpys-one-function-into-two)
+- [2026-09-21 16:20 — Decomposition §9: hoist the two Run 2 drivers' shared body into `scripts/lib/anafit_driver.sh`](#2026-09-21-1620--decomposition-9-hoist-the-two-run-2-drivers-shared-body-into-scriptslibanafit_driversh)
 
 ---
 
@@ -3054,3 +3055,80 @@ them, outside pytest entirely: `python python/plotPostFit.py -i tests/fixtures/P
 -o <tmp>/postFit.pdf -c J100yStar06 -l "unmasked fit"` and `python plot_edm.py <log> <png>`, each
 exiting 0 and writing a non-empty file. `bash tests/run_all.sh` (unit suite, then `repro.py check`
 on both analyses) — PASS. No baseline re-cut.
+
+## 2026-09-21 16:20 — Decomposition §9: hoist the two Run 2 drivers' shared body into `scripts/lib/anafit_driver.sh`
+
+**Objective.** Plan section 9. `scripts/run_anaFit_run2.sh` (J100) and `scripts/run_anaFit_run2_J50.sh`
+(J50) were byte-identical from the `nbkg="dummy"` line onward — verified line by line before
+touching either file, since the plan's own citation ("from line ~79 onward") was approximate: the
+identical tail actually starts at J100 line 80 / J50 line 83. Everything before that point is each
+driver's own configuration block (range, data file and histogram, card paths, rebinning file) and
+stays where it is. The failure mode this section removes is "edited J100, forgot J50": until now,
+nothing stopped the two copies of that tail from drifting apart one edit at a time.
+
+**Decided, per the plan's own flagged trade-off.** The plan states the choice rather than
+defaulting it: hoist the shared body into a sourced library, or leave the two drivers duplicated
+and rely only on a same-flags test to catch divergence. Put to the user directly before writing
+any code; the answer was to hoist, matching the plan's own worked-through function list and its
+stated final role for each driver ("its configuration block ... followed by one call into the
+shared body").
+
+**`scripts/lib/anafit_driver.sh`: six functions**, sourced by both drivers near the top of each
+file. `_setup_environment(out_dir)` sources `scripts/setup_buildAndFit.sh` and creates `out_dir`,
+returning non-zero when the sourced script refuses (wrong working directory — KNOWN_ISSUES.md
+issue 43). The driver's own `if ! _setup_environment "$out_dir"; then ... return 1 2>/dev/null ||
+exit 1; fi` guard stays in the driver itself, not inside the function: `return` here needs to exit
+the *sourced driver script*, which only works when it executes at the driver's own top level, not
+one function-call frame deeper. `_build_flags(dosignal, dolimit, doprefit)` turns the three
+switches into the flags string. `_run_anafit()` reads its many inputs (datafile, datahist,
+rangelow, …) from the caller's shell variables rather than taking them as positional
+parameters — with eighteen of them and one already a multi-word quoted string (`rebinhist`), a
+positional signature would be more error-prone than the thing it replaces. It also honours a new
+`RUN_ANAFIT` environment variable (default `./python/run_anaFit.py`), which is what lets
+`tests/test_drivers.py` intercept the call without touching the real fit. `_select_postfit(folder,
+pars)` picks the masked or unmasked PostFit file and label — the exact branch that fixed
+KNOWN_ISSUES.md issue 48, now shared instead of duplicated. `_make_plots(postfit_to_plot, folder,
+channel, label, pars)` runs `plotPostFit.py` and `plot_postfit.cpp`. `_report_failure
+(anafit_failed, out_dir)` prints the failure banner (KNOWN_ISSUES.md issue 47: it fires on *any*
+non-zero exit, not only a failed p(chi2) gate — pinned, not fixed here either) and, as its last
+statement, `( exit ${anafit_failed:-0} )` — relied on being the last statement in the driver's own
+`{ ... }` block so that exit status becomes the block's.
+
+Both drivers' command strings, comments and configuration values are untouched: diffed each
+rewritten driver against its original with everything but the intended substitution removed, and
+the only differences are the new `. scripts/lib/anafit_driver.sh` source line and the six call
+sites replacing their old inline bodies.
+
+**Added `tests/test_drivers.py` (22 tests).** Runs `bash -n` on both drivers; calls each of the six
+library functions directly by sourcing the library into a throwaway `bash -c`, including all eight
+`dosignal`/`dolimit`/`doprefit` combinations for `_build_flags` and both branches of
+`_select_postfit`; and runs each full driver end to end via `bash scripts/run_anaFit_run2*.sh` with
+`RUN_ANAFIT` and `PATH`-shadowed `python`/`root` stubs recording their argv. The test that matters
+most: `test_both_drivers_emit_the_same_flag_names_differing_only_in_the_ten_configured_values`
+asserts the two drivers' `run_anaFit.py` invocations carry the identical *set* of `--flag` names
+and differ in value only for `--rangelow`, `--rangehigh`, `--datafile`, `--datahist`,
+`--categoryfile`, `--outputfile`, `--folder`, `--wsfile`, `--rebinfile` and `--rebinhist` — ten,
+matching the plan's own count, worked out independently by diffing the two drivers' recorded
+calls rather than assumed from the plan text. This is the test built to fail the moment a flag is
+added to one driver and not the other.
+
+**Verified.** `python3 -m pytest tests -q` — 252 passed (230 from §1–§8, 22 new). `bash
+tests/run_all.sh` (unit suite, then `repro.py check`, **not** `--quick`) — PASS: both drivers ran
+for real, through the new shared library, end to end, and matched `baseline_J100.json` and
+`baseline_J50.json` bin for bin. No baseline re-cut.
+
+**Documented**, prompted by a request to make sure a new user would notice this architecture
+change rather than editing a now-empty driver tail and wondering why nothing happened.
+`README.md` gains a paragraph in `# Run` pointing at `scripts/lib/anafit_driver.sh` right where
+the two drivers are introduced, plus a `# Gotchas` bullet next to the existing one about the
+drivers' commented-out configuration history. `CLAUDE.md`'s `## Conventions and traps` gains the
+matching bullet, since that file is what a future Claude Code session reads first.
+
+**Then asked to make that enforced, not just done once here.** `CLAUDE.md`'s "Implementing a
+plan" section said a section's documentation must be written in the same section as its code, but
+did not say *where* — read literally, a `CHANGELOG.md` entry alone would satisfy it, which is
+what nearly happened above until asked otherwise. Added a paragraph there stating plainly that
+`CHANGELOG.md` records that work happened, not how the program behaves now, and that a
+behaviour-changing section's documentation belongs in `README.md` and, when a future Claude Code
+session needs to know it, in `CLAUDE.md`'s own Conventions and traps — checked on every section
+from here on, not only when asked.
