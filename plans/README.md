@@ -20,6 +20,7 @@ and the notebook disagree, the notebook is right.
 | [Refuse a partial `--rebinfile`/`--rebinhist` pair](2026-09-17-rebin-pair-guard.md) | 2026-09-17 | `claude-skills` | Approved, implementation in progress |
 | [Close the issues that can reach a physically wrong result](2026-09-17-physics-risk-issues.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
 | [Decompose the J100/J50 fit path into tested single-purpose functions](2026-09-18-decompose-j100-j50-fit-path.md) | 2026-09-18 | `claude-skills-2` | Approved, implementation in progress |
+| [Reconcile the documentation with the code after the decomposition](2026-09-22-reconcile-docs-with-code.md) | 2026-09-22 | `claude-skills-2` | Written, awaiting review |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -173,6 +174,23 @@ duplicated blocks would silently correct at the cost of moving a p-value.
 Two scope decisions were taken by the repository owner before writing: those defects are preserved
 rather than fixed, and `plot_postfit.cpp` is decomposed structurally with no new verification, since
 `check` compares plot filenames and not plot contents.
+
+### Reconcile the documentation with the code after the decomposition
+
+A review of the completed ten-section decomposition, checking every documentation claim against the
+code it describes, found six disagreements. None can produce a wrong physics number; all six are
+places where the written record is wrong about what the code does, or points at code that moved.
+The worst is a deletion the previous plan specified, that nobody carried out, and that a later
+`CHANGELOG.md` entry then recorded as done — the only place in that whole body of work where the
+record claims an outcome the code contradicts.
+
+Only one of the six has a code change behind it (three deleted lines); the rest correct
+`README.md`, `CLAUDE.md`, `KNOWN_ISSUES.md`, `CHANGELOG.md`, this index and four comments in
+`tests/`. Nothing found is fixed as code beyond that deletion — ten open issues stay open, per the
+same record-don't-fix rule the decomposition worked under. The plan also proposes the one
+convention that would have prevented half of it: cross-file references name a function, not a line
+number, since the issues filed during the decomposition that named functions survived it and every
+one that named a line did not.
 
 ## Adding a plan
 
