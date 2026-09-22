@@ -8,8 +8,11 @@ plot with BHresults.json whenever that file is present. See KNOWN_ISSUES.md issu
 
 Kept in its own module, free of ROOT, so it can be unit-tested against the recorded baselines
 without the CVMFS environment. Every name here mirrors the line in run_anaFit.py that creates
-it; when a new product is added there it must be added here too, and
-tests/test_run_outputs.py is what fails if it is not.
+it; when a new product is added there it must be added here too. tests/test_run_outputs.py
+checks this list against two recorded runs, but that check is static JSON on both sides and
+cannot see a run_anaFit.py change - the guarantee that a live run's output stays a subset of
+this list is tests/repro.py check's manifest assertion in _check_one(). See
+KNOWN_ISSUES.md issue 53.
 """
 
 
@@ -39,12 +42,13 @@ def _fit_products(fitresultfile):
     ]
 
 
-def derived_outputs(folder, wsfile, outputfile, sigmean=None, sigwidth=None, dolimit=False):
+def derived_outputs(folder, wsfile, outputfile, sigmean=None, sigwidth=None):
     """Every file this invocation may write into `folder`, whether or not it will.
 
-    The masked twins are included unconditionally and that is the point: their presence is
-    what the drivers and plot_postfit.cpp take as the signal that this run masked. A run that
-    does not mask must not find a previous run's.
+    The masked twins and the Limits file are included unconditionally and that is the point:
+    their presence is what a later reader - the drivers, plot_postfit.cpp, or whatever reads
+    Limits_*.root - takes as current. A run that does not mask, or does not request limits,
+    must not find a previous run's.
 
     AnaWSBuilder.dtd is deliberately absent - a symlink recreated only when missing, carrying
     no run state. postFit.pdf and post_fit.pdf are present although the *drivers* write them:
@@ -64,8 +68,7 @@ def derived_outputs(folder, wsfile, outputfile, sigmean=None, sigwidth=None, dol
     for fitresult in (outputfile, outputfile.replace(".root", "_masked.root")):
         paths += _fit_products(fitresult)
 
-    if dolimit:
-        paths.append(outputfile.replace("FitResult", "Limits"))
+    paths.append(outputfile.replace("FitResult", "Limits"))
 
     paths += [
         "{}/BHresults.json".format(folder),  # written only when the BumpHunter step runs

@@ -24,6 +24,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+sys.path.insert(0, str(REPO_ROOT / "python"))
+from run_outputs import derived_outputs  # noqa: E402
+
 # Tolerance classes, plan section 4. "exact" is a marker; anything else is
 # an {"rtol":..., "atol":...} dict.
 TIGHT = {"rtol": 1e-6, "atol": 1e-8}
@@ -757,6 +760,7 @@ ANALYSES = {
         "default_dir": "run/run_481_3000_sixPar",
         "driver": "scripts/run_anaFit_run2.sh",
         "stem": "anaFit_sixPar_bkgOnly",
+        "wsname": "dijetTLA_combWS_sixPar.root",
         "inputs": ["Input/data/dijetTLA/mjj_spectra_J100_dataAll.root",
                    "Input/data/dijetTLA/fullRun2TLAJ100mjj.root"],
     },
@@ -764,6 +768,7 @@ ANALYSES = {
         "default_dir": "run/run_J50_302_2997_sixPar",
         "driver": "scripts/run_anaFit_run2_J50.sh",
         "stem": "anaFit_sixPar_bkgOnly",
+        "wsname": "dijetTLA_combWS_sixPar.root",
         "inputs": ["Input/data/dijetTLA/mjj_spectra_J50_dataAll.root",
                    "Input/data/dijetTLAnlo/binning2021/data_J100yStar06_range171_3217.root"],
     },
@@ -1011,6 +1016,23 @@ def _check_one(analysis, baseline, out_dir_base, from_dir, tol_scale):
     candidate_masked = extract_variant(folder, spec["stem"], masked=True)
     if candidate_masked is not None:
         candidate["masked"] = candidate_masked
+
+    # KNOWN_ISSUES.md issue 53: derived_outputs() is a hand-maintained duplicate of what a
+    # run actually writes, and this is the guarantee that keeps the duplicate honest - it
+    # runs against a live run's real directory listing, not a snapshot, so it survives a
+    # baseline re-cut. One-directional by design: the manifest may legitimately name files
+    # this run did not produce (the masked twins when it did not mask, Limits when it did
+    # not request one), so only a file this run wrote that the manifest does not know about
+    # is a failure.
+    manifest = set(os.path.basename(p) for p in derived_outputs(
+        str(folder), str(folder / spec["wsname"]), str(folder / f"FitResult_{spec['stem']}.root"),
+        sigwidth=8,
+    )) | {"AnaWSBuilder.dtd"}
+    unlisted = sorted(set(candidate["directory_listing"]) - manifest)
+    if unlisted:
+        print(f"FAIL: {folder} has file(s) run_outputs.derived_outputs() does not account "
+              f"for: {unlisted}")
+        return False
 
     # Everything the baseline holds is compared except the keys that are
     # baseline-only metadata: a candidate has no `provenance` of its own, and

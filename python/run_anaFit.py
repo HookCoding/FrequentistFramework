@@ -253,7 +253,7 @@ def run_anaFit(datafile,
     # would take the earlier mass points with it - a name this run will write is one it would
     # have overwritten anyway. Anything other than "it was not there" is left to raise.
     removed = 0
-    for stale in derived_outputs(folder, wsfile, outputfile, sigmean, sigwidth, dolimit):
+    for stale in derived_outputs(folder, wsfile, outputfile, sigmean, sigwidth):
         try:
             os.remove(stale)
             removed += 1

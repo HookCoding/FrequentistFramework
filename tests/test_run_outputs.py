@@ -1,10 +1,12 @@
 """derived_outputs() against the two recorded baselines.
 
-The point of these tests is not that the string manipulation works - it is that the list of
-files run_anaFit() deletes stays equal to the list it produces. Both baselines record the
-directory listing of a real run, so a product added to run_anaFit.py without being added to
-run_outputs.py makes these fail. That is the failure mode that would quietly reintroduce
-KNOWN_ISSUES.md issue 49.
+What these tests prove: the manifest agrees with two recorded runs, without ROOT - every name
+in each baseline's directory listing is one derived_outputs() names (modulo the masking-path
+products, which are named unconditionally and so are a superset). They do NOT prove the
+manifest stays honest as run_anaFit.py changes, because both sides of that comparison are
+static JSON; a product added to run_anaFit.py without being added here leaves these passing
+regardless. That guarantee - checked against a live run, not a snapshot - is
+tests/repro.py check's manifest assertion in _check_one(). See KNOWN_ISSUES.md issue 53.
 
 Run: python3 -m pytest tests/test_run_outputs.py
 
@@ -33,7 +35,6 @@ for _spec in ANALYSES.values():
     _spec["wsfile"] = _spec["folder"] + "/dijetTLA_combWS_sixPar.root"
     _spec["outputfile"] = _spec["folder"] + "/FitResult_anaFit_sixPar_bkgOnly.root"
     _spec["sigwidth"] = 8  # neither driver is in Z' mode
-    _spec["dolimit"] = False
 
 
 def recorded_listing(analysis):
@@ -49,10 +50,13 @@ def derived_basenames(analysis):
     return set(os.path.basename(p) for p in derived_outputs(**spec))
 
 
-def test_j50_derived_set_is_exactly_its_recorded_run():
-    """J50's recorded run masked, so its listing is the complete product set - every name
-    derived_outputs() returns and no other."""
-    assert derived_basenames("J50") == recorded_listing("J50")
+def test_j50_derived_set_is_exactly_its_recorded_run_plus_limits():
+    """J50's recorded run masked and did not request limits, so its listing is the complete
+    product set except the Limits file, which derived_outputs() now names unconditionally
+    (issue 52) even though this run never wrote one."""
+    assert derived_basenames("J50") - recorded_listing("J50") == {
+        "Limits_anaFit_sixPar_bkgOnly.root",
+    }
 
 
 def test_j100_recorded_run_is_the_unmasked_half():
@@ -73,6 +77,7 @@ def test_j100_recorded_run_is_the_unmasked_half():
         "dijetTLA_combWS_sixPar_masked.pdf",
         "dijetTLA_fromTemplate_masked.xml",
         "category_dijetTLA_fromTemplate_masked.xml",
+        "Limits_anaFit_sixPar_bkgOnly.root",
     }
 
 
@@ -97,11 +102,10 @@ def test_zprime_mode_renames_the_top_and_category_cards():
     assert "signal_dijetTLA_fromTemplate.xml" in names
 
 
-def test_limits_file_only_when_limits_are_requested():
-    spec = dict(ANALYSES["J100"])
-    assert not any("Limits" in p for p in derived_outputs(**spec))
-    spec["dolimit"] = True
-    assert any("Limits" in p for p in derived_outputs(**spec))
+def test_limits_is_cleared_even_when_this_run_does_not_request_it():
+    """The property issue 52 is for: a run that never asks for limits must still delete a
+    Limits file a previous run left, or that file is read as current by whatever reads it."""
+    assert any("Limits" in p for p in derived_outputs(**ANALYSES["J100"]))
 
 
 def test_every_path_is_inside_the_run_folder():

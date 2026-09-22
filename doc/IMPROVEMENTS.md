@@ -270,6 +270,20 @@ section added to `record` later would be recorded, committed and silently never 
 warn-and-return-0 on failure (`KNOWN_ISSUES.md`), so the baseline diff is the actual failure
 detector.
 
+Before that comparison, `_check_one()` also asserts a **manifest guarantee**: every file the live
+run left in its folder must be one `python/run_outputs.py`'s `derived_outputs()` would delete at
+the start of the next run, or a folder reused later reads it as current — the failure mode
+issue 49 fixed and issue 52 reopened by a narrower route. This is one-directional (the manifest
+may legitimately name files a given run did not produce, such as the masked twins when it did not
+mask) and runs against a real directory listing, not a snapshot, so unlike the exact
+`directory_listing` comparison above it survives a baseline re-cut. `tests/test_run_outputs.py`
+checks the same manifest against two recorded baselines without ROOT, but that check is static
+JSON on both sides and cannot see a `run_anaFit.py` change; `check`'s assertion is the one that
+can, and was verified as able to by breaking it on purpose — a throwaway writer added to
+`run_anaFit.py` without touching `run_outputs.py` made `check --quick` fail, naming the specific
+undeclared file, where it previously only failed on `directory_listing`
+([KNOWN_ISSUES.md](../KNOWN_ISSUES.md) issue 53, fixed 2026-09-22).
+
 Two speeds: `check --quick` runs J100 only, skipping J50's BumpHunter masking path; plain `check`
 runs both. `check --from DIR` compares an existing output directory instead of running a driver —
 the escape hatch for when a refactor has renamed the drivers or run directories and the built-in

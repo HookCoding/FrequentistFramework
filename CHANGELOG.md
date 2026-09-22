@@ -81,6 +81,10 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-21 17:55 — Stale-output plan §2: clear the run folder before the run](#2026-09-21-1755--stale-output-plan-2-clear-the-run-folder-before-the-run)
 - [2026-09-21 18:20 — Record the interpreter trap where it will be read](#2026-09-21-1820--record-the-interpreter-trap-where-it-will-be-read)
 - [2026-09-21 18:50 — Tighten the Copilot instructions against re-reports and doc drift](#2026-09-21-1850--tighten-the-copilot-instructions-against-re-reports-and-doc-drift)
+- [2026-09-22 11:30 — File issues 52 and 53: two defects in the stale-output fix](#2026-09-22-1130--file-issues-52-and-53-two-defects-in-the-stale-output-fix)
+- [2026-09-22 12:15 — Limits-cleanup plan §1: clear the Limits file unconditionally](#2026-09-22-1215--limits-cleanup-plan-1-clear-the-limits-file-unconditionally)
+- [2026-09-22 13:20 — Limits-cleanup plan §2: make the manifest claim true](#2026-09-22-1320--limits-cleanup-plan-2-make-the-manifest-claim-true)
+- [2026-09-22 14:10 — Correct the re-report claims on issues 43, 44 and 47](#2026-09-22-1410--correct-the-re-report-claims-on-issues-43-44-and-47)
 
 ---
 
@@ -2607,6 +2611,11 @@ deliberately excluded: a symlink recreated when missing, carrying no run state.
 **Added.** [tests/test_run_outputs.py](tests/test_run_outputs.py) — seven tests, **7 passed**. The
 two that matter tie the list to reality rather than to itself:
 
+> *The claim in this paragraph and in the Objective above — that these tests fail when a product is
+> added to `run_anaFit.py` without being added to `run_outputs.py` — is false. Both sides of the
+> comparison are static. Filed as issue 53; see the 2026-09-22 11:30 entry, corrected in the
+> 2026-09-22 13:20 entry.*
+
 - J50's recorded run masked, so its `directory_listing` is the complete product set: the derived
   set equals it exactly, minus the dtd.
 - J100's run never entered the masking path, so its listing is a strict subset, and the difference
@@ -2775,3 +2784,177 @@ against the tree: `KNOWN_ISSUES.md` is 1795 lines, and of its forty numbered ent
 **Not done.** Issues 50 and 51 themselves — the drift in `CLAUDE.md`, `README.md` and
 `doc/IMPROVEMENTS.md` — remain open and recorded. This change stops them being *re-reported*; it
 does not repair them.
+
+## 2026-09-22 11:30 — File issues 52 and 53: two defects in the stale-output fix
+
+**Objective.** Read the Copilot review of the issue 49 fix, verify what it found, record it and
+plan the repair. Asked for by the repository owner after the findings were retrieved.
+
+**How the comments were read, since this is the first time it has been done from here.** There is
+no `gh` in this environment, no GitHub token and no stored credentials, but the upstream repository
+is public, so the REST API answers unauthenticated: `api.github.com/repos/tofitsch/
+FrequentistFramework/pulls/20/comments`. Pull request 20 is `HookCoding:claude-skills -> harry-v2`
+on the **upstream** repository, not on the fork — which is why an earlier search of the fork's own
+pull requests found nothing. Six Copilot reviews, seventeen inline comments, eleven open.
+
+**Found — two new findings, both correct, both against yesterday's commit.**
+
+- **Issue 52, Medium and latent.** `derived_outputs()` names the Limits path only `if dolimit`, so
+  a folder reused without `--dolimit` keeps the previous run's `Limits_*.root`. The review rated
+  this High; the entry records Medium, with the reason stated rather than the label deferred to.
+  Checked: `dolimit=1` appears in one driver, `scripts/run_nloFit.sh`, which cannot run at all
+  because it sources a file that does not exist; the `submission/` scripts that pass `--dolimit`
+  run a hardcoded checkout in another account; both Run 2 drivers set `dolimit=0`. Nothing reads
+  `Limits_*.root` automatically either, so unlike issue 49 no plot changes. The reachable route is
+  a direct `--dolimit` invocation.
+- **Issue 53, Medium.** `tests/test_run_outputs.py` claims a product added to `run_anaFit.py`
+  without being added to `run_outputs.py` makes it fail. It cannot: both baselines are static JSON,
+  so neither side of the comparison moves and every test passes. The claim is repeated in
+  `run_outputs.py`'s module docstring and in the 2026-09-21 17:20 entry above, which now carries a
+  pointer here.
+
+**Worth recording about issue 53 specifically.** A protection does exist today — `check` compares
+`directory_listing` against the baseline exactly, so a new product fails it — but it dies on the
+first `record --force`, which is the documented re-cut route. So the net is real, is not where the
+docstring says, and is removed by a routine operation. That is why the plan moves the assertion to
+a live run rather than adding another snapshot comparison.
+
+**Added.** [plans/2026-09-22-limits-cleanup-and-manifest-test.md](plans/2026-09-22-limits-cleanup-and-manifest-test.md),
+two sections: drop the `dolimit` condition and the parameter with it; then assert inside
+`_check_one()` that every file a real run produced is one the manifest would delete, and correct
+the two docstrings. Its verification breaks the net on purpose — add a throwaway writer to
+`run_anaFit.py`, require `check` to fail naming that file, revert, require it to pass — because a
+guard that has never been shown to catch anything is precisely what issue 53 is about.
+
+**Not attempted, and recorded in the plan rather than lost.** The review's alternative — have the
+production writes share the manifest — is the real single-source-of-truth fix, and it means
+rewriting the output-path expressions inside `build_fit_extract()`, the function that produces
+every physics number here, to close a defect that has so far cost one stale file in a driver that
+cannot run. Not proportionate. The duplicate is verified instead of eliminated.
+
+**Verified.** Nothing to run: no code changed. The claims in both entries were checked against the
+tree — `run_outputs.py:67-68` for the condition, every `dolimit=` and `--dolimit` call site for the
+exposure, and the two docstrings for the false claim.
+
+**Still outstanding.** The 2026-09-21 09:40, 10:15 and 18:50 entries describe four of that review's
+findings as re-reports by a new review. The API shows no comment created on 2026-09-21 for any of
+them: they are the original 2026-09-17 threads, still unresolved, which GitHub relists in every
+review overview. That correction is not made here — it was offered and not yet taken — and is
+recorded in this line so it is not lost. Corrected in `KNOWN_ISSUES.md` (issues 43, 44, 47) and
+in the 2026-09-22 14:10 entry below.
+
+## 2026-09-22 12:15 — Limits-cleanup plan §1: clear the Limits file unconditionally
+
+**Objective.** [plans/2026-09-22-limits-cleanup-and-manifest-test.md](plans/2026-09-22-limits-cleanup-and-manifest-test.md)
+§1, closing `KNOWN_ISSUES.md` issue 52.
+
+**Changed.** [python/run_outputs.py](python/run_outputs.py) — dropped the `if dolimit:` condition
+and the `dolimit` parameter itself from `derived_outputs()`; the Limits path is now named
+unconditionally, the same as the masked twins, with the docstring updated to say so. A parameter
+that could reintroduce the condition is worse than no parameter.
+[python/run_anaFit.py](python/run_anaFit.py) — updated the call site to match; the driver's own
+`dolimit` (used later for the actual limit-setting step) is untouched, only the argument passed
+into `derived_outputs()` changed. [tests/test_run_outputs.py](tests/test_run_outputs.py) — the J50
+exact-equality test became an explicit difference of `{"Limits_anaFit_sixPar_bkgOnly.root"}`; the
+J100 difference set gained the same name; `test_limits_file_only_when_limits_are_requested` was
+replaced by `test_limits_is_cleared_even_when_this_run_does_not_request_it`, asserting the opposite
+property.
+
+**Verified.** `python3 -m pytest tests/test_run_outputs.py` — 7 passed. Then the real check, the
+same shape as issue 49's: the J100 driver was run into a scratch folder
+(`run/_verify_scratch`, gitignored, removed afterward), a `Limits_anaFit_sixPar_bkgOnly.root` was
+planted in it, the driver was re-run, and the planted file was gone. `tests/baseline_J100.json`,
+`tests/baseline_J50.json`, `run/run_481_3000_sixPar/` and `run/run_J50_302_2997_sixPar/` all had
+byte-identical mtimes to before the work.
+
+**Not done here.** `KNOWN_ISSUES.md` issue 52 is marked Fixed together with issue 53, in the next
+entry, once §2's manifest assertion has also been verified — per
+[CLAUDE.md](CLAUDE.md)'s rule that a section's documentation lands with its code, and per the
+plan's own instruction to fix the test's claim rather than water it down before either issue is
+closed.
+
+## 2026-09-22 13:20 — Limits-cleanup plan §2: make the manifest claim true
+
+**Objective.** [plans/2026-09-22-limits-cleanup-and-manifest-test.md](plans/2026-09-22-limits-cleanup-and-manifest-test.md)
+§2, closing `KNOWN_ISSUES.md` issue 53.
+
+**Changed.** [tests/repro.py](tests/repro.py) — `ANALYSES` gained a `wsname` entry per analysis
+(`dijetTLA_combWS_sixPar.root` for both J100 and J50, read off the drivers'
+`wsfile=${folder}/dijetTLA_combWS_${pars}Par.root` lines), the one argument `derived_outputs()`
+needs that cannot be derived from `stem`. `_check_one()` now builds the manifest from a live run's
+own folder — `derived_outputs(folder, folder/wsname, folder/"FitResult_{stem}.root", sigwidth=8)`
+— and asserts every name in `sorted(os.listdir(folder))` is in it (plus `AnaWSBuilder.dtd`, which
+`derived_outputs()` deliberately excludes), failing and naming any file that is not, before the
+existing `compare()` call. One-directional by construction: the manifest may legitimately name
+files this run did not produce (the masked twins, the Limits file), so nothing there is asserted
+back onto the listing.
+
+**Fixed.** The false claims: [tests/test_run_outputs.py](tests/test_run_outputs.py)'s module
+docstring no longer says a product added to `run_anaFit.py` without a matching `run_outputs.py`
+change "makes these fail" — it says what the unit tests actually prove (agreement with two
+recorded runs, without ROOT) and points at `tests/repro.py check`'s new assertion for the producer
+guarantee. [python/run_outputs.py](python/run_outputs.py)'s module docstring corrected the same
+way. `KNOWN_ISSUES.md` issues 52 and 53 marked **Fixed 2026-09-22**, original descriptions kept
+below the fix per this file's own convention.
+[doc/IMPROVEMENTS.md](doc/IMPROVEMENTS.md)'s harness section gained a paragraph on the new
+assertion, in the `check` description, next to the `directory_listing` paragraph it complements.
+
+**Verified — the part that matters: breaking the net on purpose.** A one-line throwaway writer
+(`open(os.path.join(folder, "UNDECLARED_PRODUCT.txt"), "w").close()`) was added to
+`run_anaFit.py` right after the existing stale-file cleanup, without touching `run_outputs.py`.
+`tests/repro.py check --quick`, run with the system `python3` and `VIRTUAL_ENV` unset per the
+interpreter trap recorded in `doc/IMPROVEMENTS.md`:
+
+```
+FAIL: .../run/check_scratch/run_481_3000_sixPar has file(s) run_outputs.derived_outputs()
+does not account for: ['UNDECLARED_PRODUCT.txt']
+```
+
+— naming the specific file, not the old undifferentiated `directory_listing` mismatch. The writer
+was reverted (`git diff --stat python/run_anaFit.py` back to the one-line §1 change only) and
+`check --quick` passed again. A full `check` then ran both analyses: **PASS on J100 and PASS on
+J50**, all 26 environment checks green, against the committed baselines, neither re-cut.
+`tests/baseline_J100.json`, `tests/baseline_J50.json`, `run/run_481_3000_sixPar/` and
+`run/run_J50_302_2997_sixPar/` mtimes unchanged throughout; `run/check_scratch/` removed after.
+
+**Not attempted.** Making `run_anaFit.py` write through the manifest, and the Z′-mode `_cards()`
+naming — both scoped out in the plan itself, for the reasons given there.
+
+**Still outstanding, unchanged by this work.** The re-report-narrative correction flagged in the
+11:30 entry above — corrected in the 2026-09-22 14:10 entry below.
+
+## 2026-09-22 14:10 — Correct the re-report claims on issues 43, 44 and 47
+
+**Objective.** Close the loose end flagged in the 11:30 and 13:20 entries above: `KNOWN_ISSUES.md`
+issues 43, 44 and 47 each carry a note claiming a "sixth Copilot review" re-reported them on
+2026-09-21. The 11:30 entry's investigation of issues 52/53 already showed this premise was
+suspect; the user asked directly how many of a later review-overview's 11 listed findings were
+already recorded, which meant fetching every comment's provenance and settled it.
+
+**Found.** Every comment behind the three "re-reported" notes — `4038050096` (issue 43, README.md),
+`4038050212` (issue 44, plot_postfit.cpp), `4038050465` and `4038050576` (issue 47, one per Run 2
+driver) — was created **2026-09-17T14:32:38–40Z**, in the same review (`5237179114`) that produced
+every other 2026-09-17 finding in this file. None was created on 2026-09-21. What actually
+happened: GitHub posts a "review overview" comment on every Copilot pass that relists every thread
+still unresolved across the whole pull request, not just the ones from that pass — the 2026-09-22
+10:58 overview lists 11 "open" threads and all 11 trace to entries already in this file, several
+of them from 2026-09-17. There was no sixth review re-raising these three findings; there was one
+review, in 2026-09-17, and the threads have sat unresolved (no "Resolve conversation" click, which
+needs write access to the pull request this agent does not have) ever since.
+
+**Fixed.** `KNOWN_ISSUES.md` issues 43, 44 and 47 — each "Re-reported 2026-09-21" paragraph is
+replaced with a correction naming the actual comment id, its actual 2026-09-17 timestamp, and the
+review-overview mechanism, per this file's convention of correcting a mistake with a note rather
+than deleting it. The verification content that followed each false claim (issue 43's re-test,
+issue 44's caller-table note, issue 47's "still open on the same grounds") is kept, since none of
+it depended on the wrong date.
+
+**Verified.** Compared the 2026-09-22 10:58 review-overview's 11 listed threads against
+`KNOWN_ISSUES.md` one by one: all 11 map to 8 already-recorded issues (43, 44, 47, 49, 50, 51 — the
+2026-09-21 findings, genuinely new that day — plus 52, 53 from 2026-09-22). No code changed; this
+entry and the three edits above are documentation-only.
+
+**Not corrected.** Whether issues 50 and 51's own text needs anything similar — their comments
+(`4059659818/856/890/918/936`) really were created 2026-09-21T06:11:46–48Z, so nothing there is
+false. Not re-audited beyond that; if another entry in this file turns out to misattribute a
+timestamp, it was not caught by this pass.

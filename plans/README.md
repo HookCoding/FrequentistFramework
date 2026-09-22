@@ -20,6 +20,7 @@ and the notebook disagree, the notebook is right.
 | [Refuse a partial `--rebinfile`/`--rebinhist` pair](2026-09-17-rebin-pair-guard.md) | 2026-09-17 | `claude-skills` | Approved, implementation in progress |
 | [Close the issues that can reach a physically wrong result](2026-09-17-physics-risk-issues.md) | 2026-09-17 | `claude-skills` | Approved and implemented |
 | [Stop a previous run's output being read as this run's](2026-09-21-stale-run-outputs.md) | 2026-09-21 | `claude-skills` | Approved and implemented |
+| [Close the two defects in the stale-output fix](2026-09-22-limits-cleanup-and-manifest-test.md) | 2026-09-22 | `claude-skills` | Approved and implemented |
 
 ### Run 2 dijet TLA, 481–3000 GeV, six parameters
 
@@ -166,6 +167,16 @@ Implemented the same day in its two sections. The failure was reproduced on the 
 first — a run that never masked, made to plot a planted masked fit and a fabricated BumpHunter
 p-value — and the fix measured against it. `tests/repro.py check` passes on both analyses with
 neither baseline re-cut.
+
+### Close the two defects in the stale-output fix
+
+The review of the issue 49 fix found two defects in the fix itself: `derived_outputs()` clears the
+Limits file only when the current run asks for limits, so a reused folder keeps the previous one
+(issue 52); and the test that was supposed to keep the manifest equal to what the producer writes
+compares two static snapshots, so it cannot detect the divergence it claims to (issue 53). One
+plan, because they are one mistake in two forms — a hand-maintained duplicate of the producer's
+output list, and a guard on it that does not guard. Moves the guarantee into `repro.py check`,
+where a real run happens, rather than rewriting the fit path to share a manifest.
 
 ## Adding a plan
 

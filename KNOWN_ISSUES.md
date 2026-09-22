@@ -1165,15 +1165,23 @@ exercises the working path. The four `setup_buildCombineFit.sh` call sites are d
 guarded — see the plan. See CHANGELOG.md's 2026-09-17 17:20 entry. The rest of this entry is kept
 as the record of what was wrong.
 
-**Re-reported 2026-09-21, and re-verified as fixed.** A sixth Copilot review raised this again as
-its only **High** finding. The comment as relayed here was truncated — *"The drivers do not
-actually abort when this setup check fails: they source `setup_buildAndFit.sh`…"* — so the
-identification rests on that opening rather than on its full text. The fix holds: tested today from
-a directory containing neither `xmlAnaWSBuilder/` nor `quickFit/`, `scripts/run_anaFit_run2.sh`
-prints `Execute from FrequentistFramework directory!` and `ERROR: run this from the
-FrequentistFramework repository root.`, and stops — status 1 and the shell still alive when
-sourced, status 1 and nothing created when run under `bash`. Nothing here is reopened. The finding
-describes the pre-fix mechanics correctly, which is what this entry already records.
+**Correction, 2026-09-22: this was not a re-report.** The paragraph below said a sixth Copilot
+review raised this again on 2026-09-21. Checked directly against the GitHub API against the
+pull request's actual comments: the one relayed here — *"The drivers do not actually abort when
+this setup check fails: they source `setup_buildAndFit.sh`…"* — is comment `4038050096`, created
+**2026-09-17T14:32:38Z**, the same thread this entry was filed from in the first place. There was
+no second report on 2026-09-21; the review-overview comment GitHub posts on every subsequent pass
+relists every thread still unresolved, and this one has stayed unresolved (no "Resolve
+conversation") since the original review, which is not something the agent doing this triage can
+do without write access to the pull request. Left below rather than deleted, per this file's rule
+against silently editing away a mistake.
+
+**Re-verified as fixed, regardless of the date.** The fix holds: tested from a directory containing
+neither `xmlAnaWSBuilder/` nor `quickFit/`, `scripts/run_anaFit_run2.sh` prints `Execute from
+FrequentistFramework directory!` and `ERROR: run this from the FrequentistFramework repository
+root.`, and stops — status 1 and the shell still alive when sourced, status 1 and nothing created
+when run under `bash`. Nothing here is reopened. The finding describes the pre-fix mechanics
+correctly, which is what this entry already records.
 
 **What.** `scripts/setup_buildAndFit.sh` lines 5–8 refuse to run outside the repository root:
 
@@ -1242,15 +1250,19 @@ the problem to be one step wider than the review comment described.
 
 ### 44. `plot_postfit.cpp` stamps every plot with a hardcoded, wrong `#sqrt{s}` and luminosity — **Medium** — **open; recorded, not fixed**
 
-**Re-reported 2026-09-21** by a sixth Copilot review, as a Medium, from the same direction as the
-first: *"Parameterizing the channel makes this macro serve the new Run 2 J100/J50 drivers, but it
-still…"*. That comment too was truncated where it was relayed, so the identification is from its
-opening; the wording matches this entry's finding that the `chan` parameter was added while
-`lumi_label` was left a file-scope constant. Still open, on the same decision: it changes no fitted
-quantity. Two of the three caller line numbers in the table below have since moved — the
-`plot_postfit.cpp` calls are now at `run_anaFit_run2.sh:137` and `run_anaFit_run2_J50.sh:140`,
-`run_anaFit.sh:165` is unchanged — and the table is left as written, since which callers are
-wrong is the point rather than where they sit.
+**Correction, 2026-09-22: this was not a re-report either.** The line below said a sixth Copilot
+review raised this again on 2026-09-21, as a Medium: *"Parameterizing the channel makes this macro
+serve the new Run 2 J100/J50 drivers, but it still…"*. Checked against the GitHub API: that comment
+is `4038050212`, created **2026-09-17T14:32:38Z** — the same original thread this entry was filed
+from, not a second one. Same mistake, same cause, as the correction on issue 43: GitHub's
+review-overview relists unresolved threads on every pass, and this one is still unresolved. Left
+here rather than deleted.
+
+Still open, on the same decision: it changes no fitted quantity. Two of the three caller line
+numbers in the table below have since moved — the `plot_postfit.cpp` calls are now at
+`run_anaFit_run2.sh:137` and `run_anaFit_run2_J50.sh:140`, `run_anaFit.sh:165` is unchanged — and
+the table is left as written, since which callers are wrong is the point rather than where they
+sit.
 
 **What.** `plot_postfit.cpp` line 29 defines
 
@@ -1509,11 +1521,13 @@ whatever the cause. Only the diagnosis is wrong, and it points the reader at the
 the real failure may be somewhere else entirely. Pre-existing: every traceback route existed before
 issue 46's guard was added, which only made the mismatch easy to observe.
 
-**Re-reported 2026-09-21**, twice more, by a sixth Copilot review — once against each Run 2 driver,
-as two Medium findings: *"This message attributes every nonzero Python exit to a twice-rejected
-chi-square fit, but…"*. Both name the same defect as the comment recorded above and as this entry.
-Three independent reports now, and the entry is still open on the same grounds: the banner's safety
-verdict is right whatever the cause, only its diagnosis is wrong.
+**Correction, 2026-09-22: not two re-reports either.** The line below said a sixth Copilot review
+raised this again on 2026-09-21, twice, once against each driver. Checked against the GitHub API:
+those two comments are `4038050465` (`run_anaFit_run2.sh`) and `4038050576`
+(`run_anaFit_run2_J50.sh`), both created **2026-09-17T14:32:39Z/40Z** — the same original two
+threads, not new ones. Same mistake as issues 43 and 44's corrections, same cause. There is one
+report, on two call sites, not three; the entry is still open on the same grounds regardless: the
+banner's safety verdict is right whatever the cause, only its diagnosis is wrong.
 
 **Fix.** State the status and point at the log rather than asserting why — the log is three lines
 up and says exactly what happened. Alternatively, distinguish the framework's own `-1` verdict from
@@ -1793,3 +1807,112 @@ Recorded because `CLAUDE.md` is the file whose entire purpose is to be believed 
 **Fix.** State the J100 and J50 shapes, since those are the two supported drivers, and say the
 others differ rather than enumerating drivers that cannot run in this tree. The review's suggested
 wording does this.
+
+## The stale-output fix's own defects — found 2026-09-22 in external review
+
+Two findings from the Copilot review of 2026-09-22 10:44Z, both against the code committed the
+previous day to close issue 49, and both correct. They are recorded here in the same terms as
+everything else, and they are the first entries in this file that are defects in a *fix* rather
+than in the framework it repaired.
+
+Their provenance is checkable: comment `4070773068` and comment `4070773136` on pull request 20 of
+the upstream repository, created 2026-09-22T10:44:43Z, retrieved through the public GitHub API.
+
+### 52. `derived_outputs()` clears the Limits file only when *this* run asks for limits — **Medium** (latent) — **Fixed 2026-09-22**
+
+**Fixed.** The condition is gone; `derived_outputs()` names the Limits path unconditionally, the
+same as the masked twins, and `dolimit` is no longer a parameter of the function — a parameter
+that could reintroduce the condition is worse than no parameter. The call site in
+`python/run_anaFit.py` was updated to match. Verified two ways: `python3 -m pytest
+tests/test_run_outputs.py` (7 passed, three of them rewritten for the new unconditional set), and
+the same demonstration used for issue 49 — a `Limits_anaFit_sixPar_bkgOnly.root` planted in a
+scratch J100 run folder was gone after the next run. See
+[plans/2026-09-22-limits-cleanup-and-manifest-test.md](plans/2026-09-22-limits-cleanup-and-manifest-test.md)
+§1.
+
+**What.** Issue 49's fix deletes every product a run may write before it writes anything. One line
+is conditional:
+
+```python
+if dolimit:
+    paths.append(outputfile.replace("FitResult", "Limits"))
+```
+
+So a folder used once with `--dolimit` and then reused without it keeps the earlier run's
+`Limits_*.root`. That is the same defect issue 49 exists to prevent, reintroduced by the fix, one
+line below the comment explaining why the masked twins are deleted *unconditionally*. The
+reasoning was written down and then not applied to the next statement.
+
+**Where.** [python/run_outputs.py:67-68](python/run_outputs.py#L67-L68).
+
+**Affects.** Nothing that runs in this tree today, which is why this is Medium and latent rather
+than the High the review gave it — the difference is worth stating rather than deferring to the
+label. Checked: `dolimit=1` appears in exactly one driver, `scripts/run_nloFit.sh`, which cannot
+run because it sources `scripts/setup_buildCombineFit.sh`, a file that does not exist (recorded in
+the table at the top of this file). The `submission/` condor scripts pass `--dolimit` through, and
+those run a hardcoded checkout in someone else's account, also already recorded. Both Run 2
+drivers set `dolimit=0`. The reachable route is a direct `python/run_anaFit.py --dolimit`
+invocation, which is a documented flag.
+
+It is also milder in kind than issue 49 even when reached: **nothing reads `Limits_*.root`
+automatically.** `plot_postfit.cpp` does not open it, and neither driver plots it, so no plot
+silently changes. The risk is a person opening a stale limit file believing it belongs to the run
+beside it.
+
+**Fix.** Delete the condition. `dolimit` then has no influence on the list at all, so the
+parameter comes out of the signature with it — a parameter that cannot change the answer is the
+thing that made this possible. Three unit tests move with it, since the J50 baseline's recorded
+run has no Limits file and the derived set will now name one.
+
+### 53. The manifest test does not test what it says it tests — **Medium** — **Fixed 2026-09-22**
+
+**Fixed.** `_check_one()` in `tests/repro.py` now asserts, against a *live* run's
+`os.listdir(folder)`, that every file present is one `derived_outputs()` names — one-directional,
+since the manifest may legitimately name files a given run did not produce (the masked twins,
+Limits). This is the guarantee the old docstrings claimed to be; both docstrings (here and in
+`python/run_outputs.py`) are corrected to say what each layer actually proves. Verified by
+breaking it on purpose: a throwaway one-line writer was added to `run_anaFit.py` without touching
+`run_outputs.py`, and `tests/repro.py check --quick` **failed**, naming
+`UNDECLARED_PRODUCT.txt` as produced but not in the manifest — not merely failing on
+`directory_listing`, as it would have before this fix. The writer was reverted and `check` passed
+again; a full `check` on both J100 and J50 then passed with both baselines untouched. See
+[plans/2026-09-22-limits-cleanup-and-manifest-test.md](plans/2026-09-22-limits-cleanup-and-manifest-test.md)
+§2.
+
+**What.** [tests/test_run_outputs.py:3-7](tests/test_run_outputs.py#L3-L7) opens:
+
+> The point of these tests is not that the string manipulation works — it is that the list of files
+> `run_anaFit()` deletes stays equal to the list it produces. Both baselines record the directory
+> listing of a real run, so **a product added to `run_anaFit.py` without being added to
+> `run_outputs.py` makes these fail.**
+
+It does not. Both baselines are **static JSON snapshots**. Add a writer to `run_anaFit.py` and
+leave `run_outputs.py` alone: `derived_outputs()` is unchanged, the recorded listing is unchanged,
+and every test still passes. The tests compare the manifest against two frozen listings, which
+catches a bad edit *to the manifest* and nothing about the producer.
+
+The same claim is repeated at [python/run_outputs.py:10-12](python/run_outputs.py#L10-L12) — "when
+a new product is added there it must be added here too, and tests/test_run_outputs.py is what fails
+if it is not" — and in `CHANGELOG.md`'s 2026-09-21 17:20 entry.
+
+**Where.** The two docstrings above, and the changelog entry, which is append-only and will be
+corrected by a pointer rather than an edit.
+
+**Affects.** No number, and no behaviour: the seven tests do what they do, which is useful. What is
+wrong is the claim attached to them. By [CLAUDE.md](CLAUDE.md)'s triage that is the class this
+repository takes seriously — a recorded guarantee that does not hold stops the next person looking
+— and it is in the file whose entire purpose is to be that guarantee.
+
+**One protection does exist today, and it is weaker than it looks.** `tests/repro.py check`
+compares `directory_listing` against the baseline exactly, so a new product does make `check` fail.
+But that protection dies the moment a baseline is re-cut, which is the documented route
+(`record --force --reason "..."`) — after a re-cut the new file is in the baseline, `check` is
+green, and `derived_outputs()` is silently stale. So the net exists, is not where the docstring
+says it is, and is removed by a routine operation.
+
+**Fix.** Put the assertion where the real producer runs. `_check_one()` in `tests/repro.py` already
+holds `sorted(os.listdir(folder))` for a *live* run; asserting that every name in it is one
+`derived_outputs()` would delete makes the guarantee real, ties it to an actual run rather than a
+snapshot, and survives a baseline re-cut. Then correct the two docstrings to say what each layer
+proves: the unit tests check the manifest against two recorded runs without needing ROOT, and
+`check` is what holds the manifest and the producer together.
