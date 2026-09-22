@@ -92,6 +92,17 @@ with the toy fits fanned out over HTCondor via `submission/condor_handler.py` +
   fit invocation, the masked/unmasked plot selection or the failure banner there, not in either
   driver — a change made only in one driver's tail has no effect and will not reach the other
   analysis. `tests/test_drivers.py` covers it directly.
+- `plot_postfit.cpp`'s decomposition (`open_inputs`, `load_histograms`, `read_fit_summary`,
+  `draw_panel`, `draw_labels`) is structural only, per the repository owner's decision recorded
+  in `plans/2026-09-18-decompose-j100-j50-fit-path.md` §10: `tests/repro.py` compares this file's
+  output by *name*, never by content, so only `get_val()` (hoisted into `plot_postfit_utils.h`)
+  has a real test. Verify any future change here by raster-diffing `post_fit.pdf` against a
+  pre-change copy with `pdftoppm`/`compare -metric AE`, and by looking at both PDFs — the same
+  two-step check this section used, not just a green `repro.py check`. `draw_panel()`'s
+  `TLine`/`TLegend` objects are returned to the caller rather than owned locally, because the
+  coordinator's `can->Print()` runs after `draw_panel()` returns and ROOT does not keep a drawn
+  primitive alive on its own — the same file-lifetime hazard as `open_inputs()`'s `TFile`s, one
+  level up.
 - Analysis flavours live side by side under `config/` and `Input/`: `dijetTLA`, `dijetTLAnlo`,
   plus legacy `bbyy`, `ttHyy`, `high_mass_diphoton`.
 

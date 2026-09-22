@@ -201,6 +201,15 @@ The `chi2` histogram's bins are labelled, in order: `chi2`, `chi2/ndof`, `nbins`
   Only each driver's own configuration block is duplicated by design; the fit invocation, the
   masked/unmasked plot selection and the failure banner are each one function, sourced and
   called by both `run_anaFit_run2.sh` and `run_anaFit_run2_J50.sh`.
+- **`plot_postfit.cpp` is split into named helpers** (`open_inputs`, `load_histograms`,
+  `read_fit_summary`, `draw_panel`, `draw_labels`), but only the JSON scraper `get_val()` —
+  hoisted into `plot_postfit_utils.h` — has a unit test
+  (`tests/test_plot_postfit_utils.C`/`.py`). The rest is verified by comparing the rendered
+  `post_fit.pdf` against one from before the change, raster-diffed with `pdftoppm`/`compare`;
+  `tests/repro.py` only ever compares this file's *name*, never its contents. Neither locked
+  analysis exercises a masked PostFit/FitParameters file that is present-but-broken alongside a
+  `BHresults.json` that does exist — see `KNOWN_ISSUES.md` issues 56 and 57 for what happens on
+  that untested path.
 
 # Validation studies
 

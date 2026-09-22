@@ -85,6 +85,7 @@ Subheadings used inside an entry, as they apply: **Objective**, **Found**, **Add
 - [2026-09-21 14:10 — Decomposition §7: split `FindBHWindow.main()` into seven single-purpose functions](#2026-09-21-1410--decomposition-7-split-findbhwindowmain-into-seven-single-purpose-functions)
 - [2026-09-21 15:10 — Decomposition §8: give `python/plotPostFit.py` a `main(argv)`, split `plot_edm.py`'s one function into two](#2026-09-21-1510--decomposition-8-give-pythonplotpostfitpy-a-mainargv-split-plot_edmpys-one-function-into-two)
 - [2026-09-21 16:20 — Decomposition §9: hoist the two Run 2 drivers' shared body into `scripts/lib/anafit_driver.sh`](#2026-09-21-1620--decomposition-9-hoist-the-two-run-2-drivers-shared-body-into-scriptslibanafit_driversh)
+- [2026-09-22 09:00 — Decomposition §10: split `plot_postfit()`, structural only](#2026-09-22-0900--decomposition-10-split-plot_postfit-structural-only)
 
 ---
 
@@ -3132,3 +3133,103 @@ what nearly happened above until asked otherwise. Added a paragraph there statin
 behaviour-changing section's documentation belongs in `README.md` and, when a future Claude Code
 session needs to know it, in `CLAUDE.md`'s own Conventions and traps — checked on every section
 from here on, not only when asked.
+
+## 2026-09-22 09:00 — Decomposition §10: split `plot_postfit()`, structural only
+
+**Objective.** Plan section 10, the last of the ten. `plot_postfit.cpp`'s 257-line
+`plot_postfit()` opened four ROOT files, pulled ten histograms out of them, read a BumpHunter
+JSON log by hand-rolled regex, computed five summary numbers twice (native and masked), and drew
+three pages of a PDF, all in one function. Per the plan's own explicit framing for this section,
+the work here is readability only: `tests/repro.py` compares this file's plot output by *name*,
+never by content, so nothing automated can catch a dropped panel or a mis-scaled axis. The plan's
+prescribed verification — raster-diff the rendered PDF against a pre-change copy, then look at
+both — is the real check for everything except the one function that does not touch ROOT drawing
+at all.
+
+**`get_val()` hoisted into `plot_postfit_utils.h`.** It was a lambda capturing `json_str` by
+reference; it is now a free function taking `json_str` as its first argument, otherwise
+unchanged — same regex, same `0.0f` return on a missing or unparsable key. This is the only piece
+of this section with a real test: `tests/test_plot_postfit_utils.C` (`root -l -b -q` against it
+directly, asserting a plain value, scientific notation, and — the case that matters — that an
+absent key returns `0.0f`, since the caller's only warning fires on `global_Pval` **and**
+`significance` both reading exactly zero) run through `tests/test_plot_postfit_utils.py`, a
+one-line pytest subprocess wrapper matching `test_drivers.py`'s pattern for shelling out to a
+non-Python interpreter.
+
+**`plot_postfit.cpp` split into five named pieces**, all structural, verified by raster diff
+rather than by assertion. `open_inputs(in_dir, pars_str)` builds the six filenames and opens the
+four input files, returning a struct that owns all four `unique_ptr<TFile>`s plus the two output
+path strings — the struct, not its contents, is what has to stay alive for the whole call, since
+every histogram below dies the moment its file does. `load_histograms(inputs, chan)` retrieves
+the ten histograms and applies the masked-fit red colouring, returning them as ten non-owning
+`TH1D*`. `read_fit_summary(h_chi2, h_chi2_rebinned, h_params)` replaces twelve parallel
+`native_*`/`masked_*` floats with two instances of one five-field struct (chi2/ndof, p-value,
+their rebinned counterparts, and the background yield), each field independently zero-filled when
+its source histogram is null — this reproduces the original's three separate, inconsistent null
+guards (native's chi2 unguarded because it is checked earlier and covered by `exit(1)`; native's
+`chi2_rebinned` entirely unguarded in the original, now gracefully zero-filled instead of crashing
+on a path neither baseline reaches; masked's four chi2-derived fields gated together on
+`h_masked_chi2`; the background yield gated separately on `h_*_params` in both blocks) without the
+caller re-deriving any of them. `draw_panel(...)` draws one page's histograms, zero line, legend,
+BumpHunter mask lines and the top label block; `draw_labels(...)` draws the per-page chi2/p-value
+summary boxes, keyed off a new `PanelKind` enum (`Params`/`Native`/`Rebinned`) that replaces six
+repeated `h.first == h_native_params`-style pointer comparisons with one classification made
+once per page.
+
+**The lifetime hazard the plan flagged for this section, handled.** `draw_panel()`'s
+`TLine`/`TLegend` objects were locals inside the original's single loop body, destroyed only after
+`can->Print()` had already rendered the page — safe by construction, because nothing forced
+earlier destruction. Splitting the drawing into its own function and returning `void` would
+destroy those objects the moment `draw_panel()` returned, *before* the coordinator's
+`can->Print()` runs, leaving the canvas holding dangling pointers into freed memory — the same
+class of hazard as `open_inputs()`'s file ownership, one level up the call stack. Fixed by having
+`draw_panel()` return a small owning struct (`PanelArtifacts`) that the coordinator's `for` loop
+keeps alive in its own scope until after `can->Print()`, exactly mirroring where the original's
+locals lived relative to the print call.
+
+**One inert local deleted.** `bool is_rebinned{false};` was declared at the top of the original
+loop and never read again anywhere in its body — genuinely dead, not a preserved defect with
+observable output (unlike the `locals()` dump removed in §3). Dropped rather than threaded through
+the split, since there was nowhere in the new structure for an unused variable to go.
+
+**Two new `KNOWN_ISSUES.md` entries, per the plan's own instruction for this section — found
+while working out the exact null/existence contract each new function needed to reproduce, not
+sought out separately.** Issue 56: the `exit(1)` guard after loading histograms checks
+`h_native`, `h_native_rebinned` and `h_native_chi2`, but not `h_native_params` — a missing or
+broken `FitParameters_*_bkgOnly.root` alongside a good `PostFit_*_bkgOnly.root` reaches the
+drawing loop instead of the guard's clear error, and crashes on the params page instead. Issue 57:
+`bump_hunter` is set from `BHresults.json` opening, full stop — independent of whether the masked
+PostFit/FitParameters files themselves opened — so a `BHresults.json` present alongside a missing
+or broken masked ROOT file would draw a null histogram. Neither is reachable by either locked
+baseline: `run_anaFit.py` only ever writes `BHresults.json` together with the masked files it
+pairs with, and the FitParameters file is written by the same call that writes the PostFit file it
+is checked against. Both recorded, neither fixed, per this plan's standing rule against moving
+behaviour on paths with no baseline to verify against.
+
+**Verified.**
+- `python3 -m pytest tests -q` — 253 passed (252 from §1–§9, 1 new: the `get_val()` macro
+  wrapper).
+- Raster diff: copied both locked analyses' `post_fit.pdf` aside before touching the file,
+  re-ran `root -l -q "plot_postfit.cpp(...)"` against the same recorded run directories after the
+  split, converted both old and new PDFs to PNG with `pdftoppm -r 50`, and compared page by page
+  with `compare -metric AE`. **Every page, both analyses: 0 pixels different.** J50 in particular
+  exercises the masked-fit branch end to end (red overlay histogram, masked-region lines, the
+  BumpHunter summary box) — the one this section's split touches the most — and came back
+  pixel-identical.
+- Looked at both PDFs directly, all three pages of each: parameter panel, native-fit residuals
+  panel with its chi2/p-value boxes, rebinned panel with the BumpHunter summary box. All render as
+  expected; nothing missing, nothing mis-scaled.
+- `bash tests/run_all.sh` (unit suite, then `repro.py check`, **not** `--quick`) — PASS on both
+  J100 and J50, matching `baseline_J100.json`/`baseline_J50.json` bin for bin. No baseline
+  re-cut.
+
+**Documented in the same section**, per the standing rule added in §9: `README.md`'s `# Gotchas`
+gains a bullet next to the driver-library one, naming the five helpers, stating plainly that only
+`get_val()` has a unit test and the rest is raster-diff-verified, and pointing at issues 56/57 for
+the one untested path. `CLAUDE.md`'s `## Conventions and traps` gains the matching bullet, plus
+the `draw_panel()` lifetime rationale, since that is exactly the kind of trap a future Claude Code
+session editing this file needs to know before "simplifying" `draw_panel()` into something that
+returns `void`.
+
+**This is the plan's last section.** All ten are now implemented, tested where a test was worth
+writing, and documented.

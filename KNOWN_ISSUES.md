@@ -1881,3 +1881,52 @@ it delivers, not something a caller does wrong.
 before reading `getLabel()`. Not done here: it cannot be verified against either baseline, since
 neither exercises a second channel, and a change whose only effect is on an untested path is
 better made alongside the first workspace that needs it.
+
+### 56. `plot_postfit.cpp`'s exit(1) guard covers three of the four native inputs, not `h_native_params` — **Low** (latent) — **open; recorded, not fixed**
+
+**What.** After the four input files are opened and their histograms retrieved, `plot_postfit()`
+checks `h_native`, `h_native_rebinned` and `h_native_chi2` and calls `exit(1)` with a clear error
+if any is null. `h_native_params` — read from a separate file,
+`FitParameters_anaFit_<pars>Par_bkgOnly.root` — is not part of that check. If the PostFit file
+opens and reads cleanly but the FitParameters file does not (missing, truncated, or lacking a
+`postfit_params` histogram), `h_native_params` stays null and the function carries on past the
+guard. It is then dereferenced unconditionally in the drawing loop's first iteration (the params
+panel), which crashes instead of producing the guard's friendly message.
+
+**Where.** `plot_postfit.cpp`: the `exit(1)` guard in `plot_postfit()`, against
+`load_histograms()`'s unconditional `h.native_params = inputs.native_params->Get<TH1D>(...)`.
+
+**Affects.** Nothing recorded: both locked analyses' `FitParameters_*_bkgOnly.root` files are
+written by the same `run_anaFit.py` call that writes the PostFit file they are checked against,
+so the two are never present-and-absent independently in practice. This is a gap between what the
+guard promises (a clear message on missing native output) and what it checks, not a defect
+reached by either baseline.
+
+**Fix.** Not done here — this section moves no behaviour, and structural work is the only kind
+`repro.py check`'s filename-only comparison can verify for this file. Adding `h_native_params` to
+the guard is a one-line change, best made together with a decision about whether the same should
+apply to `h_native_params`'s masked counterpart, which has no guard of any kind (see issue 57).
+
+### 57. `plot_postfit.cpp` draws the masked histograms whenever `BHresults.json` exists, whether or not the masked PostFit/FitParameters files do — **Low** (latent) — **open; recorded, not fixed**
+
+**What.** `bump_hunter` is set from one condition only: whether `<in_dir>/BHresults.json` opens.
+Whether the masked PostFit and FitParameters files themselves opened is a separate, unrelated
+check (`in_file_masked`/`in_file_masked_params`, now `inputs.masked`/`inputs.masked_params`) that
+`bump_hunter` never consults. In the drawing loop, `if (bump_hunter) h.second->Draw(...)` runs
+unconditionally on `bump_hunter`, so a run that has a BumpHunter results file but is missing (or
+failed to open) either masked ROOT file would call `Draw()` on a null histogram pointer.
+
+**Where.** `plot_postfit.cpp`: `bump_hunter`'s assignment in `plot_postfit()`, against
+`draw_panel()`'s `if (bump_hunter) { h_second->Draw(...); ... }`.
+
+**Affects.** Nothing recorded: `run_anaFit.py` only writes `BHresults.json` on the branch that
+also writes the masked PostFit and FitParameters files (`_run_bumphunter()` and the masked fit
+run in sequence), so the two are coupled in every run either locked analysis produces. J100's
+baseline has neither file (native fit passed on the first try); J50's baseline has both. The
+independently-missing case is unreached by construction of the pipeline that writes these files,
+not by anything this drawing code checks.
+
+**Fix.** Not done here, for the same reason as issue 56: `bump_hunter` gating on the masked files
+having actually opened, rather than on the JSON file alone, is a one-line change with no baseline
+to verify it against. Recorded so a future run that reaches this path — a masked ROOT file
+deleted or corrupted after the fact, say — fails with a clear crash rather than a surprising one.
